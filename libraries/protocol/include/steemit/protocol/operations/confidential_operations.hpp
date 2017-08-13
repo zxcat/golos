@@ -3,7 +3,7 @@
 #include <steemit/protocol/base.hpp>
 
 namespace steemit {
-    namespace chain {
+    namespace protocol {
 
         using fc::ecc::blind_factor_type;
 
@@ -75,8 +75,8 @@ namespace steemit {
          */
         struct stealth_confirmation {
             struct memo_data {
-                optional <public_key_type> from;
-                asset amount;
+                optional<public_key_type> from;
+                protocol::asset amount;
                 fc::sha256 blinding_factor;
                 fc::ecc::commitment_type commitment;
                 uint32_t check = 0;
@@ -96,7 +96,7 @@ namespace steemit {
             }
 
             public_key_type one_time_key;
-            optional <public_key_type> to;
+            optional<public_key_type> to;
             vector<char> encrypted_memo;
         };
 
@@ -112,7 +112,7 @@ namespace steemit {
             /** only required if there is more than one blind output */
             range_proof_type range_proof;
             authority owner;
-            optional <stealth_confirmation> stealth_memo;
+            optional<stealth_confirmation> stealth_memo;
         };
 
 
@@ -122,26 +122,12 @@ namespace steemit {
          *  @brief Converts public account balance to a blinded or stealth balance
          */
         struct transfer_to_blind_operation : public base_operation {
-            struct fee_parameters_type {
-                uint64_t fee =
-                        5 * GRAPHENE_BLOCKCHAIN_PRECISION; ///< the cost to register the cheapest non-free account
-                uint32_t price_per_output = 5 * GRAPHENE_BLOCKCHAIN_PRECISION;
-            };
-
-
-            asset fee;
-            asset amount;
+            protocol::asset amount;
             account_name_type from;
             blind_factor_type blinding_factor;
-            vector <blind_output> outputs;
-
-            account_name_type fee_payer() const {
-                return from;
-            }
+            vector<blind_output> outputs;
 
             void validate() const;
-
-            share_type calculate_fee(const fee_parameters_type &) const;
         };
 
         /**
@@ -149,24 +135,15 @@ namespace steemit {
          *  @brief Converts blinded/stealth balance to a public account balance
          */
         struct transfer_from_blind_operation : public base_operation {
-            struct fee_parameters_type {
-                uint64_t fee =
-                        5 * GRAPHENE_BLOCKCHAIN_PRECISION; ///< the cost to register the cheapest non-free account
-            };
-
-            asset fee;
-            asset amount;
+            protocol::asset fee;
+            protocol::asset amount;
             account_name_type to;
             blind_factor_type blinding_factor;
-            vector <blind_input> inputs;
-
-            account_name_type fee_payer() const {
-                return GRAPHENE_TEMP_ACCOUNT;
-            }
+            vector<blind_input> inputs;
 
             void validate() const;
 
-            void get_required_authorities(vector <authority> &a) const {
+            void get_required_authorities(vector<authority> &a) const {
                 for (const auto &in : inputs) {
                     a.push_back(in.owner);
                 }
@@ -217,14 +194,12 @@ namespace steemit {
          *  then the input IDs are freed and never used again.
          */
         struct blind_transfer_operation : public base_operation {
-            vector <blind_input> inputs;
-            vector <blind_output> outputs;
+            vector<blind_input> inputs;
+            vector<blind_output> outputs;
 
             void validate() const;
 
-            share_type calculate_fee(const fee_parameters_type &k) const;
-
-            void get_required_authorities(vector <authority> &a) const {
+            void get_required_authorities(vector<authority> &a) const {
                 for (const auto &in : inputs) {
                     a.push_back(in.owner);
                 }
@@ -236,13 +211,13 @@ namespace steemit {
     }
 } // steemit::chain
 
-FC_REFLECT( steemit::chain::stealth_confirmation, (one_time_key)(to)(encrypted_memo))
+FC_REFLECT(steemit::chain::stealth_confirmation, (one_time_key)(to)(encrypted_memo))
 
-FC_REFLECT( steemit::chain::stealth_confirmation::memo_data, (from)(amount)(blinding_factor)(commitment)(check));
+FC_REFLECT(steemit::chain::stealth_confirmation::memo_data, (from)(amount)(blinding_factor)(commitment)(check));
 
-FC_REFLECT( steemit::chain::blind_memo, (from)(amount)(message)(check))
-FC_REFLECT( steemit::chain::blind_input, (commitment)(owner))
-FC_REFLECT( steemit::chain::blind_output, (commitment)(range_proof)(owner)(stealth_memo))
-FC_REFLECT( steemit::chain::transfer_to_blind_operation, (amount)(from)(blinding_factor)(outputs))
-FC_REFLECT( steemit::chain::transfer_from_blind_operation, (amount)(to)(blinding_factor)(inputs))
-FC_REFLECT( steemit::chain::blind_transfer_operation, (inputs)(outputs))
+FC_REFLECT(steemit::chain::blind_memo, (from)(amount)(message)(check))
+FC_REFLECT(steemit::chain::blind_input, (commitment)(owner))
+FC_REFLECT(steemit::chain::blind_output, (commitment)(range_proof)(owner)(stealth_memo))
+FC_REFLECT(steemit::chain::transfer_to_blind_operation, (amount)(from)(blinding_factor)(outputs))
+FC_REFLECT(steemit::chain::transfer_from_blind_operation, (amount)(to)(blinding_factor)(inputs))
+FC_REFLECT(steemit::chain::blind_transfer_operation, (inputs)(outputs))

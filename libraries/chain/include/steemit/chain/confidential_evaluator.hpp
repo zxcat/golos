@@ -13,12 +13,18 @@ namespace steemit {
         public:
             typedef transfer_to_blind_operation operation_type;
 
+            transfer_to_blind_evaluator(database &db) : evaluator<transfer_to_blind_evaluator>(db) {
+            }
+
             void do_apply(const transfer_to_blind_operation &o);
         };
 
         class transfer_from_blind_evaluator : public evaluator<transfer_from_blind_evaluator> {
         public:
             typedef transfer_from_blind_operation operation_type;
+
+            transfer_from_blind_evaluator(database &db) : evaluator<transfer_from_blind_evaluator>(db) {
+            }
 
             void do_apply(const transfer_from_blind_operation &o);
         };
@@ -27,12 +33,10 @@ namespace steemit {
         public:
             typedef blind_transfer_operation operation_type;
 
-            void_result do_evaluate(const blind_transfer_operation &o);
+            blind_transfer_evaluator(database &db) : evaluator<blind_transfer_evaluator>(db) {
+            }
 
-            void_result do_apply(const blind_transfer_operation &o);
-
-            virtual void pay_fee() override;
+            void do_apply(const blind_transfer_operation &o);
         };
-
     }
 } // namespace steemit::chain

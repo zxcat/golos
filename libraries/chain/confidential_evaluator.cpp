@@ -1,4 +1,5 @@
 #include <steemit/chain/database_exceptions.hpp>
+
 #include <steemit/protocol/operations/confidential_operations.hpp>
 #include <steemit/chain/confidential_evaluator.hpp>
 #include <steemit/chain/confidential_object.hpp>
@@ -44,11 +45,10 @@ namespace steemit {
             } FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void transfer_from_blind_evaluator::do_evaluate(const transfer_from_blind_operation &o) {
+        void transfer_from_blind_evaluator::do_apply(const transfer_from_blind_operation &o) {
             try {
                 const auto &d = db();
-                o.fee.asset_id(d);  // verify fee is a legit asset
-                const auto &bbi = d.get_index_type<blinded_balance_index>();
+                const auto &bbi = d.get_index<blinded_balance_index>();
                 const auto &cidx = bbi.indices().get<by_commitment>();
                 for (const auto &in : o.inputs) {
                     auto itr = cidx.find(in.commitment);
@@ -58,13 +58,11 @@ namespace steemit {
                 }
                 return void();
             } FC_CAPTURE_AND_RETHROW((o))
-        }
 
-        void transfer_from_blind_evaluator::do_apply(const transfer_from_blind_operation &o) {
             try {
                 db().adjust_balance(o.fee_payer(), o.fee);
                 db().adjust_balance(o.to, o.amount);
-                const auto &bbi = db().get_index_type<blinded_balance_index>();
+                const auto &bbi = db().get_index<blinded_balance_index>();
                 const auto &cidx = bbi.indices().get<by_commitment>();
                 for (const auto &in : o.inputs) {
                     auto itr = cidx.find(in.commitment);
@@ -80,19 +78,11 @@ namespace steemit {
             } FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void transfer_from_blind_evaluator::pay_fee() {
-            if (db().head_block_time() >= HARDFORK_563_TIME) {
-                pay_fba_fee(fba_accumulator_id_transfer_from_blind);
-            } else {
-                generic_evaluator::pay_fee();
-            }
-        }
-
-        void blind_transfer_evaluator::do_evaluate(const blind_transfer_operation &o) {
+        void blind_transfer_evaluator::do_apply(const blind_transfer_operation &o) {
             try {
                 const auto &d = db();
                 o.fee.asset_id(db());  // verify fee is a legit asset
-                const auto &bbi = db().get_index_type<blinded_balance_index>();
+                const auto &bbi = db().get_index<blinded_balance_index>();
                 const auto &cidx = bbi.indices().get<by_commitment>();
                 for (const auto &out : o.outputs) {
                     for (const auto &a : out.owner.account_auths) {
@@ -101,23 +91,20 @@ namespace steemit {
                 }
                 for (const auto &in : o.inputs) {
                     auto itr = cidx.find(in.commitment);
-                    GRAPHENE_ASSERT(itr != cidx.end(), blind_transfer_unknown_commitment, "",
+                    STEEMIT_ASSERT(itr != cidx.end(), blind_transfer_unknown_commitment, "",
                                     ("commitment", in.commitment));
                     FC_ASSERT(itr->asset_id == o.fee.asset_id);
                     FC_ASSERT(itr->owner == in.owner);
                 }
                 return void();
             } FC_CAPTURE_AND_RETHROW((o))
-        }
 
-        void blind_transfer_evaluator::do_apply(const blind_transfer_operation &o) {
             try {
-                db().adjust_balance(o.fee_payer(), o.fee); // deposit the fee to the temp account
-                const auto &bbi = db().get_index_type<blinded_balance_index>();
+                const auto &bbi = db().get_index<blinded_balance_index>();
                 const auto &cidx = bbi.indices().get<by_commitment>();
                 for (const auto &in : o.inputs) {
                     auto itr = cidx.find(in.commitment);
-                    GRAPHENE_ASSERT(itr != cidx.end(), blind_transfer_unknown_commitment, "",
+                    STEEMIT_ASSERT(itr != cidx.end(), blind_transfer_unknown_commitment, "",
                                     ("commitment", in.commitment));
                     db().remove(*itr);
                 }
@@ -137,14 +124,5 @@ namespace steemit {
                 return void();
             } FC_CAPTURE_AND_RETHROW((o))
         }
-
-        void blind_transfer_evaluator::pay_fee() {
-            if (db().head_block_time() >= HARDFORK_563_TIME) {
-                pay_fba_fee(fba_accumulator_id_blind_transfer);
-            } else {
-                generic_evaluator::pay_fee();
-            }
-        }
-
     }
 } // steemit::chain

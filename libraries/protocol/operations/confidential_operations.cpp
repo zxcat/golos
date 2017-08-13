@@ -8,14 +8,13 @@
 #include <fc/crypto/elliptic.hpp>
 
 namespace steemit {
-    namespace chain {
+    namespace protocol {
 
         void transfer_to_blind_operation::validate() const {
-            FC_ASSERT(fee.amount >= 0);
             FC_ASSERT(amount.amount > 0);
 
-            vector <commitment_type> in;
-            vector <commitment_type> out(outputs.size());
+            vector<commitment_type> in;
+            vector<commitment_type> out(outputs.size());
             int64_t net_public = amount.amount.value;
             for (uint32_t i = 0; i < out.size(); ++i) {
                 out[i] = outputs[i].commitment;
@@ -34,27 +33,19 @@ namespace steemit {
             if (outputs.size() > 1) {
                 for (auto out : outputs) {
                     auto info = fc::ecc::range_get_info(out.range_proof);
-                    FC_ASSERT(info.max_value <= GRAPHENE_MAX_SHARE_SUPPLY);
+                    FC_ASSERT(info.max_value <= STEEMIT_MAX_SHARE_SUPPLY);
                 }
             }
         }
 
-        share_type transfer_to_blind_operation::calculate_fee(const fee_parameters_type &k) const {
-            return k.fee + outputs.size() * k.price_per_output;
-        }
-
-
         void transfer_from_blind_operation::validate() const {
             FC_ASSERT(amount.amount > 0);
-            FC_ASSERT(fee.amount >= 0);
             FC_ASSERT(inputs.size() > 0);
-            FC_ASSERT(amount.asset_id == fee.asset_id);
 
 
-            vector <commitment_type> in(inputs.size());
-            vector <commitment_type> out;
-            int64_t net_public = fee.amount.value + amount.amount.value;
-            out.push_back(fc::ecc::blind(blinding_factor, net_public));
+            vector<commitment_type> in(inputs.size());
+            vector<commitment_type> out;
+            out.push_back(fc::ecc::blind(blinding_factor, 0));
             for (uint32_t i = 0; i < in.size(); ++i) {
                 in[i] = inputs[i].commitment;
                 /// by requiring all inputs to be sorted we also prevent duplicate commitments on the input
@@ -65,24 +56,13 @@ namespace steemit {
             FC_ASSERT(fc::ecc::verify_sum(in, out, 0));
         }
 
-
-        /**
-         *  If fee_payer = temp_account_id, then the fee is paid by the surplus balance of inputs-outputs and
-         *  100% of the fee goes to the network.
-         */
-        account_id_type blind_transfer_operation::fee_payer() const {
-            return GRAPHENE_TEMP_ACCOUNT;
-        }
-
-
         /**
          *  This method can be computationally intensive because it verifies that input commitments - output commitments add up to 0
          */
         void blind_transfer_operation::validate() const {
             try {
-                vector <commitment_type> in(inputs.size());
-                vector <commitment_type> out(outputs.size());
-                int64_t net_public = fee.amount.value;//from_amount.value - to_amount.value;
+                vector<commitment_type> in(inputs.size());
+                vector<commitment_type> out(outputs.size());
                 for (uint32_t i = 0; i < in.size(); ++i) {
                     in[i] = inputs[i].commitment;
                     /// by requiring all inputs to be sorted we also prevent duplicate commitments on the input
@@ -101,17 +81,11 @@ namespace steemit {
                 if (outputs.size() > 1) {
                     for (auto out : outputs) {
                         auto info = fc::ecc::range_get_info(out.range_proof);
-                        FC_ASSERT(info.max_value <= GRAPHENE_MAX_SHARE_SUPPLY);
+                        FC_ASSERT(info.max_value <= STEEMIT_MAX_SHARE_SUPPLY);
                     }
                 }
-                FC_ASSERT(fc::ecc::verify_sum(in, out, net_public), "", ("net_public", net_public));
             } FC_CAPTURE_AND_RETHROW((*this))
         }
-
-        share_type blind_transfer_operation::calculate_fee(const fee_parameters_type &k) const {
-            return k.fee + outputs.size() * k.price_per_output;
-        }
-
 
         /**
          *  Packs *this then encodes as base58 encoded string.
@@ -126,7 +100,5 @@ namespace steemit {
         stealth_confirmation::stealth_confirmation(const std::string &base58) {
             *this = fc::raw::unpack<stealth_confirmation>(fc::from_base58(base58));
         }
-
-
     }
 } // graphene::chain
