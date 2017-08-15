@@ -1,12 +1,15 @@
-[submodule "libraries/fc"]
-	path = libraries/fc
+[submodule "frameworks/fc"]
+	path = frameworks/fc
 	url = https://github.com/GolosChain/fc.git
-[submodule "libraries/chainbase"]
-	path = libraries/chainbase
+[submodule "frameworks/chainbase"]
+	path = frameworks/chainbase
 	url = https://github.com/GolosChain/chainbase.git
-[submodule "libraries/libcds"]
-	path = libraries/libcds
+[submodule "frameworks/libcds"]
+	path = frameworks/libcds
 	url = https://github.com/khizmax/libcds.git
-[submodule "libraries/cld2"]
-	path = libraries/cld2
+[submodule "frameworks/cld2"]
+	path = frameworks/cld2
 	url = https://github.com/CLD2Owners/cld2.git
+[submodule "frameworks/appbase"]
+	path = frameworks/appbase
+	url = https://github.com/GolosChain/appbase.git

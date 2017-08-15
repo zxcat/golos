@@ -50,8 +50,8 @@ if(USE_PCH)
     include(cotire)
 endif(USE_PCH)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/CMakeModules")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/GitVersionGen")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/frameworks/fc/CMakeModules")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/frameworks/fc/GitVersionGen")
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA2)
 
@@ -220,16 +220,16 @@ if(ENABLE_COVERAGE_TESTING)
 endif()
 
 # external_plugins needs to be compiled first because libraries/application depends on GOLOSIT_EXTERNAL_PLUGINS being fully populated
+add_subdirectory(frameworks)
 add_subdirectory(external_plugins)
 add_subdirectory(libraries)
 add_subdirectory(programs)
-
 add_subdirectory(tests)
 
 if(ENABLE_INSTALLER)
 
     set(VERSION_MAJOR 0)
-    set(VERSION_MINOR 1)
+    set(VERSION_MINOR 17)
     set(VERSION_PATCH 0)
 
 

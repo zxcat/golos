@@ -21,9 +21,6 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <cld2/public/compact_lang_det.h>
-#include <cld2/public/encodings.h>
-
 namespace steemit {
     namespace languages {
 
