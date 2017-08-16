@@ -12,8 +12,18 @@ if(GPERFTOOLS_FOUND)
     list(APPEND PLATFORM_SPECIFIC_LIBS tcmalloc)
 endif()
 
-target_link_libraries(golosd
-                      PRIVATE golos_external_plugins golos_internal_plugins golos_mf_plugins golos::application golos_witness golos_account_history golos_chain golos_protocol fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS})
+target_link_libraries(golosd PRIVATE
+        appbase
+        webserver_plugin
+        golos_p2p
+        golos_witness
+        golos_account_history
+        golos_chain
+        golos_protocol
+        fc
+        ${CMAKE_DL_LIBS}
+        ${PLATFORM_SPECIFIC_LIBS}
+)
 
 install(TARGETS
         golosd
@@ -21,4 +31,4 @@ install(TARGETS
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
-        )
+)

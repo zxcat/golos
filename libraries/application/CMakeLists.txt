@@ -38,7 +38,7 @@ endif()
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET} )
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
 
-target_link_libraries(golos_${CURRENT_TARGET} golos::chain golos::protocol golos::snapshot golos::tags golos::languages golos_follow golos_mf_plugins fc golos::network graphene_utilities golos::market_history)
+target_link_libraries(golos_${CURRENT_TARGET} golos::chain golos::protocol golos::snapshot golos::tags golos::languages golos_follow  fc golos::network graphene_utilities golos::market_history)
 
 target_include_directories(golos_${CURRENT_TARGET}
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
