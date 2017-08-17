@@ -1,4 +1,3 @@
-add_subdirectory(schema)
 add_subdirectory(chain)
 add_subdirectory(protocol)
 add_subdirectory(network)

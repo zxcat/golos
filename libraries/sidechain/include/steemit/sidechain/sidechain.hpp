@@ -63,7 +63,4 @@ namespace steemit { namespace sidechain {
         transaction_id_type   trx_id;
         signed_transaction    trx;
   };
-
-
-
 } }

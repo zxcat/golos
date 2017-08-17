@@ -221,7 +221,6 @@ endif()
 
 # external_plugins needs to be compiled first because libraries/application depends on GOLOSIT_EXTERNAL_PLUGINS being fully populated
 add_subdirectory(frameworks)
-add_subdirectory(external_plugins)
 add_subdirectory(libraries)
 add_subdirectory(programs)
 add_subdirectory(tests)
