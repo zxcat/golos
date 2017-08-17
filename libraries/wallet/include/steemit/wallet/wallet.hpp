@@ -124,12 +124,12 @@ namespace steemit {
             /**
              * Returns info about the current state of the blockchain
              */
-            variant info();
+            fc::variant info();
 
             /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
              * @returns compile time info and client and dependencies versions
              */
-            variant_object about() const;
+            fc::variant_object about() const;
 
             /** Returns the information about a block
              *
