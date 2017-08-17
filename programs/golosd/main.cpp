@@ -74,16 +74,16 @@ namespace steemit {
 
 int main( int argc, char** argv ) {
     try {
-#ifdef IS_TEST_NET
+#ifdef BUILD_GOLOS_TESTNET
         std::cerr << "------------------------------------------------------\n\n";
-      std::cerr << "            STARTING TEST NETWORK\n\n";
-      std::cerr << "------------------------------------------------------\n";
-      auto initminer_private_key = steemit::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
-      std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
-      std::cerr << "initminer private key: " << initminer_private_key << "\n";
-      std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-      std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
-      std::cerr << "------------------------------------------------------\n";
+        std::cerr << "            STARTING TEST NETWORK\n\n";
+        std::cerr << "------------------------------------------------------\n";
+        auto initminer_private_key = steemit::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
+        std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
+        std::cerr << "initminer private key: " << initminer_private_key << "\n";
+        std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
+        std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+        std::cerr << "------------------------------------------------------\n";
 #else
         std::cerr << "------------------------------------------------------\n\n";
         std::cerr << "            STARTING GOLOS NETWORK\n\n";
@@ -267,7 +267,7 @@ namespace steemit {
 
             //appbase::app().register_plugin< steemit::plugins::witness::witness_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
+            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_plugin >();
 

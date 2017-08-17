@@ -14,11 +14,10 @@ endif()
 
 target_link_libraries(golosd PRIVATE
         appbase
-        webserver_plugin
-        golos_p2p
-        golos_witness
-        golos_account_history
-        golos_chain
+        golos::webserver_plugin
+        golos::p2p
+        graphene_utilities
+        golos::chain_plugin
         golos_protocol
         fc
         ${CMAKE_DL_LIBS}

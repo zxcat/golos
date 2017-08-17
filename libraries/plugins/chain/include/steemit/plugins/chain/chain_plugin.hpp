@@ -10,8 +10,7 @@ using std::unique_ptr;
 using namespace appbase;
 using namespace steemit::chain;
 
-class chain_plugin : public appbase::plugin< chain_plugin >
-{
+class chain_plugin : public appbase::plugin< chain_plugin > {
 public:
    APPBASE_PLUGIN_REQUIRES()
 
@@ -30,38 +29,32 @@ public:
    bool block_is_on_preferred_chain( const steemit::chain::block_id_type& block_id );
 
    template< typename MultiIndexType >
-   bool has_index() const
-   {
+   bool has_index() const {
       return db().has_index< MultiIndexType >();
    }
 
    template< typename MultiIndexType >
-   const chainbase::generic_index< MultiIndexType >& get_index() const
-   {
+   const chainbase::generic_index< MultiIndexType >& get_index() const {
       return db().get_index< MultiIndexType >();
    }
 
    template< typename ObjectType, typename IndexedByType, typename CompatibleKey >
-   const ObjectType* find( CompatibleKey&& key ) const
-   {
+   const ObjectType* find( CompatibleKey&& key ) const {
       return db().find< ObjectType, IndexedByType, CompatibleKey >( key );
    }
 
    template< typename ObjectType >
-   const ObjectType* find( chainbase::object_id< ObjectType > key = chainbase::object_id< ObjectType >() )
-   {
+   const ObjectType* find( chainbase::object_id< ObjectType > key = chainbase::object_id< ObjectType >() ) {
       return db().find< ObjectType >( key );
    }
 
    template< typename ObjectType, typename IndexedByType, typename CompatibleKey >
-   const ObjectType& get( CompatibleKey&& key ) const
-   {
+   const ObjectType& get( CompatibleKey&& key ) const {
       return db().get< ObjectType, IndexedByType, CompatibleKey >( key );
    }
 
    template< typename ObjectType >
-   const ObjectType& get( const chainbase::object_id< ObjectType >& key = chainbase::object_id< ObjectType >() )
-   {
+   const ObjectType& get( const chainbase::object_id< ObjectType >& key = chainbase::object_id< ObjectType >() ) {
       return db().get< ObjectType >( key );
    }
 

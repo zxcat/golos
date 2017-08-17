@@ -12,7 +12,7 @@ endif()
 
 target_link_libraries(golos_delayed_node golos_chain golos_protocol golos::application)
 target_include_directories(golos_delayed_node
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        PUBLIC "include")
 
 if(MSVC)
     set_source_files_properties(delayed_node_plugin.cpp PROPERTIES COMPILE_FLAGS "/bigobj")

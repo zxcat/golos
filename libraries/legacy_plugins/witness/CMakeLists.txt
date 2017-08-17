@@ -12,7 +12,7 @@ endif()
 
 target_link_libraries(golos_witness golos_chain golos_protocol golos::application)
 target_include_directories(golos_witness
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        PUBLIC "include")
 
 install(TARGETS
         golos_witness

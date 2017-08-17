@@ -1,11 +1,11 @@
 set(CURRENT_TARGET languages)
 
 list(APPEND CURRENT_TARGET_HEADERS
-     include/steemit/languages/languages_plugin.hpp
+        include/steemit/languages/languages_plugin.hpp
      )
 
 list(APPEND CURRENT_TARGET_SOURCES
-     languages_plugin.cpp
+        languages_plugin.cpp
      )
 
 if (BUILD_SHARED_LIBRARIES)
@@ -25,7 +25,7 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 target_link_libraries(golos_${CURRENT_TARGET} golos::chain golos::protocol golos::application)
 target_include_directories(golos_${CURRENT_TARGET}
-                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+                           PUBLIC "include" "../..")
 
 install(TARGETS
         golos_${CURRENT_TARGET}

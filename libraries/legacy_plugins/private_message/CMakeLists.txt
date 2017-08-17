@@ -12,7 +12,7 @@ endif()
 
 target_link_libraries(golos_private_message golos_chain golos_protocol golos::application)
 target_include_directories(golos_private_message
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        PUBLIC "include")
 
 install(TARGETS
         golos_private_message

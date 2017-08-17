@@ -1,16 +1,34 @@
-file(GLOB HEADERS "include/steemit/chain_plugin/*.hpp")
-add_library( chain_plugin
-             chain_plugin.cpp
-             ${HEADERS} )
+set(CURRENT_TARGET chain_plugin)
+list(APPEND CURRENT_TARGET_HEADERS
+        include/steemit/plugins/chain/chain_plugin.hpp
+)
 
-target_link_libraries( chain_plugin golos_chain appbase )
-target_include_directories( chain_plugin PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+list(APPEND CURRENT_TARGET_SOURCES
+        chain_plugin.cpp
+)
 
-install( TARGETS
-   chain_plugin
+if (BUILD_SHARED_LIBRARIES)
+    add_library(golos_${CURRENT_TARGET} SHARED
+            ${CURRENT_TARGET_HEADERS}
+            ${CURRENT_TARGET_SOURCES}
+            )
+else ()
+    add_library(golos_${CURRENT_TARGET} STATIC
+            ${CURRENT_TARGET_HEADERS}
+            ${CURRENT_TARGET_SOURCES}
+            )
+endif ()
 
-   RUNTIME DESTINATION bin
-   LIBRARY DESTINATION lib
-   ARCHIVE DESTINATION lib
+add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
+set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
+target_link_libraries( golos_${CURRENT_TARGET} golos_chain appbase )
+target_include_directories( golos_${CURRENT_TARGET}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+
+install(TARGETS
+        golos_${CURRENT_TARGET}
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
 )
 install( FILES ${HEADERS} DESTINATION "include/steemit/chain_plugin" )
