@@ -148,7 +148,9 @@ RUN chown golosd:golosd -R /var/lib/golosd
 
 ADD programs/golosd/snapshot5392323.json /var/lib/golosd
 
-# rpc service:
+# websocket rpc service:
+EXPOSE 8090
+# http      rpc service:
 EXPOSE 8090
 # p2p service:
 EXPOSE 2001

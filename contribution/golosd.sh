@@ -82,8 +82,9 @@ fi
 
 exec chpst -ugolosd \
     $STEEMD \
-        --rpc-endpoint=${RPC_ENDPOINT} \
-        --p2p-endpoint=${P2P_ENDPOINT} \
+        --webserver-ws-endpoint=127.0.0.1:8090 \
+        --webserver-http-endpoint=127.0.0.1:8091 \
+        --p2p-endpoint=0.0.0.0:2001 \
         --data-dir=$HOME \
         $ARGS \
         $STEEMD_EXTRA_OPTS \
