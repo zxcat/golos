@@ -353,8 +353,7 @@ namespace steemit {
                 if (base_id > quote_id) {
                     std::swap(base_id, quote_id);
                 }
-                const auto &history_idx = app.chain_database()->get_index<
-                        market_history::order_history_index>().indices().get<market_history::by_key>();
+                const auto &history_idx = app.chain_database()->get_index<market_history::order_history_index>().indices().get<market_history::by_key>();
                 market_history::history_key hkey;
                 hkey.base = base_id;
                 hkey.quote = quote_id;
@@ -368,8 +367,7 @@ namespace steemit {
                 auto itr = history_idx.lower_bound(hkey);
                 vector<market_trade> result;
 
-                while (itr != history_idx.end() && count < limit &&
-                       !(itr->key.base != base_id || itr->key.quote != quote_id || itr->time < stop)) {
+                while (itr != history_idx.end() && count < limit && !(itr->key.base != base_id || itr->key.quote != quote_id || itr->time < stop)) {
                     if (itr->time < start) {
                         market_trade trade = itr->op.visit(operation_process_fill_order_visitor(assets));
 

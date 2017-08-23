@@ -13,8 +13,7 @@ using namespace steemit;
 using fc::flat_map;
 using steemit::chain::block_id_type;
 
-class chain_plugin_impl
-{
+class chain_plugin_impl {
    public:
       uint64_t                         shared_memory_size = 0;
       bfs::path                        shared_memory_dir;
@@ -30,7 +29,7 @@ class chain_plugin_impl
 
 
 chain_plugin::chain_plugin() : my( new chain_plugin_impl() ) {
-name(STEEM_CHAIN_PLUGIN_NAME);
+    name(STEEM_CHAIN_PLUGIN_NAME);
 }
 chain_plugin::~chain_plugin(){}
 
@@ -85,9 +84,10 @@ void chain_plugin::plugin_initialize(const variables_map& options) {
    }
 }
 
-void chain_plugin::plugin_startup()
-{
+void chain_plugin::plugin_startup() {
+   std::cerr<<"^_*_^"<<std::endl;
    ilog( "Starting chain with shared_file_size: ${n} bytes", ("n", my->shared_memory_size) );
+    std::cerr<<"Starting chain with shared_file_size:" <<my->shared_memory_size<< "bytes"<<std::endl;
 
    if(my->resync)
    {

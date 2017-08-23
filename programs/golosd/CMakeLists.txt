@@ -18,6 +18,7 @@ target_link_libraries(golosd PRIVATE
         golos::p2p
         graphene_utilities
         golos::chain_plugin
+        golos::network_broadcast_api_plugin
         golos_protocol
         fc
         ${CMAKE_DL_LIBS}

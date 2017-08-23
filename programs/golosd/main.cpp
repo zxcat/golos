@@ -9,6 +9,7 @@
 #include <steemit/plugins/chain/chain_plugin.hpp>
 #include <steemit/plugins/p2p/p2p_plugin.hpp>
 #include <steemit/plugins/webserver/webserver_plugin.hpp>
+#include <steemit/plugins/network_broadcast_api/network_broadcast_api_plugin.hpp>
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -44,27 +45,22 @@ namespace steemit {
         void set_logging_program_options(boost::program_options::options_description &);
         fc::optional<fc::logging_config> load_logging_config( const boost::program_options::variables_map&, const boost::filesystem::path&);
 
-        struct console_appender_args
-        {
+        struct console_appender_args {
             std::string appender;
             std::string stream;
         };
 
-        struct file_appender_args
-        {
+        struct file_appender_args {
             std::string appender;
             std::string file;
         };
 
-        struct logger_args
-        {
+        struct logger_args {
             std::string name;
             std::string level;
             std::string appender;
         };
     }
-
-
 
     namespace plugins {
         void register_plugins();
@@ -261,7 +257,7 @@ namespace steemit {
 
             //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::tags::tags_api_plugin >();
 

@@ -1,5 +1,5 @@
 #include <steemit/plugins/p2p/p2p_plugin.hpp>
-
+#include <steemit/plugins/chain/chain_plugin.hpp>
 #include <steemit/chain/database_exceptions.hpp>
 
 #include <fc/network/ip.hpp>
@@ -64,8 +64,7 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
    FC_CAPTURE_AND_RETHROW( (endpoint_string) )
 }
 
-class p2p_plugin_impl : public network::node_delegate
-{
+class p2p_plugin_impl : public network::node_delegate {
 public:
 
    p2p_plugin_impl( plugins::chain::chain_plugin& c )
@@ -131,8 +130,7 @@ void p2p_plugin::set_program_options( bpo::options_description& cli, bpo::option
       ;
 }
 
-void p2p_plugin::plugin_initialize(const boost::program_options::variables_map& options)
-{
+void p2p_plugin::plugin_initialize(const boost::program_options::variables_map& options) {
    if( options.count( "p2p-endpoint" ) )
       my->endpoint = fc::ip::endpoint::from_string( options.at( "p2p-endpoint" ).as< string >() );
 
@@ -142,31 +140,25 @@ void p2p_plugin::plugin_initialize(const boost::program_options::variables_map& 
    if( options.count( "p2p-max-connections" ) )
       my->max_connections = options.at( "p2p-max-connections" ).as< uint32_t >();
 
-   if( options.count( "seed-node" ) || options.count( "p2p-seed-node" ) )
-   {
+   if( options.count( "seed-node" ) || options.count( "p2p-seed-node" ) ) {
       vector< string > seeds;
-      if( options.count( "seed-node" ) )
-      {
+      if( options.count( "seed-node" ) ) {
          wlog( "Option seed-node is deprecated in favor of p2p-seed-node" );
          auto s = options.at("seed-node").as<vector<string>>();
          seeds.insert( seeds.end(), s.begin(), s.end() );
       }
 
-      if( options.count( "p2p-seed-node" ) )
-      {
+      if( options.count( "p2p-seed-node" ) ) {
          auto s = options.at("p2p-seed-node").as<vector<string>>();
          seeds.insert( seeds.end(), s.begin(), s.end() );
       }
 
-      for( const string& endpoint_string : seeds )
-      {
-         try
-         {
+      for( const string& endpoint_string : seeds ) {
+         try {
             std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
             my->seeds.insert( my->seeds.end(), endpoints.begin(), endpoints.end() );
          }
-         catch( const fc::exception& e )
-         {
+         catch( const fc::exception& e ) {
             wlog( "caught exception ${e} while adding seed node ${endpoint}",
                ("e", e.to_detail_string())("endpoint", endpoint_string) );
          }
@@ -176,41 +168,38 @@ void p2p_plugin::plugin_initialize(const boost::program_options::variables_map& 
    my->force_validate = options.at( "force-validate" ).as< bool >();
 }
 
-void p2p_plugin::plugin_startup()
-{
-   my->p2p_thread.async( [this]
-   {
-      my->node.reset(new network::node(my->user_agent));
-      my->node->load_configuration(app().data_dir() / "p2p");
-      my->node->set_node_delegate( &(*my) );
+void p2p_plugin::plugin_startup() {
+   my->p2p_thread.async(
+           [this] {
+               my->node.reset(new network::node(my->user_agent));
+               my->node->load_configuration(app().data_dir() / "p2p");
+               my->node->set_node_delegate( &(*my) );
 
-      if( my->endpoint )
-      {
-         ilog("Configuring P2P to listen at ${ep}", ("ep", my->endpoint));
-         my->node->listen_on_endpoint(*my->endpoint, true);
-      }
+               if( my->endpoint ) {
+                  ilog("Configuring P2P to listen at ${ep}", ("ep", my->endpoint));
+                  my->node->listen_on_endpoint(*my->endpoint, true);
+               }
 
-      for( const auto& seed : my->seeds )
-      {
-         ilog("P2P adding seed node ${s}", ("s", seed));
-         my->node->add_node(seed);
-         my->node->connect_to_endpoint(seed);
-      }
+               for( const auto& seed : my->seeds ) {
+                  ilog("P2P adding seed node ${s}", ("s", seed));
+                  my->node->add_node(seed);
+                  my->node->connect_to_endpoint(seed);
+               }
 
-      if( my->max_connections )
-      {
-         ilog( "Setting p2p max connections to ${n}", ("n", my->max_connections) );
-         fc::variant_object node_param = fc::variant_object(
-            "maximum_number_of_connections",
-            fc::variant( my->max_connections ) );
-         my->node->set_advanced_node_parameters( node_param );
-      }
+               if( my->max_connections ) {
+                  ilog( "Setting p2p max connections to ${n}", ("n", my->max_connections) );
+                  fc::variant_object node_param = fc::variant_object(
+                     "maximum_number_of_connections",
+                     fc::variant( my->max_connections ) );
+                  my->node->set_advanced_node_parameters( node_param );
+               }
 
-      my->node->listen_to_p2p_network();
-      my->node->connect_to_p2p_network();
-      my->node->sync_from(network::item_id(network::block_message_type, my->chain.db().head_block_id()), std::vector<uint32_t>());
-      ilog("P2P node listening at ${ep}", ("ep", my->node->get_actual_listening_endpoint()));
-   }).wait();
+               my->node->listen_to_p2p_network();
+               my->node->connect_to_p2p_network();
+               my->node->sync_from(network::item_id(network::block_message_type, my->chain.db().head_block_id()), std::vector<uint32_t>());
+               ilog("P2P node listening at ${ep}", ("ep", my->node->get_actual_listening_endpoint()));
+           }
+   ).wait();
    idump( (my->p2p_thread.is_running()) );
 }
 
@@ -385,12 +374,10 @@ std::vector< network::item_hash_t > p2p_plugin_impl::get_block_ids( const std::v
    return result;
 } FC_LOG_AND_RETHROW() }
 
-            network::message p2p_plugin_impl::get_item( const network::item_id& id )
-{ try {
-   if( id.item_type == network::block_message_type )
-   {
-      return chain.db().with_read_lock( [&]()
-      {
+network::message p2p_plugin_impl::get_item( const network::item_id& id ) {
+   try {
+      if( id.item_type == network::block_message_type ) {
+      return chain.db().with_read_lock( [&]() {
          auto opt_block = chain.db().fetch_block_by_id(id.item_hash);
          if( !opt_block )
             elog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
@@ -534,42 +521,40 @@ std::vector<network::item_hash_t > p2p_plugin_impl::get_blockchain_synopsis(
    return synopsis;
 } FC_LOG_AND_RETHROW() }
 
-void p2p_plugin_impl::sync_status( uint32_t item_type, uint32_t item_count )
-{
+void p2p_plugin_impl::sync_status( uint32_t item_type, uint32_t item_count ) {
    // any status reports to GUI go here
 }
 
-void p2p_plugin_impl::connection_count_changed( uint32_t c )
-{
+void p2p_plugin_impl::connection_count_changed( uint32_t c ) {
    // any status reports to GUI go here
 }
 
-uint32_t p2p_plugin_impl::get_block_number( const network::item_hash_t& block_id )
-{
+uint32_t p2p_plugin_impl::get_block_number( const network::item_hash_t& block_id ) {
    try {
-   return block_header::num_from_id(block_id);
-} FC_CAPTURE_LOG_AND_RETHROW( (block_id) ) }
-
-fc::time_point_sec p2p_plugin_impl::get_block_time( const network::item_hash_t& block_id )
-{
-   try
-   {
-      return chain.db().with_read_lock( [&]()
-      {
-         auto opt_block = chain.db().fetch_block_by_id( block_id );
-         if( opt_block.valid() ) return opt_block->timestamp;
-         return fc::time_point_sec::min();
-      });
+      return block_header::num_from_id(block_id);
    } FC_CAPTURE_LOG_AND_RETHROW( (block_id) )
 }
 
-network::item_hash_t p2p_plugin_impl::get_head_block_id() const
-{ try {
-   return chain.db().with_read_lock( [&]()
-   {
-      return chain.db().head_block_id();
-   });
-} FC_LOG_AND_RETHROW() }
+fc::time_point_sec p2p_plugin_impl::get_block_time( const network::item_hash_t& block_id ) {
+   try {
+      return chain.db().with_read_lock(
+              [&]() {
+                  auto opt_block = chain.db().fetch_block_by_id( block_id );
+                  if( opt_block.valid() ) return opt_block->timestamp;
+                  return fc::time_point_sec::min();
+              }
+      );
+   } FC_CAPTURE_LOG_AND_RETHROW( (block_id) )
+}
+
+network::item_hash_t p2p_plugin_impl::get_head_block_id() const {
+   try {
+      return chain.db().with_read_lock( [&]() {
+         return chain.db().head_block_id();
+         }
+      );
+   } FC_LOG_AND_RETHROW()
+}
 
 uint32_t p2p_plugin_impl::estimate_last_known_fork_from_git_revision_timestamp(uint32_t) const
 {

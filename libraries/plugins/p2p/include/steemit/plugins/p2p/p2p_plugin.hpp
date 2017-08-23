@@ -1,8 +1,8 @@
-
 #pragma once
 
+#include <steemit/protocol/transaction.hpp>
+#include <steemit/protocol/block.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
-
 #include <appbase/application.hpp>
 
 #define STEEM_P2P_PLUGIN_NAME "p2p"

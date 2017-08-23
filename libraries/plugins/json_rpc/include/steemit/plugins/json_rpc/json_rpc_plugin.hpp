@@ -7,9 +7,6 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
 
-#include <boost/config.hpp>
-#include <boost/any.hpp>
-
 /**
  * This plugin holds bindings for all APIs and their methods
  * and can dispatch JSONRPC requests to the appropriate API.
@@ -47,7 +44,7 @@
    jsonrpc.add_api_method( api_name, std::string( #method ), JSON_RPC_API_METHOD_HELPER( method ) );
 
 
-#define JSON_RPC_REGISTER_API( API_NAME, METHODS )                                                       \
+#define JSON_RPC_REGISTER_API( API_NAME, METHODS )                                              \
 {                                                                                               \
    auto& jsonrpc = appbase::app().get_plugin< steemit::plugins::json_rpc::json_rpc_plugin >();  \
    BOOST_PP_SEQ_FOR_EACH( JSON_RPC_API_METHOD, API_NAME, METHODS )                              \
@@ -74,13 +71,11 @@ typedef std::function< fc::variant(const fc::variant&) > api_method;
  */
 typedef std::map< string, api_method > api_description;
 
-namespace detail
-{
+namespace detail {
    class json_rpc_plugin_impl;
 }
 
-class json_rpc_plugin : public appbase::plugin< json_rpc_plugin >
-{
+class json_rpc_plugin : public appbase::plugin< json_rpc_plugin > {
    public:
       json_rpc_plugin();
       virtual ~json_rpc_plugin();

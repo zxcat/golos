@@ -1,11 +1,11 @@
-set(CURRENT_TARGET p2p)
+set(CURRENT_TARGET test_api_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/p2p/p2p_plugin.hpp
+        include/steemit/plugins/test_api/test_api_plugin.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        p2p_plugin.cpp
+        test_api_plugin.cpp
 )
 
 if (BUILD_SHARED_LIBRARIES)
@@ -26,11 +26,9 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 target_link_libraries(
         golos_${CURRENT_TARGET}
-        golos::chain_plugin
-        golos::p2p
+        golos::json_rpc_plugin
+        fc
         appbase
-        golos::chain
-        golos::network
 )
 
 target_include_directories(
@@ -40,9 +38,14 @@ target_include_directories(
 )
 
 install( TARGETS
-    golos_${CURRENT_TARGET}
+        golos_${CURRENT_TARGET}
 
-   RUNTIME DESTINATION bin
-   LIBRARY DESTINATION lib
-   ARCHIVE DESTINATION lib
-)
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        )
+
+install( FILES ${HEADERS} DESTINATION "include/steemit/test_api_plugin" )
+
+
+#target_link_libraries( test_api_plugin json_rpc_plugin appbase fc )

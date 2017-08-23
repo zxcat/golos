@@ -1,16 +1,36 @@
-file(GLOB HEADERS "include/steemit/plugins/json_rpc/*.hpp")
+set(CURRENT_TARGET json_rpc_plugin)
 
-add_library( json_rpc_plugin
-             json_rpc_plugin.cpp
-             ${HEADERS} )
+list(APPEND CURRENT_TARGET_HEADERS
+        include/steemit/plugins/json_rpc/json_rpc_plugin.hpp
+        include/steemit/plugins/json_rpc/utility.hpp
+)
 
-target_link_libraries( json_rpc_plugin appbase fc )
-target_include_directories( json_rpc_plugin PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+list(APPEND CURRENT_TARGET_SOURCES
+        json_rpc_plugin.cpp
+)
+
+if (BUILD_SHARED_LIBRARIES)
+    add_library(golos_${CURRENT_TARGET} SHARED
+            ${CURRENT_TARGET_HEADERS}
+            ${CURRENT_TARGET_SOURCES}
+            )
+else ()
+    add_library(golos_${CURRENT_TARGET} STATIC
+            ${CURRENT_TARGET_HEADERS}
+            ${CURRENT_TARGET_SOURCES}
+            )
+endif ()
+
+add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
+set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
+target_link_libraries( golos_${CURRENT_TARGET} appbase fc)
+target_include_directories( golos_${CURRENT_TARGET}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 install( TARGETS
-   json_rpc_plugin
+        golos_${CURRENT_TARGET}
 
-   RUNTIME DESTINATION bin
-   LIBRARY DESTINATION lib
-   ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
 )
