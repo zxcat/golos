@@ -10,6 +10,14 @@
 #include <steemit/plugins/p2p/p2p_plugin.hpp>
 #include <steemit/plugins/webserver/webserver_plugin.hpp>
 #include <steemit/plugins/network_broadcast_api/network_broadcast_api_plugin.hpp>
+#include <steemit/plugins/tags/tags_plugin.hpp>
+#include <steemit/plugins/languages/languages_plugin.hpp>
+#include <steemit/plugins/account_history/account_history_plugin.hpp>
+#include <steemit/plugins/account_by_key/account_by_key_plugin.hpp>
+#include <steemit/plugins/witness/witness.hpp>
+#include <steemit/plugins/debug_node/debug_node_plugin.hpp>
+#include <steemit/plugins/follow/follow_plugin.hpp>
+#include <steemit/plugins/market_history/market_history_plugin.hpp>
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -103,17 +111,18 @@ int main( int argc, char** argv ) {
                 steemit::plugins::chain::chain_plugin,
                 steemit::plugins::p2p::p2p_plugin,
                 steemit::plugins::webserver::webserver_plugin >
-                ( argc, argv ) )
+                ( argc, argv )
+        )
+
             return 0;
 
-        try
-        {
+        try {
             fc::optional< fc::logging_config > logging_config = steemit::utilities::load_logging_config( appbase::app().get_args(), appbase::app().data_dir() );
-            if( logging_config )
-                fc::configure_logging( *logging_config );
+            if( logging_config ) {
+                fc::configure_logging(*logging_config);
+            }
         }
-        catch( const fc::exception& )
-        {
+        catch( const fc::exception& ) {
             wlog( "Error parsing logging config" );
         }
 
@@ -122,16 +131,13 @@ int main( int argc, char** argv ) {
         std::cout << "exited cleanly\n";
         return 0;
     }
-    catch ( const boost::exception& e )
-    {
+    catch ( const boost::exception& e ) {
         std::cerr << boost::diagnostic_information(e) << "\n";
     }
-    catch ( const std::exception& e )
-    {
+    catch ( const std::exception& e ) {
         std::cerr << e.what() << "\n";
     }
-    catch ( ... )
-    {
+    catch ( ... ) {
         std::cerr << "unknown exception\n";
     }
 
@@ -238,10 +244,35 @@ namespace steemit {
 
     namespace plugins {
         void register_plugins() {
+///PLUGIN
+            appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_plugin >();
+            appbase::app().register_plugin< steemit::plugins::account_history::account_history_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::account_history::account_history_plugin >();
+            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+
+            appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_plugin >();
+
+            appbase::app().register_plugin< steemit::plugins::follow::follow_plugin >();
+
+            appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
+
+            appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
+
+            appbase::app().register_plugin< steemit::plugins::languages::languages_plugin >();
+
+            appbase::app().register_plugin< steemit::plugins::tags::tags_plugin >();
+
+            appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
+
+            appbase::app().register_plugin<steemit::plugins::witness_plugin::witness_plugin>();
+
+            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
+
+///API
+            //appbase::app().register_plugin< steemit::plugins::tags::tags_api_plugin >();
+
+            //appbase::app().register_plugin< steemit::plugins::witness::witness_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_api_plugin >();
 
@@ -256,28 +287,6 @@ namespace steemit {
             //appbase::app().register_plugin< steemit::plugins::follow::follow_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
-
-            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::tags::tags_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::witness::witness_api_plugin >();
-
-            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::follow::follow_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
-
-            appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
-
-            //appbase::app().register_plugin< steemit::plugins::tags::tags_plugin >();
-
-            appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
-
-            //appbase::app().register_plugin< steemit::plugins::witness::witness_plugin >();
 
         }
     }

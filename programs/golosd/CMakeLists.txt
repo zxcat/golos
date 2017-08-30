@@ -1,4 +1,5 @@
-add_executable(golosd main.cpp)
+set(CURRENT_TARGET golosd)
+add_executable(${CURRENT_TARGET} main.cpp)
 
 if(UNIX AND NOT APPLE)
     set(rt_library rt)
@@ -12,13 +13,29 @@ if(GPERFTOOLS_FOUND)
     list(APPEND PLATFORM_SPECIFIC_LIBS tcmalloc)
 endif()
 
-target_link_libraries(golosd PRIVATE
+target_link_libraries(
+        ${CURRENT_TARGET} PRIVATE
         appbase
         golos::webserver_plugin
-        golos::p2p
+        golos::p2p_plugin
         graphene_utilities
         golos::chain_plugin
         golos::network_broadcast_api_plugin
+        golos::tags_plugin
+        golos::languages_plugin
+        golos::witness_plugin
+        golos::account_by_key_plugin
+        golos::account_history_plugin
+        golos::account_statistics_plugin
+        golos::block_info_plugin
+        golos::blockchain_statistics_plugin
+        golos::debug_node_plugin
+        #golos::delayed_node_plugin
+        golos::follow_plugin
+        golos::market_history_plugin
+        golos::private_message_plugin
+        golos::raw_block_plugin
+        golos::snapshot_plugin
         golos_protocol
         fc
         ${CMAKE_DL_LIBS}
@@ -26,7 +43,7 @@ target_link_libraries(golosd PRIVATE
 )
 
 install(TARGETS
-        golosd
+        ${CURRENT_TARGET}
 
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

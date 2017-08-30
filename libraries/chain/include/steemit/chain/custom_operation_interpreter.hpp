@@ -24,7 +24,7 @@ namespace steemit {
 
             virtual void apply(const protocol::custom_binary_operation &op) = 0;
 
-            virtual std::shared_ptr<graphene::schema::abstract_schema> get_operation_schema() = 0;
+            //virtual std::shared_ptr<graphene::schema::abstract_schema> get_operation_schema() = 0;
         };
 
     }

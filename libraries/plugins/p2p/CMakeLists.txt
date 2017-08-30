@@ -1,4 +1,4 @@
-set(CURRENT_TARGET p2p)
+set(CURRENT_TARGET p2p_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
         include/steemit/plugins/p2p/p2p_plugin.hpp
@@ -27,7 +27,7 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 target_link_libraries(
         golos_${CURRENT_TARGET}
         golos::chain_plugin
-        golos::p2p
+        golos::p2p_plugin
         appbase
         golos::chain
         golos::network

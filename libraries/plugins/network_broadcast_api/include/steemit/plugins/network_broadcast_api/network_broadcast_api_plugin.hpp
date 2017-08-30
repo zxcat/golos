@@ -11,8 +11,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
 using namespace appbase;
 
-class network_broadcast_api_plugin : public appbase::plugin< network_broadcast_api_plugin >
-{
+class network_broadcast_api_plugin : public appbase::plugin< network_broadcast_api_plugin > {
 public:
    APPBASE_PLUGIN_REQUIRES(
       (steemit::plugins::json_rpc::json_rpc_plugin)
