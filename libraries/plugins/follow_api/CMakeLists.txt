@@ -1,15 +1,11 @@
-set(CURRENT_TARGET follow_plugin)
+set(CURRENT_TARGET follow_api_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/follow/follow_objects.hpp
-        include/steemit/plugins/follow/follow_operations.hpp
-        include/steemit/plugins/follow/follow_plugin.hpp
+        include/steemit/plugins/follow_api/follow_api.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        follow_evaluators.cpp
-        follow_operations.cpp
-        follow_plugin.cpp
+        follow_api.cpp
 )
 
 if(BUILD_SHARED_LIBRARIES)
@@ -32,8 +28,10 @@ target_link_libraries(
         golos::chain
         golos::chain_plugin
         golos::protocol
+        golos::follow_plugin
         golos::database_api_plugin
         appbase
+        golos::json_rpc_plugin
         fc
 )
 target_include_directories(golos_${CURRENT_TARGET} PUBLIC "include")

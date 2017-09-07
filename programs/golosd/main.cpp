@@ -6,6 +6,7 @@
 #include <graphene/utilities/key_conversion.hpp>
 #include <fc/git_revision.hpp>
 
+///PLUGIN
 #include <steemit/plugins/chain/chain_plugin.hpp>
 #include <steemit/plugins/p2p/p2p_plugin.hpp>
 #include <steemit/plugins/webserver/webserver_plugin.hpp>
@@ -18,6 +19,8 @@
 #include <steemit/plugins/debug_node/debug_node_plugin.hpp>
 #include <steemit/plugins/follow/follow_plugin.hpp>
 #include <steemit/plugins/market_history/market_history_plugin.hpp>
+///PLUGIN
+
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -280,11 +283,11 @@ namespace steemit {
 
             //appbase::app().register_plugin< steemit::plugins::condenser_api::condenser_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::database_api::database_api_plugin >();
+            //appbase::app().register_plugin< steemit::plugins::database_api::database_api >();
 
             //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::follow::follow_api_plugin >();
+            //appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
 

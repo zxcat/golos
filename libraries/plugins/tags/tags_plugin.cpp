@@ -1,4 +1,3 @@
-#include <steemit/api_object/comment_api_obj.hpp>
 #include <steemit/protocol/config.hpp>
 #include <steemit/chain/database.hpp>
 #include <steemit/chain/hardfork.hpp>
@@ -498,8 +497,7 @@ namespace steemit {
             void tags_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
                 ilog("Initializing tags plugin");
                 my.reset(new detail::tags_plugin_impl);
-                database().post_apply_operation.connect(
-                        [&](const operation_notification &note) { my->on_operation(note); });
+                my->database().post_apply_operation.connect([&](const operation_notification &note) { my->on_operation(note); });
                 my->database().add_plugin_index<tag_index>();
                 my->database().add_plugin_index<tag_stats_index>();
                 my->database().add_plugin_index<peer_stats_index>();

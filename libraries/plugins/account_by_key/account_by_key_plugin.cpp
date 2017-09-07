@@ -1,6 +1,5 @@
 #include <steemit/plugins/account_by_key/account_by_key_plugin.hpp>
 #include <steemit/plugins/account_by_key/account_by_key_objects.hpp>
-#include <steemit/api_object/helper.hpp>
 #include <steemit/chain/operation_notification.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
 

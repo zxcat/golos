@@ -15,8 +15,7 @@
 namespace steemit { namespace plugins { namespace json_rpc {
 
 namespace detail {
-   struct json_rpc_error
-   {
+   struct json_rpc_error {
       json_rpc_error( int32_t c, std::string m, fc::optional< fc::variant > d = fc::optional< fc::variant >() )
          : code( c ), message( m ), data( d ) {}
 
@@ -25,16 +24,14 @@ namespace detail {
       fc::optional< fc::variant >      data;
    };
 
-   struct json_rpc_response
-   {
+   struct json_rpc_response {
       std::string                      jsonrpc = "2.0";
       fc::optional< fc::variant >      result;
       fc::optional< json_rpc_error >   error;
       fc::variant                      id;
    };
 
-   class json_rpc_plugin_impl
-   {
+   class json_rpc_plugin_impl {
       public:
          json_rpc_plugin_impl();
          ~json_rpc_plugin_impl();
@@ -48,29 +45,22 @@ namespace detail {
    json_rpc_plugin_impl::json_rpc_plugin_impl() {}
    json_rpc_plugin_impl::~json_rpc_plugin_impl() {}
 
-   void json_rpc_plugin_impl::add_api_method( const string& api_name, const string& method_name, const api_method& api )
-   {
+   void json_rpc_plugin_impl::add_api_method( const string& api_name, const string& method_name, const api_method& api ) {
       _registered_apis[ api_name ][ method_name ] = api;
    }
 
-   json_rpc_response json_rpc_plugin_impl::rpc( const fc::variant& message )
-   {
+   json_rpc_response json_rpc_plugin_impl::rpc( const fc::variant& message ) {
       json_rpc_response response;
 
-      try
-      {
+      try {
          const auto request = message.get_object();
 
-         if( request.contains( "id" ) )
-         {
-            try
-            {
+         if( request.contains( "id" ) ) {
+            try {
                response.id = request[ "id" ].as_int64();
             }
-            catch( fc::exception& )
-            {
-               try
-               {
+            catch( fc::exception& ) {
+               try {
                   response.id = request[ "id" ].as_string();
                }
                catch( fc::exception& ) {}

@@ -1,19 +1,12 @@
 #pragma once
 
-#include <steemit/chain/database.hpp>
 #include <steemit/chain/comment_object.hpp>
-
 #include <boost/multi_index/composite_key.hpp>
 #include <appbase/application.hpp>
 #include <chain/include/steemit/plugins/chain/chain_plugin.hpp>
 
 
 namespace steemit {
-    namespace application {
-        class discussion_query;
-
-        struct comment_api_obj;
-    }
 namespace plugins {
     namespace languages {
         using namespace steemit::chain;

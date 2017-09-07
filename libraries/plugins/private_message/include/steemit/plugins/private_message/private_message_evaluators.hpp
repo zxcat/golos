@@ -4,7 +4,6 @@
 
 #include <steemit/plugins/private_message/private_message_operations.hpp>
 #include <steemit/plugins/private_message/private_message_plugin.hpp>
-#include <api_object/include/steemit/api_object/helper.hpp>
 
 namespace steemit {
     namespace plugins {

@@ -1,13 +1,28 @@
 #pragma once
 
 #include <steemit/protocol/base.hpp>
-
+#include <steemit/chain/evaluator.hpp>
 #include <steemit/plugins/follow/follow_plugin.hpp>
-#include <steemit/api_object/helper.hpp>
 
 namespace steemit {
     namespace plugins {
         namespace follow {
+
+            #define DEFINE_PLUGIN_EVALUATOR(PLUGIN, OPERATION, X)                     \
+            class X ## _evaluator : public steemit::chain::evaluator< X ## _evaluator, OPERATION > \
+            {                                                                           \
+               public:                                                                  \
+                  typedef X ## _operation operation_type;                               \
+                                                                                        \
+                  X ## _evaluator( chain::database& db, PLUGIN* plugin )                       \
+                     : steemit::chain::evaluator< X ## _evaluator, OPERATION >( db ), \
+                       _plugin( plugin )                                                \
+                  {}                                                                    \
+                                                                                        \
+                  void do_apply( const X ## _operation& o );                            \
+                                                                                        \
+                  PLUGIN* _plugin;                                                      \
+            };
 
             using steemit::protocol::base_operation;
 
@@ -46,7 +61,7 @@ namespace steemit {
 
         }
     }
-} // steemit::follow
+} // steemit::follow_api
 
 FC_REFLECT(steemit::plugins::follow::follow_operation, (follower)(following)(what))
 FC_REFLECT(steemit::plugins::follow::reblog_operation, (account)(author)(permlink))

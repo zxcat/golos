@@ -5,8 +5,6 @@
 #include <steemit/follow/follow_api.hpp>
 #include <steemit/market_history/market_history_api.hpp>
 
-#include <steemit/application/steem_api_objects.hpp>
-
 #include <graphene/utilities/key_conversion.hpp>
 
 #include <fc/real128.hpp>

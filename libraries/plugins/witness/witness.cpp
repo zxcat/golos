@@ -7,8 +7,8 @@
 #include <graphene/utilities/key_conversion.hpp>
 
 #include <fc/time.hpp>
-#include <steemit/api_object/helper.hpp>
 #include <steemit/network/core_messages.hpp>
+#include <fc/io/json.hpp>
 
 void new_chain_banner(const steemit::chain::database &db) {
     std::cerr << "\n"
@@ -27,6 +27,19 @@ namespace steemit {
     namespace plugins {
         namespace witness_plugin {
 
+            template<typename T>
+            T dejsonify(const string &s) {
+                return fc::json::from_string(s).as<T>();
+            }
+
+            #define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
+            #define LOAD_VALUE_SET(options, name, container, type) \
+            if( options.count(name) ) { \
+                  const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \
+                  std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
+            }
+
+
             void witness_plugin::set_program_options(
                     boost::program_options::options_description &command_line_options,
                     boost::program_options::options_description &config_file_options) {
@@ -36,8 +49,7 @@ namespace steemit {
                          boost::program_options::bool_switch()->notifier([this](bool e) { _production_enabled = e; }),
                          "Enable block production, even if the chain is stale.")
                         ("required-participation", boost::program_options::bool_switch()->notifier([this](int e) {
-                            _required_witness_participation = uint32_t(
-                                    e * STEEMIT_1_PERCENT);
+                            _required_witness_participation = uint32_t(e * STEEMIT_1_PERCENT);
                         }), "Percent of witnesses (0-99) that must be participating in order to produce blocks")
                         ("witness,w",
                          boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(),
@@ -74,7 +86,7 @@ namespace steemit {
 
                         const std::vector<std::string> miner_to_wif_pair_strings = options["miner"].as<std::vector<std::string>>();
                         for (auto p : miner_to_wif_pair_strings) {
-                            auto m = steemit::application::dejsonify<pair<std::string, std::string>>(p);
+                            auto m = dejsonify<pair<std::string, std::string>>(p);
                             idump((m));
 
                             fc::optional<fc::ecc::private_key> private_key = graphene::utilities::wif_to_key(m.second);

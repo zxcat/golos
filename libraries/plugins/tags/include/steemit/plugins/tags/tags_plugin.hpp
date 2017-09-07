@@ -6,11 +6,8 @@
 #include <appbase/application.hpp>
 
 namespace steemit {
-    namespace application {
-        class discussion_query;
-        struct comment_api_obj;
-    }
     namespace plugins {
+
         namespace tags {
             using namespace steemit::chain;
             using namespace boost::multi_index;

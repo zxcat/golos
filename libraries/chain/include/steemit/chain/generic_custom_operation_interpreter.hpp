@@ -14,6 +14,7 @@
 
 #include <string>
 #include <vector>
+#include <fc/io/json.hpp>
 
 namespace steemit {
     namespace chain {

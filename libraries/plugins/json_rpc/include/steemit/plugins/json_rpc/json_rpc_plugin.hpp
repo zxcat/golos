@@ -50,48 +50,57 @@
    BOOST_PP_SEQ_FOR_EACH( JSON_RPC_API_METHOD, API_NAME, METHODS )                              \
 }
 
-namespace steemit { namespace plugins { namespace json_rpc {
+namespace steemit {
+    namespace plugins {
+        namespace json_rpc {
 
-using namespace appbase;
+            using namespace appbase;
 
-/**
- * @brief Internal type used to bind api methods
- * to names.
- *
- * Arguments: Variant object of propert arg type
- */
-typedef std::function< fc::variant(const fc::variant&) > api_method;
+            /**
+             * @brief Internal type used to bind api methods
+             * to names.
+             *
+             * Arguments: Variant object of propert arg type
+             */
+            using api_method = std::function<fc::variant(const fc::variant &)>;
 
-/**
- * @brief An API, containing APIs and Methods
- *
- * An API is composed of several calls, where each call has a
- * name defined by the API class. The api_call functions
- * are compile time bindings of names to methods.
- */
-typedef std::map< string, api_method > api_description;
+            /**
+             * @brief An API, containing APIs and Methods
+             *
+             * An API is composed of several calls, where each call has a
+             * name defined by the API class. The api_call functions
+             * are compile time bindings of names to methods.
+             */
+            using api_description = std::map<string, api_method>;
 
-namespace detail {
-   class json_rpc_plugin_impl;
-}
+            namespace detail {
+                class json_rpc_plugin_impl;
+            }
 
-class json_rpc_plugin : public appbase::plugin< json_rpc_plugin > {
-   public:
-      json_rpc_plugin();
-      virtual ~json_rpc_plugin();
+            class json_rpc_plugin : public appbase::plugin<json_rpc_plugin> {
+            public:
+                json_rpc_plugin();
 
-      APPBASE_PLUGIN_REQUIRES();
-      virtual void set_program_options( options_description&, options_description& ) override {}
+                virtual ~json_rpc_plugin();
 
-      void plugin_initialize( const variables_map& options );
-      void plugin_startup();
-      void plugin_shutdown();
+                APPBASE_PLUGIN_REQUIRES();
 
-      void add_api_method( const string& api_name, const string& method_name, const api_method& api );
-      string call( const string& body );
+                virtual void set_program_options(options_description &, options_description &) override {}
 
-   private:
-      std::shared_ptr< detail::json_rpc_plugin_impl >   _my;
-};
+                void plugin_initialize(const variables_map &options);
 
-} } } // steemit::plugins::json_rpc
+                void plugin_startup();
+
+                void plugin_shutdown();
+
+                void add_api_method(const string &api_name, const string &method_name, const api_method &api);
+
+                string call(const string &body);
+
+            private:
+                std::shared_ptr<detail::json_rpc_plugin_impl> _my;
+            };
+
+        }
+    }
+} // steemit::plugins::json_rpc

@@ -107,12 +107,12 @@ namespace steemit {
 
                 void operator()(const custom_json_operation &op) const {
                     try {
-                        if (op.id == FOLLOW_PLUGIN_NAME) {
+                        if (op.id == follow_plugin::__name__) {
                             custom_json_operation new_cop;
 
                             new_cop.required_auths = op.required_auths;
                             new_cop.required_posting_auths = op.required_posting_auths;
-                            new_cop.id = __name__;
+                            new_cop.id = follow_plugin::__name__;
                             follow_operation fop;
 
                             try {

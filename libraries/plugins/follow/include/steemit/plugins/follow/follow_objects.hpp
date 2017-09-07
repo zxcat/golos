@@ -326,7 +326,7 @@ namespace steemit {
 
         }
     }
-} // steemit::follow
+} // steemit::follow_api
 
 FC_REFLECT_ENUM(steemit::plugins::follow::follow_type, (undefined)(blog)(ignore))
 

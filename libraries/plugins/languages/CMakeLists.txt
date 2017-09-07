@@ -23,7 +23,13 @@ endif ()
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
 
-target_link_libraries(golos_${CURRENT_TARGET} golos::chain golos::protocol golos::api_object appbase)
+target_link_libraries(
+        golos_${CURRENT_TARGET}
+        golos::chain
+        golos::protocol
+        appbase
+        fc
+)
 target_include_directories(golos_${CURRENT_TARGET}
                            PUBLIC "include" "..")
 

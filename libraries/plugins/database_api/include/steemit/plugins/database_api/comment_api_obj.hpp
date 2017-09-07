@@ -1,24 +1,16 @@
 #ifndef GOLOS_COMMENT_API_OBJ_H
 #define GOLOS_COMMENT_API_OBJ_H
 
-#include <steemit/chain/account_object.hpp>
-#include <steemit/chain/block_summary_object.hpp>
 #include <steemit/chain/comment_object.hpp>
-#include <steemit/chain/global_property_object.hpp>
-#include <steemit/chain/history_object.hpp>
-#include <steemit/chain/steem_objects.hpp>
-#include <steemit/chain/transaction_object.hpp>
-#include <steemit/chain/witness_objects.hpp>
-#include <steemit/protocol/operations/steem_operations.hpp>
-
 
 namespace steemit {
-    namespace application {
+    namespace plugins {
+        namespace database_api {
 
-    using namespace steemit::chain;
+        using namespace steemit::chain;
 
         struct comment_api_obj {
-            comment_api_obj(const chain::comment_object &o) :
+            comment_api_obj(const chain::comment_object &o):
                     id(o.id),
                     category(to_string(o.category)),
                     parent_author(o.parent_author),
@@ -58,8 +50,7 @@ namespace steemit {
                 }
             }
 
-            comment_api_obj() {
-            }
+            comment_api_obj(){}
 
             comment_object::id_type id;
             string category;
@@ -111,9 +102,9 @@ namespace steemit {
         };
 
      }
-}
+}}
 
-FC_REFLECT(steemit::application::comment_api_obj,
+FC_REFLECT(steemit::plugins::database_api::comment_api_obj,
         (id)(author)(permlink)
                 (category)(parent_author)(parent_permlink)
                 (title)(body)(json_metadata)(last_update)(created)(active)(last_payout)

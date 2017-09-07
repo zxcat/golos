@@ -36,8 +36,7 @@ using websocketpp::connection_hdl;
 
 namespace detail {
 
-   struct asio_with_stub_log : public websocketpp::config::asio
-   {
+   struct asio_with_stub_log : public websocketpp::config::asio {
          typedef asio_with_stub_log type;
          typedef asio base;
 
@@ -57,8 +56,7 @@ namespace detail {
 
          typedef base::rng_type rng_type;
 
-         struct transport_config : public base::transport_config
-         {
+         struct transport_config : public base::transport_config {
             typedef type::concurrency_type concurrency_type;
             typedef type::alog_type alog_type;
             typedef type::elog_type elog_type;
@@ -77,10 +75,8 @@ namespace detail {
 
 using websocket_server_type = websocketpp::server< detail::asio_with_stub_log >;
 
-std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string& endpoint_string )
-{
-   try
-   {
+std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string& endpoint_string ) {
+   try {
       string::size_type colon_pos = endpoint_string.find( ':' );
       if( colon_pos == std::string::npos )
          FC_THROW( "Missing required port number in endpoint string \"${endpoint_string}\"",
@@ -88,8 +84,7 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
 
       std::string port_string = endpoint_string.substr( colon_pos + 1 );
 
-      try
-      {
+      try {
          uint16_t port = boost::lexical_cast< uint16_t >( port_string );
          std::string hostname = endpoint_string.substr( 0, colon_pos );
          std::vector< fc::ip::endpoint > endpoints = fc::resolve( hostname, port );
@@ -99,16 +94,14 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
 
          return endpoints;
       }
-      catch( const boost::bad_lexical_cast& )
-      {
+      catch( const boost::bad_lexical_cast& ) {
          FC_THROW("Bad port: ${port}", ("port", port_string) );
       }
    }
    FC_CAPTURE_AND_RETHROW( (endpoint_string) )
 }
 
-class webserver_plugin_impl
-{
+class webserver_plugin_impl {
    public:
       webserver_plugin_impl() :
          api_work( this->api_ios )
@@ -139,16 +132,14 @@ webserver_plugin::webserver_plugin() : _my( new webserver_plugin_impl() ) {
 }
 webserver_plugin::~webserver_plugin(){}
 
-void webserver_plugin::set_program_options( options_description&, options_description& cfg )
-{
+void webserver_plugin::set_program_options( options_description&, options_description& cfg ) {
    cfg.add_options()
          ("webserver-http-endpoint", bpo::value< string >(), "The local IP and port to listen for incoming http connections.")
          ("webserver-ws-endpoint", bpo::value< string >(), "The local IP and port to listen for incoming websocket connections.")
          ;
 }
 
-void webserver_plugin::plugin_initialize( const variables_map& options )
-{
+void webserver_plugin::plugin_initialize( const variables_map& options ) {
    if( options.count( "webserver-http-endpoint" ) )
    {
       auto http_endpoint = options.at( "webserver-http-endpoint" ).as< string >();
@@ -168,8 +159,7 @@ void webserver_plugin::plugin_initialize( const variables_map& options )
    }
 }
 
-void webserver_plugin::plugin_startup()
-{
+void webserver_plugin::plugin_startup() {
    _my->api = appbase::app().find_plugin< plugins::json_rpc::json_rpc_plugin >();
    FC_ASSERT( _my->api != nullptr, "Could not find API Register Plugin" );
 
@@ -249,34 +239,27 @@ void webserver_plugin::plugin_startup()
       });
    }
 
-   if( _my->http_endpoint && ( ( _my->ws_endpoint && _my->ws_endpoint != _my->http_endpoint ) || !_my->ws_endpoint ) )
-   {
-      _my->http_thread = std::make_shared<std::thread>( [&]()
-      {
+   if( _my->http_endpoint && ( ( _my->ws_endpoint && _my->ws_endpoint != _my->http_endpoint ) || !_my->ws_endpoint ) ) {
+      _my->http_thread = std::make_shared<std::thread>( [&]() {
          ilog( "start processing http thread" );
-         try
-         {
+         try {
             _my->http_server.clear_access_channels( websocketpp::log::alevel::all );
             _my->http_server.clear_error_channels( websocketpp::log::elevel::all );
             _my->http_server.init_asio( &_my->http_ios );
             _my->http_server.set_reuse_addr( true );
 
-            _my->http_server.set_http_handler( [&]( connection_hdl hdl )
-            {
+            _my->http_server.set_http_handler( [&]( connection_hdl hdl ) {
                auto con = _my->http_server.get_con_from_hdl( hdl );
                con->defer_http_response();
 
-               _my->api_ios.post( [con, this]()
-               {
+               _my->api_ios.post( [con, this]() {
                   auto body = con->get_request_body();
 
-                  try
-                  {
+                  try {
                      con->set_body( _my->api->call( body ) );
                      con->set_status( websocketpp::http::status_code::ok );
                   }
-                  catch( fc::exception& e )
-                  {
+                  catch( fc::exception& e ) {
                      edump( (e) );
                      con->set_body( "Could not call API" );
                      con->set_status( websocketpp::http::status_code::not_found );
@@ -293,8 +276,7 @@ void webserver_plugin::plugin_startup()
             _my->http_ios.run();
             ilog( "http io service exit" );
          }
-         catch( ... )
-         {
+         catch( ... ) {
             elog( "error thrown from http io service" );
          }
       });
@@ -302,8 +284,7 @@ void webserver_plugin::plugin_startup()
    }
 }
 
-void webserver_plugin::plugin_shutdown()
-{
+void webserver_plugin::plugin_shutdown() {
    if( _my->ws_server.is_listening() )
       _my->ws_server.stop_listening();
 
@@ -313,15 +294,13 @@ void webserver_plugin::plugin_shutdown()
    _my->api_ios.stop();
    _my->api_thread_pool.join_all();
 
-   if( _my->ws_thread )
-   {
+   if( _my->ws_thread ) {
       _my->ws_ios.stop();
       _my->ws_thread->join();
       _my->ws_thread.reset();
    }
 
-   if( _my->http_thread )
-   {
+   if( _my->http_thread ) {
       _my->http_ios.stop();
       _my->http_thread->join();
       _my->http_thread.reset();

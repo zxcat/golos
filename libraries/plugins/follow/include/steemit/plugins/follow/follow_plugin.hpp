@@ -1,18 +1,16 @@
 #pragma once
 
-#include <steemit/api_object/helper.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
 
 namespace steemit {
     namespace plugins {
         namespace follow {
 
-#define FOLLOW_PLUGIN_NAME "follow"
-
-            constexpr static const char* __name__ = "follow";
+            #define FOLLOW_PLUGIN_NAME "follow"
 
             class follow_plugin : public appbase::plugin<follow_plugin> {
             public:
+                constexpr static const char* __name__ = "follow_api";
                 APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
                 follow_plugin();
 
@@ -39,4 +37,4 @@ namespace steemit {
 
         }
     }
-} //steemit::follow
+} //steemit::follow_api

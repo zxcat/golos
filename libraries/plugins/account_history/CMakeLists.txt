@@ -29,7 +29,6 @@ target_link_libraries(
         golos_chain
         golos_protocol
         appbase
-        golos::api_object
         golos::chain_plugin
 )
 

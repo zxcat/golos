@@ -38,7 +38,7 @@ namespace steemit {
             string json_meta;
             flat_set<string> cc;
         };
-constexpr static const char* __name__= "private_message";
+
 
         class message_object
                 : public object<message_object_type, message_object> {
@@ -138,6 +138,7 @@ constexpr static const char* __name__= "private_message";
  */
         class private_message_plugin : public appbase::plugin<private_message_plugin> {
         public:
+            constexpr static const char* __name__= "private_message";
             APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
 
             private_message_plugin();

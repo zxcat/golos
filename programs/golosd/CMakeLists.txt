@@ -30,6 +30,7 @@ target_link_libraries(
         golos::block_info_plugin
         golos::blockchain_statistics_plugin
         golos::debug_node_plugin
+        golos::database_api_plugin
         #golos::delayed_node_plugin
         golos::follow_plugin
         golos::market_history_plugin

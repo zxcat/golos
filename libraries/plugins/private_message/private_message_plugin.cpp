@@ -7,6 +7,19 @@
 namespace steemit {
     namespace plugins {
         namespace private_message {
+
+                template<typename T>
+                T dejsonify(const string &s) {
+                    return fc::json::from_string(s).as<T>();
+                }
+
+                #define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
+                #define LOAD_VALUE_SET(options, name, container, type) \
+                if( options.count(name) ) { \
+                      const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \
+                      std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
+                }
+
                 struct private_message_plugin::private_message_plugin_impl {
                 public:
                     private_message_plugin_impl():database_(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()){}

@@ -1,6 +1,3 @@
-
-#include <steemit/api_object/comment_api_obj.hpp>
-
 #include <steemit/protocol/config.hpp>
 
 #include <steemit/chain/database.hpp>
@@ -36,8 +33,8 @@ namespace steemit {
                 return language;
             }
 
-
-            std::string get_language(const steemit::application::comment_api_obj &c) {
+/*
+            std::string get_language(const steemit::plugins::database_api::comment_api_obj &c) {
                 comment_metadata meta;
                 std::string language("");
                 if (!c.json_metadata.empty()) {
@@ -51,7 +48,7 @@ namespace steemit {
 
                 return language;
             }
-
+*/
 
             namespace detail {
 
@@ -453,11 +450,12 @@ namespace steemit {
 
             void languages_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
                 ilog("Intializing languages plugin");
-                database().post_apply_operation.connect([&](const operation_notification &note) {
-                    my->on_operation(note);
-                });
+
 
                 my.reset(new detail::languages_plugin_impl());
+                my->database().post_apply_operation.connect([&](const operation_notification &note) {
+                    my->on_operation(note);
+                });
                 my->database().add_plugin_index<language_index>();
                 my->database().add_plugin_index<language_stats_index>();
                 my->database().add_plugin_index<peer_stats_index>();
@@ -467,7 +465,7 @@ namespace steemit {
 
 
             void languages_plugin::plugin_startup() {
-                database().with_read_lock([&]() {
+                my->database().with_read_lock([&]() {
                     const auto &index = my->database().get_index<language_index>().indices().get<by_comment>();
                     auto itr = index.begin();
                     for (; itr != index.end(); ++itr) {
