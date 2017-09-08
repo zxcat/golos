@@ -174,6 +174,27 @@ namespace steemit {
             DEFINE_API_ARGS( get_replies_by_last_update,             vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_discussions_by_author_before_date,  vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_account_history,                    vector< variant >,   get_account_history_return_type )
+            ///############################
+            ///asset
+            DEFINE_API_ARGS( get_assets_dynamic_data,                vector< variant >,   get_account_history_return_type )
+            DEFINE_API_ARGS( get_assets_by_issuer,                   vector< variant >,   get_account_history_return_type )
+            ///categories
+            DEFINE_API_ARGS( get_trending_categories,                vector< variant >,   get_account_history_return_type )
+
+            ///
+            DEFINE_API_ARGS(get_account_balances,                    vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_active_categories,                   vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_recent_categories,                   vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_proposed_transactions,               vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(list_assets,                             vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_bitassets_data,                      vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_miner_queue,                         vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_assets,                              vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_best_categories,                     vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(lookup_asset_symbols,                    vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   vector< discussion > )
+
 
 /**
  * @brief The database_api class implements the RPC API for the chain database.
@@ -182,7 +203,7 @@ namespace steemit {
  * read-only; all modifications to the database must be performed via transactions. Transactions are broadcast via
  * the @ref network_broadcast_api.
  */
-        class database_api {
+        class database_api final {
         public:
             constexpr static const char *__name__ = "database_api";
             database_api();
