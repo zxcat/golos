@@ -1254,6 +1254,8 @@ namespace steemit {
             annotated_signed_transaction extend_payout_by_time(string payer, string author, string permlink,
                                                                fc::time_point_sec extension_time, bool broadcast);
 
+            annotated_signed_transaction reblog(string account, string author, string permlink, bool broadcast);
+
             /**
              * Send the encrypted private email-like message to user
              * @param from message author name
@@ -1510,6 +1512,7 @@ FC_API(steemit::wallet::wallet_api,
                extend_payout_by_time)(vote)(set_transaction_expiration)(challenge)(prove)(request_account_recovery)(
                recover_account)(change_recovery_account)(get_owner_history)(transfer_to_savings)(transfer_from_savings)(
                cancel_transfer_from_savings)(get_encrypted_memo)(decrypt_memo)(decline_voting_rights)
+               (reblog)
 
                /// private message api
                (send_private_message)(get_inbox)(get_outbox)
