@@ -2910,6 +2910,26 @@ namespace steemit {
             return my->sign_transaction(trx, broadcast);
         }
 
+        annotated_signed_transaction wallet_api::reblog(string account, string author, string permlink, bool broadcast )
+        {
+           follow::reblog_operation rop;
+           rop.account = follower;
+           rop.author = author;
+           rop.permlink = permlink;
+           follow::follow_plugin_operation op = rop;
+
+           _json_operation jop;
+           jop.id = "follow";
+           jop.json = fc::json::to_string(op);
+           jop.required_posting_auths.insert(account);
+
+           signed_transaction trx;
+           trx.operations.push_back( jop );
+           trx.validate();
+
+           return my->sign_transaction( trx, broadcast );
+        }
+        
         annotated_signed_transaction wallet_api::send_private_message(string from, string to, string subject,
                                                                       string body, bool broadcast) {
             FC_ASSERT(!is_locked(), "wallet must be unlocked to send a private message");
