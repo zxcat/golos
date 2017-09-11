@@ -53,7 +53,7 @@
 namespace steemit {
     namespace plugins {
         namespace json_rpc {
-
+            using fc::variant;
             using namespace appbase;
 
             /**
@@ -73,11 +73,8 @@ namespace steemit {
              */
             using api_description = std::map<string, api_method>;
 
-            namespace detail {
-                class json_rpc_plugin_impl;
-            }
 
-            class json_rpc_plugin : public appbase::plugin<json_rpc_plugin> {
+            class json_rpc_plugin final : public appbase::plugin<json_rpc_plugin> {
             public:
                 json_rpc_plugin();
 
@@ -85,7 +82,7 @@ namespace steemit {
 
                 APPBASE_PLUGIN_REQUIRES();
 
-                virtual void set_program_options(options_description &, options_description &) override {}
+                void set_program_options(options_description &, options_description &) {}
 
                 void plugin_initialize(const variables_map &options);
 
@@ -97,8 +94,11 @@ namespace steemit {
 
                 string call(const string &body);
 
+                variant rpc(const std::string&, const std::string&, std::vector<fc::variant> );
+
             private:
-                std::shared_ptr<detail::json_rpc_plugin_impl> _my;
+                struct json_rpc_plugin_impl;
+                std::shared_ptr<json_rpc_plugin_impl> _my;
             };
 
         }

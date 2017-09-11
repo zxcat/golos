@@ -63,7 +63,7 @@ namespace steemit {
                 uint32_t count;
             };
 
-            struct get_tags_used_by_author_return {
+            struct get_tags_used_by_author {
                 vector< tag_count_object > tags;
             };
 
@@ -174,26 +174,24 @@ namespace steemit {
             DEFINE_API_ARGS( get_replies_by_last_update,             vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_discussions_by_author_before_date,  vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_account_history,                    vector< variant >,   get_account_history_return_type )
-            ///############################
             ///asset
-            DEFINE_API_ARGS( get_assets_dynamic_data,                vector< variant >,   get_account_history_return_type )
-            DEFINE_API_ARGS( get_assets_by_issuer,                   vector< variant >,   get_account_history_return_type )
+            DEFINE_API_ARGS( get_assets_dynamic_data,                vector< variant >,   vector<optional<asset_dynamic_data_object>>)
+            DEFINE_API_ARGS( get_assets_by_issuer,                   vector< variant >,   vector<optional<asset_object>> )
             ///categories
-            DEFINE_API_ARGS( get_trending_categories,                vector< variant >,   get_account_history_return_type )
-
+            DEFINE_API_ARGS( get_trending_categories,                vector< variant >,   vector<category_api_obj>)
             ///
-            DEFINE_API_ARGS(get_account_balances,                    vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_active_categories,                   vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_recent_categories,                   vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_proposed_transactions,               vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(list_assets,                             vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_bitassets_data,                      vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_miner_queue,                         vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_assets,                              vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_best_categories,                     vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(lookup_asset_symbols,                    vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   vector< discussion > )
+            DEFINE_API_ARGS(get_account_balances,                    vector< variant >,   vector<asset> )
+            DEFINE_API_ARGS(get_active_categories,                   vector< variant >,   vector<category_api_obj> )
+            DEFINE_API_ARGS(get_recent_categories,                   vector< variant >,   vector<category_api_obj> )
+            DEFINE_API_ARGS(get_proposed_transactions,               vector< variant >,   vector<proposal_object> )
+            DEFINE_API_ARGS(list_assets,                             vector< variant >,   vector<asset_object> )
+            DEFINE_API_ARGS(get_bitassets_data,                      vector< variant >,   vector<optional<asset_bitasset_data_object>> )
+            DEFINE_API_ARGS(get_miner_queue,                         vector< variant >,   vector<account_name_type>)
+            DEFINE_API_ARGS(get_assets,                              vector< variant >,   vector<optional<asset_object>> )
+            DEFINE_API_ARGS(get_best_categories,                     vector< variant >,   vector<category_api_obj>)
+            DEFINE_API_ARGS(lookup_asset_symbols,                    vector< variant >,   vector<optional<asset_object>> )
+            DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   asset)
+            DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   fc::time_point_sec)
 
 
 /**
@@ -705,5 +703,5 @@ FC_REFLECT_ENUM(steemit::plugins::database_api::withdraw_route_type, (incoming)(
 FC_REFLECT( steemit::plugins::database_api::tag_count_object,
             (tag)(count) );
 
-FC_REFLECT( steemit::plugins::database_api::get_tags_used_by_author_return,
+FC_REFLECT( steemit::plugins::database_api::get_tags_used_by_author,
             (tags) );
