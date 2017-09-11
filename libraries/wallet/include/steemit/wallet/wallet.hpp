@@ -1254,8 +1254,6 @@ namespace steemit {
             annotated_signed_transaction extend_payout_by_time(string payer, string author, string permlink,
                                                                fc::time_point_sec extension_time, bool broadcast);
 
-            annotated_signed_transaction reblog(string account, string author, string permlink, bool broadcast);
-
             /**
              * Send the encrypted private email-like message to user
              * @param from message author name
