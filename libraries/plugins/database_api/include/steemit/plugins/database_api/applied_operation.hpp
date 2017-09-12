@@ -12,7 +12,7 @@ namespace steemit {
         struct applied_operation {
             applied_operation();
 
-            applied_operation(const steemit::chain::operation_object &op_obj);
+            applied_operation(const chain::operation_object &op_obj);
 
             steemit::protocol::transaction_id_type trx_id;
             uint32_t block = 0;

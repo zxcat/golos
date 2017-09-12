@@ -7,9 +7,8 @@
 
 namespace steemit {
     namespace plugins {
-
-        namespace follow {
-
+        namespace follow_api {
+                using namespace follow;
                 inline void set_what(vector<follow_type> &what, uint16_t bitmask) {
                     if (bitmask & 1 << blog) {
                         what.push_back(blog);

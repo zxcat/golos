@@ -1,7 +1,6 @@
 #include <steemit/plugins/database_api/database_api.hpp>
 
 #include <steemit/plugins/follow_api/follow_api.hpp>
-#include <steemit/plugins/snapshot/snapshot_plugin.hpp>
 #include <steemit/plugins/market_history/market_history_plugin.hpp>
 #include <steemit/plugins/follow/follow_plugin.hpp>
 #include <steemit/plugins/languages/languages_plugin.hpp>
@@ -25,6 +24,70 @@
 namespace steemit {
     namespace plugins {
         namespace database_api {
+
+            std::string get_language(const comment_api_obj &c) {
+                languages::comment_metadata meta;
+                std::string language("");
+                if (!c.json_metadata.empty()) {
+                    try {
+                        meta = fc::json::from_string(c.json_metadata).as<languages::comment_metadata>();
+                        language = meta.language;
+                    } catch (...) {
+                        // Do nothing on malformed json_metadata
+                    }
+                }
+
+                return language;
+            }
+
+            bool tags_filter(
+                    const discussion_query &query,
+                    const comment_api_obj &c,
+                    const std::function<bool(const comment_api_obj &)> &condition) {
+                if (query.select_authors.size()) {
+                    if (query.select_authors.find(c.author) == query.select_authors.end()) {
+                        return true;
+                    }
+                }
+
+                tags::comment_metadata meta;
+
+                if (!c.json_metadata.empty()) {
+                    try {
+                        meta = fc::json::from_string(c.json_metadata).as<tags::comment_metadata>();
+                    } catch (const fc::exception &e) {
+                        // Do nothing on malformed json_metadata
+                    }
+                }
+
+                for (const std::set<std::string>::value_type &iterator : query.filter_tags) {
+                    if (meta.tags.find(iterator) != meta.tags.end()) {
+                        return true;
+                    }
+                }
+
+                return condition(c) ||
+                       query.filter_tags.find(c.category) !=
+                       query.filter_tags.end();
+            }
+
+
+
+            bool languages_filter(const discussion_query &query, const comment_api_obj &c, const std::function<bool(const comment_api_obj &)> &condition) {
+                std::string language = get_language(c);
+
+                if (query.filter_languages.size()) {
+                    if (language.empty()) {
+                        return true;
+                    }
+                }
+
+                if (query.filter_languages.count(language)) {
+                    return true;
+                }
+
+                return false || condition(c);
+            }
 
         struct database_api::database_api_impl {
         public:
@@ -50,31 +113,31 @@ namespace steemit {
             // Globals
             fc::variant_object get_config() const;
 
-            dynamic_global_property_api_object get_dynamic_global_properties() const;
+            dynamic_global_property_api_object get_dynamic_global_properties() const ;
 
             // Accounts
             std::vector<extended_account> get_accounts(std::vector<std::string> names) const;
 
-            std::vector<optional<account_api_object>> lookup_account_names(const std::vector<std::string> &account_names) const;
+            std::vector<optional<account_api_object>> lookup_account_names(const std::vector<std::string> &account_names)const;
 
-            std::set<std::string> lookup_accounts(const std::string &lower_bound_name, uint32_t limit) const;
+            std::set<std::string> lookup_accounts(const std::string &lower_bound_name, uint32_t limit)const;
 
-            uint64_t get_account_count() const;
+            uint64_t get_account_count()const ;
 
             // Witnesses
-            std::vector<optional<witness_api_object>> get_witnesses(const std::vector<witness_object::id_type> &witness_ids) const;
+            std::vector<optional<witness_api_object>> get_witnesses(const std::vector<witness_object::id_type> &witness_ids)const;
 
-            fc::optional<witness_api_object> get_witness_by_account(std::string account_name) const;
+            fc::optional<witness_api_object> get_witness_by_account(std::string account_name)const;
 
-            std::set<account_name_type> lookup_witness_accounts(const std::string &lower_bound_name, uint32_t limit) const;
+            std::set<account_name_type> lookup_witness_accounts(const std::string &lower_bound_name, uint32_t limit)const;
 
-            uint64_t get_witness_count() const;
+            uint64_t get_witness_count()const ;
 
             // Balances
             vector<asset> get_account_balances(account_name_type account_name, const flat_set<asset_name_type> &assets) const;
 
             // Assets
-            vector<optional<asset_object>> get_assets(const vector<asset_name_type> &asset_symbols) const;
+            vector<optional<asset_object>> get_assets(const vector<asset_name_type> &asset_symbols)const;
 
             vector<optional<asset_object>> get_assets_by_issuer(string issuer) const;
 
@@ -93,12 +156,40 @@ namespace steemit {
 
             std::set<public_key_type> get_potential_signatures(const signed_transaction &trx) const;
 
+            std::vector<vote_state> get_active_votes(std::string author, std::string permlink) const;
+
             bool verify_authority(const signed_transaction &trx) const;
 
             bool verify_account_authority(const std::string &name_or_id, const flat_set<public_key_type> &signers) const;
 
             // Proposed transactions
             vector<proposal_object> get_proposed_transactions(account_name_type name) const;
+
+            std::vector<discussion> get_content_replies(std::string author, std::string permlink) const ;
+
+            std::vector<withdraw_route> get_withdraw_routes(std::string account, withdraw_route_type type) const ;
+
+            std::vector<tag_api_object> get_trending_tags(std::string after, uint32_t limit) const ;
+
+            std::vector<pair<std::string, uint32_t>> get_tags_used_by_author(const std::string &author) const ;
+
+            std::map<uint32_t, applied_operation> get_account_history(std::string account, uint64_t from, uint32_t limit) const ;
+
+            void set_pending_payout(discussion &d) const ;
+
+            void set_url(discussion &d) const;
+
+            std::vector<discussion> get_replies_by_last_update(account_name_type start_parent_author, std::string start_permlink, uint32_t limit) const ;
+
+            discussion get_content(std::string author, std::string permlink) const;
+
+            std::vector<witness_api_object> get_witnesses_by_vote(std::string from, uint32_t limit) const;
+
+            std::vector<account_name_type> get_miner_queue() const ;
+
+            vector<discussion> get_comment_discussions_by_payout(const discussion_query &query) const ;
+
+            vector<discussion> get_post_discussions_by_payout(const discussion_query &query) const ;
 
             template<typename T>
             void subscribe_to_item(const T &i) const {
@@ -131,10 +222,10 @@ namespace steemit {
             std::function<void(const fc::variant &)> _block_applied_callback;
 
 
-            steemit::chain::database & database() {
+            steemit::chain::database & database() const {
                 return _db;
             }
-            std::shared_ptr<plugins::follow::follow_api> _follow_api;
+            std::shared_ptr<follow_api::follow_api> _follow_api;
 
             boost::signals2::scoped_connection _block_applied_connection;
 
@@ -318,15 +409,6 @@ namespace steemit {
             catch (fc::assert_exception) {
                 ilog("Follow Plugin not loaded");
             }
-
-#ifndef STEEMIT_BUILD_TESTNET
-            try {
-                FC_ASSERT(appbase::app().get_plugin<snapshot::snapshot_plugin>().get_loaded_snapshots().right.at("1f0617dfc2e7aa49b0d6c394b36087ead02bc7f781e7550dae13e8cb12f13436").find("snapshot5392323.json"), "Steemit accounts snapsnot is invalid");
-
-            } catch (fc::assert_exception) {
-                elog("Snapshots plugin not loaded");
-            }
-#endif
         }
 
         database_api::database_api_impl::~database_api_impl() {
@@ -348,7 +430,7 @@ namespace steemit {
         }
 
         optional<block_header> database_api::database_api_impl::get_block_header(uint32_t block_num) const {
-                auto result = _db.fetch_block_by_number(block_num);
+                auto result = database().fetch_block_by_number(block_num);
                 if (result) {
                     return *result;
                 }
@@ -363,18 +445,22 @@ namespace steemit {
         }
 
         optional<signed_block> database_api::database_api_impl::get_block(uint32_t block_num) const {
-                return my->database().fetch_block_by_number(block_num);
+                return database().fetch_block_by_number(block_num);
         }
 
-        DEFINE_API(database_api,get_ops_in_block){
+        DEFINE_API(database_api,get_ops_in_block) {
             CHECK_ARG_SIZE( 2 )
-            return my->database().with_read_lock([&]() {
-                return my->get_ops_in_block(args[0].as< uint32_t >(), args[1].as< bool >() );
-            });
+            auto block_num    = args[0].as< uint32_t >();
+            auto only_virtual = args[1].as< bool >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_ops_in_block(block_num, only_virtual );
+                    }
+            );
         }
 
         std::vector<applied_operation> database_api::database_api_impl::get_ops_in_block(uint32_t block_num, bool only_virtual) const {
-                const auto &idx = my->database().get_index<operation_index>().indices().get<by_location>();
+                const auto &idx = database().get_index<operation_index>().indices().get<by_location>();
                 auto itr = idx.lower_bound(block_num);
                 std::vector<applied_operation> result;
                 applied_operation temp;
@@ -440,7 +526,7 @@ namespace steemit {
         }
 
         dynamic_global_property_api_object database_api::database_api_impl::get_dynamic_global_properties() const {
-                return my->database().get(dynamic_global_property_object::id_type());
+                return database().get(dynamic_global_property_object::id_type());
         }
 
         DEFINE_API(database_api,get_witness_schedule){
@@ -481,14 +567,14 @@ namespace steemit {
         }
 
         std::vector<extended_account> database_api::database_api_impl::get_accounts(std::vector<std::string> names) const {
-                const auto &idx = my->database().get_index<account_index>().indices().get<by_name>();
-                const auto &vidx = my->database().get_index<witness_vote_index>().indices().get<by_account_witness>();
+                const auto &idx =  database().get_index<account_index>().indices().get<by_name>();
+                const auto &vidx = database().get_index<witness_vote_index>().indices().get<by_account_witness>();
                 std::vector<extended_account> results;
 
                 for (auto name: names) {
                     auto itr = idx.find(name);
                     if (itr != idx.end()) {
-                        results.push_back(extended_account(*itr, _db));
+                        results.push_back(extended_account(*itr, database()));
 
                         if (_follow_api) {
                             results.back().reputation = _follow_api->get_account_reputations(itr->name, 1)[0].reputation;
@@ -496,7 +582,7 @@ namespace steemit {
 
                         auto vitr = vidx.lower_bound(boost::make_tuple(itr->id, witness_object::id_type()));
                         while (vitr != vidx.end() && vitr->account == itr->id) {
-                            results.back().witness_votes.insert(_db.get(vitr->witness).owner);
+                            results.back().witness_votes.insert(database().get(vitr->witness).owner);
                             ++vitr;
                         }
                     }
@@ -517,7 +603,7 @@ namespace steemit {
                 result.reserve(account_names.size());
 
                 for (auto &name : account_names) {
-                    auto itr = _db.find<account_object, by_name>(name);
+                    auto itr = database().find<account_object, by_name>(name);
 
                     if (itr) {
                         result.push_back(account_api_object(*itr, database()));
@@ -540,7 +626,7 @@ namespace steemit {
 
         std::set<std::string> database_api::database_api_impl::lookup_accounts(const std::string &lower_bound_name, uint32_t limit) const {
                 FC_ASSERT(limit <= 1000);
-                const auto &accounts_by_name = my->database().get_index<account_index>().indices().get<by_name>();
+                const auto &accounts_by_name = database().get_index<account_index>().indices().get<by_name>();
                 std::set<std::string> result;
 
                 for (auto itr = accounts_by_name.lower_bound(lower_bound_name); limit-- && itr != accounts_by_name.end(); ++itr) {
@@ -611,52 +697,60 @@ namespace steemit {
             });
         }
 
+        std::vector<withdraw_route> database_api::database_api_impl::get_withdraw_routes(std::string account, withdraw_route_type type) const {
+            std::vector<withdraw_route> result;
+
+            const auto &acc = database().get_account(account);
+
+            if (type == outgoing || type == all) {
+                const auto &by_route = database().get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+                auto route = by_route.lower_bound(acc.id);
+
+                while (route != by_route.end() &&
+                       route->from_account == acc.id) {
+                    withdraw_route r;
+                    r.from_account = account;
+                    r.to_account = database().get(route->to_account).name;
+                    r.percent = route->percent;
+                    r.auto_vest = route->auto_vest;
+
+                    result.push_back(r);
+
+                    ++route;
+                }
+            }
+
+            if (type == incoming || type == all) {
+                const auto &by_dest = database().get_index<withdraw_vesting_route_index>().indices().get<by_destination>();
+                auto route = by_dest.lower_bound(acc.id);
+
+                while (route != by_dest.end() &&
+                       route->to_account == acc.id) {
+                    withdraw_route r;
+                    r.from_account = database().get(route->from_account).name;
+                    r.to_account = account;
+                    r.percent = route->percent;
+                    r.auto_vest = route->auto_vest;
+
+                    result.push_back(r);
+
+                    ++route;
+                }
+            }
+
+            return result;
+        }
+
+
         DEFINE_API(database_api,get_withdraw_routes) {
             FC_ASSERT( args.size() == 1 || args.size() == 2, "Expected 1-2 arguments, was ${n}", ("n", args.size()) );
             auto account = args[0].as< string >();
-            auto type = args.size() == args[1].as< withdraw_route_type >();
-
-            return my->database().with_read_lock([&]() {
-                std::vector<withdraw_route> result;
-
-                const auto &acc = my->database().get_account(account);
-
-                if (type == outgoing || type == all) {
-                    const auto &by_route = my->database().get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
-                    auto route = by_route.lower_bound(acc.id);
-
-                    while (route != by_route.end() && route->from_account == acc.id) {
-                        withdraw_route r;
-                        r.from_account = account;
-                        r.to_account = my->database().get(route->to_account).name;
-                        r.percent = route->percent;
-                        r.auto_vest = route->auto_vest;
-
-                        result.push_back(r);
-
-                        ++route;
+            auto type    = args[1].as< withdraw_route_type >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_withdraw_routes(account,type);
                     }
-                }
-
-                if (type == incoming || type == all) {
-                    const auto &by_dest = my->database().get_index<withdraw_vesting_route_index>().indices().get<by_destination>();
-                    auto route = by_dest.lower_bound(acc.id);
-
-                    while (route != by_dest.end() && route->to_account == acc.id) {
-                        withdraw_route r;
-                        r.from_account = my->database().get(route->from_account).name;
-                        r.to_account = account;
-                        r.percent = route->percent;
-                        r.auto_vest = route->auto_vest;
-
-                        result.push_back(r);
-
-                        ++route;
-                    }
-                }
-
-                return result;
-            });
+            );
         }
 
         DEFINE_API(database_api,get_account_bandwidth){
@@ -679,72 +773,89 @@ namespace steemit {
 //////////////////////////////////////////////////////////////////////
 
         DEFINE_API(database_api,get_witnesses) {
+            CHECK_ARG_SIZE( 1 )
+            auto witness_ids = args[0].as< vector< witness_object::id_type > >();
             return my->database().with_read_lock(
                     [&]() {
-                        return my->get_witnesses(args);
+                        return my->get_witnesses(witness_ids);
                     }
             );
         }
 
-        DEFINE_API(database_api::database_api_impl,get_witnesses){
-            CHECK_ARG_SIZE( 1 )
-            vector< witness_id_type > witness_ids = args[0].as< vector< witness_id_type > >();
-
-            vector< optional< witness_api_object > > result;
-            result.reserve( witness_ids.size() );
-            result.reserve(witness_ids.size());
-            std::transform(witness_ids.begin(), witness_ids.end(), std::back_inserter(result),
-                    [this](witness_object::id_type id) -> optional<witness_api_object> {
-                        if (auto o = _db.find(id)) {
-                            return *o;
-                        }
-                        return {};
-                    });
-            return result;
+        std::vector<optional<witness_api_object>> database_api::database_api_impl::get_witnesses(const std::vector<witness_object::id_type> &witness_ids) const {
+                std::vector<optional<witness_api_object>> result;
+                result.reserve(witness_ids.size());
+                std::transform(witness_ids.begin(), witness_ids.end(), std::back_inserter(result),
+                               [this](witness_object::id_type id) -> optional<witness_api_object> {
+                                   if (auto o = database().find(id)) {
+                                       return *o;
+                                   }
+                                   return {};
+                               });
+                return result;
         }
 
         DEFINE_API(database_api,get_witness_by_account){
-            return my->database().with_read_lock([&]() {
-                return my->get_witness_by_account(args);
-            });
+            CHECK_ARG_SIZE( 1 )
+            auto account_name = args[0].as< std::string >();
+            return my->database().with_read_lock(
+                [&]() {
+                    return my->get_witness_by_account(account_name);
+                }
+            );
+        }
+
+
+        fc::optional<witness_api_object> database_api::database_api_impl::get_witness_by_account(std::string account_name) const {
+                const auto &idx = database().get_index<witness_index>().indices().get<by_name>();
+                auto itr = idx.find(account_name);
+                if (itr != idx.end()) {
+                    return witness_api_object(*itr);
+                }
+                return {};
+        }
+
+        std::vector<witness_api_object> database_api::database_api_impl::get_witnesses_by_vote(std::string from, uint32_t limit) const {
+            //idump((from)(limit));
+            FC_ASSERT(limit <= 100);
+
+            std::vector<witness_api_object> result;
+            result.reserve(limit);
+
+            const auto &name_idx = database().get_index<witness_index>().indices().get<by_name>();
+            const auto &vote_idx = database().get_index<witness_index>().indices().get<by_vote_name>();
+
+            auto itr = vote_idx.begin();
+            if (from.size()) {
+                auto nameitr = name_idx.find(from);
+                FC_ASSERT(nameitr != name_idx.end(), "invalid witness name ${n}", ("n", from));
+                itr = vote_idx.iterator_to(*nameitr);
+            }
+
+            while (itr != vote_idx.end() && result.size() < limit && itr->votes > 0) {
+                result.push_back(witness_api_object(*itr));
+                ++itr;
+            }
+            return result;
+
         }
 
         DEFINE_API(database_api,get_witnesses_by_vote){
-            return my->database().with_read_lock([&]() {
-                //idump((from)(limit));
-                FC_ASSERT(limit <= 100);
-
-                std::vector<witness_api_object> result;
-                result.reserve(limit);
-
-                const auto &name_idx = my->database().get_index<witness_index>().indices().get<by_name>();
-                const auto &vote_idx = my->database().get_index<witness_index>().indices().get<by_vote_name>();
-
-                auto itr = vote_idx.begin();
-                if (from.size()) {
-                    auto nameitr = name_idx.find(from);
-                    FC_ASSERT(nameitr != name_idx.end(), "invalid witness name ${n}", ("n", from));
-                    itr = vote_idx.iterator_to(*nameitr);
-                }
-
-                while (itr != vote_idx.end() && result.size() < limit && itr->votes > 0) {
-                    result.push_back(witness_api_object(*itr));
-                    ++itr;
-                }
-                return result;
-            });
+            CHECK_ARG_SIZE( 2 )
+            auto from = args[0].as< std::string >();
+            auto limit = args[1].as< uint32_t >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_witnesses_by_vote(from,limit);
+                    }
+            );
         }
 
-        DEFINE_API(database_api::database_api_impl,get_witness_by_account){
-            const auto &idx = database().get_index<witness_index>().indices().get<by_name>();
-            auto itr = idx.find(account_name);
-            if (itr != idx.end()) {
-                return witness_api_object(*itr);
-            }
-            return {};
-        }
 
         DEFINE_API(database_api,lookup_witness_accounts){
+            CHECK_ARG_SIZE( 2 )
+            auto lower_bound_name = args[0].as<std::string>();
+            auto limit = args[1].as< uint32_t >();
             return my->database().with_read_lock(
                     [&]() {
                         return my->lookup_witness_accounts(lower_bound_name, limit);
@@ -752,7 +863,7 @@ namespace steemit {
             );
         }
 
-        DEFINE_API(database_api::database_api_impl,lookup_witness_accounts){
+        std::set<account_name_type> database_api::database_api_impl::lookup_witness_accounts(const std::string &lower_bound_name, uint32_t limit) const {
             FC_ASSERT(limit <= 1000);
             const auto &witnesses_by_id = database().get_index<witness_index>().indices().get<by_id>();
 
@@ -782,7 +893,7 @@ namespace steemit {
             );
         }
 
-        DEFINE_API(database_api::database_api_impl,get_witness_count){
+        uint64_t database_api::database_api_impl::get_witness_count() const {
             return database().get_index<witness_index>().indices().size();
         }
 
@@ -793,24 +904,31 @@ namespace steemit {
 //////////////////////////////////////////////////////////////////////
 
         DEFINE_API(database_api,get_account_balances){
+            CHECK_ARG_SIZE( 2 )
+            auto name = args[0].as<account_name_type>();
+            auto assets = args[1].as< flat_set<asset_name_type> >();
             return my->get_account_balances(name, assets);
         }
 
-        DEFINE_API(database_api::database_api_impl,get_account_balances){
+        vector<asset> database_api::database_api_impl::get_account_balances(account_name_type acnt, const flat_set<asset_name_type> &assets) const {
             vector<asset> result;
             if (assets.empty()) {
                 // if the caller passes in an empty list of assets, return balances for all assets the account owns
-                auto range = _db.get_index<account_balance_index>().indices().get<by_account_asset>().equal_range(boost::make_tuple(acnt));
+                auto range = database().get_index<account_balance_index>().indices().get<by_account_asset>().equal_range(boost::make_tuple(acnt));
                 for (const account_balance_object &balance : boost::make_iterator_range(range.first, range.second)) {
                     result.push_back(asset(balance.get_balance()));
                 }
             } else {
                 result.reserve(assets.size());
 
-                std::transform(assets.begin(), assets.end(), std::back_inserter(result),
+                std::transform(
+                        assets.begin(),
+                        assets.end(),
+                        std::back_inserter(result),
                         [this, acnt](asset_name_type id) {
-                            return _db.get_balance(acnt, id);
-                        });
+                            return database().get_balance(acnt, id);
+                        }
+                );
             }
 
             return result;
@@ -823,10 +941,12 @@ namespace steemit {
 //////////////////////////////////////////////////////////////////////
 
         DEFINE_API(database_api,get_assets){
+            CHECK_ARG_SIZE( 1 )
+            auto asset_symbols = args[0].as<vector<asset_name_type>>();
             return my->get_assets(asset_symbols);
         }
 
-        DEFINE_API(database_api::database_api_impl,get_assets){
+        vector<optional<asset_object>> database_api::database_api_impl::get_assets(const vector<asset_name_type> &asset_symbols) const {
             vector<optional<asset_object>> result;
 
             const auto &idx = database().get_index<asset_index>().indices().get<by_asset_name>();
@@ -843,10 +963,12 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_assets_by_issuer){
+            CHECK_ARG_SIZE( 1 )
+            auto issuer = args[0].as<string>();
             return my->get_assets_by_issuer(issuer);
         }
 
-        DEFINE_API(database_api::database_api_impl,get_assets_by_issuer){
+        vector<optional<asset_object>> database_api::database_api_impl::get_assets_by_issuer(string issuer) const {
             vector<optional<asset_object>> result;
 
             auto range = database().get_index<asset_index>().indices().get<by_issuer>().equal_range(issuer);
@@ -858,10 +980,12 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_assets_dynamic_data){
+            CHECK_ARG_SIZE( 1 )
+            auto asset_symbols = args[0].as<vector<asset_name_type>>();
             return my->get_assets_dynamic_data(asset_symbols);
         }
 
-        DEFINE_API(database_api::database_api_impl::get_assets_dynamic_data){
+        vector<optional<asset_dynamic_data_object>> database_api::database_api_impl::get_assets_dynamic_data(const vector<asset_name_type> &asset_symbols) const {
             vector<optional<asset_dynamic_data_object>> result;
 
             const auto &idx = database().get_index<asset_dynamic_data_index>().indices().get<by_asset_name>();
@@ -878,10 +1002,12 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_bitassets_data){
+            CHECK_ARG_SIZE( 1 )
+            auto asset_symbols = args[0].as<vector<asset_name_type>>();
             return my->get_bitassets_data(asset_symbols);
         }
 
-        DEFINE_API(database_api::database_api_impl,get_bitassets_data){
+        vector<optional<asset_bitasset_data_object>> database_api::database_api_impl::get_bitassets_data(const vector<asset_name_type> &asset_symbols) const {
             vector<optional<asset_bitasset_data_object>> result;
 
             const auto &idx = database().get_index<asset_bitasset_data_index>().indices().get<by_asset_name>();
@@ -898,10 +1024,13 @@ namespace steemit {
         }
 
         DEFINE_API(database_api::database_api,list_assets){
+            CHECK_ARG_SIZE( 2 )
+            auto lower_bound_symbol = args[0].as<asset_name_type>();
+            auto limit              = args[1].as<uint32_t>();
             return my->list_assets(lower_bound_symbol, limit);
         }
 
-        DEFINE_API(database_api::database_api_impl,list_assets){
+        vector<asset_object> database_api::database_api_impl::list_assets(const asset_name_type &lower_bound_symbol, uint32_t limit) const {
             FC_ASSERT(limit <= 100);
             const auto &assets_by_symbol = database().get_index<asset_index>().indices().get<by_asset_name>();
             vector<asset_object> result;
@@ -920,10 +1049,12 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,lookup_asset_symbols){
+            CHECK_ARG_SIZE( 1 )
+            auto asset_symbols = args[0].as<vector<asset_name_type>>();
             return my->lookup_asset_symbols(asset_symbols);
         }
 
-        DEFINE_API(database_api::database_api_impl,lookup_asset_symbols) {
+        vector<optional<asset_object>> database_api::database_api_impl::lookup_asset_symbols(const vector<asset_name_type> &asset_symbols) const {
             const auto &assets_by_symbol = database().get_index<asset_index>().indices().get<by_asset_name>();
             vector<optional<asset_object>> result;
             result.reserve(asset_symbols.size());
@@ -942,6 +1073,8 @@ namespace steemit {
 //////////////////////////////////////////////////////////////////////
 
         DEFINE_API(database_api,get_transaction_hex){
+            CHECK_ARG_SIZE( 1 )
+            auto trx = args[0].as< signed_transaction >();
             return my->database().with_read_lock(
                     [&]() {
                         return my->get_transaction_hex(trx);
@@ -949,17 +1082,22 @@ namespace steemit {
             );
         }
 
-        DEFINE_API(database_api::database_api_impl,get_transaction_hex){
+        std::string database_api::database_api_impl::get_transaction_hex(const signed_transaction &trx) const {
             return fc::to_hex(fc::raw::pack(trx));
         }
 
         DEFINE_API(database_api,get_required_signatures){
-                return my->database().with_read_lock([&]() {
-                    return my->get_required_signatures(trx, available_keys);
-                });
+            CHECK_ARG_SIZE( 2 )
+            auto trx = args[0].as<signed_transaction>();
+            auto available_keys = args[1].as<flat_set<public_key_type>>();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_required_signatures(trx, available_keys);
+                    }
+            );
         }
 
-        DEFINE_API(database_api::database_api_impl,get_required_signatures){
+        std::set<public_key_type> database_api::database_api_impl::get_required_signatures(const signed_transaction &trx, const flat_set<public_key_type> &available_keys) const {
 //   wdump((trx)(available_keys));
             auto result = trx.get_required_signatures(STEEMIT_CHAIN_ID,
                     available_keys,
@@ -978,12 +1116,13 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_potential_signatures){
+            CHECK_ARG_SIZE( 1 )
             return my->database().with_read_lock([&]() {
-                return my->get_potential_signatures(trx);
+                return my->get_potential_signatures(args[0].as<signed_transaction>());
             });
         }
 
-        DEFINE_API(database_api::database_api_impl,get_potential_signatures){
+        std::set<public_key_type> database_api::database_api_impl::get_potential_signatures(const signed_transaction &trx) const {
 //   wdump((trx));
             std::set<public_key_type> result;
             trx.get_required_signatures(
@@ -1018,12 +1157,13 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,verify_authority){
+            CHECK_ARG_SIZE( 1 )
             return my->database().with_read_lock([&]() {
-                return my->verify_authority(trx);
+                return my->verify_authority(args[0].as< signed_transaction >());
             });
         }
 
-        DEFINE_API(database_api::database_api_impl,verify_authority){
+        bool database_api::database_api_impl::verify_authority(const signed_transaction &trx) const {
             trx.verify_authority(STEEMIT_CHAIN_ID,
                     [&](std::string account_name) {
                         return authority(database().get<account_authority_object, by_account>(account_name).active);
@@ -1039,12 +1179,13 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,verify_account_authority){
+            CHECK_ARG_SIZE( 2 )
             return my->database().with_read_lock([&]() {
-                return my->verify_account_authority(name, signers);
+                return my->verify_account_authority(args[0].as< account_name_type >(), args[1].as< flat_set< public_key_type > >());
             });
         }
 
-        DEFINE_API(database_api::database_api_impl,verify_account_authority){
+        bool database_api::database_api_impl::verify_account_authority(const std::string &name, const flat_set<public_key_type> &keys) const {
             FC_ASSERT(name.size() > 0);
             auto account = database().find<account_object, by_name>(name);
             FC_ASSERT(account, "no such account");
@@ -1059,6 +1200,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_conversion_requests){
+            CHECK_ARG_SIZE( 1 )
+            auto account = args[0].as< std::string >();
             return my->database().with_read_lock([&]() {
                 const auto &idx = my->database().get_index<convert_request_index>().indices().get<by_owner>();
                 std::vector<convert_request_api_object> result;
@@ -1071,51 +1214,70 @@ namespace steemit {
             });
         }
 
+
+        discussion database_api::database_api_impl::get_content(std::string author, std::string permlink) const {
+            const auto &by_permlink_idx = database().get_index<comment_index>().indices().get<by_permlink>();
+            auto itr = by_permlink_idx.find(boost::make_tuple(author, permlink));
+            if (itr != by_permlink_idx.end()) {
+                discussion result(*itr);
+                set_pending_payout(result);
+                result.active_votes = get_active_votes(author, permlink);
+                return result;
+            }
+            return discussion();
+        }
+
         DEFINE_API(database_api,get_content){
-            return my->database().with_read_lock([&]() {
-                const auto &by_permlink_idx = my->_db.get_index<comment_index>().indices().get<by_permlink>();
-                auto itr = by_permlink_idx.find(boost::make_tuple(author, permlink));
-                if (itr != by_permlink_idx.end()) {
-                    discussion result(*itr);
-                    set_pending_payout(result);
-                    result.active_votes = get_active_votes(author, permlink);
-                    return result;
+            CHECK_ARG_SIZE( 2 )
+            auto author = args[0].as< account_name_type >();
+            auto permlink =  args[1].as< string >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_content(author,permlink);
+                    }
+            );
+        }
+
+        std::vector<vote_state> database_api::database_api_impl::get_active_votes(std::string author, std::string permlink) const {
+            std::vector<vote_state> result;
+            const auto &comment = database().get_comment(author, permlink);
+            const auto &idx = database().get_index<comment_vote_index>().indices().get<by_comment_voter>();
+            comment_object::id_type cid(comment.id);
+            auto itr = idx.lower_bound(cid);
+            while (itr != idx.end() && itr->comment == cid) {
+                const auto &vo = database().get(itr->voter);
+                vote_state vstate;
+                vstate.voter = vo.name;
+                vstate.weight = itr->weight;
+                vstate.rshares = itr->rshares;
+                vstate.percent = itr->vote_percent;
+                vstate.time = itr->last_update;
+
+                if (_follow_api) {
+                    auto reps = _follow_api->get_account_reputations(vo.name, 1);
+                    if (reps.size()) {
+                        vstate.reputation = reps[0].reputation;
+                    }
                 }
-                return discussion();
-            });
+
+                result.emplace_back(vstate);
+                ++itr;
+            }
+            return result;
         }
 
         DEFINE_API(database_api,get_active_votes){
+            CHECK_ARG_SIZE( 2 )
+            auto author   =  args[0].as< string >();
+            auto permlink =  args[1].as< string >();
             return my->database().with_read_lock([&]() {
-                std::vector<vote_state> result;
-                const auto &comment = my->database().get_comment(author, permlink);
-                const auto &idx = my->database().get_index<comment_vote_index>().indices().get<by_comment_voter>();
-                comment_object::id_type cid(comment.id);
-                auto itr = idx.lower_bound(cid);
-                while (itr != idx.end() && itr->comment == cid) {
-                    const auto &vo = my->_db.get(itr->voter);
-                    vote_state vstate;
-                    vstate.voter = vo.name;
-                    vstate.weight = itr->weight;
-                    vstate.rshares = itr->rshares;
-                    vstate.percent = itr->vote_percent;
-                    vstate.time = itr->last_update;
-
-                    if (my->_follow_api) {
-                        auto reps = my->_follow_api->get_account_reputations(vo.name, 1);
-                        if (reps.size()) {
-                            vstate.reputation = reps[0].reputation;
-                        }
-                    }
-
-                    result.emplace_back(vstate);
-                    ++itr;
-                }
-                return result;
+                return my->get_active_votes(author,permlink);
             });
         }
 
         DEFINE_API(database_api,get_account_votes){
+            CHECK_ARG_SIZE( 1 )
+            account_name_type voter = args[0].as< account_name_type >();
             return my->database().with_read_lock([&]() {
                 std::vector<account_vote> result;
 
@@ -1147,18 +1309,18 @@ namespace steemit {
             return result;
         }
 
-        void database_api::set_pending_payout(discussion &d) const {
-            const auto &cidx = my->database().get_index<tags::tag_index>().indices().get<tags::by_comment>();
+        void database_api::database_api_impl::set_pending_payout(discussion &d) const {
+            const auto &cidx = database().get_index<tags::tag_index>().indices().get<tags::by_comment>();
             auto itr = cidx.lower_bound(d.id);
             if (itr != cidx.end() && itr->comment == d.id) {
                 d.promoted = asset(itr->promoted_balance, SBD_SYMBOL);
             }
 
-            const auto &props = my->database().get_dynamic_global_properties();
-            const auto &hist = my->database().get_feed_history();
+            const auto &props = database().get_dynamic_global_properties();
+            const auto &hist = database().get_feed_history();
             asset pot;
-            if (my->database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
-                pot = my->database().get_reward_fund(my->database().get_comment(d.author, d.permlink)).reward_balance;
+            if (database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
+                pot = database().get_reward_fund(database().get_comment(d.author, d.permlink)).reward_balance;
             } else {
                 pot = props.total_reward_fund_steem;
             }
@@ -1168,18 +1330,18 @@ namespace steemit {
             }
 
             boost::multiprecision::uint256_t total_r2 = 0;
-            if (my->database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
-                total_r2 = to256(my->database().get_reward_fund(my->database().get_comment(d.author, d.permlink)).recent_claims);
+            if (database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
+                total_r2 = to256(database().get_reward_fund(database().get_comment(d.author, d.permlink)).recent_claims);
             } else {
                 total_r2 = to256(props.total_reward_shares2);
             }
 
             if (props.total_reward_shares2 > 0) {
                 uint128_t vshares;
-                if (my->database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
+                if (database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
                     vshares = steemit::chain::utilities::calculate_claims(
                             d.net_rshares.value > 0 ? d.net_rshares.value : 0,
-                            my->database().get_reward_fund(my->database().get_comment(d.author, d.permlink)));
+                            database().get_reward_fund(database().get_comment(d.author, d.permlink)));
                 } else {
                     vshares = steemit::chain::utilities::calculate_claims(
                             d.net_rshares.value > 0 ? d.net_rshares.value : 0);
@@ -1199,13 +1361,13 @@ namespace steemit {
                 d.pending_payout_value = asset(static_cast<uint64_t>(r2), pot.symbol);
                 d.total_pending_payout_value = asset(static_cast<uint64_t>(tpp), pot.symbol);
 
-                if (my->_follow_api) {
-                    d.author_reputation = my->_follow_api->get_account_reputations(d.author, 1)[0].reputation;
+                if (_follow_api) {
+                    d.author_reputation = _follow_api->get_account_reputations(d.author, 1)[0].reputation;
                 }
             }
 
             if (d.parent_author != STEEMIT_ROOT_POST_PARENT) {
-                d.cashout_time = my->database().calculate_discussion_payout_time(my->database().get<comment_object>(d.id));
+                d.cashout_time = database().calculate_discussion_payout_time(database().get<comment_object>(d.id));
             }
 
             if (d.body.size() > 1024 * 128) {
@@ -1218,8 +1380,8 @@ namespace steemit {
             set_url(d);
         }
 
-        void database_api::set_url(discussion &d) const {
-            const comment_api_obj root(my->database().get<comment_object, by_id>(d.root_comment));
+        void database_api::database_api_impl::set_url(discussion &d) const {
+            const comment_api_obj root(database().get<comment_object, by_id>(d.root_comment));
             d.url = "/" + root.category + "/@" + root.author + "/" + root.permlink;
             d.root_title = root.title;
             if (root.id != d.id) {
@@ -1227,24 +1389,65 @@ namespace steemit {
             }
         }
 
-        DEFINE_API(database_api,get_content_replies){
-            return my->database().with_read_lock([&]() {
-                account_name_type acc_name = account_name_type(author);
-                const auto &by_permlink_idx = my->database().get_index<comment_index>().indices().get<by_parent>();
-                auto itr = by_permlink_idx.find(boost::make_tuple(acc_name, permlink));
-                std::vector<discussion> result;
-                while (itr != by_permlink_idx.end() && itr->parent_author == author && to_string(itr->parent_permlink) == permlink) {
+        std::vector<discussion> database_api::database_api_impl::get_content_replies(std::string author, std::string permlink) const {
+            account_name_type acc_name = account_name_type(author);
+            const auto &by_permlink_idx = database().get_index<comment_index>().indices().get<by_parent>();
+            auto itr = by_permlink_idx.find(boost::make_tuple(acc_name, permlink));
+            std::vector<discussion> result;
+            while (itr != by_permlink_idx.end() && itr->parent_author == author && to_string(itr->parent_permlink) == permlink) {
+                discussion push_discussion(*itr);
+                push_discussion.active_votes = get_active_votes(author, permlink);
 
-                    discussion push_discussion(*itr);
-                    push_discussion.active_votes = get_active_votes(author, permlink);
-
-                    result.emplace_back(*itr);
-                    set_pending_payout(result.back());
-                    ++itr;
-                }
-                return result;
-            });
+                result.emplace_back(*itr);
+                set_pending_payout(result.back());
+                ++itr;
+            }
+            return result;
         }
+
+        DEFINE_API(database_api,get_content_replies){
+            CHECK_ARG_SIZE( 2 )
+            auto author   = args[0].as< string >();
+            auto permlink = args[1].as< string >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_content_replies(author,permlink);
+                    }
+            );
+        }
+
+
+        std::vector<discussion> database_api::database_api_impl::get_replies_by_last_update(account_name_type start_parent_author, std::string start_permlink, uint32_t limit) const {
+                    std::vector<discussion> result;
+
+#ifndef STEEMIT_BUILD_LOW_MEMORY
+                    FC_ASSERT(limit <= 100);
+                    const auto &last_update_idx = database().get_index<comment_index>().indices().get<by_last_update>();
+                    auto itr = last_update_idx.begin();
+                    const account_name_type *parent_author = &start_parent_author;
+
+                    if (start_permlink.size()) {
+                        const auto &comment = database().get_comment(start_parent_author, start_permlink);
+                        itr = last_update_idx.iterator_to(comment);
+                        parent_author = &comment.parent_author;
+                    } else if (start_parent_author.size()) {
+                        itr = last_update_idx.lower_bound(start_parent_author);
+                    }
+
+                    result.reserve(limit);
+
+                    while (itr != last_update_idx.end() && result.size() < limit && itr->parent_author == *parent_author) {
+                        result.emplace_back(*itr);
+                        set_pending_payout(result.back());
+                        result.back().active_votes = get_active_votes(itr->author, to_string(itr->permlink));
+                        ++itr;
+                    }
+
+#endif
+                    return result;
+
+            }
+
 
 /**
  *  This method can be used to fetch replies to an account.
@@ -1253,94 +1456,104 @@ namespace steemit {
  *  Subsequent calls should be (last_author, last_permlink, limit)
  */
         DEFINE_API(database_api,get_replies_by_last_update){
-            return my->database().with_read_lock([&]() {
-                std::vector<discussion> result;
-
-#ifndef STEEMIT_BUILD_LOW_MEMORY
-                FC_ASSERT(limit <= 100);
-                const auto &last_update_idx = my->database().get_index<comment_index>().indices().get<by_last_update>();
-                auto itr = last_update_idx.begin();
-                const account_name_type *parent_author = &start_parent_author;
-
-                if (start_permlink.size()) {
-                    const auto &comment = my->database().get_comment(start_parent_author, start_permlink);
-                    itr = last_update_idx.iterator_to(comment);
-                    parent_author = &comment.parent_author;
-                } else if (start_parent_author.size()) {
-                    itr = last_update_idx.lower_bound(start_parent_author);
-                }
-
-                result.reserve(limit);
-
-                while (itr != last_update_idx.end() && result.size() < limit &&
-                       itr->parent_author == *parent_author) {
-                    result.emplace_back(*itr);
-                    set_pending_payout(result.back());
-                    result.back().active_votes = get_active_votes(itr->author, to_string(itr->permlink));
-                    ++itr;
-                }
-
-#endif
-                return result;
-            });
+            CHECK_ARG_SIZE( 3 )
+            auto start_parent_author = args[0].as< account_name_type >();
+            auto start_permlink = args[1].as< string >();
+            auto limit = args[2].as< uint32_t >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_replies_by_last_update(start_parent_author,start_permlink,limit);
+                    }
+            );
         }
 
-        DEFINE_API(database_api,get_account_history){
-            return my->database().with_read_lock([&]() {
-                FC_ASSERT(limit <= 10000, "Limit of ${l} is greater than maxmimum allowed", ("l", limit));
-                FC_ASSERT(from >= limit, "From must be greater than limit");
-                //   idump((account)(from)(limit));
-                const auto &idx = my->database().get_index<account_history_index>().indices().get<by_account>();
-                auto itr = idx.lower_bound(boost::make_tuple(account, from));
-                //   if( itr != idx.end() ) idump((*itr));
-                auto end = idx.upper_bound(boost::make_tuple(account, std::max(int64_t(0), int64_t(itr->sequence) - limit)));
-                //   if( end != idx.end() ) idump((*end));
+        std::map<uint32_t, applied_operation> database_api::database_api_impl::get_account_history(std::string account, uint64_t from, uint32_t limit) const {
+            FC_ASSERT(limit <= 10000, "Limit of ${l} is greater than maxmimum allowed", ("l", limit));
+            FC_ASSERT(from >= limit, "From must be greater than limit");
+            //   idump((account)(from)(limit));
+            const auto &idx = database().get_index<account_history_index>().indices().get<by_account>();
+            auto itr = idx.lower_bound(boost::make_tuple(account, from));
+            //   if( itr != idx.end() ) idump((*itr));
+            auto end = idx.upper_bound(boost::make_tuple(account, std::max(int64_t(0),
+                                                                           int64_t(itr->sequence) - limit)));
+            //   if( end != idx.end() ) idump((*end));
 
-                std::map<uint32_t, applied_operation> result;
-                while (itr != end) {
-                    result[itr->sequence] = my->_db.get(itr->op);
-                    ++itr;
-                }
-                return result;
-            });
+            std::map<uint32_t, applied_operation> result;
+            while (itr != end) {
+                result[itr->sequence] = database().get(itr->op);
+                ++itr;
+            }
+            return result;
+        }
+
+
+        DEFINE_API(database_api,get_account_history){
+            CHECK_ARG_SIZE( 3 )
+            auto account = args[0].as< std::string >();
+            auto from    = args[1].as< uint64_t >();
+            auto limit   = args[2].as< uint32_t >();
+
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_account_history(account,from,limit);
+                    }
+            );
         }
 
         DEFINE_API(database_api,get_payout_extension_cost){
+            CHECK_ARG_SIZE( 3 )
+            auto author   = args[0].as<string>();
+            auto permlink = args[1].as<string>();
+            auto time     = args[0].as<time_point_sec>();
             return my->database().get_payout_extension_cost(my->database().get_comment(author, permlink), time);
         }
 
         DEFINE_API(database_api,get_payout_extension_time){
+            CHECK_ARG_SIZE( 3 )
+            auto author   = args[0].as<string>();
+            auto permlink = args[1].as<string>();
+            auto cost     = args[0].as<asset>();
             return my->database().get_payout_extension_time(my->database().get_comment(author, permlink), cost);
         }
 
-            DEFINE_API(database_api,get_tags_used_by_author){
-            return my->database().with_read_lock([&]() {
-                const auto *acnt = my->database().find_account(author);
-                FC_ASSERT(acnt != nullptr);
-                const auto &tidx = my->database().get_index<tags::author_tag_stats_index>().indices().get<tags::by_author_posts_tag>();
-                auto itr = tidx.lower_bound(boost::make_tuple(acnt->id, 0));
-                std::vector<pair<std::string, uint32_t>> result;
-                while (itr != tidx.end() && itr->author == acnt->id && result.size() < 1000) {
-                    if (!fc::is_utf8(itr->tag)) {
-                        result.emplace_back(std::make_pair(fc::prune_invalid_utf8(itr->tag), itr->total_posts));
-                    } else {
-                        result.emplace_back(std::make_pair(itr->tag, itr->total_posts));
-                    }
-                    ++itr;
+
+
+
+        std::vector<pair<std::string, uint32_t>> database_api::database_api_impl::get_tags_used_by_author(const std::string &author) const {
+            const auto *acnt = database().find_account(author);
+            FC_ASSERT(acnt != nullptr);
+            const auto &tidx = database().get_index<tags::author_tag_stats_index>().indices().get<tags::by_author_posts_tag>();
+            auto itr = tidx.lower_bound(boost::make_tuple(acnt->id, 0));
+            std::vector<pair<std::string, uint32_t>> result;
+            while (itr != tidx.end() && itr->author == acnt->id && result.size() < 1000) {
+                if (!fc::is_utf8(itr->tag)) {
+                    result.emplace_back(std::make_pair(fc::prune_invalid_utf8(itr->tag), itr->total_posts));
+                } else {
+                    result.emplace_back(std::make_pair(itr->tag, itr->total_posts));
                 }
-                return result;
-            });
+                ++itr;
+            }
+            return result;
         }
 
-            DEFINE_API(database_api,get_trending_tags){
-            return my->database().with_read_lock([&]() {
+        DEFINE_API(database_api,get_tags_used_by_author){
+            CHECK_ARG_SIZE( 1 )
+            auto author = args[0].as<string>();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_tags_used_by_author(author);
+                    }
+            );
+        }
+
+            std::vector<tag_api_object> database_api::database_api_impl::get_trending_tags(std::string after, uint32_t limit) const {
                 limit = std::min(limit, uint32_t(1000));
-                std::vector<tag_api_obj> result;
+                std::vector<tag_api_object> result;
                 result.reserve(limit);
 
-                const auto &nidx = my->database().get_index<tags::tag_stats_index>().indices().get<tags::by_tag>();
+                const auto &nidx = database().get_index<tags::tag_stats_index>().indices().get<tags::by_tag>();
 
-                const auto &ridx = my->database().get_index<tags::tag_stats_index>().indices().get<tags::by_trending>();
+                const auto &ridx = database().get_index<tags::tag_stats_index>().indices().get<tags::by_trending>();
                 auto itr = ridx.begin();
                 if (after != "" && nidx.size()) {
                     auto nitr = nidx.lower_bound(after);
@@ -1362,14 +1575,26 @@ namespace steemit {
                     ++itr;
                 }
                 return result;
-            });
+            }
+
+
+        DEFINE_API(database_api,get_trending_tags){
+            CHECK_ARG_SIZE( 2 )
+            auto after = args[0].as< string >();
+            auto limit = args[1].as< uint32_t >();
+
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_trending_tags(after,limit);
+                    }
+            );
         }
 
         discussion database_api::get_discussion(comment_object::id_type id, uint32_t truncate_body) const {
             discussion d = my->database().get(id);
-            set_url(d);
-            set_pending_payout(d);
-            d.active_votes = get_active_votes(d.author, d.permlink);
+            my->set_url(d);
+            my->set_pending_payout(d);
+            d.active_votes = my->get_active_votes(d.author, d.permlink);
             d.body_length = static_cast<uint32_t>(d.body.size());
             if (truncate_body) {
                 d.body = d.body.substr(0, truncate_body);
@@ -1465,7 +1690,7 @@ namespace steemit {
             return my->database().with_read_lock([&]() {
                 comment_object::id_type parent;
                 if (query.parent_author && query.parent_permlink) {
-                    parent = my->_db.get_comment(*query.parent_author, *query.parent_permlink).id;
+                    parent = my->database().get_comment(*query.parent_author, *query.parent_permlink).id;
                 }
                 return parent;
             });
@@ -1501,6 +1726,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_trending){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1512,7 +1739,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1,
+                        std::bind(tags_filter, query, std::placeholders::_1,
                                   [&](const comment_api_obj &c) -> bool {
                                       return c.net_rshares <= 0;
                                   }),
@@ -1533,7 +1760,7 @@ namespace steemit {
                         query.select_languages,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1,
+                        std::bind(languages_filter, query, std::placeholders::_1,
                                   [&](const comment_api_obj &c) -> bool {
                                       return c.net_rshares <= 0;
                                   }),
@@ -1554,96 +1781,114 @@ namespace steemit {
             });
         }
 
+        vector<discussion> database_api::database_api_impl::get_post_discussions_by_payout(const discussion_query &query) const {
+            query.validate();
+            auto parent = comment_object::id_type();
 
-            DEFINE_API(database_api,get_post_discussions_by_payout){
-            return my->database().with_read_lock([&]() {
-                query.validate();
-                auto parent = comment_object::id_type();
+            std::multimap<tags::tag_object, discussion, tags::by_parent_promoted> map_result = select<tags::tag_object, tags::tag_index, tags::by_parent_promoted, tags::by_comment>(
+                    query.select_tags,
+                    query,
+                    parent,
+                    std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        return c.net_rshares <= 0;
+                    }),
+                    [&](const comment_api_obj &c) -> bool {
+                        return false;
+                    },
+                    [&](const tags::tag_object &t) {
+                        return false;
+                    },
+                    true
+            );
 
-                std::multimap<tags::tag_object, discussion, tags::by_parent_promoted> map_result = select<tags::tag_object, tags::tag_index, tags::by_parent_promoted, tags::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const tags::tag_object &t) {
-                            return false;
-                        },
-                        true
-                );
+            std::multimap<languages::language_object, discussion, languages::by_parent_promoted> map_result_language = select<languages::language_object, languages::language_index, languages::by_parent_promoted, languages::by_comment>(
+                    query.select_tags,
+                    query,
+                    parent,
+                    std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        return c.net_rshares <= 0;
+                    }),
+                    [&](const comment_api_obj &c) -> bool {
+                        return false;
+                    },
+                    [&](const languages::language_object &t) {
+                        return false;
+                    },
+                    true
+            );
 
-                std::multimap<languages::language_object, discussion, languages::by_parent_promoted> map_result_language = select<languages::language_object, languages::language_index, languages::by_parent_promoted, languages::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const languages::language_object &t) {
-                            return false;
-                        },
-                        true
-                );
+            std::vector<discussion> return_result = merge(map_result, map_result_language);
 
-                std::vector<discussion> return_result = merge(map_result, map_result_language);
-
-                return return_result;
-            });
+            return return_result;
         }
 
+
+            DEFINE_API(database_api,get_post_discussions_by_payout){
+                CHECK_ARG_SIZE( 1 )
+                auto query = args[0].as<discussion_query>();
+                return my->database().with_read_lock(
+                        [&]() {
+                            return my->get_post_discussions_by_payout(query);
+                        }
+                );
+        }
+
+        vector<discussion> database_api::database_api_impl::get_comment_discussions_by_payout(const discussion_query &query) const {
+                    query.validate();
+                    auto parent = comment_object::id_type(1);
+                    std::multimap<tags::tag_object, discussion, tags::by_reward_fund_net_rshares> map_result = select<tags::tag_object, tags::tag_index, tags::by_reward_fund_net_rshares, tags::by_comment>(
+                            query.select_tags,
+                            query,
+                            parent,
+                            std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                                return c.net_rshares <= 0;
+                            }),
+                            [&](const comment_api_obj &c) -> bool {
+                                return false;
+                            },
+                            [&](const tags::tag_object &t) {
+                                return false;
+                            },
+                            false
+                    );
+
+                    std::multimap<languages::language_object, discussion, languages::by_reward_fund_net_rshares> map_result_language = select<languages::language_object, languages::language_index, languages::by_reward_fund_net_rshares, languages::by_comment>(
+                            query.select_tags,
+                            query,
+                            parent,
+                            std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                                return c.net_rshares <= 0;
+                            }),
+                            [&](const comment_api_obj &c) -> bool {
+                                return false;
+                            },
+                            [&](const languages::language_object &t) {
+                                return false;
+                            },
+                            false
+                    );
+
+                    std::vector<discussion> return_result = merge(map_result, map_result_language);
+
+
+                    return return_result;
+
+        }
+
+
         DEFINE_API(database_api,get_comment_discussions_by_payout){
-            return my->database().with_read_lock([&]() {
-                query.validate();
-
-                auto parent = comment_object::id_type(1);
-
-                std::multimap<tags::tag_object, discussion, tags::by_reward_fund_net_rshares> map_result = select<tags::tag_object, tags::tag_index, tags::by_reward_fund_net_rshares, tags::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const tags::tag_object &t) {
-                            return false;
-                        },
-                        false
-                );
-
-                std::multimap<languages::language_object, discussion, languages::by_reward_fund_net_rshares> map_result_language = select<languages::language_object, languages::language_index, languages::by_reward_fund_net_rshares, languages::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const languages::language_object &t) {
-                            return false;
-                        },
-                        false
-                );
-
-                std::vector<discussion> return_result = merge(map_result, map_result_language);
-
-
-                return return_result;
-            });
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_comment_discussions_by_payout(query);
+                    }
+            );
         }
 
         DEFINE_API(database_api,get_discussions_by_promoted){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1652,7 +1897,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1670,7 +1915,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1692,6 +1937,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_created){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1700,7 +1947,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1716,7 +1963,7 @@ namespace steemit {
                 std::multimap<languages::language_object, discussion, languages::by_parent_created> map_result_language = select<languages::language_object, languages::language_index, languages::by_parent_created, languages::by_comment>(query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1736,6 +1983,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_active){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1745,7 +1994,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1762,7 +2011,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1782,6 +2031,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_cashout){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1791,7 +2042,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1807,7 +2058,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1826,6 +2077,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_payout){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1834,7 +2087,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1849,7 +2102,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.children_rshares2 <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1867,6 +2120,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_votes){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1876,7 +2131,7 @@ namespace steemit {
                 select<tags::tag_object, tags::tag_index, tags::by_parent_net_votes, tags::by_comment>(query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1893,7 +2148,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1913,6 +2168,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_children){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1923,7 +2180,7 @@ namespace steemit {
                                 query.select_tags,
                                 query,
                                 parent,
-                                std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                                std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                                     return false;
                                 }),
                                 [&](const comment_api_obj &c) -> bool {
@@ -1939,7 +2196,7 @@ namespace steemit {
                 std::multimap<languages::language_object, discussion, languages::by_parent_children> map_result_language = select<languages::language_object, languages::language_index, languages::by_parent_children, languages::by_comment>(query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return false;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1959,7 +2216,8 @@ namespace steemit {
         }
 
             DEFINE_API(database_api,get_discussions_by_hot){
-
+                CHECK_ARG_SIZE( 1 )
+                auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 auto parent = get_parent(query);
@@ -1968,7 +2226,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(tags_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.net_rshares <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -1985,7 +2243,7 @@ namespace steemit {
                         query.select_tags,
                         query,
                         parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
+                        std::bind(languages_filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
                             return c.net_rshares <= 0;
                         }),
                         [&](const comment_api_obj &c) -> bool {
@@ -2041,16 +2299,16 @@ namespace steemit {
             std::vector<discussion> result;
 
             for (const auto &iterator : query.select_authors) {
-                const auto &account = my->_db.get_account(iterator);
+                const auto &account = my->database().get_account(iterator);
 
-                const auto &tag_idx = my->_db.get_index<DatabaseIndex>().indices().template get<DiscussionIndex>();
+                const auto &tag_idx = my->database().get_index<DatabaseIndex>().indices().template get<DiscussionIndex>();
 
-                const auto &c_idx = my->_db.get_index<follow::feed_index>().indices().get<follow::by_comment>();
-                const auto &f_idx = my->_db.get_index<follow::feed_index>().indices().get<follow::by_feed>();
+                const auto &c_idx = my->database().get_index<follow::feed_index>().indices().get<follow::by_comment>();
+                const auto &f_idx = my->database().get_index<follow::feed_index>().indices().get<follow::by_feed>();
                 auto feed_itr = f_idx.lower_bound(account.name);
 
                 if (start_author.size() || start_permlink.size()) {
-                    auto start_c = c_idx.find(boost::make_tuple(my->_db.get_comment(start_author, start_permlink).id, account.name));
+                    auto start_c = c_idx.find(boost::make_tuple(my->database().get_comment(start_author, start_permlink).id, account.name));
                     FC_ASSERT(start_c !=
                               c_idx.end(), "Comment is not in account's feed");
                     feed_itr = f_idx.iterator_to(*start_c);
@@ -2100,6 +2358,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_feed){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 query.validate();
                 FC_ASSERT(my->_follow_api, "Node is not running the follow_api plugin");
@@ -2136,16 +2396,16 @@ namespace steemit {
             std::vector<discussion> result;
             for (const auto &iterator : query.select_authors) {
 
-                const auto &account = my->_db.get_account(iterator);
+                const auto &account = my->database().get_account(iterator);
 
-                const auto &tag_idx = my->_db.get_index<DatabaseIndex>().indices().template get<DiscussionIndex>();
+                const auto &tag_idx = my->database().get_index<DatabaseIndex>().indices().template get<DiscussionIndex>();
 
-                const auto &c_idx = my->_db.get_index<follow::blog_index>().indices().get<follow::by_comment>();
-                const auto &b_idx = my->_db.get_index<follow::blog_index>().indices().get<follow::by_blog>();
+                const auto &c_idx = my->database().get_index<follow::blog_index>().indices().get<follow::by_comment>();
+                const auto &b_idx = my->database().get_index<follow::blog_index>().indices().get<follow::by_blog>();
                 auto blog_itr = b_idx.lower_bound(account.name);
 
                 if (start_author.size() || start_permlink.size()) {
-                    auto start_c = c_idx.find(boost::make_tuple(my->_db.get_comment(start_author, start_permlink).id, account.name));
+                    auto start_c = c_idx.find(boost::make_tuple(my->database().get_comment(start_author, start_permlink).id, account.name));
                     FC_ASSERT(start_c !=
                               c_idx.end(), "Comment is not in account's blog");
                     blog_itr = b_idx.iterator_to(*start_c);
@@ -2191,7 +2451,9 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_blog){
-            return my->databse().with_read_lock([&]() {
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
+            return my->database().with_read_lock([&]() {
                 query.validate();
                 FC_ASSERT(my->_follow_api, "Node is not running the follow_api plugin");
                 FC_ASSERT(query.select_authors.size(), "No such author to select feed from");
@@ -2212,6 +2474,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_discussions_by_comments){
+            CHECK_ARG_SIZE( 1 )
+            auto query = args[0].as<discussion_query>();
             return my->database().with_read_lock([&]() {
                 std::vector<discussion> result;
 #ifndef STEEMIT_BUILD_LOW_MEMORY
@@ -2221,8 +2485,8 @@ namespace steemit {
                 auto start_permlink = query.start_permlink
                                       ? *(query.start_permlink) : "";
 
-                const auto &c_idx = my->_db.get_index<comment_index>().indices().get<by_permlink>();
-                const auto &t_idx = my->_db.get_index<comment_index>().indices().get<by_author_last_update>();
+                const auto &c_idx = my->database().get_index<comment_index>().indices().get<by_permlink>();
+                const auto &t_idx = my->database().get_index<comment_index>().indices().get<by_author_last_update>();
                 auto comment_itr = t_idx.lower_bound(start_author);
 
                 if (start_permlink.size()) {
@@ -2263,14 +2527,17 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_trending_categories){
+            CHECK_ARG_SIZE( 2 )
+            auto after = args[0].as<string>();
+            auto limit = args[1].as<uint32_t>();
             return my->database().with_read_lock([&]() {
                 limit = std::min(limit, uint32_t(100));
                 std::vector<category_api_obj> result;
                 result.reserve(limit);
 
-                const auto &nidx = my->_db.get_index<chain::category_index>().indices().get<by_name>();
+                const auto &nidx = my->database().get_index<chain::category_index>().indices().get<by_name>();
 
-                const auto &ridx = my->_db.get_index<chain::category_index>().indices().get<by_rshares>();
+                const auto &ridx = my->database().get_index<chain::category_index>().indices().get<by_rshares>();
                 auto itr = ridx.begin();
                 if (after != "" && nidx.size()) {
                     auto nitr = nidx.lower_bound(after);
@@ -2290,6 +2557,9 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_best_categories){
+            CHECK_ARG_SIZE( 2 )
+            auto after = args[0].as<string>();
+            auto limit = args[1].as<uint32_t>();
             return my->database().with_read_lock([&]() {
                 limit = std::min(limit, uint32_t(100));
                 std::vector<category_api_obj> result;
@@ -2299,6 +2569,9 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_active_categories){
+            CHECK_ARG_SIZE( 2 )
+            auto after = args[0].as<string>();
+            auto limit = args[1].as<uint32_t>();
             return my->database().with_read_lock([&]() {
                 limit = std::min(limit, uint32_t(100));
                 std::vector<category_api_obj> result;
@@ -2308,6 +2581,9 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_recent_categories){
+            CHECK_ARG_SIZE( 2 )
+            auto after = args[0].as<string>();
+            auto limit = args[1].as<uint32_t>();
             return my->database().with_read_lock([&]() {
                 limit = std::min(limit, uint32_t(100));
                 std::vector<category_api_obj> result;
@@ -2331,7 +2607,7 @@ namespace steemit {
                         referenced_accounts.insert(root.author);
                     }
 
-                    auto replies = get_content_replies(root.author, root.permlink);
+                    auto replies = my->get_content_replies(root.author, root.permlink);
                     for (auto &r : replies) {
                         try {
                             recursively_fetch_content(_state, r, referenced_accounts);
@@ -2351,20 +2627,28 @@ namespace steemit {
             });
         }
 
-        DEFINE_API(database_api,get_miner_queue){
-            return my->database().with_read_lock([&]() {
-                std::vector<account_name_type> result;
-                const auto &pow_idx = my->database().get_index<witness_index>().indices().get<by_pow>();
 
-                auto itr = pow_idx.upper_bound(0);
-                while (itr != pow_idx.end()) {
-                    if (itr->pow_worker) {
-                        result.push_back(itr->owner);
-                    }
-                    ++itr;
+        std::vector<account_name_type> database_api::database_api_impl::get_miner_queue() const {
+            std::vector<account_name_type> result;
+            const auto &pow_idx = database().get_index<witness_index>().indices().get<by_pow>();
+
+            auto itr = pow_idx.upper_bound(0);
+            while (itr != pow_idx.end()) {
+                if (itr->pow_worker) {
+                    result.push_back(itr->owner);
                 }
-                return result;
-            });
+                ++itr;
+            }
+            return result;
+        }
+
+
+        DEFINE_API(database_api,get_miner_queue){
+            return my->database().with_read_lock(
+                    [&]() {
+                        return my->get_miner_queue();
+                    }
+            );
         }
 
             DEFINE_API(database_api,get_active_witnesses){
@@ -2381,6 +2665,12 @@ namespace steemit {
             }
 
             DEFINE_API(database_api,get_discussions_by_author_before_date){
+                CHECK_ARG_SIZE( 4 )
+                auto author = args[0].as< string >() ;
+                auto start_permlink = args[1].as< string >();
+                auto before_date = args[2].as< time_point_sec >();
+                auto limit = args[3].as< uint32_t >();
+
             return my->database().with_read_lock([&]() {
                 try {
                     std::vector<discussion> result;
@@ -2406,8 +2696,8 @@ namespace steemit {
                     while (itr != didx.end() && itr->author == author && count < limit) {
                         if (itr->parent_author.size() == 0) {
                             result.push_back(*itr);
-                            set_pending_payout(result.back());
-                            result.back().active_votes = get_active_votes(itr->author, to_string(itr->permlink));
+                            my->set_pending_payout(result.back());
+                            result.back().active_votes = my->get_active_votes(itr->author, to_string(itr->permlink));
                             ++count;
                         }
                         ++itr;
@@ -2421,6 +2711,8 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_savings_withdraw_from){
+            CHECK_ARG_SIZE( 1 )
+            auto account = args[0].as< string >();
             return my->database().with_read_lock([&]() {
                 std::vector<savings_withdraw_api_object> result;
 
@@ -2434,21 +2726,29 @@ namespace steemit {
             });
         }
 
-        DEFINE_API(database_api::get_savings_withdraw_to){
-            return my->database().with_read_lock([&]() {
-                std::vector<savings_withdraw_api_object> result;
+        DEFINE_API(database_api,get_savings_withdraw_to){
+            CHECK_ARG_SIZE( 1 )
+            auto account = args[0].as< string >();
+            return my->database().with_read_lock(
+                    [&]() {
+                        std::vector<savings_withdraw_api_object> result;
 
-                const auto &to_complete_idx = my->database().get_index<savings_withdraw_index>().indices().get<by_to_complete>();
-                auto itr = to_complete_idx.lower_bound(account);
-                while (itr != to_complete_idx.end() && itr->to == account) {
-                    result.push_back(savings_withdraw_api_object(*itr));
-                    ++itr;
-                }
-                return result;
-            });
+                        const auto &to_complete_idx = my->database().get_index<savings_withdraw_index>().indices().get<by_to_complete>();
+                        auto itr = to_complete_idx.lower_bound(account);
+                        while (itr != to_complete_idx.end() && itr->to == account) {
+                            result.push_back(savings_withdraw_api_object(*itr));
+                            ++itr;
+                        }
+                        return result;
+                    }
+            );
         }
 
         DEFINE_API(database_api,get_vesting_delegations){
+            CHECK_ARG_SIZE( 3 )
+            auto account = args[0].as<string>();
+            auto from    = args[1].as<string>();
+            auto limit = args[2].as<uint32_t>();
             FC_ASSERT(limit <= 1000);
 
             return my->database().with_read_lock([&]() {
@@ -2468,6 +2768,10 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_expiring_vesting_delegations){
+            CHECK_ARG_SIZE( 2 )
+            auto account = args[0].as<string>();
+            auto from    = args[1].as<time_point_sec>();
+            auto limit   = args[2].as<uint32_t>();
             FC_ASSERT(limit <= 1000);
 
             return my->database().with_read_lock([&]() {
@@ -2487,11 +2791,13 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_state){
+            CHECK_ARG_SIZE( 1 )
+            string path = args[0].as< string >();
             return my->database().with_read_lock([&]() {
                 state _state;
-                _state.props = get_dynamic_global_properties();
+                _state.props = my->get_dynamic_global_properties();
                 _state.current_route = path;
-                _state.feed_price = get_current_median_history_price();
+                _state.feed_price =  my->database().get_feed_history().current_median_history;
 
                 try {
                     if (path.size() && path[0] == '/') {
@@ -2503,7 +2809,7 @@ namespace steemit {
                     }
 
                     /// FETCH CATEGORY STATE
-                    auto trending_tags = get_trending_tags(std::string(), 50);
+                    auto trending_tags = my->get_trending_tags(std::string(), 50);
                     for (const auto &t : trending_tags) {
                         _state.tag_idx.trending.push_back(std::string(t.name));
                     }
@@ -2521,14 +2827,14 @@ namespace steemit {
                     if (part[0].size() && part[0][0] == '@') {
                         auto acnt = part[0].substr(1);
                         _state.accounts[acnt] = extended_account(my->database().get_account(acnt), my->database());
-                        _state.accounts[acnt].tags_usage = get_tags_used_by_author(acnt);
+                        _state.accounts[acnt].tags_usage = my->get_tags_used_by_author(acnt);
                         if (my->_follow_api) {
                             _state.accounts[acnt].guest_bloggers = my->_follow_api->get_blog_authors(acnt);
                             _state.accounts[acnt].reputation = my->_follow_api->get_account_reputations(acnt, 1)[0].reputation;
                         }
                         auto &eacnt = _state.accounts[acnt];
                         if (part[1] == "transfers") {
-                            auto history = get_account_history(acnt, uint64_t(-1), 1000);
+                            auto history = my->get_account_history(acnt, uint64_t(-1), 1000);
                             for (auto &item : history) {
                                 switch (item.second.op.which()) {
                                     case operation::tag<transfer_to_vesting_operation>::value:
@@ -2572,7 +2878,7 @@ namespace steemit {
                                 }
                             }
                         } else if (part[1] == "recent-replies") {
-                            auto replies = get_replies_by_last_update(acnt, "", 50);
+                            auto replies = my->get_replies_by_last_update(acnt, "", 50);
                             eacnt.recent_replies = std::vector<std::string>();
                             for (const auto &reply : replies) {
                                 auto reply_ref = reply.author + "/" + reply.permlink;
@@ -2595,7 +2901,7 @@ namespace steemit {
                                     const auto link = acnt + "/" + to_string(itr->permlink);
                                     eacnt.comments->push_back(link);
                                     _state.content[link] = *itr;
-                                    set_pending_payout(_state.content[link]);
+                                    my->set_pending_payout(_state.content[link]);
                                     ++count;
                                 }
 
@@ -2611,7 +2917,7 @@ namespace steemit {
                                     const auto link = b.author + "/" + b.permlink;
                                     eacnt.blog->push_back(link);
                                     _state.content[link] = my->database().get_comment(b.author, b.permlink);
-                                    set_pending_payout(_state.content[link]);
+                                    my->set_pending_payout(_state.content[link]);
 
                                     if (b.reblog_on > time_point_sec()) {
                                         _state.content[link].first_reblogged_on = b.reblog_on;
@@ -2627,7 +2933,7 @@ namespace steemit {
                                     const auto link = f.author + "/" + f.permlink;
                                     eacnt.feed->push_back(link);
                                     _state.content[link] = my->database().get_comment(f.author, f.permlink);
-                                    set_pending_payout(_state.content[link]);
+                                    my->set_pending_payout(_state.content[link]);
                                     if (f.reblog_by.size()) {
                                         if (f.reblog_by.size()) {
                                             _state.content[link].first_reblogged_by = f.reblog_by[0];
@@ -2647,23 +2953,23 @@ namespace steemit {
                         auto slug = part[2];
 
                         auto key = account + "/" + slug;
-                        auto dis = get_content(account, slug);
+                        auto dis = my->get_content(account, slug);
 
                         recursively_fetch_content(_state, dis, accounts);
                         _state.content[key] = std::move(dis);
                     } else if (part[0] == "witnesses" ||
                                part[0] == "~witnesses") {
-                        auto wits = get_witnesses_by_vote("", 50);
+                        auto wits = my->get_witnesses_by_vote("", 50);
                         for (const auto &w : wits) {
                             _state.witnesses[w.owner] = w;
                         }
-                        _state.pow_queue = get_miner_queue();
+                        _state.pow_queue = my->get_miner_queue();
                     } else if (part[0] == "payout_comments") {
                         discussion_query q;
                         q.select_tags.insert(tag);
                         q.limit = 20;
                         q.truncate_body = 1024;
-                        auto trending_disc = get_comment_discussions_by_payout(q);
+                        auto trending_disc = my->get_comment_discussions_by_payout(q);
 
                         auto &didx = _state.discussion_idx[tag];
                         for (const auto &d : trending_disc) {
@@ -2679,7 +2985,7 @@ namespace steemit {
                         q.select_tags.insert(tag);
                         q.limit = 20;
                         q.truncate_body = 1024;
-                        auto trending_disc = get_post_discussions_by_payout(q);
+                        auto trending_disc = my->get_post_discussions_by_payout(q);
 
                         auto &didx = _state.discussion_idx[tag];
                         for (const auto &d : trending_disc) {
@@ -2863,7 +3169,7 @@ namespace steemit {
                         }
                     }
                     for (auto &d : _state.content) {
-                        d.second.active_votes = get_active_votes(d.second.author, d.second.permlink);
+                        d.second.active_votes = my->get_active_votes(d.second.author, d.second.permlink);
                     }
 
                     _state.witness_schedule = my->database().get_witness_schedule_object();
@@ -2876,9 +3182,9 @@ namespace steemit {
         }
 
             DEFINE_API(database_api,get_transaction){
+                CHECK_ARG_SIZE( 1 )
+                auto id = args[0].as< transaction_id_type >();
                 return my->database().with_read_lock([&]() {
-                    CHECK_ARG_SIZE( 1 )
-                    auto id = args[0].as< transaction_id_type >();
                     const auto &idx = my->database().get_index<operation_index>().indices().get<by_transaction_id>();
                     auto itr = idx.lower_bound(id);
                     if (itr != idx.end() && itr->trx_id == id) {
@@ -2934,10 +3240,10 @@ namespace steemit {
         }
 
         DEFINE_API(database_api,get_reward_fund){
+            CHECK_ARG_SIZE( 1 )
+            string name = args[0].as< string >();
             return my->database().with_read_lock(
                     [&]() {
-                        CHECK_ARG_SIZE( 1 )
-                        string name = args[0].as< string >();
                         auto fund = my->database().find<reward_fund_object, by_name>(name);
                         FC_ASSERT(fund != nullptr, "Invalid reward fund name");
                         return *fund;
@@ -2952,11 +3258,13 @@ namespace steemit {
 //////////////////////////////////////////////////////////////////////
 
             DEFINE_API(database_api,get_proposed_transactions){
+                CHECK_ARG_SIZE( 1 )
+                auto name = args[0].as< account_name_type >();
                 return my->get_proposed_transactions(name);
             }
 
 /** TODO: add secondary index that will accelerate this process */
-            DEFINE_API(database_api::database_api_impl,get_proposed_transactions){
+            vector<proposal_object> database_api::database_api_impl::get_proposed_transactions(account_name_type name) const {
                 const auto &idx = database().get_index<proposal_index>();
                 vector<proposal_object> result;
 

@@ -457,7 +457,7 @@ namespace steemit {
             }
 
 /*
-        bool tags_plugin::filter(
+        bool tags_filter(
                 const steemit::application::discussion_query &query,
                 const steemit::application::comment_api_obj &c,
                 const std::function<bool(const steemit::application::comment_api_obj &)> &condition) {

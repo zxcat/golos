@@ -107,15 +107,16 @@ namespace steemit {
 
 
 
-            using get_account_history_return_type = map< uint32_t, operation_api_object > ;
+            using get_account_history_return_type = map<uint32_t, applied_operation> ;
+            using get_tags_used_by_author_return_type=vector<pair<std::string, uint32_t>>;
 
             ///               API,                                    args,                return
-            DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   vector< tag_api_object > )
+            DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   vector<tag_api_object> )
             DEFINE_API_ARGS( get_state,                              vector< variant >,   state )
             DEFINE_API_ARGS( get_active_witnesses,                   void_type,           vector< account_name_type > )
             DEFINE_API_ARGS( get_block_header,                       vector< variant >,   optional< block_header > )
             DEFINE_API_ARGS( get_block,                              vector< variant >,   optional< signed_block_api_object > )
-            DEFINE_API_ARGS( get_ops_in_block,                       vector< variant >,   vector< operation_api_object > )
+            DEFINE_API_ARGS( get_ops_in_block,                       vector< variant >,   vector< applied_operation > )
             DEFINE_API_ARGS( get_config,                             void_type,           variant_object )
             DEFINE_API_ARGS( get_dynamic_global_properties,          void_type,           dynamic_global_property_api_object )
             DEFINE_API_ARGS( get_chain_properties,                   void_type,           chain_properties )
@@ -133,7 +134,7 @@ namespace steemit {
             DEFINE_API_ARGS( get_owner_history,                      vector< variant >,   vector< owner_authority_history_api_object > )
             DEFINE_API_ARGS( get_recovery_request,                   vector< variant >,   optional< account_recovery_request_api_obj > )
             DEFINE_API_ARGS( get_escrow,                             vector< variant >,   optional< escrow_api_object > )
-            DEFINE_API_ARGS( get_withdraw_routes,                    vector< variant >,   vector< withdraw_vesting_route_api_object > )
+            DEFINE_API_ARGS( get_withdraw_routes,                    vector< variant >,   vector<withdraw_route> )
             DEFINE_API_ARGS( get_account_bandwidth,                  vector< variant >,   optional< account_bandwidth_api_object > )
             DEFINE_API_ARGS( get_savings_withdraw_from,              vector< variant >,   vector< savings_withdraw_api_object > )
             DEFINE_API_ARGS( get_savings_withdraw_to,                vector< variant >,   vector< savings_withdraw_api_object > )
@@ -143,7 +144,7 @@ namespace steemit {
             DEFINE_API_ARGS( get_conversion_requests,                vector< variant >,   vector< convert_request_api_object > )
             DEFINE_API_ARGS( get_witness_by_account,                 vector< variant >,   optional< witness_api_object > )
             DEFINE_API_ARGS( get_witnesses_by_vote,                  vector< variant >,   vector< witness_api_object > )
-            DEFINE_API_ARGS( lookup_witness_accounts,                vector< variant >,   vector< account_name_type > )
+            DEFINE_API_ARGS( lookup_witness_accounts,                vector< variant >,   set<account_name_type> )
             DEFINE_API_ARGS( get_open_orders,                        vector< variant >,   vector< extended_limit_order > )
             DEFINE_API_ARGS( get_witness_count,                      void_type,           uint64_t )
             DEFINE_API_ARGS( get_transaction_hex,                    vector< variant >,   string )
@@ -156,7 +157,7 @@ namespace steemit {
             DEFINE_API_ARGS( get_account_votes,                      vector< variant >,   vector< account_vote > )
             DEFINE_API_ARGS( get_content,                            vector< variant >,   discussion )
             DEFINE_API_ARGS( get_content_replies,                    vector< variant >,   vector< discussion > )
-            DEFINE_API_ARGS( get_tags_used_by_author,                vector< variant >,   vector< tag_count_object > )
+            DEFINE_API_ARGS( get_tags_used_by_author,                vector< variant >,   get_tags_used_by_author_return_type )
             DEFINE_API_ARGS( get_discussions_by_payout,              vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_post_discussions_by_payout,         vector< variant >,   vector< discussion > )
             DEFINE_API_ARGS( get_comment_discussions_by_payout,      vector< variant >,   vector< discussion > )
@@ -631,9 +632,6 @@ namespace steemit {
             discussion get_discussion(comment_object::id_type, uint32_t truncate_body = 0) const;
 
         private:
-            void set_pending_payout(discussion &d) const;
-
-            void set_url(discussion &d) const;
 
             template<
                     typename Object,
