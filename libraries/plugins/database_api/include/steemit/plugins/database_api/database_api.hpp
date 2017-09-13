@@ -115,7 +115,7 @@ namespace steemit {
             DEFINE_API_ARGS( get_state,                              vector< variant >,   state )
             DEFINE_API_ARGS( get_active_witnesses,                   void_type,           vector< account_name_type > )
             DEFINE_API_ARGS( get_block_header,                       vector< variant >,   optional< block_header > )
-            DEFINE_API_ARGS( get_block,                              vector< variant >,   optional< signed_block_api_object > )
+            DEFINE_API_ARGS( get_block,                              vector< variant >,   optional<block_header> )
             DEFINE_API_ARGS( get_ops_in_block,                       vector< variant >,   vector< applied_operation > )
             DEFINE_API_ARGS( get_config,                             void_type,           variant_object )
             DEFINE_API_ARGS( get_dynamic_global_properties,          void_type,           dynamic_global_property_api_object )
@@ -212,13 +212,13 @@ namespace steemit {
             ///////////////////
             // Subscriptions //
             ///////////////////
-
+/*
             void set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter);
 
             void set_pending_transaction_callback(std::function<void(const variant &)> cb);
 
             void set_block_applied_callback(std::function<void(const variant &block_header)> cb);
-
+*/
             /**
              * @brief Stop receiving any notifications
              *
@@ -629,45 +629,7 @@ namespace steemit {
 
             )
 
-            discussion get_discussion(comment_object::id_type, uint32_t truncate_body = 0) const;
-
         private:
-
-            template<
-                    typename Object,
-                    typename DatabaseIndex,
-                    typename DiscussionIndex,
-                    typename CommentIndex,
-                    typename Index,
-                    typename StartItr
-            >
-            std::multimap<Object, discussion, DiscussionIndex> get_discussions(
-                    const discussion_query &query,
-                    const std::string &tag,
-                    comment_object::id_type parent,
-                    const Index &tidx,
-                    StartItr tidx_itr,
-                    const std::function<bool(const comment_api_obj &)> &filter,
-                    const std::function<bool(const comment_api_obj &)> &exit,
-                    const std::function<bool(const Object &)> &tag_exit,
-                    bool ignore_parent = false) const;
-
-
-            template<
-                    typename Object,
-                    typename DatabaseIndex,
-                    typename DiscussionIndex,
-                    typename CommentIndex,
-                    typename ...Args
-            >
-            std::multimap<Object, discussion, DiscussionIndex> select(
-                    const std::set<std::string> &select_set,
-                    const discussion_query &query,
-                    comment_object::id_type parent,
-                    const std::function<bool(const comment_api_obj &)> &filter,
-                    const std::function<bool(const comment_api_obj &)> &exit,
-                    const std::function<bool(const Object &)> &exit2,
-                    Args... args) const;
 
             template<typename DatabaseIndex,
                     typename DiscussionIndex
@@ -684,7 +646,7 @@ namespace steemit {
                     const std::string &start_permlink) const;
 
 
-            comment_object::id_type get_parent(const discussion_query &q) const;
+
 
             void recursively_fetch_content(state &_state, discussion &root, std::set<std::string> &referenced_accounts) const;
             struct database_api_impl;

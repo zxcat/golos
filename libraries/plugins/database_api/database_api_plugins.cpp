@@ -6,7 +6,6 @@ namespace steemit {
         namespace database_api {
 
             database_api_plugin::database_api_plugin() {
-                name(__name__);
             }
             database_api_plugin::~database_api_plugin() {}
 

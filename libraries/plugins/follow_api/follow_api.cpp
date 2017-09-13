@@ -266,7 +266,7 @@ namespace steemit {
                             const auto &stats_idx = db.get_index<blog_author_stats_index, by_blogger_guest_count>();
                             auto itr = stats_idx.lower_bound(boost::make_tuple(args.blog_account));
                             while (itr != stats_idx.end() && itr->blogger == args.blog_account && result.blog_authors.size()) {
-                                result.blog_authors.push_back(reblog_count{itr->guest, itr->count});
+                                result.blog_authors.emplace_back(itr->guest, itr->count);
                                 ++itr;
                             }
                             return result;

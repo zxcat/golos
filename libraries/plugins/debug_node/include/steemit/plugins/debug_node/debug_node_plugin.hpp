@@ -47,20 +47,22 @@ namespace steemit {
             class debug_node_plugin final : public appbase::plugin<debug_node_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                constexpr const static char* __name__= "debug_node";
+                static const std::string& name() { static std::string name = __name__; return name; }
                 debug_node_plugin();
 
                 ~debug_node_plugin();
 
 
-                void plugin_initialize(const boost::program_options::variables_map &options);
+                void plugin_initialize(const boost::program_options::variables_map &options) override ;
 
                 void set_program_options(
                         boost::program_options::options_description &cli,
-                        boost::program_options::options_description &cfg) ;
+                        boost::program_options::options_description &cfg) override ;
 
-                void plugin_startup();
+                void plugin_startup() override ;
 
-                void plugin_shutdown();
+                void plugin_shutdown() override ;
 
                 uint32_t debug_generate_blocks(
                         const std::string &debug_key,

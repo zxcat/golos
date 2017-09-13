@@ -29,7 +29,6 @@ class chain_plugin_impl {
 
 
 chain_plugin::chain_plugin() : my( new chain_plugin_impl() ) {
-    name(STEEM_CHAIN_PLUGIN_NAME);
 }
 chain_plugin::~chain_plugin(){}
 

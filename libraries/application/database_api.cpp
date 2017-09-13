@@ -1859,51 +1859,7 @@ namespace steemit {
             });
         }
 
-        std::vector<discussion> database_api::get_discussions_by_hot(const discussion_query &query) const {
 
-            return my->_db.with_read_lock([&]() {
-                query.validate();
-                auto parent = get_parent(query);
-
-                std::multimap<tags::tag_object, discussion, tags::by_parent_hot> map_result = select<tags::tag_object, tags::tag_index, tags::by_parent_hot, tags::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(tags::tags_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const tags::tag_object &) -> bool {
-                            return false;
-                        },
-                        parent,
-                        std::numeric_limits<double>::max()
-                );
-
-                std::multimap<languages::language_object, discussion, languages::by_parent_hot> map_result_language = select<languages::language_object, languages::language_index, languages::by_parent_hot, languages::by_comment>(
-                        query.select_tags,
-                        query,
-                        parent,
-                        std::bind(languages::languages_plugin::filter, query, std::placeholders::_1, [&](const comment_api_obj &c) -> bool {
-                            return c.net_rshares <= 0;
-                        }),
-                        [&](const comment_api_obj &c) -> bool {
-                            return false;
-                        },
-                        [&](const languages::language_object &) -> bool {
-                            return false;
-                        },
-                        parent,
-                        std::numeric_limits<double>::max()
-                );
-
-                std::vector<discussion> return_result = merge(map_result, map_result_language);
-
-                return return_result;
-            });
-        }
 
         std::vector<discussion> merge(std::vector<discussion> &result1, std::vector<discussion> &result2) {
             //TODO:std::set_intersection(

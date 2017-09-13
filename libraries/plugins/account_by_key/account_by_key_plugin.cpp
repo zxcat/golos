@@ -183,7 +183,6 @@ namespace steemit {
 
 
             account_by_key_plugin::account_by_key_plugin() : my(new account_by_key_plugin_impl(*this)) {
-                name(ACCOUNT_BY_KEY_PLUGIN_NAME);
             }
 
             void account_by_key_plugin::set_program_options(

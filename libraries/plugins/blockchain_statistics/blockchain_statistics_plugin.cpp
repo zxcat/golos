@@ -369,7 +369,6 @@ namespace steemit {
 
 
         blockchain_statistics_plugin::blockchain_statistics_plugin() {
-            name(BLOCKCHAIN_STATISTICS_PLUGIN_NAME);
         }
 
         blockchain_statistics_plugin::~blockchain_statistics_plugin() {

@@ -415,7 +415,6 @@ namespace steemit {
             } /// end detail namespace
 
             languages_plugin::languages_plugin() {
-                name(LANGUAGES_PLUGIN_NAME);
 
             }
 

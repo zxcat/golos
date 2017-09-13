@@ -13,17 +13,18 @@ namespace steemit {
             class account_by_key_plugin final : public appbase::plugin<account_by_key_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                static const std::string& name() { static std::string name = ACCOUNT_BY_KEY_PLUGIN_NAME; return name; }
                 account_by_key_plugin();
                 ~account_by_key_plugin();
-                virtual void set_program_options(
+                void set_program_options(
                         boost::program_options::options_description &cli,
-                        boost::program_options::options_description &cfg);
+                        boost::program_options::options_description &cfg) override ;
 
-                virtual void plugin_initialize(const boost::program_options::variables_map &options);
+                void plugin_initialize(const boost::program_options::variables_map &options) override ;
 
-                virtual void plugin_startup();
+                void plugin_startup()override ;
 
-                void plugin_shutdown(){}
+                void plugin_shutdown()override {}
 
                 void update_key_lookup(const chain::account_authority_object &);
 

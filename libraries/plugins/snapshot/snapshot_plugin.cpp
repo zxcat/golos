@@ -179,9 +179,7 @@ namespace steemit {
 
 
             snapshot_plugin::snapshot_plugin()
-                    : impl(new snapshot_plugin_impl(*this)) {
-                name(SNAPSHOT_PLUGIN_NAME);
-            }
+                    : impl(new snapshot_plugin_impl(*this)) {}
 
             snapshot_plugin::~snapshot_plugin() {
             }

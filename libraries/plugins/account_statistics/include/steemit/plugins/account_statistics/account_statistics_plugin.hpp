@@ -133,20 +133,23 @@ namespace steemit {
 
         class account_statistics_plugin final : public appbase::plugin<account_statistics_plugin> {
         public:
+
+            static const std::string& name() { static std::string name = ACCOUNT_STATISTICS_PLUGIN_NAME; return name; }
             APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+
             account_statistics_plugin();
 
             virtual ~account_statistics_plugin();
 
 
 
-            virtual void set_program_options(
+            void set_program_options(
                     boost::program_options::options_description &cli,
                     boost::program_options::options_description &cfg) override;
 
-            void plugin_initialize(const boost::program_options::variables_map &options);
+            void plugin_initialize(const boost::program_options::variables_map &options)override ;
 
-            void plugin_startup();
+            void plugin_startup()override;
 
             const flat_set<uint32_t> &get_tracked_buckets()const ;
 
@@ -155,7 +158,7 @@ namespace steemit {
             const flat_set<std::string> &get_tracked_accounts()const;
 
 
-            void plugin_shutdown(){}
+            void plugin_shutdown()override{}
 
         private:
             struct account_statistics_plugin_impl;

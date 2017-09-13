@@ -128,7 +128,7 @@ class webserver_plugin_impl {
 };
 
 webserver_plugin::webserver_plugin() : _my( new webserver_plugin_impl() ) {
-   name(STEEM_WEBSERVER_PLUGIN_NAME);
+
 }
 webserver_plugin::~webserver_plugin(){}
 

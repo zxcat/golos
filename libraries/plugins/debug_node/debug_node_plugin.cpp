@@ -61,7 +61,7 @@ namespace steemit {
 
             debug_node_plugin::debug_node_plugin() {
                 _my = std::make_shared<debug_node_plugin_impl>(this);
-                name("debug_node");
+
             }
 
             debug_node_plugin::~debug_node_plugin() {

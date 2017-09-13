@@ -556,7 +556,6 @@ namespace steemit {
             }
 
             witness_plugin::witness_plugin() {
-                name("witness");
             }
 
             witness_plugin::~witness_plugin() {

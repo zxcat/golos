@@ -19,6 +19,7 @@ namespace steemit {
             class snapshot_plugin final : public appbase::plugin<snapshot_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                static const std::string& name() { static std::string name = SNAPSHOT_PLUGIN_NAME; return name; }
                 /**
                  * The plugin requires a constructor which takes app.  This is called regardless of whether the plugin is loaded.
                  * The app parameter should be passed up to the superclass constructor.
@@ -34,18 +35,18 @@ namespace steemit {
                 /**
                  * Called when the plugin is enabled, but before the database has been created.
                  */
-                void plugin_initialize(const boost::program_options::variables_map &options) ;
+                void plugin_initialize(const boost::program_options::variables_map &options) override ;
 
                 void set_program_options(
                         boost::program_options::options_description &command_line_options,
-                        boost::program_options::options_description &config_file_options) ;
+                        boost::program_options::options_description &config_file_options) override ;
 
                 /**
                  * Called when the plugin is enabled.
                  */
-                void plugin_startup();
+                void plugin_startup() override ;
 
-                void plugin_shutdown(){}
+                void plugin_shutdown() override {}
 
                 const boost::bimap<std::string, std::string> &get_loaded_snapshots() const;
 

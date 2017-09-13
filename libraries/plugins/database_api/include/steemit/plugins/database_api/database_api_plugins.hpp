@@ -13,6 +13,7 @@ namespace steemit {
             class database_api_plugin final : public appbase::plugin<database_api_plugin> {
             public:
                 constexpr static const char *__name__ = "database_api";
+                static const std::string& name() { static std::string name = __name__; return name; }
 
                 database_api_plugin();
 
@@ -22,13 +23,13 @@ namespace steemit {
 
                 void set_program_options(
                         options_description &cli,
-                        options_description &cfg);
+                        options_description &cfg) override ;
 
-                void plugin_initialize(const variables_map &options);
+                void plugin_initialize(const variables_map &options) override ;
 
-                void plugin_startup();
+                void plugin_startup() override ;
 
-                void plugin_shutdown();
+                void plugin_shutdown() override ;
 
                 std::shared_ptr<class database_api> api;
             };

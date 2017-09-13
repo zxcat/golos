@@ -112,7 +112,6 @@ public:
 
 p2p_plugin::p2p_plugin() {
    my.reset( new p2p_plugin_impl( appbase::app().get_plugin< plugins::chain::chain_plugin >() ) );
-    name(STEEM_P2P_PLUGIN_NAME);
 }
 
 p2p_plugin::~p2p_plugin() {}

@@ -449,7 +449,6 @@ namespace steemit {
             } /// end detail namespace
 
             tags_plugin::tags_plugin() {
-                name(TAGS_PLUGIN_NAME);
             }
 
             tags_plugin::~tags_plugin() {

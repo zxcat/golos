@@ -193,7 +193,6 @@ namespace steemit {
 
 
             json_rpc_plugin::json_rpc_plugin() : _my(new json_rpc_plugin_impl()) {
-                name(STEEM_JSON_RPC_PLUGIN_NAME);
             }
 
             json_rpc_plugin::~json_rpc_plugin() {}

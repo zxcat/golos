@@ -25,18 +25,17 @@ using namespace appbase;
   * make sure that HTTP request processing does not interfer with other
   * plugins.
   */
-class webserver_plugin : public appbase::plugin< webserver_plugin >
-{
-   public:
-      webserver_plugin();
-      virtual ~webserver_plugin();
+class webserver_plugin final : public appbase::plugin< webserver_plugin > {
+public:
+    webserver_plugin();
+    ~webserver_plugin();
+    static const std::string& name() { static std::string name = STEEM_WEBSERVER_PLUGIN_NAME; return name; }
+    APPBASE_PLUGIN_REQUIRES( (plugins::json_rpc::json_rpc_plugin) );
+    void set_program_options(options_description&, options_description& cfg) override;
 
-      APPBASE_PLUGIN_REQUIRES( (plugins::json_rpc::json_rpc_plugin) );
-      virtual void set_program_options(options_description&, options_description& cfg) override;
-
-      void plugin_initialize(const variables_map& options);
-      void plugin_startup();
-      void plugin_shutdown();
+    void plugin_initialize(const variables_map& options) override ;
+    void plugin_startup() override ;
+    void plugin_shutdown() override ;
 
    private:
       std::unique_ptr< class webserver_plugin_impl > _my;

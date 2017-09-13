@@ -134,7 +134,7 @@ namespace steemit {
             };
 
             struct get_blog_authors_return {
-                vector< reblog_count > blog_authors;
+                vector< std::pair<account_name_type, uint32_t> > blog_authors;
             };
 
 

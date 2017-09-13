@@ -10,18 +10,18 @@
 namespace steemit { namespace plugins { namespace p2p {
 namespace bpo = boost::program_options;
 
-class p2p_plugin : public appbase::plugin<p2p_plugin> {
+class p2p_plugin final : public appbase::plugin<p2p_plugin> {
 public:
    APPBASE_PLUGIN_REQUIRES((plugins::chain::chain_plugin))
-
+   static const std::string& name() { static std::string name = STEEM_P2P_PLUGIN_NAME; return name; }
    p2p_plugin();
-   virtual ~p2p_plugin();
+   ~p2p_plugin();
 
-   virtual void set_program_options(bpo::options_description &, bpo::options_description &config_file_options) override;
+   void set_program_options(bpo::options_description &, bpo::options_description &config_file_options) override;
 
-   virtual void plugin_initialize(const bpo::variables_map& options);
-   virtual void plugin_startup();
-   virtual void plugin_shutdown();
+   void plugin_initialize(const bpo::variables_map& options) override ;
+   void plugin_startup() override ;
+   void plugin_shutdown()override ;
 
    void broadcast_block( const steemit::protocol::signed_block& block );
    void broadcast_transaction( const steemit::protocol::signed_transaction& tx );

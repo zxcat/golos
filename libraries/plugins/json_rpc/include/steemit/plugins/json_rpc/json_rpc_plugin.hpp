@@ -76,19 +76,22 @@ namespace steemit {
 
             class json_rpc_plugin final : public appbase::plugin<json_rpc_plugin> {
             public:
+
+                static const std::string& name() { static std::string name = STEEM_JSON_RPC_PLUGIN_NAME; return name; }
+
                 json_rpc_plugin();
 
                 virtual ~json_rpc_plugin();
 
                 APPBASE_PLUGIN_REQUIRES();
 
-                void set_program_options(options_description &, options_description &) {}
+                void set_program_options(options_description &, options_description &) override {}
 
-                void plugin_initialize(const variables_map &options);
+                void plugin_initialize(const variables_map &options)override;
 
-                void plugin_startup();
+                void plugin_startup()override;
 
-                void plugin_shutdown();
+                void plugin_shutdown()override;
 
                 void add_api_method(const string &api_name, const string &method_name, const api_method &api);
 

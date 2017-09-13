@@ -33,6 +33,8 @@ namespace steemit {
             class witness_plugin final : public appbase::plugin<witness_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES((steemit::plugins::chain::chain_plugin) (steemit::plugins::p2p::p2p_plugin))
+                constexpr static const char* __name__ ="witness";
+                static const std::string& name() { static std::string name = __name__; return name; }
 
                 witness_plugin();
 
@@ -43,15 +45,15 @@ namespace steemit {
                 void set_program_options(
                         boost::program_options::options_description &command_line_options,
                         boost::program_options::options_description &config_file_options
-                );
+                )override;
 
                 void set_block_production(bool allow);
 
-                void plugin_initialize(const boost::program_options::variables_map &options);
+                void plugin_initialize(const boost::program_options::variables_map &options)override;
 
-                void plugin_startup();
+                void plugin_startup()override;
 
-                void plugin_shutdown();
+                void plugin_shutdown()override;
 
             private:
                 void on_applied_block(const chain::signed_block &b);

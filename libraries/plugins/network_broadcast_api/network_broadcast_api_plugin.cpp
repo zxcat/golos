@@ -4,7 +4,6 @@
 namespace steemit { namespace plugins { namespace network_broadcast_api {
 
 network_broadcast_api_plugin::network_broadcast_api_plugin() {
-   name(STEEM_NETWORK_BROADCAST_API_PLUGIN_NAME);
 }
 network_broadcast_api_plugin::~network_broadcast_api_plugin() {}
 

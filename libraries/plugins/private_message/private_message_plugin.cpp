@@ -50,7 +50,6 @@ namespace steemit {
 
 
             private_message_plugin::private_message_plugin() {
-                name(__name__);
             }
 
             private_message_plugin::~private_message_plugin() {

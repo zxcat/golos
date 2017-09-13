@@ -136,9 +136,10 @@ namespace steemit {
  *   by the posting key.
  *
  */
-        class private_message_plugin : public appbase::plugin<private_message_plugin> {
+        class private_message_plugin final: public appbase::plugin<private_message_plugin> {
         public:
             constexpr static const char* __name__= "private_message";
+            static const std::string& name() { static std::string name = __name__; return name; }
             APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
 
             private_message_plugin();
@@ -147,13 +148,13 @@ namespace steemit {
 
             void set_program_options(
                     boost::program_options::options_description &cli,
-                    boost::program_options::options_description &cfg) ;
+                    boost::program_options::options_description &cfg) override ;
 
-            void plugin_initialize(const boost::program_options::variables_map &options) ;
+            void plugin_initialize(const boost::program_options::variables_map &options) override ;
 
-            void plugin_startup();
+            void plugin_startup() override ;
 
-            void plugin_shutdown(){}
+            void plugin_shutdown() override {}
 
             flat_map<string, string> tracked_accounts() const; /// map start_range to end_range
         private:

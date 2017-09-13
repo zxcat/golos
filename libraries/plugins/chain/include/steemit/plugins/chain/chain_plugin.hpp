@@ -10,18 +10,18 @@ using std::unique_ptr;
 using namespace appbase;
 using namespace steemit::chain;
 
-class chain_plugin : public appbase::plugin< chain_plugin > {
+class chain_plugin final : public appbase::plugin< chain_plugin > {
 public:
    APPBASE_PLUGIN_REQUIRES()
-
+    static const std::string& name() { static std::string name = STEEM_CHAIN_PLUGIN_NAME; return name; }
    chain_plugin();
    virtual ~chain_plugin();
 
 
-   virtual void set_program_options( options_description& cli, options_description& cfg ) override;
-   void plugin_initialize( const variables_map& options );
-   void plugin_startup();
-   void plugin_shutdown();
+   void set_program_options( options_description& cli, options_description& cfg ) override;
+   void plugin_initialize( const variables_map& options )override ;
+   void plugin_startup()override ;
+   void plugin_shutdown()override ;
 
    bool accept_block( const steemit::chain::signed_block& block, bool currently_syncing );
    void accept_transaction( const steemit::chain::signed_transaction& trx );

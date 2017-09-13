@@ -319,7 +319,6 @@ namespace steemit {
                 };
 
             follow_plugin::follow_plugin() {
-                name(__name__);
             }
 
             void follow_plugin::set_program_options(

@@ -440,7 +440,6 @@ namespace steemit {
 
             account_history_plugin::account_history_plugin()
                     : my(new account_history_plugin_impl) {
-                name("account_history");
                 //ilog("Loading account history plugin" );
             }
 

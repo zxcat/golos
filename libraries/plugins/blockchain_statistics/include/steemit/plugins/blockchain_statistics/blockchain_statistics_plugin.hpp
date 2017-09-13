@@ -36,6 +36,7 @@ namespace steemit {
 
             class blockchain_statistics_plugin final : public appbase::plugin<blockchain_statistics_plugin> {
             public:
+                static const std::string& name() { static std::string name = BLOCKCHAIN_STATISTICS_PLUGIN_NAME; return name; }
                 APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
                 blockchain_statistics_plugin();
 
@@ -44,17 +45,17 @@ namespace steemit {
 
                 void set_program_options(
                         boost::program_options::options_description &cli,
-                        boost::program_options::options_description &cfg) ;
+                        boost::program_options::options_description &cfg) override ;
 
-                void plugin_initialize(const boost::program_options::variables_map &options) ;
+                void plugin_initialize(const boost::program_options::variables_map &options) override ;
 
-                void plugin_startup();
+                void plugin_startup() override;
 
                 const flat_set<uint32_t> &get_tracked_buckets() const;
 
                 uint32_t get_max_history_per_bucket() const;
 
-                void plugin_shutdown(){}
+                void plugin_shutdown()override{}
 
             private:
                 struct blockchain_statistics_plugin_impl;

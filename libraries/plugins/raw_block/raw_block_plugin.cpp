@@ -6,7 +6,6 @@ namespace steemit {
         namespace raw_block {
 
             raw_block_plugin::raw_block_plugin() {
-                name("raw_block");
             }
 
             raw_block_plugin::~raw_block_plugin() {

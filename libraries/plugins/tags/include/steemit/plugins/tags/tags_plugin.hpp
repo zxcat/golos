@@ -538,13 +538,15 @@ namespace steemit {
                 virtual ~tags_plugin();
 
                 APPBASE_PLUGIN_REQUIRES((steemit::plugins::chain::chain_plugin))
+                static const std::string& name() { static std::string name = TAGS_PLUGIN_NAME; return name; }
+
 
                 virtual void set_program_options(boost::program_options::options_description &cli,
-                                                 boost::program_options::options_description &cfg);
+                                                 boost::program_options::options_description &cfg)override ;
 
-                virtual void plugin_initialize(const boost::program_options::variables_map &options);
+                virtual void plugin_initialize(const boost::program_options::variables_map &options)override ;
 
-                virtual void plugin_startup();
+                virtual void plugin_startup()override ;
 
                 //static bool filter(const steemit::application::discussion_query &query,
                 //                   const steemit::application::comment_api_obj &c,
@@ -552,7 +554,7 @@ namespace steemit {
 
                 friend class detail::tags_plugin_impl;
 
-                void plugin_shutdown() {}
+                void plugin_shutdown() override {}
 
                 std::unique_ptr<detail::tags_plugin_impl> my;
             };

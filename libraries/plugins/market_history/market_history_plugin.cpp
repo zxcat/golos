@@ -407,10 +407,7 @@ namespace steemit {
                 };
 
 
-            market_history_plugin::market_history_plugin()
-                     {
-                name(MARKET_HISTORY_PLUGIN_NAME);
-            }
+            market_history_plugin::market_history_plugin() {}
 
             market_history_plugin::~market_history_plugin() {
             }

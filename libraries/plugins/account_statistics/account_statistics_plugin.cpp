@@ -47,7 +47,7 @@ namespace steemit {
 
             account_statistics_plugin::account_statistics_plugin()
                     : _my(new account_statistics_plugin_impl(*this)) {
-                name(ACCOUNT_STATISTICS_PLUGIN_NAME);
+
             }
 
             account_statistics_plugin::~account_statistics_plugin() {

@@ -9,7 +9,6 @@ namespace steemit {
         namespace block_info {
 
             block_info_plugin::block_info_plugin(){
-                name("block_info");
             }
 
             block_info_plugin::~block_info_plugin() {
