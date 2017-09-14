@@ -6,9 +6,12 @@
 #include <boost/thread.hpp>
 #include <boost/container/vector.hpp>
 
+
 #define STEEM_WEBSERVER_PLUGIN_NAME "webserver"
 
 namespace steemit { namespace plugins { namespace webserver {
+
+namespace detail { class webserver_plugin_impl; }
 
 using namespace appbase;
 
@@ -26,19 +29,23 @@ using namespace appbase;
   * plugins.
   */
 class webserver_plugin final : public appbase::plugin< webserver_plugin > {
-public:
-    webserver_plugin();
-    ~webserver_plugin();
-    static const std::string& name() { static std::string name = STEEM_WEBSERVER_PLUGIN_NAME; return name; }
-    APPBASE_PLUGIN_REQUIRES( (plugins::json_rpc::json_rpc_plugin) );
-    void set_program_options(options_description&, options_description& cfg) override;
+   public:
+      webserver_plugin();
+      virtual ~webserver_plugin();
 
-    void plugin_initialize(const variables_map& options) override ;
-    void plugin_startup() override ;
-    void plugin_shutdown() override ;
+      APPBASE_PLUGIN_REQUIRES( (plugins::json_rpc::json_rpc_plugin) );
+
+      static const std::string& name() { static std::string name = STEEM_WEBSERVER_PLUGIN_NAME; return name; }
+
+      void set_program_options(options_description&, options_description& cfg) override;
+
+   protected:
+      void plugin_initialize(const variables_map& options) override;
+      void plugin_startup() override;
+      void plugin_shutdown() override;
 
    private:
-      std::unique_ptr< class webserver_plugin_impl > _my;
+      std::unique_ptr< detail::webserver_plugin_impl > my;
 };
 
-} } } // steemit::plugins::webserver
+} } } // steem::plugins::webserver

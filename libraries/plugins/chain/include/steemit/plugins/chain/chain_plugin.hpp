@@ -2,31 +2,40 @@
 #include <appbase/application.hpp>
 #include <steemit/chain/database.hpp>
 
+#include <boost/signals2.hpp>
+
 #define STEEM_CHAIN_PLUGIN_NAME "chain"
 
 namespace steemit { namespace plugins { namespace chain {
 
-using std::unique_ptr;
+namespace detail { class chain_plugin_impl; }
+
+
 using namespace appbase;
 using namespace steemit::chain;
 
-class chain_plugin final : public appbase::plugin< chain_plugin > {
+
+class chain_plugin final : public plugin< chain_plugin > {
 public:
    APPBASE_PLUGIN_REQUIRES()
-    static const std::string& name() { static std::string name = STEEM_CHAIN_PLUGIN_NAME; return name; }
+
    chain_plugin();
    virtual ~chain_plugin();
 
+   static const std::string& name() { static std::string name = STEEM_CHAIN_PLUGIN_NAME; return name; }
 
    void set_program_options( options_description& cli, options_description& cfg ) override;
-   void plugin_initialize( const variables_map& options )override ;
-   void plugin_startup()override ;
-   void plugin_shutdown()override ;
+   void plugin_initialize( const variables_map& options ) override;
+   void plugin_startup() override;
+   void plugin_shutdown() override;
 
-   bool accept_block( const steemit::chain::signed_block& block, bool currently_syncing );
-   void accept_transaction( const steemit::chain::signed_transaction& trx );
+   bool accept_block( const signed_block& block, bool currently_syncing, uint32_t skip );
 
-   bool block_is_on_preferred_chain( const steemit::chain::block_id_type& block_id );
+   void accept_transaction( const signed_transaction& trx );
+
+   bool block_is_on_preferred_chain( const block_id_type& block_id );
+
+   void check_time_in_block( const signed_block& block );
 
    template< typename MultiIndexType >
    bool has_index() const {
@@ -62,8 +71,12 @@ public:
    database& db();
    const database& db() const;
 
+   // Emitted when the blockchain is syncing/live.
+   // This is to synchronize plugins that have the chain plugin as an optional dependency.
+   boost::signals2::signal<void()> on_sync;
+
 private:
-   unique_ptr<class chain_plugin_impl> my;
+   std::unique_ptr< detail::chain_plugin_impl > my;
 };
 
-} } } // steemit::plugins::chain
+} } } // steem::plugins::chain

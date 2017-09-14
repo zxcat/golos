@@ -12,7 +12,6 @@
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
-#include <chain/include/steemit/plugins/chain/chain_plugin.hpp>
 
 namespace steemit {
     namespace plugins {

@@ -7,6 +7,9 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
 
+#include <boost/config.hpp>
+#include <boost/any.hpp>
+
 /**
  * This plugin holds bindings for all APIs and their methods
  * and can dispatch JSONRPC requests to the appropriate API.
@@ -34,76 +37,87 @@
 
 #define STEEM_JSON_RPC_PLUGIN_NAME "json_rpc"
 
-#define JSON_RPC_API_METHOD_HELPER( handle )                               \
-   [this]( const fc::variant& args ) -> fc::variant                        \
-   {                                                                       \
-      return fc::variant( this->handle( args.as< handle ## _args >() ) );  \
-   }
-
-#define JSON_RPC_API_METHOD( r, api_name, method ) \
-   jsonrpc.add_api_method( api_name, std::string( #method ), JSON_RPC_API_METHOD_HELPER( method ) );
-
-
-#define JSON_RPC_REGISTER_API( API_NAME, METHODS )                                              \
+#define JSON_RPC_REGISTER_API( API_NAME )                                                       \
 {                                                                                               \
-   auto& jsonrpc = appbase::app().get_plugin< steemit::plugins::json_rpc::json_rpc_plugin >();  \
-   BOOST_PP_SEQ_FOR_EACH( JSON_RPC_API_METHOD, API_NAME, METHODS )                              \
+   steemit::plugins::json_rpc::detail::register_api_method_visitor vtor( API_NAME );            \
+   for_each_api( vtor );                                                                        \
 }
 
-namespace steemit {
-    namespace plugins {
-        namespace json_rpc {
-            using fc::variant;
-            using namespace appbase;
+namespace steemit { namespace plugins { namespace json_rpc {
 
-            /**
-             * @brief Internal type used to bind api methods
-             * to names.
-             *
-             * Arguments: Variant object of propert arg type
-             */
-            using api_method = std::function<fc::variant(const fc::variant &)>;
+using namespace appbase;
 
-            /**
-             * @brief An API, containing APIs and Methods
-             *
-             * An API is composed of several calls, where each call has a
-             * name defined by the API class. The api_call functions
-             * are compile time bindings of names to methods.
-             */
-            using api_description = std::map<string, api_method>;
+/**
+ * @brief Internal type used to bind api methods
+ * to names.
+ *
+ * Arguments: Variant object of propert arg type
+ */
+using api_method =std::function< fc::variant(const fc::variant&) >;
 
+/**
+ * @brief An API, containing APIs and Methods
+ *
+ * An API is composed of several calls, where each call has a
+ * name defined by the API class. The api_call functions
+ * are compile time bindings of names to methods.
+ */
 
-            class json_rpc_plugin final : public appbase::plugin<json_rpc_plugin> {
-            public:
+using api_description = std::map< string, api_method >;
 
-                static const std::string& name() { static std::string name = STEEM_JSON_RPC_PLUGIN_NAME; return name; }
+namespace detail {
+   class json_rpc_plugin_impl;
+}
 
-                json_rpc_plugin();
+class json_rpc_plugin : public appbase::plugin< json_rpc_plugin > {
+   public:
+      json_rpc_plugin();
+      virtual ~json_rpc_plugin();
 
-                virtual ~json_rpc_plugin();
+      APPBASE_PLUGIN_REQUIRES();
+      virtual void set_program_options( options_description&, options_description& ) override {}
 
-                APPBASE_PLUGIN_REQUIRES();
+      static const std::string& name() { static std::string name = STEEM_JSON_RPC_PLUGIN_NAME; return name; }
 
-                void set_program_options(options_description &, options_description &) override {}
+      virtual void plugin_initialize( const variables_map& options ) override;
+      virtual void plugin_startup() override;
+      virtual void plugin_shutdown() override;
 
-                void plugin_initialize(const variables_map &options)override;
+      void add_api_method( const string& api_name, const string& method_name, const api_method& api );
+      string call( const string& body );
 
-                void plugin_startup()override;
+   private:
+      std::unique_ptr< detail::json_rpc_plugin_impl > my;
+};
 
-                void plugin_shutdown()override;
+namespace detail {
 
-                void add_api_method(const string &api_name, const string &method_name, const api_method &api);
+   class register_api_method_visitor {
+      public:
+         register_api_method_visitor( const std::string& api_name )
+            : _api_name( api_name ),
+              _json_rpc_plugin( appbase::app().get_plugin< json_rpc::json_rpc_plugin >() )
+         {}
 
-                string call(const string &body);
+         template< typename Plugin, typename Method, typename Args, typename Ret >
+         void operator()(
+            Plugin& plugin,
+            const std::string& method_name,
+            Method method,
+            Args* args,
+            Ret* ret )
+         {
+            _json_rpc_plugin.add_api_method( _api_name, method_name,
+            [&plugin,method]( const fc::variant& args ) -> fc::variant {
+               return fc::variant( (plugin.*method)( args.as< Args >() ) );
+            } );
+         }
 
-                variant rpc(const std::string&, const std::string&, std::vector<fc::variant> );
+      private:
+         std::string _api_name;
+         json_rpc::json_rpc_plugin& _json_rpc_plugin;
+   };
 
-            private:
-                struct json_rpc_plugin_impl;
-                std::shared_ptr<json_rpc_plugin_impl> _my;
-            };
+}
 
-        }
-    }
-} // steemit::plugins::json_rpc
+} } } // steem::plugins::json_rpc

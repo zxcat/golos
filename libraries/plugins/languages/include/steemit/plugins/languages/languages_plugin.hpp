@@ -3,7 +3,7 @@
 #include <steemit/chain/comment_object.hpp>
 #include <boost/multi_index/composite_key.hpp>
 #include <appbase/application.hpp>
-#include <chain/include/steemit/plugins/chain/chain_plugin.hpp>
+#include <steemit/plugins/chain/chain_plugin.hpp>
 
 
 namespace steemit {
@@ -527,7 +527,7 @@ namespace plugins {
          */
         class languages_plugin final : public appbase::plugin<languages_plugin> {
         public:
-            APPBASE_PLUGIN_REQUIRES((steemit::plugins::chain::chain_plugin))
+            APPBASE_PLUGIN_REQUIRES((chain::chain_plugin))
             static const std::string& name() { static std::string name = LANGUAGES_PLUGIN_NAME; return name; }
             languages_plugin();
 

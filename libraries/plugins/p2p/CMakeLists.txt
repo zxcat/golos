@@ -26,11 +26,10 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 target_link_libraries(
         golos_${CURRENT_TARGET}
-        golos::chain_plugin
-        golos::p2p_plugin
-        appbase
         golos::chain
+        golos::chain_plugin
         golos::network
+        appbase
 )
 
 target_include_directories(

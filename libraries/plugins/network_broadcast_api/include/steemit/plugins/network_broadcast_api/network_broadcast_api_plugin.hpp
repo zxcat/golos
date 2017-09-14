@@ -9,27 +9,27 @@
 
 namespace steemit { namespace plugins { namespace network_broadcast_api {
 
-using namespace appbase;
+            using namespace appbase;
 
-class network_broadcast_api_plugin final : public appbase::plugin< network_broadcast_api_plugin > {
-public:
-   APPBASE_PLUGIN_REQUIRES(
-      (steemit::plugins::json_rpc::json_rpc_plugin)
-      (steemit::plugins::chain::chain_plugin)
-      (steemit::plugins::p2p::p2p_plugin)
-   )
+            class network_broadcast_api_plugin final : public appbase::plugin< network_broadcast_api_plugin > {
+            public:
+                APPBASE_PLUGIN_REQUIRES(
+                        (json_rpc::json_rpc_plugin)
+                        (chain::chain_plugin)
+                        (p2p::p2p_plugin)
+                )
 
-   network_broadcast_api_plugin();
-   ~network_broadcast_api_plugin();
+                network_broadcast_api_plugin();
+                ~network_broadcast_api_plugin();
 
-   static const std::string& name() { static std::string name = STEEM_NETWORK_BROADCAST_API_PLUGIN_NAME; return name; }
+                static const std::string& name() { static std::string name = STEEM_NETWORK_BROADCAST_API_PLUGIN_NAME; return name; }
 
-   void set_program_options( options_description& cli, options_description& cfg ) override;
-   void plugin_initialize( const variables_map& options ) override ;
-   void plugin_startup() override ;
-   void plugin_shutdown() override ;
+                void set_program_options( options_description& cli, options_description& cfg ) override;
+                void plugin_initialize( const variables_map& options ) override;
+                void plugin_startup() override;
+                void plugin_shutdown() override;
 
-   std::shared_ptr< class network_broadcast_api > api;
-};
+                std::shared_ptr< class network_broadcast_api > api;
+            };
 
-} } } // steemit::plugins::network_broadcast_api
+        } } } // steem::plugins::network_broadcast_api

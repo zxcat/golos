@@ -379,7 +379,7 @@ namespace steemit {
         database_api::database_api()
                 : my(new database_api_impl()) {
                 JSON_RPC_REGISTER_API(
-                    __name__,
+                    __name__)/*
                     (get_trending_tags)
                     (get_state)
                     (get_trending_categories)
@@ -457,7 +457,7 @@ namespace steemit {
                     (get_payout_extension_cost)
                     (get_payout_extension_time)
                     (get_proposed_transactions)
-            )
+            )*/
         }
 
         database_api::~database_api() {
