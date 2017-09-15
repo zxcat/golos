@@ -69,19 +69,19 @@ namespace detail {
    class json_rpc_plugin_impl;
 }
 
-class json_rpc_plugin : public appbase::plugin< json_rpc_plugin > {
+class json_rpc_plugin final : public appbase::plugin< json_rpc_plugin > {
    public:
       json_rpc_plugin();
-      virtual ~json_rpc_plugin();
+      ~json_rpc_plugin();
 
       APPBASE_PLUGIN_REQUIRES();
-      virtual void set_program_options( options_description&, options_description& ) override {}
+      void set_program_options( options_description&, options_description& ) override {}
 
       static const std::string& name() { static std::string name = STEEM_JSON_RPC_PLUGIN_NAME; return name; }
 
-      virtual void plugin_initialize( const variables_map& options ) override;
-      virtual void plugin_startup() override;
-      virtual void plugin_shutdown() override;
+      void plugin_initialize( const variables_map& options ) override;
+      void plugin_startup() override;
+      void plugin_shutdown() override;
 
       void add_api_method( const string& api_name, const string& method_name, const api_method& api );
       string call( const string& body );
