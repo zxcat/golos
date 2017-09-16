@@ -6,12 +6,12 @@
 #include <fc/string.hpp>
 
 #include <iostream>
-
+#include <steemit/protocol/protocol.hpp>
 namespace steemit { namespace plugins { namespace chain {
 
 using namespace steemit;
 using fc::flat_map;
-using chain::block_id_type;
+using protocol::block_id_type;
 
 namespace detail {
 

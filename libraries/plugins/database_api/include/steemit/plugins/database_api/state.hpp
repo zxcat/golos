@@ -164,46 +164,6 @@ namespace steemit {
             vector<candle_stick> price_history;
         };
 
-        /**
-         *  This struct is designed
-         */
-        struct state {
-            string current_route;
-
-            dynamic_global_property_api_object props;
-
-            /**
-             *  Tracks the top categories by name, any category in this index
-             *  will have its full status stored in the categories map.
-             */
-            category_index category_idx;
-
-            tag_index tag_idx;
-
-            /**
-             * "" is the global discussion index, otherwise the indicies are ranked by category
-             */
-            map<string, discussion_index> discussion_idx;
-
-            map<string, category_api_obj> categories;
-            map<string, tag_api_object> tags;
-
-            /**
-             *  map from account/slug to full nested discussion
-             */
-            map<string, discussion> content;
-            map<string, extended_account> accounts;
-
-            /**
-             * The list of miners who are queued to produce work
-             */
-            vector<account_name_type> pow_queue;
-            map<string, witness_api_object> witnesses;
-            witness_schedule_api_object witness_schedule;
-            price feed_price;
-            string error;
-            optional<market> market_data;
-        };
     }}
 }
 
@@ -220,8 +180,6 @@ FC_REFLECT(steemit::plugins::database_api::discussion_index, (category)(trending
 FC_REFLECT(steemit::plugins::database_api::category_index, (active)(recent)(best))
 FC_REFLECT(steemit::plugins::database_api::tag_index, (trending))
 FC_REFLECT_DERIVED(steemit::plugins::database_api::discussion, (steemit::plugins::database_api::comment_api_obj), (url)(root_title)(pending_payout_value)(total_pending_payout_value)(active_votes)(replies)(author_reputation)(promoted)(body_length)(reblogged_by)(first_reblogged_by)(first_reblogged_on))
-
-FC_REFLECT(steemit::plugins::database_api::state, (current_route)(props)(category_idx)(tag_idx)(categories)(tags)(content)(accounts)(pow_queue)(witnesses)(discussion_idx)(witness_schedule)(feed_price)(error)(market_data))
 
 FC_REFLECT_DERIVED(steemit::plugins::database_api::extended_limit_order, (steemit::plugins::database_api::limit_order_api_obj), (real_price)(rewarded))
 FC_REFLECT(steemit::plugins::database_api::order_history_item, (time)(type)(sbd_quantity)(steem_quantity)(real_price));

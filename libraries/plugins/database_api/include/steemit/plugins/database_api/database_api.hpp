@@ -112,7 +112,6 @@ namespace steemit {
 
             ///               API,                                    args,                return
             DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   vector<tag_api_object> )
-            DEFINE_API_ARGS( get_state,                              vector< variant >,   state )
             DEFINE_API_ARGS( get_active_witnesses,                   void_type,           vector< account_name_type > )
             DEFINE_API_ARGS( get_block_header,                       vector< variant >,   optional< block_header > )
             DEFINE_API_ARGS( get_block,                              vector< variant >,   optional<block_header> )
@@ -232,7 +231,6 @@ namespace steemit {
              *  This API is a short-cut for returning all of the state required for a particular URL
              *  with a single query.
              */
-                            (get_state)
 
                             (get_trending_categories)
 
@@ -646,9 +644,6 @@ namespace steemit {
                     const std::string &start_permlink) const;
 
 
-
-
-            void recursively_fetch_content(state &_state, discussion &root, std::set<std::string> &referenced_accounts) const;
             struct database_api_impl;
             std::unique_ptr<database_api_impl> my;
         };

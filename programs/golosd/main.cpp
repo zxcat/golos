@@ -16,7 +16,6 @@
 #include <steemit/plugins/account_history/account_history_plugin.hpp>
 #include <steemit/plugins/account_by_key/account_by_key_plugin.hpp>
 #include <steemit/plugins/witness/witness.hpp>
-#include <steemit/plugins/debug_node/debug_node_plugin.hpp>
 #include <steemit/plugins/follow/follow_plugin.hpp>
 #include <steemit/plugins/market_history/market_history_plugin.hpp>
 ///PLUGIN
