@@ -250,6 +250,14 @@ namespace steemit {
     namespace plugins {
         void register_plugins() {
 ///PLUGIN
+            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
+
+            appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
+
+            appbase::app().register_plugin<steemit::plugins::json_rpc::json_rpc_plugin>();
+
+            appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
+/*
             appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::account_history::account_history_plugin >();
@@ -262,18 +270,12 @@ namespace steemit {
 
             appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
-
-            appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
-
             appbase::app().register_plugin< steemit::plugins::languages::languages_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::tags::tags_plugin >();
 
-            appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
-
             appbase::app().register_plugin<steemit::plugins::witness_plugin::witness_plugin>();
-
+*/
 
 ///API
             //appbase::app().register_plugin< steemit::plugins::tags::tags_api_plugin >();
@@ -290,7 +292,7 @@ namespace steemit {
 
             //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_api_plugin >();
 
-            ///appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
+            //appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
 
