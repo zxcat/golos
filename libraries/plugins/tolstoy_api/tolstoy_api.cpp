@@ -10,13 +10,13 @@ namespace steemit {
             struct tolstoy_api::tolstoy_api_impl {
             public:
                 tolstoy_api_impl() : rpc(appbase::app().get_plugin<json_rpc::json_rpc_plugin>()) {}
-/*
+
                 variant send(const std::string &api_namespace,
                              const std::string &name_method,
                              std::vector<variant> body) {
                     return rpc.rpc(api_namespace, name_method, body);
                 }
-*/
+
             private:
                 json_rpc::json_rpc_plugin &rpc;
             };

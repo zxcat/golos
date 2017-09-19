@@ -25,6 +25,7 @@ list(APPEND ${CURRENT_TARGET}_SOURCES
         database_api_plugins.cpp
         discussion_query.cpp
         database_api.cpp
+        database_api_plugin.cpp
         applied_operation.cpp
 )
 

@@ -20,7 +20,7 @@ public:
    APPBASE_PLUGIN_REQUIRES()
 
    chain_plugin();
-   virtual ~chain_plugin();
+   ~chain_plugin();
 
    static const std::string& name() { static std::string name = STEEM_CHAIN_PLUGIN_NAME; return name; }
 

@@ -85,7 +85,7 @@ class json_rpc_plugin final : public appbase::plugin< json_rpc_plugin > {
 
       void add_api_method( const string& api_name, const string& method_name, const api_method& api );
       string call( const string& body );
-
+      fc::variant rpc(const std::string&,const std::string&,std::vector<fc::variant>);
    private:
       std::unique_ptr< detail::json_rpc_plugin_impl > my;
 };

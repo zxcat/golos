@@ -13,7 +13,6 @@ namespace steemit {
             using plugins::json_rpc::void_type;
 
             DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   variant)
-            DEFINE_API_ARGS( get_state,                              vector< variant >,   variant)
             DEFINE_API_ARGS( get_active_witnesses,                   void_type,           variant)
             DEFINE_API_ARGS( get_block_header,                       vector< variant >,   variant)
             DEFINE_API_ARGS( get_block,                              vector< variant >,   variant)
@@ -106,8 +105,6 @@ namespace steemit {
 
                 DECLARE_API(
                         (get_trending_tags)
-
-                        (get_state)
 
                         (get_trending_categories)
 
