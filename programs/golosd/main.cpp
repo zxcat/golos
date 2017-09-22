@@ -21,6 +21,8 @@
 ///PLUGIN
 ///API
 #include <steemit/plugins/database_api/database_api_plugins.hpp>
+#include <steemit/plugins/test_api/test_api_plugin.hpp>
+#include <steemit/plugins/follow_api/follow_api_plugin.hpp>
 ///API
 
 #include <fc/exception/exception.hpp>
@@ -256,6 +258,8 @@ namespace steemit {
             appbase::app().register_plugin<steemit::plugins::json_rpc::json_rpc_plugin>();
 
             appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
+
+            appbase::app().register_plugin< steemit::plugins::follow::follow_plugin >();
 /*
             appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_plugin >();
 
@@ -264,8 +268,6 @@ namespace steemit {
             appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_plugin >();
-
-            appbase::app().register_plugin< steemit::plugins::follow::follow_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
 
@@ -289,9 +291,11 @@ namespace steemit {
 
             appbase::app().register_plugin< steemit::plugins::database_api::database_api_plugin>();
 
+            appbase::app().register_plugin<steemit::plugins::test_api::test_api_plugin>();
+
             //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
+            appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
 
             //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
 

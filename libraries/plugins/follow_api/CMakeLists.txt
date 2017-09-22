@@ -2,10 +2,12 @@ set(CURRENT_TARGET follow_api_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
         include/steemit/plugins/follow_api/follow_api.hpp
+        include/steemit/plugins/follow_api/follow_api_plugin.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
         follow_api.cpp
+        follow_api_plugin.cpp
 )
 
 if(BUILD_SHARED_LIBRARIES)

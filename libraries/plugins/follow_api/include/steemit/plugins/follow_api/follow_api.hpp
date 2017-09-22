@@ -138,12 +138,11 @@ namespace steemit {
             };
 
 
-            class follow_api {
+            class follow_api final  {
             public:
                 constexpr static const char *__name__ = "follow_api";
-
                 follow_api();
-
+                ~follow_api()= default;
                 DECLARE_API (
                         (get_followers)
                         (get_following)
