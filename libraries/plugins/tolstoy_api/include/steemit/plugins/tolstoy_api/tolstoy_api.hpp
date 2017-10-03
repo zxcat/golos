@@ -10,7 +10,7 @@ namespace steemit {
         namespace tolstoy_api {
             using fc::variant;
             using std::vector;
-            using plugins::json_rpc::void_type;
+            using json_rpc::void_type;
 
             DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   variant)
             DEFINE_API_ARGS( get_active_witnesses,                   void_type,           variant)
@@ -96,7 +96,7 @@ namespace steemit {
             DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   variant)
 
             class tolstoy_api final {
-
+            public:
                 constexpr static const char* __name__ = "tolstoy_api";
 
                 tolstoy_api();
@@ -104,6 +104,7 @@ namespace steemit {
                 ~tolstoy_api();
 
                 DECLARE_API(
+/*
                         (get_trending_tags)
 
                         (get_trending_categories)
@@ -287,7 +288,7 @@ namespace steemit {
                 ///////////////////////////
 
                         (get_proposed_transactions)
-
+*/
                 )
 
             private:

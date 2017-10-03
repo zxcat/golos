@@ -2,10 +2,12 @@ set(CURRENT_TARGET tolstoy_api_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
         include/steemit/plugins/tolstoy_api/tolstoy_api.hpp
+        include/steemit/plugins/tolstoy_api/tolstoy_api_plugin.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
-    tolstoy_api.cpp
+        tolstoy_api.cpp
+        tolstoy_api_plugin.cpp
 )
 
 if (BUILD_SHARED_LIBRARIES)
