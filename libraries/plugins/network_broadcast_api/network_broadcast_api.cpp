@@ -11,62 +11,55 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
             network_broadcast_api::network_broadcast_api() :
                     _p2p( appbase::app().get_plugin< p2p::p2p_plugin >() ),
-                    _chain( appbase::app().get_plugin< chain::chain_plugin >() )
-            {
+                    _chain( appbase::app().get_plugin< chain::chain_plugin >() ) {
                JSON_RPC_REGISTER_API( STEEM_NETWORK_BROADCAST_API_PLUGIN_NAME );
             }
 
             network_broadcast_api::~network_broadcast_api() {}
 
-            DEFINE_API( network_broadcast_api, broadcast_transaction )
-        {
-            FC_ASSERT( !check_max_block_age( args.max_block_age ) );
+            DEFINE_API( network_broadcast_api, broadcast_transaction ) {
+                FC_ASSERT( !check_max_block_age( args.max_block_age ) );
+                _chain.db().push_transaction( args.trx );
+                _p2p.broadcast_transaction( args.trx );
+
+                return broadcast_transaction_return();
+        }
+
+        DEFINE_API( network_broadcast_api, broadcast_transaction_synchronous ) {
+        FC_ASSERT( !check_max_block_age( args.max_block_age ) );
+            boost::promise< broadcast_transaction_synchronous_return > p;
+            {
+                boost::lock_guard< boost::mutex > guard( _mtx );
+                _callbacks[ args.trx.id() ] = [&p]( const broadcast_transaction_synchronous_return& r ) {
+                    p.set_value( r );
+                };
+                _callback_expirations[ args.trx.expiration ].push_back( args.trx.id() );
+            }
+
             _chain.db().push_transaction( args.trx );
             _p2p.broadcast_transaction( args.trx );
 
-            return broadcast_transaction_return();
+            return p.get_future().get();
         }
 
-        DEFINE_API( network_broadcast_api, broadcast_transaction_synchronous )
-    {
-        FC_ASSERT( !check_max_block_age( args.max_block_age ) );
-
-        boost::promise< broadcast_transaction_synchronous_return > p;
-
-    {
-        boost::lock_guard< boost::mutex > guard( _mtx );
-        _callbacks[ args.trx.id() ] = [&p]( const broadcast_transaction_synchronous_return& r )
-    {
-        p.set_value( r );
-    };
-    _callback_expirations[ args.trx.expiration ].push_back( args.trx.id() );
-}
-
-_chain.db().push_transaction( args.trx );
-_p2p.broadcast_transaction( args.trx );
-
-return p.get_future().get();
-}
-
-DEFINE_API( network_broadcast_api, broadcast_block )
-{
+DEFINE_API( network_broadcast_api, broadcast_block ) {
 _chain.db().push_block( args.block );
 _p2p.broadcast_block( args.block );
 return broadcast_block_return();
 }
 
-bool network_broadcast_api::check_max_block_age( int32_t max_block_age ) const
-{
-   return _chain.db().with_read_lock( [&]()
-                                      {
-                                          if( max_block_age < 0 )
-                                             return false;
+bool network_broadcast_api::check_max_block_age( int32_t max_block_age ) const {
+   return _chain.db().with_read_lock(
+           [&]() {
+               if( max_block_age < 0 )
+                   return false;
 
-                                          fc::time_point_sec now = fc::time_point::now();
-                                          const auto& dgpo = _chain.db().get_dynamic_global_properties();
+               fc::time_point_sec now = fc::time_point::now();
+               const auto& dgpo = _chain.db().get_dynamic_global_properties();
 
-                                          return ( dgpo.time < now - fc::seconds( max_block_age ) );
-                                      });
+               return ( dgpo.time < now - fc::seconds( max_block_age ) );
+           }
+   );
 }
 
 void network_broadcast_api::on_applied_block( const signed_block& b ) {

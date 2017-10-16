@@ -29,7 +29,9 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
                 void plugin_startup() override;
                 void plugin_shutdown() override;
 
+                boost::signals2::connection on_applied_block_connection;
+
                 std::shared_ptr< class network_broadcast_api > api;
             };
 
-        } } } // steem::plugins::network_broadcast_api
+        } } }

@@ -95,6 +95,7 @@ namespace steemit {
             DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   variant)
             DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   variant)
 
+
             class tolstoy_api final {
             public:
                 constexpr static const char* __name__ = "tolstoy_api";
@@ -104,191 +105,191 @@ namespace steemit {
                 ~tolstoy_api();
 
                 DECLARE_API(
-/*
+                /*
                         (get_trending_tags)
 
-                        (get_trending_categories)
+                                (get_trending_categories)
 
-                        (get_best_categories)
+                                (get_best_categories)
 
-                        (get_active_categories)
+                                (get_active_categories)
 
-                        (get_recent_categories)
+                                (get_recent_categories)
 
-                        (get_active_witnesses)
+                                (get_active_witnesses)
 
-                        (get_miner_queue)
+                                (get_miner_queue)
 
-                /////////////////////////////
-                // Blocks and transactions //
-                /////////////////////////////
+                                /////////////////////////////
+                                // Blocks and transactions //
+                                /////////////////////////////
 
-                        (get_block_header)
+                                (get_block_header)
 
-                        (get_block)
+                                (get_block)
 
-                        (get_ops_in_block)
+                                (get_ops_in_block)
 
-                /////////////
-                // Globals //
-                /////////////
+                                /////////////
+                                // Globals //
+                                /////////////
 
-                        (get_config)
+                                (get_config)
 
-                        (get_dynamic_global_properties)
+                                (get_dynamic_global_properties)
 
-                        (get_chain_properties)
+                                (get_chain_properties)
 
-                        (get_current_median_history_price)
+                                (get_current_median_history_price)
 
-                        (get_feed_history)
+                                (get_feed_history)
 
-                        (get_witness_schedule)
+                                (get_witness_schedule)
 
-                        (get_hardfork_version)
+                                (get_hardfork_version)
 
-                        (get_next_scheduled_hardfork)
+                                (get_next_scheduled_hardfork)
 
-                        (get_reward_fund)
+                                (get_reward_fund)
 
-                //////////////
-                // Accounts //
-                //////////////
+                                //////////////
+                                // Accounts //
+                                //////////////
 
-                        (get_accounts)
+                                (get_accounts)
 
-                        (lookup_account_names)
+                                (lookup_account_names)
 
-                        (lookup_accounts)
+                                (lookup_accounts)
 
-                //////////////
-                // Balances //
-                //////////////
+                                //////////////
+                                // Balances //
+                                //////////////
 
-                        (get_account_balances)
+                                (get_account_balances)
 
-                        (get_account_count)
+                                (get_account_count)
 
-                        (get_owner_history)
+                                (get_owner_history)
 
-                        (get_recovery_request)
+                                (get_recovery_request)
 
-                        (get_escrow)
+                                (get_escrow)
 
-                        (get_withdraw_routes)
+                                (get_withdraw_routes)
 
-                        (get_account_bandwidth)
+                                (get_account_bandwidth)
 
-                        (get_savings_withdraw_from)
+                                (get_savings_withdraw_from)
 
-                        (get_savings_withdraw_to)
+                                (get_savings_withdraw_to)
 
-                        (get_vesting_delegations)
+                                (get_vesting_delegations)
 
-                        (get_expiring_vesting_delegations)
+                                (get_expiring_vesting_delegations)
 
-                ///////////////
-                // Witnesses //
-                ///////////////
+                                ///////////////
+                                // Witnesses //
+                                ///////////////
 
-                        (get_witnesses)
+                                (get_witnesses)
 
-                        (get_conversion_requests)
+                                (get_conversion_requests)
 
-                        (get_witness_by_account)
+                                (get_witness_by_account)
 
-                        (get_witnesses_by_vote)
+                                (get_witnesses_by_vote)
 
-                        (lookup_witness_accounts)
+                                (lookup_witness_accounts)
 
-                        (get_witness_count)
+                                (get_witness_count)
 
-                ////////////
-                // Assets //
-                ////////////
+                                ////////////
+                                // Assets //
+                                ////////////
 
-                        (get_assets)
+                                (get_assets)
 
-                        (get_assets_by_issuer)
+                                (get_assets_by_issuer)
 
-                        (get_assets_dynamic_data)
+                                (get_assets_dynamic_data)
 
-                        (get_bitassets_data)
+                                (get_bitassets_data)
 
-                        (list_assets)
+                                (list_assets)
 
-                        (lookup_asset_symbols)
+                                (lookup_asset_symbols)
 
-                ////////////////////////////
-                // Authority / Validation //
-                ////////////////////////////
+                                ////////////////////////////
+                                // Authority / Validation //
+                                ////////////////////////////
 
-                        (get_transaction_hex)
+                                (get_transaction_hex)
 
-                        (get_transaction)
+                                (get_transaction)
 
-                        (get_required_signatures)
+                                (get_required_signatures)
 
-                        (get_potential_signatures)
+                                (get_potential_signatures)
 
-                        (verify_authority)
+                                (verify_authority)
 
-                        (verify_account_authority)
+                                (verify_account_authority)
 
-                        (get_active_votes)
+                                (get_active_votes)
 
-                        (get_account_votes)
+                                (get_account_votes)
 
-                        (get_content)
+                                (get_content)
 
-                        (get_content_replies)
+                                (get_content_replies)
 
-                        (get_tags_used_by_author)
+                                (get_tags_used_by_author)
 
-                        (get_discussions_by_trending)
+                                (get_discussions_by_trending)
 
-                        (get_discussions_by_created)
+                                (get_discussions_by_created)
 
-                        (get_discussions_by_active)
+                                (get_discussions_by_active)
 
-                        (get_discussions_by_cashout)
+                                (get_discussions_by_cashout)
 
-                        (get_discussions_by_payout)
+                                (get_discussions_by_payout)
 
-                        (get_post_discussions_by_payout)
+                                (get_post_discussions_by_payout)
 
-                        (get_comment_discussions_by_payout)
+                                (get_comment_discussions_by_payout)
 
-                        (get_discussions_by_votes)
+                                (get_discussions_by_votes)
 
-                        (get_discussions_by_children)
+                                (get_discussions_by_children)
 
-                        (get_discussions_by_hot)
+                                (get_discussions_by_hot)
 
-                        (get_discussions_by_feed)
+                                (get_discussions_by_feed)
 
-                        (get_discussions_by_blog)
+                                (get_discussions_by_blog)
 
-                        (get_discussions_by_comments)
+                                (get_discussions_by_comments)
 
-                        (get_discussions_by_promoted)
+                                (get_discussions_by_promoted)
 
-                        (get_replies_by_last_update)
+                                (get_replies_by_last_update)
 
-                        (get_discussions_by_author_before_date)
+                                (get_discussions_by_author_before_date)
 
-                        (get_account_history)
+                                (get_account_history)
 
-                        (get_payout_extension_cost)
+                                (get_payout_extension_cost)
 
-                        (get_payout_extension_time)
+                                (get_payout_extension_time)
 
-                ///////////////////////////
-                // Proposed transactions //
-                ///////////////////////////
+                                ///////////////////////////
+                                // Proposed transactions //
+                                ///////////////////////////
 
-                        (get_proposed_transactions)
-*/
+                                (get_proposed_transactions)
+                                */
                 )
 
             private:

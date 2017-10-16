@@ -223,7 +223,7 @@ namespace steemit {
              *
              * This unsubscribes from all subscribed markets and objects.
              */
-            void cancel_all_subscriptions();
+            //void cancel_all_subscriptions();
             DECLARE_API(
                     (get_trending_tags)
 

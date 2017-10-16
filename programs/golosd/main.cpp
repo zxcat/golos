@@ -23,6 +23,7 @@
 #include <steemit/plugins/database_api/database_api_plugins.hpp>
 #include <steemit/plugins/test_api/test_api_plugin.hpp>
 #include <steemit/plugins/follow_api/follow_api_plugin.hpp>
+#include <steemit/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
 ///API
 
 #include <fc/exception/exception.hpp>
@@ -282,6 +283,8 @@ namespace steemit {
             appbase::app().register_plugin<steemit::plugins::test_api::test_api_plugin>();
 
             appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
+
+            appbase::app().register_plugin<steemit::plugins::tolstoy_api::tolstoy_api_plugin>();
 
         }
     }
