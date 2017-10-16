@@ -16,14 +16,13 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
             using std::vector;
             using fc::variant;
             using fc::optional;
-            using json_rpc::void_type;
+            using steemit::plugins::json_rpc::void_type;
 
             using steemit::protocol::signed_transaction;
             using steemit::protocol::transaction_id_type;
             using steemit::protocol::signed_block;
 
-            struct broadcast_transaction_args
-            {
+            struct broadcast_transaction_args {
                 signed_transaction   trx;
                 int32_t              max_block_age = -1;
             };
@@ -32,8 +31,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
             typedef broadcast_transaction_args broadcast_transaction_synchronous_args;
 
-            struct broadcast_transaction_synchronous_return
-            {
+            struct broadcast_transaction_synchronous_return {
                 broadcast_transaction_synchronous_return() {}
                 broadcast_transaction_synchronous_return( transaction_id_type txid, int32_t bn, int32_t tn, bool ex )
                         : id(txid), block_num(bn), trx_num(tn), expired(ex) {}
@@ -44,8 +42,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
                 bool                  expired   = false;
             };
 
-            struct broadcast_block_args
-            {
+            struct broadcast_block_args {
                 signed_block   block;
             };
 
@@ -53,13 +50,13 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
             typedef std::function< void( const broadcast_transaction_synchronous_return& ) > confirmation_callback;
 
-            class network_broadcast_api {
+            class network_broadcast_api final {
             public:
                 network_broadcast_api();
                 ~network_broadcast_api();
 
                 DECLARE_API(
-                (broadcast_transaction)
+                        (broadcast_transaction)
                         (broadcast_transaction_synchronous)
                         (broadcast_block)
                 )
@@ -70,21 +67,20 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
 
             private:
-                p2p::p2p_plugin&                    _p2p;
-                chain::chain_plugin&                _chain;
+                p2p::p2p_plugin&                                      _p2p;
+                chain::chain_plugin&                                  _chain;
                 map< transaction_id_type, confirmation_callback >     _callbacks;
                 map< time_point_sec, vector< transaction_id_type > >  _callback_expirations;
-
                 boost::mutex                                          _mtx;
             };
 
-        } } } // steem::plugins::network_broadcast_api
+        } } }
 
 FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_transaction_args,
-(trx)(max_block_age) )
+            (trx)(max_block_age) )
 
 FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_block_args,
-(block) )
+            (block) )
 
 FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_return,
-(id)(block_num)(trx_num)(expired) )
+            (id)(block_num)(trx_num)(expired) )

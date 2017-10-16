@@ -23,6 +23,7 @@
 #include <steemit/plugins/database_api/database_api_plugins.hpp>
 #include <steemit/plugins/test_api/test_api_plugin.hpp>
 #include <steemit/plugins/follow_api/follow_api_plugin.hpp>
+#include <steemit/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
 ///API
 
 #include <fc/exception/exception.hpp>
@@ -265,10 +266,6 @@ namespace steemit {
 
             appbase::app().register_plugin< steemit::plugins::account_history::account_history_plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
-
-            appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_plugin >();
-
             appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::languages::languages_plugin >();
@@ -279,25 +276,15 @@ namespace steemit {
 */
 
 ///API
-            //appbase::app().register_plugin< steemit::plugins::tags::tags_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::witness::witness_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::account_history::account_history_api_plugin >();
-
-            //appbase::app().register_plugin< steemit::plugins::condenser_api::condenser_api_plugin >();
+            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
 
             appbase::app().register_plugin< steemit::plugins::database_api::database_api_plugin>();
 
             appbase::app().register_plugin<steemit::plugins::test_api::test_api_plugin>();
 
-            //appbase::app().register_plugin< steemit::plugins::debug_node::debug_node_api_plugin >();
-
             appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
 
-            //appbase::app().register_plugin< steemit::plugins::market_history::market_history_api_plugin >();
+            appbase::app().register_plugin<steemit::plugins::tolstoy_api::tolstoy_api_plugin>();
 
         }
     }

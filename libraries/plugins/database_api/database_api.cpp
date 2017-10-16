@@ -103,7 +103,7 @@ namespace steemit {
 
             void set_block_applied_callback(std::function<void(const variant &block_id)> cb);
 */
-            void cancel_all_subscriptions();
+            //void cancel_all_subscriptions();
             // Blocks and transactions
             optional<block_header> get_block_header(uint32_t block_num) const;
 
@@ -279,7 +279,7 @@ namespace steemit {
             }
 
             // signal handlers
-            void on_applied_block(const chain::signed_block &b);
+            // void on_applied_block(const chain::signed_block &b);
 
             mutable fc::bloom_filter _subscribe_filter;
             std::function<void(const fc::variant &)> _subscribe_callback;
