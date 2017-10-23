@@ -31,7 +31,7 @@ using namespace appbase;
 class webserver_plugin final : public appbase::plugin< webserver_plugin > {
    public:
       webserver_plugin();
-      virtual ~webserver_plugin();
+      ~webserver_plugin();
 
       APPBASE_PLUGIN_REQUIRES( (plugins::json_rpc::json_rpc_plugin) );
 
