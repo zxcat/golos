@@ -117,14 +117,15 @@ struct remote_node_api
    // vector< market_history::market_trade > get_recent_trades( uint32_t );
    // vector< market_history::bucket_object > get_market_history( uint32_t, time_point_sec, time_point_sec );
    // flat_set< uint32_t > get_market_history_buckets();
-   void trash_meth();
 };
 
 } }
 
+FC_REFLECT ((steemit::wallet::remote_node_api), () )
+// FC_REFLECT_TYPENAME ((steemit::wallet::remote_node_api) )
+
 FC_API( steemit::wallet::remote_node_api,
         (get_key_references)
-        (trash_meth)
         (get_dynamic_global_properties)
         (get_witness_schedule)
         (get_hardfork_version)
