@@ -982,13 +982,13 @@ FC_REFLECT( (steemit::wallet::wallet_data), (
             )
           )
 
-FC_REFLECT((steemit::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key) )
+FC_REFLECT( (steemit::wallet::brain_key_info), ( (brain_priv_key)(wif_priv_key)(pub_key) )
 
 FC_REFLECT( (steemit::wallet::plain_keys), ( (checksum)(keys) ) )
 
 FC_REFLECT_ENUM( (steemit::wallet::authority_type), ( (owner)(active)(posting) ) )
 
-FC_API( steemit::wallet::wallet_api,
+FC_API( steemit::wallet::wallet_api, 
         // wallet api
         // (help)(gethelp)
         (about)(is_new)(is_locked)(lock)(unlock)(set_password)
@@ -1073,4 +1073,4 @@ FC_API( steemit::wallet::wallet_api,
         // (get_transaction)
       )
 
-FC_REFLECT( steemit::wallet::memo_data, (from)(to)(nonce)(check)(encrypted) )
+FC_REFLECT( (steemit::wallet::memo_data), (from)(to)(nonce)(check)(encrypted) )

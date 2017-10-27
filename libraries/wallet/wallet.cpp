@@ -245,6 +245,8 @@ struct op_prototype_visitor
    }
 };
 
+FC_REFLECT ((steemit::wallet::op_prototype_visitor), (t) )
+
 class wallet_api_impl
 {
    public:

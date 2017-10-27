@@ -36,7 +36,7 @@ struct remote_node_api
    // condenser_api::state get_state( string );
    vector< account_name_type > get_active_witnesses();
    // optional< block_header > get_block_header( uint32_t );
-   optional< database_api::signed_block_api_object > get_block( uint32_t );
+   // optional< database_api::signed_block_api_object > get_block( uint32_t );
    // vector< account_history::operation_api_object > get_ops_in_block( uint32_t, bool only_virtual = true );
    // fc::variant_object get_config();
    database_api::dynamic_global_property_api_object get_dynamic_global_properties();
@@ -117,11 +117,12 @@ struct remote_node_api
    // vector< market_history::market_trade > get_recent_trades( uint32_t );
    // vector< market_history::bucket_object > get_market_history( uint32_t, time_point_sec, time_point_sec );
    // flat_set< uint32_t > get_market_history_buckets();
+   int a;
 };
 
 } }
 
-FC_REFLECT ((steemit::wallet::remote_node_api), () )
+FC_REFLECT ((steemit::wallet::remote_node_api), (a))
 // FC_REFLECT_TYPENAME ((steemit::wallet::remote_node_api) )
 
 FC_API( steemit::wallet::remote_node_api,
