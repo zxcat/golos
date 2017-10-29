@@ -78,7 +78,7 @@ namespace steemit {
          */
         class wallet_api {
         public:
-            wallet_api(const wallet_data &initial_data, fc::api<steemit::wallet::remote_node_api> rapi);
+            wallet_api(const wallet_data &initial_data, const fc::api<steemit::wallet::remote_node_api> &rapi);
 
             virtual ~wallet_api();
 
