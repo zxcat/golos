@@ -1,4 +1,4 @@
-#include <algorithm>
+//#include <algorithm>
 #include <cctype>
 #include <iomanip>
 #include <iostream>
@@ -258,7 +258,7 @@ namespace steemit {
                 wallet_api &self;
 
                 wallet_api_impl(wallet_api &s, const wallet_data &initial_data,
-                                const steem::protocol::chain_id_type &_steem_chain_id, fc::api<remote_node_api> rapi)
+                                const steemit::protocol::chain_id_type &_steem_chain_id, fc::api<remote_node_api> rapi)
                         : self(s), _remote_api(rapi) {
                     init_prototype_ops();
 
@@ -1181,7 +1181,7 @@ namespace steemit {
 namespace steemit {
     namespace wallet {
 
-        wallet_api::wallet_api(const wallet_data &initial_data, const steem::protocol::chain_id_type &_steem_chain_id,
+        wallet_api::wallet_api(const wallet_data &initial_data, const steemit::protocol::chain_id_type &_steem_chain_id,
                                fc::api<remote_node_api> rapi) : my(
                 new detail::wallet_api_impl(*this, initial_data, _steem_chain_id, rapi)) {
         }
