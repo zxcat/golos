@@ -1,6 +1,6 @@
 #include <appbase/application.hpp>
 #include <steemit/protocol/types.hpp>
-#include <steemit/protocol/version.hpp>
+
 
 #include <fc/log/logger_config.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -116,7 +116,7 @@ int main( int argc, char** argv ) {
         appbase::app().set_version_string( version_string() );
 
         if( !appbase::app().initialize<
-                steemit::plugins::chain::chain_plugin,
+                steemit::plugins::chain_interface::chain_plugin,
                 steemit::plugins::p2p::p2p_plugin,
                 steemit::plugins::webserver::webserver_plugin >
                 ( argc, argv )
@@ -253,7 +253,7 @@ namespace steemit {
     namespace plugins {
         void register_plugins() {
 ///PLUGIN
-            appbase::app().register_plugin< steemit::plugins::chain::chain_plugin >();
+            appbase::app().register_plugin< steemit::plugins::chain_interface::chain_plugin >();
 
             appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
 
@@ -291,6 +291,6 @@ namespace steemit {
     }
 }
 
-FC_REFLECT( steemit::utilities::console_appender_args, (appender)(stream) )
-FC_REFLECT( steemit::utilities::file_appender_args, (appender)(file) )
-FC_REFLECT( steemit::utilities::logger_args, (name)(level)(appender) )
+FC_REFLECT( (steemit::utilities::console_appender_args), (appender)(stream) )
+FC_REFLECT( (steemit::utilities::file_appender_args), (appender)(file) )
+FC_REFLECT( (steemit::utilities::logger_args), (name)(level)(appender) )

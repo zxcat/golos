@@ -95,7 +95,7 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 add_dependencies(golos_${CURRENT_TARGET} golos::protocol golos::version)
 
-target_link_libraries(golos_${CURRENT_TARGET} golos::protocol golos::version fc chainbase graphene_schema ${PATCH_MERGE_LIB})
+target_link_libraries(golos_${CURRENT_TARGET} golos::protocol golos::version fc chainbase ${PATCH_MERGE_LIB})
 target_include_directories(golos_${CURRENT_TARGET}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../version/include" "${CMAKE_CURRENT_BINARY_DIR}/include" "${CMAKE_CURRENT_BINARY_DIR}/../../version/include")
 
