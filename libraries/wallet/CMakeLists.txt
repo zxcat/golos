@@ -24,12 +24,27 @@ else()
 endif()
 
 if(BUILD_SHARED_LIBRARIES)
-    add_library(golos_wallet SHARED wallet.cpp ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp ${HEADERS})
+    add_library(golos_wallet SHARED wallet.cpp remote_node_api.cpp ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp ${HEADERS})
 else()
-    add_library(golos_wallet STATIC wallet.cpp ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp ${HEADERS})
+    add_library(golos_wallet STATIC wallet.cpp remote_node_api.cpp ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp ${HEADERS})
 endif()
 # I don't know why golos::application is required twice in the following line, I just know the linker breaks if it isn't.
-target_link_libraries(golos_wallet PRIVATE golos::application golos::network golos_chain golos_protocol graphene_utilities fc golos_private_message golos::application golos_follow golos_account_by_key golos_market_history ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS})
+target_link_libraries(golos_wallet PRIVATE 
+    golos::network
+    golos_chain
+    golos_follow_plugin
+    golos_protocol
+    graphene_utilities
+    fc
+    golos_private_message
+    golos_follow_plugin
+    golos_account_by_key
+    golos_market_history
+    golos_network_broadcast_api_plugin
+    ${CMAKE_DL_LIBS}
+    ${PLATFORM_SPECIFIC_LIBS}
+    golos_account_by_key_api
+)
 target_include_directories(golos_wallet PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if(MSVC)

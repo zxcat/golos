@@ -652,13 +652,24 @@ namespace steemit {
     }
 }}
 
+<<<<<<< HEAD
 FC_REFLECT((steemit::plugins::database_api::scheduled_hardfork), (hf_version)(live_time));
 FC_REFLECT((steemit::plugins::database_api::withdraw_route), (from_account)(to_account)(percent)(auto_vest));
+=======
+FC_REFLECT(steemit::plugins::database_api::scheduled_hardfork, (hf_version)(live_time))
+FC_REFLECT(steemit::plugins::database_api::withdraw_route, (from_account)(to_account)(percent)(auto_vest))
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
-FC_REFLECT_ENUM(steemit::plugins::database_api::withdraw_route_type, (incoming)(outgoing)(all));
+FC_REFLECT_ENUM(steemit::plugins::database_api::withdraw_route_type, (incoming)(outgoing)(all))
 
 FC_REFLECT( steemit::plugins::database_api::tag_count_object,
-            (tag)(count) );
+            (tag)(count) )
 
 FC_REFLECT( steemit::plugins::database_api::get_tags_used_by_author,
-            (tags) );
+            (tags) )
+
+FC_REFLECT( steemit::plugins::database_api::signed_block_api_object,
+            (block_id)(signing_key)(transaction_ids) )
+
+FC_REFLECT( steemit::plugins::database_api::operation_api_object,
+            (trx_id)(block)(trx_in_block)(op_in_trx)(virtual_op)(timestamp)(op) )

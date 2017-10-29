@@ -1,25 +1,23 @@
 #pragma once
 
-#include <steemit/application/api.hpp>
-#include <steemit/private_message/private_message_plugin.hpp>
-#include <steemit/follow/follow_api.hpp>
-#include <steemit/market_history/market_history_api.hpp>
+#include <steemit/wallet/remote_node_api.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
 #include <fc/real128.hpp>
 #include <fc/crypto/base58.hpp>
-
-using namespace steemit::application;
-using namespace steemit::chain;
-using namespace graphene::utilities;
-using namespace std;
+#include <fc/api.hpp>
 
 namespace steemit {
     namespace wallet {
 
-        using steemit::application::discussion;
-        using namespace steemit::private_message;
+        using namespace std;
+
+        using namespace steemit::plugins::database_api;
+        using namespace steemit::plugins;
+
+        using namespace steemit::chain::utilities;
+        using namespace steemit::protocol;
 
         typedef uint16_t transaction_handle_type;
 
@@ -66,27 +64,6 @@ namespace steemit {
             string ws_password;
         };
 
-        struct approval_delta {
-            vector<string> active_approvals_to_add;
-            vector<string> active_approvals_to_remove;
-            vector<string> owner_approvals_to_add;
-            vector<string> owner_approvals_to_remove;
-            vector<string> posting_approvals_to_add;
-            vector<string> posting_approvals_to_remove;
-            vector<string> key_approvals_to_add;
-            vector<string> key_approvals_to_remove;
-        };
-
-        struct signed_block_with_info : public signed_block {
-            signed_block_with_info(const signed_block &block);
-
-            signed_block_with_info(const signed_block_with_info &block) = default;
-
-            block_id_type block_id;
-            public_key_type signing_key;
-            vector<transaction_id_type> transaction_ids;
-        };
-
         enum authority_type {
             owner, active, posting
         };
@@ -101,7 +78,7 @@ namespace steemit {
          */
         class wallet_api {
         public:
-            wallet_api(const wallet_data &initial_data, fc::api<login_api> rapi);
+            wallet_api(const wallet_data &initial_data, fc::api<steemit::wallet::remote_node_api> rapi);
 
             virtual ~wallet_api();
 
@@ -120,12 +97,12 @@ namespace steemit {
             /**
              * Returns info about the current state of the blockchain
              */
-            fc::variant info();
+            variant info();
 
             /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
              * @returns compile time info and client and dependencies versions
              */
-            fc::variant_object about() const;
+            variant_object about() const;
 
             /** Returns the information about a block
              *
@@ -133,14 +110,15 @@ namespace steemit {
              *
              * @returns Public block data on the blockchain
              */
-            optional<signed_block_with_info> get_block(uint32_t num);
+            // optional<signed_block> get_block( uint32_t num );
 
             /** Returns sequence of operations included/generated in a specified block
              *
              * @param block_num Block height of specified block
              * @param only_virtual Whether to only return virtual operations
              */
-            vector<applied_operation> get_ops_in_block(uint32_t block_num, bool only_virtual = true);
+
+            // std::vector<steemit::plugins::database_api::applied_operation> get_ops_in_block( uint32_t block_num, bool only_virtual = true );
 
             /** Return the current price feed history
              *
@@ -154,9 +132,16 @@ namespace steemit {
             vector<account_name_type> get_active_witnesses() const;
 
             /**
+<<<<<<< HEAD
              * Returns the queue of pow miners waiting to produce blocks.
              */
             vector<account_name_type> get_miner_queue() const;
+=======
+             * Returns the state info associated with the URL
+             */
+            // TODO
+            // condenser_api::state get_state( string url );
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Returns vesting withdraw routes for an account.
@@ -164,22 +149,13 @@ namespace steemit {
              * @param account Account to query routes
              * @param type Withdraw type type [incoming, outgoing, all]
              */
-            vector<withdraw_route> get_withdraw_routes(string account, withdraw_route_type type = all) const;
-
-            /**
-            *  Returns the amount of accounts registered in blockchain
-            */
-            string get_account_count() const;
-
-            /**
-            *  Gets the steem price per mvests
-            */
-            string get_steem_per_mvests() const;
+            // TODO
+            // vector< database_api::withdraw_vesting_route_api_object > get_withdraw_routes( string account, condenser_api::withdraw_route_type type = condenser_api::all )const;
 
             /**
              *  Gets the account information for all accounts for which this wallet has a private key
              */
-            vector<account_api_obj> list_my_accounts() const;
+            // vector<steemit::plugins::database_api::account_api_object > list_my_accounts();
 
             /** Lists all accounts registered in the blockchain.
              * This returns a list of all account names and their account ids, sorted by account name.
@@ -193,6 +169,7 @@ namespace steemit {
              * @param limit the maximum number of accounts to return (max: 1000)
              * @returns a list of accounts mapping account names to account ids
              */
+<<<<<<< HEAD
             set<string> list_accounts(const string &lowerbound, uint32_t limit);
 
             /** List the balances of an account.
@@ -214,6 +191,9 @@ namespace steemit {
              * @returns the list of asset objects, ordered by symbol
              */
             vector<asset_object> list_assets(const string &lowerbound, uint32_t limit) const;
+=======
+            vector<account_name_type> list_accounts(const string &lowerbound, uint32_t limit);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns the block chain's rapidly-changing properties.
              * The returned object contains information that changes every block interval
@@ -221,35 +201,18 @@ namespace steemit {
              * @see \c get_global_properties() for less-frequently changing properties
              * @returns the dynamic global properties
              */
+<<<<<<< HEAD
             dynamic_global_property_object get_dynamic_global_properties() const;
+=======
+            database_api::dynamic_global_property_object get_dynamic_global_properties() const;
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns information about the given account.
              *
              * @param account_name the name of the account to provide information about
              * @returns the public account data stored in the blockchain
              */
-            account_api_obj get_account(string account_name) const;
-
-            /** Returns information about the given asset.
-             * @param asset_symbol the symbol of the asset in the request
-             * @returns the information about the asset stored in the block chain
-             */
-            asset_object get_asset(string asset_symbol) const;
-
-            /** Returns information about the given proposed_transaction.
-             * @param account_name the proposal author name
-             * @param id the proposal identification number unique for the account given
-             * @returns the information about the asset stored in the block chain
-             */
-            proposal_object get_proposal(string account_name, integral_id_type id) const;
-
-            /** Returns the BitAsset-specific data for a given asset.
-             * Market-issued assets's behavior are determined both by their "BitAsset Data" and
-             * their basic asset data, as returned by \c get_asset().
-             * @param asset_symbol the symbol of the BitAsset in the request
-             * @returns the BitAsset-specific data for this asset
-             */
-            asset_bitasset_data_object get_bitasset_data(string asset_symbol) const;
+            database_api::account_api_object get_account(string account_name) const;
 
             /** Returns the current wallet filename.
              *
@@ -328,7 +291,7 @@ namespace steemit {
              * @param method the name of the API command you want help with
              * @returns a multi-line string suitable for displaying on a terminal
              */
-            string get_help(const string &method) const;
+            string gethelp(const string &method) const;
 
             /** Loads a specified Graphene wallet.
              *
@@ -444,17 +407,22 @@ namespace steemit {
              *  that is paid by the creator. The current account creation fee can be found with the
              *  'info' wallet command.
              *
-             *  These accounts are created with combination of GOLOS and delegated GP
+             *  These accounts are created with combination of steemit and delegated SP
              *
              *  @param creator The account creating the new account
-             *  @param steem_fee The amount of the fee to be paid with GOLOS
+             *  @param steemit_fee The amount of the fee to be paid with steemit
              *  @param delegated_vests The amount of the fee to be paid with delegation
              *  @param new_account_name The name of the new account
              *  @param json_meta JSON Metadata associated with the new account
              *  @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction create_account_delegated(string creator, asset<0, 17, 0> steem_fee,
                                                                   asset<0, 17, 0> delegated_vests, string new_account_name,
+=======
+            annotated_signed_transaction create_account_delegated(string creator, asset steemit_fee,
+                                                                  asset delegated_vests, string new_account_name,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                                   string json_meta, bool broadcast);
 
             /**
@@ -463,10 +431,10 @@ namespace steemit {
              * wallet. There is a fee associated with account creation that is paid by the creator.
              * The current account creation fee can be found with the 'info' wallet command.
              *
-             * These accounts are created with combination of GOLOS and delegated GP
+             * These accounts are created with combination of steemit and delegated SP
              *
              * @param creator The account creating the new account
-             * @param steem_fee The amount of the fee to be paid with GOLOS
+             * @param steemit_fee The amount of the fee to be paid with steemit
              * @param delegated_vests The amount of the fee to be paid with delegation
              * @param newname The name of the new account
              * @param json_meta JSON Metadata associated with the new account
@@ -476,8 +444,13 @@ namespace steemit {
              * @param memo public memo key of the new account
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction create_account_with_keys_delegated(string creator, asset<0, 17, 0> steem_fee,
                                                                             asset<0, 17, 0> delegated_vests, string newname,
+=======
+            annotated_signed_transaction create_account_with_keys_delegated(string creator, asset steemit_fee,
+                                                                            asset delegated_vests, string newname,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                                             string json_meta, public_key_type owner,
                                                                             public_key_type active,
                                                                             public_key_type posting,
@@ -563,6 +536,10 @@ namespace steemit {
              */
             annotated_signed_transaction update_account_memo_key(string account_name, public_key_type key,
                                                                  bool broadcast);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * This method delegates VESTS from one account to another.
@@ -572,7 +549,13 @@ namespace steemit {
              * @param vesting_shares The amount of VESTS to delegate
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee, asset<0, 17, 0> vesting_shares, bool broadcast);
+=======
+            annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee,
+                                                                 asset vesting_shares, bool broadcast);
+
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  This method is used to convert a JSON transaction to its transaction ID.
@@ -594,13 +577,13 @@ namespace steemit {
              * @param limit the maximum number of witnesss to return (max: 1000)
              * @returns a list of witnesss mapping witness names to witness ids
              */
-            set<account_name_type> list_witnesses(const string &lowerbound, uint32_t limit);
+            vector<account_name_type> list_witnesses(const string &lowerbound, uint32_t limit);
 
             /** Returns information about the given witness.
              * @param owner_account the name or id of the witness account owner, or the id of the witness
              * @returns the information about the witness stored in the block chain
              */
-            optional<witness_api_obj> get_witness(string owner_account);
+            optional<database_api::witness_api_object> get_witness(string owner_account);
 
             /** Returns conversion requests by an account
              *
@@ -608,7 +591,11 @@ namespace steemit {
              *
              * @returns All pending conversion requests by account
              */
+<<<<<<< HEAD
             vector<convert_request_object> get_conversion_requests(string owner);
+=======
+            vector<database_api::convert_request_api_object> get_conversion_requests(string owner);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
 
             /**
@@ -622,7 +609,11 @@ namespace steemit {
              */
             annotated_signed_transaction update_witness(string witness_name, string url,
                                                         public_key_type block_signing_key,
+<<<<<<< HEAD
                                                         const chain_properties<0, 17, 0> &props, bool broadcast = false);
+=======
+                                                        const chain_properties &props, bool broadcast = false);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Set the voting proxy for an account.
              *
@@ -657,26 +648,30 @@ namespace steemit {
                                                           bool approve = true, bool broadcast = false);
 
             /**
-             * Transfer funds from one account to another. GOLOS and SBD can be transferred.
+             * Transfer funds from one account to another. steemit and SBD can be transferred.
              *
              * @param from The account the funds are coming from
              * @param to The account the funds are going to
-             * @param amount The funds being transferred. i.e. "100.000 GOLOS"
+             * @param amount The funds being transferred. i.e. "100.000 steemit"
              * @param memo A memo for the transactionm, encrypted with the to account's public memo key
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction transfer(string from, string to, asset<0, 17, 0> amount, string memo,
+=======
+            annotated_signed_transaction transfer(string from, string to, asset amount, string memo,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                   bool broadcast = false);
 
             /**
-             * Transfer funds from one account to another using escrow. GOLOS and SBD can be transferred.
+             * Transfer funds from one account to another using escrow. steemit and SBD can be transferred.
              *
              * @param from The account the funds are coming from
              * @param to The account the funds are going to
              * @param agent The account acting as the agent in case of dispute
              * @param escrow_id A unique id for the escrow transfer. (from, escrow_id) must be a unique pair
              * @param sbd_amount The amount of SBD to transfer
-             * @param steem_amount The amount of GOLOS to transfer
+             * @param steemit_amount The amount of steemit to transfer
              * @param fee The fee paid to the agent
              * @param ratification_deadline The deadline for 'to' and 'agent' to approve the escrow transfer
              * @param escrow_expiration The expiration of the escrow transfer, after which either party can claim the funds
@@ -684,7 +679,11 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_transfer(string from, string to, string agent, uint32_t escrow_id,
+<<<<<<< HEAD
                                                          asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, asset<0, 17, 0> fee,
+=======
+                                                         asset sbd_amount, asset steemit_amount, asset fee,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                          time_point_sec ratification_deadline,
                                                          time_point_sec escrow_expiration, string json_meta,
                                                          bool broadcast = false);
@@ -727,46 +726,57 @@ namespace steemit {
              * @param receiver The account that will receive funds being released
              * @param escrow_id A unique id for the escrow transfer
              * @param sbd_amount The amount of SBD that will be released
-             * @param steem_amount The amount of GOLOS that will be released
+             * @param steemit_amount The amount of steemit that will be released
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_release(string from, string to, string agent, string who,
+<<<<<<< HEAD
                                                         string receiver, uint32_t escrow_id, asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, bool broadcast = false);
+=======
+                                                        string receiver, uint32_t escrow_id, asset sbd_amount,
+                                                        asset steemit_amount, bool broadcast = false);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
-             * Transfer GOLOS into a vesting fund represented by vesting shares (VESTS). VESTS are required to vesting
+             * Transfer steemit into a vesting fund represented by vesting shares (VESTS). VESTS are required to vesting
              * for a minimum of one coin year and can be withdrawn once a week over a two year withdraw period.
-             * VESTS are protected against dilution up until 90% of GOLOS is vesting.
+             * VESTS are protected against dilution up until 90% of steemit is vesting.
              *
-             * @param from The account the GOLOS is coming from
+             * @param from The account the steemit is coming from
              * @param to The account getting the VESTS
-             * @param amount The amount of GOLOS to vest i.e. "100.00 GOLOS"
+             * @param amount The amount of steemit to vest i.e. "100.00 steemit"
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction transfer_to_vesting(string from, string to, asset<0, 17, 0> amount,
+=======
+            annotated_signed_transaction transfer_to_vesting(string from, string to, asset amount,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                              bool broadcast = false);
 
             /**
              *  Transfers into savings happen immediately, transfers from savings take 72 hours
              */
+<<<<<<< HEAD
             annotated_signed_transaction transfer_to_savings(string from, string to, asset<0, 17, 0> amount, string memo,
+=======
+            annotated_signed_transaction transfer_to_savings(string from, string to, asset amount, string memo,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                              bool broadcast = false);
 
             /**
-             * @param from The account the GOLOS is coming from
-             * @param to The account getting the VESTS
-             * @param amount The amount of GOLOS to vest i.e. "100.00 GOLOS"
              * @param request_id - an unique ID assigned by from account, the id is used to cancel the operation and can be reused after the transfer completes
-             * @param memo a memo to include in the transaction, readable by the recipient
-             * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction transfer_from_savings(string from, uint32_t request_id, string to,
+<<<<<<< HEAD
                                                                asset<0, 17, 0> amount, string memo, bool broadcast = false);
+=======
+                                                               asset amount, string memo, bool broadcast = false);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  @param request_id the id used in transfer_from_savings
              *  @param from the account that initiated the transfer
-             * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction cancel_transfer_from_savings(string from, uint32_t request_id,
                                                                       bool broadcast = false);
@@ -777,7 +787,7 @@ namespace steemit {
              *
              * @param from The account the VESTS are withdrawn from
              * @param vesting_shares The amount of VESTS to withdraw over the next two years. Each week (amount/104) shares are
-             *    withdrawn and deposited back as GOLOS. i.e. "10.000000 VESTS"
+             *    withdrawn and deposited back as steemit. i.e. "10.000000 VESTS"
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction withdraw_vesting(string from, asset<0, 17, 0> vesting_shares, bool broadcast = false);
@@ -787,18 +797,18 @@ namespace steemit {
              * based on the specified weights.
              *
              * @param from The account the VESTS are withdrawn from.
-             * @param to   The account receiving either VESTS or GOLOS.
+             * @param to   The account receiving either VESTS or steemit.
              * @param percent The percent of the withdraw to go to the 'to' account. This is denoted in hundreths of a percent.
              *    i.e. 100 is 1% and 10000 is 100%. This value must be between 1 and 100000
              * @param auto_vest Set to true if the from account should receive the VESTS as VESTS, or false if it should receive
-             *    them as GOLOS.
+             *    them as steemit.
              * @param broadcast true if you wish to broadcast the transaction.
              */
             annotated_signed_transaction set_withdraw_vesting_route(string from, string to, uint16_t percent,
                                                                     bool auto_vest, bool broadcast = false);
 
             /**
-             *  This method will convert SBD to GOLOS at the current_median_history price one
+             *  This method will convert SBD to steemit at the current_median_history price one
              *  week from the time it is executed. This method depends upon there being a valid price feed.
              *
              *  @param from The account requesting conversion of its SBD i.e. "1.000 SBD"
@@ -808,8 +818,8 @@ namespace steemit {
             annotated_signed_transaction convert_sbd(string from, asset<0, 17, 0> amount, bool broadcast = false);
 
             /**
-             * A witness can public a price feed for the GOLOS:SBD market. The median price feed is used
-             * to process conversion requests from SBD to GOLOS.
+             * A witness can public a price feed for the steemit:SBD market. The median price feed is used
+             * to process conversion requests from SBD to steemit.
              *
              * @param witness The witness publishing the price feed
              * @param exchange_rate The desired exchange rate
@@ -845,17 +855,12 @@ namespace steemit {
              */
             operation get_prototype_operation(string operation_type);
 
-            void network_add_nodes(const vector<string> &nodes);
-
-            vector<variant> network_get_connected_peers();
-
             /**
-             * Gets the current order book for selected asset pair
+             * Gets the current order book for steemit:SBD
              *
-             * @param base Base symbol string
-             * @param quote Quote symbol string
              * @param limit Maximum number of orders to return for bids and asks. Max is 1000.
              */
+<<<<<<< HEAD
             market_history::order_book get_order_book(const string &base, const string &quote, unsigned limit = 50);
 
             vector<extended_limit_order> get_limit_orders_by_owner(string account_name);
@@ -893,29 +898,41 @@ namespace steemit {
 
             signed_transaction bid_collateral(string bidder_name, string debt_amount, string debt_symbol,
                                               string additional_collateral, bool broadcast = false);
+=======
+            // TODO
+            // market_history::get_order_book_return get_order_book( uint32_t limit = 1000 );
+            // TODO
+            // vector< condenser_api::extended_limit_order > get_open_orders( string accountname );
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Creates a limit order at the price amount_to_sell / min_to_receive and will deduct amount_to_sell from account
              *
              *  @param owner The name of the account creating the order
              *  @param order_id is a unique identifier assigned by the creator of the order, it can be reused after the order has been filled
-             *  @param amount_to_sell The amount of either SBD or GOLOS you wish to sell
+             *  @param amount_to_sell The amount of either SBD or steemit you wish to sell
              *  @param min_to_receive The amount of the other asset you will receive at a minimum
              *  @param fill_or_kill true if you want the order to be killed if it cannot immediately be filled
              *  @param expiration the time the order should expire if it has not been filled
              *  @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction create_order(string owner, uint32_t order_id, asset<0, 17, 0> amount_to_sell,
                                                       asset<0, 17, 0> min_to_receive, bool fill_or_kill, uint32_t expiration,
+=======
+            annotated_signed_transaction create_order(string owner, uint32_t order_id, asset amount_to_sell,
+                                                      asset min_to_receive, bool fill_or_kill, uint32_t expiration,
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
                                                       bool broadcast);
 
             /**
              * Cancel an order created with create_order
              *
              * @param owner The name of the account owning the order to cancel_order
-             * @param order_id The unique identifier assigned to the order by its creator
+             * @param orderid The unique identifier assigned to the order by its creator
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD
             annotated_signed_transaction cancel_order(string owner, protocol::integral_id_type order_id, bool broadcast);
 
             /** Place a limit order attempting to sell one asset for another.
@@ -1199,6 +1216,9 @@ namespace steemit {
              * @returns the signed transaction changing the whitelisting status
              */
             signed_transaction whitelist_account(string authorizing_account, string account_to_list, account_whitelist_operation<0, 17, 0>::account_listing new_listing_status, bool broadcast = false);
+=======
+            annotated_signed_transaction cancel_order(string owner, uint32_t orderid, bool broadcast);
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Post or update a comment.
@@ -1215,6 +1235,7 @@ namespace steemit {
             annotated_signed_transaction post_comment(string author, string permlink, string parent_author,
                                                       string parent_permlink, string title, string body, string json,
                                                       bool broadcast);
+<<<<<<< HEAD
 
             /**
              * Extend the comment payout window by passing the required SBD to spend
@@ -1268,15 +1289,11 @@ namespace steemit {
              * @return message api objects vector
              */
             vector<extended_message_object> get_outbox(string account, fc::time_point newest, uint32_t limit);
+=======
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
-             *
-             * @param mo message api object to try to decrypt
-             */
-            message_body try_decrypt_message(const message_api_obj &mo);
-
-            /**
-             * Vote on a comment to be paid GOLOS
+             * Vote on a comment to be paid steemit
              *
              * @param voter The account voting
              * @param author The author of the comment to be voted on
@@ -1294,7 +1311,7 @@ namespace steemit {
 
             /**
              * Challenge a user's authority. The challenger pays a fee to the challenged which is depositted as
-             * Golos Power. Until the challenged proves their active key, all posting rights are revoked.
+             * steemit Power. Until the challenged proves their active key, all posting rights are revoked.
              *
              * @param challenger The account issuing the challenge
              * @param challenged The account being challenged
@@ -1340,7 +1357,7 @@ namespace steemit {
             annotated_signed_transaction change_recovery_account(string owner, string new_recovery_account,
                                                                  bool broadcast);
 
-            vector<owner_authority_history_api_obj> get_owner_history(string account) const;
+            vector<database_api::owner_authority_history_api_object> get_owner_history(string account) const;
 
             /**
              * Prove an account's active authority, fulfilling a challenge, restoring posting rights, and making
@@ -1359,15 +1376,13 @@ namespace steemit {
              *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
              *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
              */
-            map<uint32_t, applied_operation> get_account_history(string account, uint32_t from, uint32_t limit);
+            // map< uint32_t, account_history::api_operation_object > get_account_history( string account, uint32_t from, uint32_t limit );
 
 
             /**
              *  Marks one account as following another account.  Requires the posting authority of the follower.
-             *  @param follower account name to follow with
-             *  @param following account name to follow for
+             *
              *  @param what - a set of things to follow: posts, comments, votes, ignore
-             *  @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction follow(string follower, string following, set<string> what, bool broadcast);
 
@@ -1378,6 +1393,11 @@ namespace steemit {
             std::shared_ptr<detail::wallet_api_impl> my;
 
             void encrypt_keys();
+
+            /**
+             * Checks memos against private keys on account and imported in wallet
+             */
+            void check_memo(const string &memo, const database_api::account_api_object &account) const;
 
             /**
              *  Returns the encrypted memo if memo starts with '#' otherwise returns memo
@@ -1391,6 +1411,7 @@ namespace steemit {
 
             annotated_signed_transaction decline_voting_rights(string account, bool decline, bool broadcast);
 
+<<<<<<< HEAD
             /** Approve or disapprove a proposal.
              *
              * @param owner The account paying the fee for the op.
@@ -1447,6 +1468,9 @@ namespace steemit {
              * @ingroup Transaction Builder API
              */
             void remove_builder_transaction(transaction_handle_type handle);
+=======
+            // annotated_signed_transaction claim_reward_balance( string account, asset reward_steemit, asset reward_sbd, asset reward_vests, bool broadcast );
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
         };
 
         struct plain_keys {
@@ -1457,6 +1481,7 @@ namespace steemit {
     }
 }
 
+<<<<<<< HEAD
 FC_REFLECT((steemit::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
 
 FC_REFLECT((steemit::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key))
@@ -1465,9 +1490,16 @@ FC_REFLECT_DERIVED((steemit::wallet::signed_block_with_info), ((steemit::chain::
                    (block_id)(signing_key)(transaction_ids))
 
 FC_REFLECT((steemit::wallet::plain_keys), (checksum)(keys))
+=======
 
-FC_REFLECT_ENUM(steemit::wallet::authority_type, (owner)(active)(posting))
+FC_REFLECT((steemit::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
 
+FC_REFLECT((steemit::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key))
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+FC_REFLECT((steemit::wallet::plain_keys), ((checksum)(keys)))
+
+<<<<<<< HEAD
 FC_REFLECT((steemit::wallet::approval_delta),
            (active_approvals_to_add)(active_approvals_to_remove)(owner_approvals_to_add)(owner_approvals_to_remove)(
                    posting_approvals_to_add)(posting_approvals_to_remove)(key_approvals_to_add)(
@@ -1519,5 +1551,93 @@ FC_API(steemit::wallet::wallet_api,
                (begin_builder_transaction)(add_operation_to_builder_transaction)(
                replace_operation_in_builder_transaction)(preview_builder_transaction)(sign_builder_transaction)(
                propose_builder_transaction)(propose_builder_transaction2)(remove_builder_transaction))
+=======
+FC_REFLECT_ENUM((steemit::wallet::authority_type), ((owner)(active)(posting)))
+
+FC_API(steemit::wallet::wallet_api,
+// wallet api
+// (help)(gethelp)
+       (about)(is_new)(is_locked)(lock)(unlock)(set_password)
+// (load_wallet_file)(save_wallet_file)
+
+// /// key api
+// (import_key)
+// (suggest_brain_key)
+// (list_keys)
+// (get_private_key)
+// (get_private_key_from_password)
+// (normalize_brain_key)
+
+// /// query api
+// (info)
+// // (list_my_accounts)
+// (list_accounts)
+// (list_witnesses)
+// (get_witness)
+// (get_account)
+// // (get_block)
+// // (get_ops_in_block)
+// (get_feed_history)
+// (get_conversion_requests)
+// /// (get_account_history)
+// /// (get_state)
+// /// (get_withdraw_routes)
+
+// /// transaction api
+// (create_account)
+// (create_account_with_keys)
+// (create_account_delegated)
+// (create_account_with_keys_delegated)
+// (update_account)
+// (update_account_auth_key)
+// (update_account_auth_account)
+// (update_account_auth_threshold)
+// (update_account_meta)
+// (update_account_memo_key)
+// (delegate_vesting_shares)
+// (update_witness)
+// (set_voting_proxy)
+// (vote_for_witness)
+// (follow)
+// (transfer)
+// (escrow_transfer)
+// (escrow_approve)
+// (escrow_dispute)
+// (escrow_release)
+// (transfer_to_vesting)
+// (withdraw_vesting)
+// (set_withdraw_vesting_route)
+// (convert_sbd)
+// (publish_feed)
+// /// (get_order_book)
+// /// (get_open_orders)
+// (create_order)
+// (cancel_order)
+// (post_comment)
+// (vote)
+// (set_transaction_expiration)
+// (challenge)
+// (prove)
+// (request_account_recovery)
+// (recover_account)
+// (change_recovery_account)
+// (get_owner_history)
+// (transfer_to_savings)
+// (transfer_from_savings)
+// (cancel_transfer_from_savings)
+// (get_encrypted_memo)
+// (decrypt_memo)
+// (decline_voting_rights)
+// // (claim_reward_balance)
+
+// /// helper api
+// (get_prototype_operation)
+// (serialize_transaction)
+// (sign_transaction)
+
+// (get_active_witnesses)
+// (get_transaction)
+)
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
 FC_REFLECT((steemit::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))
