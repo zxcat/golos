@@ -1,7 +1,7 @@
 #ifndef GOLOS_WITNESS_API_OBJ_HPP
 #define GOLOS_WITNESS_API_OBJ_HPP
 
-#include <steemit/chain/witness_objects.hpp>
+#include <steemit/chain/objects/witness_object.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -43,8 +43,8 @@ namespace steemit {
                 uint64_t last_confirmed_block_num;
                 uint64_t pow_worker;
                 public_key_type signing_key;
-                chain_properties props;
-                price sbd_exchange_rate;
+                chain_properties<0,17,0> props;
+                price<0,17,0> sbd_exchange_rate;
                 time_point_sec last_sbd_exchange_update;
                 share_type votes;
                 fc::uint128 virtual_last_update;
@@ -64,7 +64,7 @@ namespace steemit {
 
 
 
-FC_REFLECT(steemit::plugins::database_api::witness_api_object,
+FC_REFLECT((steemit::plugins::database_api::witness_api_object),
 (id)
         (owner)
         (created)

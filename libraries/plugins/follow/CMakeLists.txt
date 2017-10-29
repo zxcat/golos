@@ -1,6 +1,7 @@
 set(CURRENT_TARGET follow_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
+        include/steemit/plugins/follow/follow_evaluators.hpp
         include/steemit/plugins/follow/follow_objects.hpp
         include/steemit/plugins/follow/follow_operations.hpp
         include/steemit/plugins/follow/follow_plugin.hpp

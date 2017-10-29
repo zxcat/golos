@@ -1,7 +1,7 @@
 #include <steemit/plugins/private_message/private_message_evaluators.hpp>
 #include <steemit/plugins/private_message/private_message_plugin.hpp>
 #include <steemit/chain/generic_custom_operation_interpreter.hpp>
-
+#include <fc/io/json.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 namespace steemit {
@@ -20,13 +20,13 @@ namespace steemit {
                       std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
                 }
 
+
                 struct private_message_plugin::private_message_plugin_impl {
                 public:
-                    private_message_plugin_impl():database_(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()){}
-
+                    private_message_plugin_impl():database_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()){}
 
                     void plugin_initialize(private_message_plugin& self){
-                        _custom_operation_interpreter = std::make_shared<generic_custom_operation_interpreter <private_message_plugin_operation>>(database());
+                        _custom_operation_interpreter = std::make_shared<generic_custom_operation_interpreter<private_message_plugin_operation>>(database());
 
                         _custom_operation_interpreter->register_evaluator<private_message_evaluator>(&self);
 
@@ -44,9 +44,10 @@ namespace steemit {
                     }
 
                     chain::database &database_;
-                    std::shared_ptr<generic_custom_operation_interpreter <private_message_plugin_operation>> _custom_operation_interpreter;
+                    std::shared_ptr<generic_custom_operation_interpreter<private_message_plugin_operation>> _custom_operation_interpreter;
                     flat_map<string, string> _tracked_accounts;
                 };
+
 
 
             private_message_plugin::private_message_plugin() {
@@ -88,7 +89,3 @@ namespace steemit {
         }
     }
 }
-
-
-
-DEFINE_OPERATION_TYPE(steemit::plugins::private_message::private_message_plugin_operation)

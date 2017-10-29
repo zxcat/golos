@@ -3,10 +3,10 @@
 #include <steemit/plugins/database_api/state.hpp>
 
 #include <steemit/chain/database.hpp>
-#include <steemit/chain/proposal_object.hpp>
-#include <steemit/chain/steem_objects.hpp>
+#include <steemit/chain/objects/proposal_object.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
 #include <steemit/chain/steem_object_types.hpp>
-#include <steemit/chain/history_object.hpp>
+#include <steemit/chain/objects/history_object.hpp>
 
 
 #include <fc/optional.hpp>
@@ -109,6 +109,8 @@ namespace steemit {
 
             using get_account_history_return_type = map<uint32_t, applied_operation> ;
             using get_tags_used_by_author_return_type=vector<pair<std::string, uint32_t>>;
+            using chain_properties_17=chain_properties<0,17,0>;
+
 
             ///               API,                                    args,                return
             DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   vector<tag_api_object> )
@@ -118,7 +120,7 @@ namespace steemit {
             DEFINE_API_ARGS( get_ops_in_block,                       vector< variant >,   vector< applied_operation > )
             DEFINE_API_ARGS( get_config,                             void_type,           variant_object )
             DEFINE_API_ARGS( get_dynamic_global_properties,          void_type,           dynamic_global_property_api_object )
-            DEFINE_API_ARGS( get_chain_properties,                   void_type,           chain_properties )
+            DEFINE_API_ARGS( get_chain_properties,                   void_type,           chain_properties_17 )
             DEFINE_API_ARGS( get_current_median_history_price,       void_type,           price )
             DEFINE_API_ARGS( get_feed_history,                       void_type,           feed_history_api_obj )
             DEFINE_API_ARGS( get_witness_schedule,                   void_type,           witness_schedule_api_object )
@@ -650,8 +652,8 @@ namespace steemit {
     }
 }}
 
-FC_REFLECT(steemit::plugins::database_api::scheduled_hardfork, (hf_version)(live_time));
-FC_REFLECT(steemit::plugins::database_api::withdraw_route, (from_account)(to_account)(percent)(auto_vest));
+FC_REFLECT((steemit::plugins::database_api::scheduled_hardfork), (hf_version)(live_time));
+FC_REFLECT((steemit::plugins::database_api::withdraw_route), (from_account)(to_account)(percent)(auto_vest));
 
 FC_REFLECT_ENUM(steemit::plugins::database_api::withdraw_route_type, (incoming)(outgoing)(all));
 

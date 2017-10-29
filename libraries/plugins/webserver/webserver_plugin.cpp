@@ -38,8 +38,6 @@ using websocketpp::connection_hdl;
 
 typedef uint32_t thread_pool_size_t;
 
-namespace detail {
-
    struct asio_with_stub_log : public websocketpp::config::asio
    {
          typedef asio_with_stub_log type;
@@ -78,12 +76,10 @@ namespace detail {
          static const long timeout_open_handshake = 0;
    };
 
-using websocket_server_type = websocketpp::server< detail::asio_with_stub_log >;
+using websocket_server_type = websocketpp::server< asio_with_stub_log >;
 
-std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string& endpoint_string )
-{
-   try
-   {
+std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string& endpoint_string ) {
+   try {
       string::size_type colon_pos = endpoint_string.find( ':' );
       if( colon_pos == std::string::npos )
          FC_THROW( "Missing required port number in endpoint string \"${endpoint_string}\"",
@@ -91,8 +87,7 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
 
       std::string port_string = endpoint_string.substr( colon_pos + 1 );
 
-      try
-      {
+      try {
          uint16_t port = boost::lexical_cast< uint16_t >( port_string );
          std::string hostname = endpoint_string.substr( 0, colon_pos );
          std::vector< fc::ip::endpoint > endpoints = fc::resolve( hostname, port );
@@ -102,15 +97,14 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
 
          return endpoints;
       }
-      catch( const boost::bad_lexical_cast& )
-      {
+      catch( const boost::bad_lexical_cast& ) {
          FC_THROW("Bad port: ${port}", ("port", port_string) );
       }
    }
    FC_CAPTURE_AND_RETHROW( (endpoint_string) )
 }
 
-class webserver_plugin_impl {
+struct webserver_plugin::webserver_plugin_impl final {
    public:
       webserver_plugin_impl(thread_pool_size_t thread_pool_size) :
          thread_pool_work( this->thread_pool_ios ) {
@@ -121,7 +115,7 @@ class webserver_plugin_impl {
       void start_webserver();
       void stop_webserver();
 
-      void handle_ws_message( websocket_server_type*, connection_hdl, detail::websocket_server_type::message_ptr );
+      void handle_ws_message( websocket_server_type*, connection_hdl, websocket_server_type::message_ptr );
       void handle_http_message( websocket_server_type*, connection_hdl );
 
       shared_ptr< std::thread >  http_thread;
@@ -142,7 +136,7 @@ class webserver_plugin_impl {
       boost::signals2::connection         chain_sync_con;
 };
 
-void webserver_plugin_impl::start_webserver() {
+void webserver_plugin::webserver_plugin_impl::start_webserver() {
    if( ws_endpoint ) {
       ws_thread = std::make_shared<std::thread>( [&]() {
          ilog( "start processing ws thread" );
@@ -198,7 +192,7 @@ void webserver_plugin_impl::start_webserver() {
    }
 }
 
-void webserver_plugin_impl::stop_webserver() {
+void webserver_plugin::webserver_plugin_impl::stop_webserver() {
    if( ws_server.is_listening() )
    ws_server.stop_listening();
 
@@ -222,7 +216,7 @@ void webserver_plugin_impl::stop_webserver() {
    }
 }
 
-void webserver_plugin_impl::handle_ws_message( websocket_server_type* server, connection_hdl hdl, detail::websocket_server_type::message_ptr msg ) {
+void webserver_plugin::webserver_plugin_impl::handle_ws_message( websocket_server_type* server, connection_hdl hdl, websocket_server_type::message_ptr msg ) {
    auto con = server->get_con_from_hdl( hdl );
 
    thread_pool_ios.post( [con, msg, this]() {
@@ -238,7 +232,7 @@ void webserver_plugin_impl::handle_ws_message( websocket_server_type* server, co
    });
 }
 
-void webserver_plugin_impl::handle_http_message( websocket_server_type* server, connection_hdl hdl ) {
+void webserver_plugin::webserver_plugin_impl::handle_http_message( websocket_server_type* server, connection_hdl hdl ) {
    auto con = server->get_con_from_hdl( hdl );
    con->defer_http_response();
 
@@ -259,8 +253,6 @@ void webserver_plugin_impl::handle_http_message( websocket_server_type* server, 
    });
 }
 
-} // detail
-
 webserver_plugin::webserver_plugin() {}
 webserver_plugin::~webserver_plugin() {}
 
@@ -278,11 +270,11 @@ void webserver_plugin::plugin_initialize( const variables_map& options ) {
    auto thread_pool_size = options.at("webserver-thread-pool-size").as<thread_pool_size_t>();
    FC_ASSERT(thread_pool_size > 0, "webserver-thread-pool-size must be greater than 0");
    ilog("configured with ${tps} thread pool size", ("tps", thread_pool_size));
-   my.reset(new detail::webserver_plugin_impl(thread_pool_size));
+   my.reset(new webserver_plugin_impl(thread_pool_size));
 
    if( options.count( "webserver-http-endpoint" ) ) {
       auto http_endpoint = options.at( "webserver-http-endpoint" ).as< string >();
-      auto endpoints = detail::resolve_string_to_ip_endpoints( http_endpoint );
+      auto endpoints = resolve_string_to_ip_endpoints( http_endpoint );
       FC_ASSERT( endpoints.size(), "webserver-http-endpoint ${hostname} did not resolve", ("hostname", http_endpoint) );
       my->http_endpoint = tcp::endpoint( boost::asio::ip::address_v4::from_string( ( string )endpoints[0].get_address() ), endpoints[0].port() );
       ilog( "configured http to listen on ${ep}", ("ep", endpoints[0]) );
@@ -290,7 +282,7 @@ void webserver_plugin::plugin_initialize( const variables_map& options ) {
 
    if( options.count( "webserver-ws-endpoint" ) ) {
       auto ws_endpoint = options.at( "webserver-ws-endpoint" ).as< string >();
-      auto endpoints = detail::resolve_string_to_ip_endpoints( ws_endpoint );
+      auto endpoints = resolve_string_to_ip_endpoints( ws_endpoint );
       FC_ASSERT( endpoints.size(), "ws-server-endpoint ${hostname} did not resolve", ("hostname", ws_endpoint) );
       my->ws_endpoint = tcp::endpoint( boost::asio::ip::address_v4::from_string( ( string )endpoints[0].get_address() ), endpoints[0].port() );
       ilog( "configured ws to listen on ${ep}", ("ep", endpoints[0]) );
@@ -298,7 +290,7 @@ void webserver_plugin::plugin_initialize( const variables_map& options ) {
 
    if( options.count( "rpc-endpoint" ) ) {
       auto endpoint = options.at( "rpc-endpoint" ).as< string >();
-      auto endpoints = detail::resolve_string_to_ip_endpoints( endpoint );
+      auto endpoints = resolve_string_to_ip_endpoints( endpoint );
       FC_ASSERT( endpoints.size(), "rpc-endpoint ${hostname} did not resolve", ("hostname", endpoint) );
 
       auto tcp_endpoint = tcp::endpoint( boost::asio::ip::address_v4::from_string( ( string )endpoints[0].get_address() ), endpoints[0].port() );
@@ -319,7 +311,7 @@ void webserver_plugin::plugin_startup() {
    my->api = appbase::app().find_plugin< plugins::json_rpc::json_rpc_plugin >();
    FC_ASSERT( my->api != nullptr, "Could not find API Register Plugin" );
 
-   plugins::chain::chain_plugin* chain = appbase::app().find_plugin< plugins::chain::chain_plugin >();
+    chain_interface::chain_plugin* chain = appbase::app().find_plugin< chain_interface::chain_plugin >();
    if( chain != nullptr && chain->get_state() != appbase::abstract_plugin::started ) {
       ilog( "Waiting for chain plugin to start" );
       my->chain_sync_con = chain->on_sync.connect( [this]()

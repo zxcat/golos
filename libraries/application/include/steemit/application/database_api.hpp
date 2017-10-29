@@ -4,10 +4,10 @@
 #include <steemit/application/state.hpp>
 
 #include <steemit/chain/database.hpp>
-#include <steemit/chain/proposal_object.hpp>
-#include <steemit/chain/steem_objects.hpp>
+#include <steemit/chain/objects/proposal_object.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
 #include <steemit/chain/steem_object_types.hpp>
-#include <steemit/chain/history_object.hpp>
+#include <steemit/chain/objects/history_object.hpp>
 
 #include <steemit/follow/follow_plugin.hpp>
 
@@ -86,12 +86,6 @@ namespace steemit {
 
             std::vector<tag_api_obj> get_trending_tags(std::string after_tag, uint32_t limit) const;
 
-            /**
-             *  This API is a short-cut for returning all of the state required for a particular URL
-             *  with a single query.
-             */
-            state get_state(std::string path) const;
-
             std::vector<category_api_obj> get_trending_categories(std::string after, uint32_t limit) const;
 
             std::vector<category_api_obj> get_best_categories(std::string after, uint32_t limit) const;
@@ -103,6 +97,12 @@ namespace steemit {
             std::vector<account_name_type> get_active_witnesses() const;
 
             std::vector<account_name_type> get_miner_queue() const;
+
+            /**
+            *  This API is a short-cut for returning all of the state required for a particular URL
+            *  with a single query.
+            */
+            state get_state(std::string path) const;
 
             /////////////////////////////
             // Blocks and transactions //
@@ -142,21 +142,21 @@ namespace steemit {
             /**
              * @brief Retrieve the current @ref dynamic_global_property_object
              */
-            dynamic_global_property_api_obj get_dynamic_global_properties() const;
+            dynamic_global_property_object get_dynamic_global_properties() const;
 
-            chain_properties get_chain_properties() const;
+            chain_properties<0, 17, 0> get_chain_properties() const;
 
-            price get_current_median_history_price() const;
+            price<0, 17, 0> get_current_median_history_price() const;
 
             feed_history_api_obj get_feed_history() const;
 
-            witness_schedule_api_obj get_witness_schedule() const;
+            witness_schedule_object get_witness_schedule() const;
 
             hardfork_version get_hardfork_version() const;
 
             scheduled_hardfork get_next_scheduled_hardfork() const;
 
-            reward_fund_api_obj get_reward_fund(string name) const;
+            reward_fund_object get_reward_fund(string name) const;
 
             //////////////
             // Accounts //
@@ -191,7 +191,7 @@ namespace steemit {
              * @param assets names of the assets to get balances of; if empty, get all assets account has a balance in
              * @return Balances of the account
              */
-            vector<asset> get_account_balances(account_name_type name, const flat_set<asset_name_type> &assets) const;
+            vector<asset<0, 17, 0>> get_account_balances(account_name_type name, const flat_set<asset_name_type> &assets) const;
 
             /**
              * @brief Get the total number of accounts registered with the blockchain
@@ -202,19 +202,19 @@ namespace steemit {
 
             optional<account_recovery_request_api_obj> get_recovery_request(std::string account) const;
 
-            optional<escrow_api_obj> get_escrow(std::string from, uint32_t escrow_id) const;
+            optional<escrow_object> get_escrow(std::string from, uint32_t escrow_id) const;
 
             std::vector<withdraw_route> get_withdraw_routes(std::string account, withdraw_route_type type = outgoing) const;
 
-            optional<account_bandwidth_api_obj> get_account_bandwidth(std::string account, bandwidth_type type) const;
+            optional<account_bandwidth_object> get_account_bandwidth(std::string account, bandwidth_type type) const;
 
             std::vector<savings_withdraw_api_obj> get_savings_withdraw_from(std::string account) const;
 
             std::vector<savings_withdraw_api_obj> get_savings_withdraw_to(std::string account) const;
 
-            vector<vesting_delegation_api_obj> get_vesting_delegations(string account, string from, uint32_t limit = 100) const;
+            vector<vesting_delegation_object> get_vesting_delegations(string account, string from, uint32_t limit = 100) const;
 
-            vector<vesting_delegation_expiration_api_obj> get_expiring_vesting_delegations(string account, time_point_sec from, uint32_t limit = 100) const;
+            vector<vesting_delegation_expiration_object> get_expiring_vesting_delegations(string account, time_point_sec from, uint32_t limit = 100) const;
 
             ///////////////
             // Witnesses //
@@ -229,7 +229,7 @@ namespace steemit {
              */
             std::vector<optional<witness_api_obj>> get_witnesses(const std::vector<witness_object::id_type> &witness_ids) const;
 
-            std::vector<convert_request_api_obj> get_conversion_requests(const std::string &account_name) const;
+            std::vector<convert_request_object> get_conversion_requests(const std::string &account_name) const;
 
             /**
              * @brief Get the witness owned by a given account
@@ -284,15 +284,6 @@ namespace steemit {
              * @return The assets found
              */
             vector<asset_object> list_assets(const asset_name_type &lower_bound_symbol, uint32_t limit) const;
-
-            /**
-             * @brief Get a list of assets by symbol
-             * @param asset_symbols Symbols or stringified IDs of the assets to retrieve
-             * @return The assets corresponding to the provided symbols or IDs
-             *
-             * This function has semantics identical to @ref get_objects
-             */
-            vector<optional<asset_object>> lookup_asset_symbols(const vector<asset_name_type> &asset_symbols) const;
 
             ////////////////////////////
             // Authority / Validation //
@@ -463,7 +454,7 @@ namespace steemit {
              * @return SBD amount required to set payout window duration up to time passed
              */
 
-            asset get_payout_extension_cost(const string &author, const string &permlink, fc::time_point_sec time) const;
+            asset<0, 17, 0> get_payout_extension_cost(const string &author, const string &permlink, fc::time_point_sec time) const;
 
             /**
              * Used o retrieve comment payout window extension time by cost
@@ -473,7 +464,7 @@ namespace steemit {
              * @return deadline time the payout window pretends to be extended for
              */
 
-            fc::time_point_sec get_payout_extension_time(const string &author, const string &permlink, asset cost) const;
+            fc::time_point_sec get_payout_extension_time(const string &author, const string &permlink, asset<0, 17, 0> cost) const;
 
             ///////////////////////////
             // Proposed transactions //
@@ -552,8 +543,8 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::application::scheduled_hardfork, (hf_version)(live_time));
-FC_REFLECT(steemit::application::withdraw_route, (from_account)(to_account)(percent)(auto_vest));
+FC_REFLECT((steemit::application::scheduled_hardfork), (hf_version)(live_time));
+FC_REFLECT((steemit::application::withdraw_route), (from_account)(to_account)(percent)(auto_vest));
 
 FC_REFLECT_ENUM(steemit::application::withdraw_route_type, (incoming)(outgoing)(all));
 
@@ -586,7 +577,6 @@ FC_API(steemit::application::database_api,
                 (get_block_header)
                 (get_block)
                 (get_ops_in_block)
-                (get_state)
                 (get_trending_categories)
                 (get_best_categories)
                 (get_active_categories)
@@ -602,6 +592,7 @@ FC_API(steemit::application::database_api,
                 (get_hardfork_version)
                 (get_next_scheduled_hardfork)
                 (get_reward_fund)
+                (get_state)
 
                 // Accounts
                 (get_accounts)
@@ -629,7 +620,6 @@ FC_API(steemit::application::database_api,
                 (get_assets_dynamic_data)
                 (get_bitassets_data)
                 (list_assets)
-                (lookup_asset_symbols)
 
                 // Authority / validation
                 (get_transaction_hex)

@@ -5,7 +5,8 @@ list(APPEND CURRENT_TARGET_HEADERS
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
-    blockchain_statistics_plugin.cpp
+        blockchain_statistics_plugin.cpp
+        statistics_sender.cpp
 )
 
 if(BUILD_SHARED_LIBRARIES)
@@ -30,7 +31,7 @@ target_link_libraries(
         golos::protocol
         appbase
 )
-target_include_directories(golos_${CURRENT_TARGET} PUBLIC "include")
+target_include_directories(golos_${CURRENT_TARGET} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 install(TARGETS
         golos_${CURRENT_TARGET}
@@ -39,3 +40,4 @@ install(TARGETS
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
 )
+

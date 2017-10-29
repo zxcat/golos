@@ -1,7 +1,8 @@
 #pragma once
 
-#include <steemit/chain/account_object.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 #include <appbase/application.hpp>
 
 namespace steemit {
@@ -12,7 +13,7 @@ namespace steemit {
 
             class account_by_key_plugin final : public appbase::plugin<account_by_key_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
                 static const std::string& name() { static std::string name = ACCOUNT_BY_KEY_PLUGIN_NAME; return name; }
                 account_by_key_plugin();
                 ~account_by_key_plugin();
@@ -26,8 +27,7 @@ namespace steemit {
 
                 void plugin_shutdown()override {}
 
-                void update_key_lookup(const chain::account_authority_object &);
-
+                void update_key_lookup(const steemit::chain::account_authority_object &);
                 struct account_by_key_plugin_impl;
 
                 std::unique_ptr<account_by_key_plugin_impl> my;

@@ -38,6 +38,7 @@ target_link_libraries(
         golos::snapshot_plugin
         golos::test_api_plugin
         golos::tolstoy_api_plugin
+        golos::version
         golos_protocol
         fc
         ${CMAKE_DL_LIBS}

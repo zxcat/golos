@@ -11,7 +11,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
             network_broadcast_api::network_broadcast_api() :
                     _p2p( appbase::app().get_plugin< p2p::p2p_plugin >() ),
-                    _chain( appbase::app().get_plugin< chain::chain_plugin >() ) {
+                    _chain( appbase::app().get_plugin< chain_interface::chain_plugin >() ) {
                JSON_RPC_REGISTER_API( STEEM_NETWORK_BROADCAST_API_PLUGIN_NAME );
             }
 

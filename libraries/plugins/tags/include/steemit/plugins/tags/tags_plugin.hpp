@@ -1,7 +1,7 @@
 #pragma once
 
 #include <steemit/plugins/chain/chain_plugin.hpp>
-#include <steemit/chain/comment_object.hpp>
+#include <steemit/chain/objects/comment_object.hpp>
 #include <boost/multi_index/composite_key.hpp>
 #include <appbase/application.hpp>
 
@@ -43,11 +43,6 @@ namespace steemit {
                 peer_stats_object_type = (TAG_SPACE_ID << 8) + 2,
                 author_tag_stats_object_type = (TAG_SPACE_ID << 8) + 3
             };
-
-            namespace detail {
-                class tags_plugin_impl;
-            }
-
 
             /**
              *  The purpose of the tag object is to allow the generation and listing of
@@ -364,7 +359,7 @@ namespace steemit {
 
                 tag_name_type tag;
                 fc::uint128_t total_children_rshares2;
-                asset total_payout = asset(0, SBD_SYMBOL);
+                asset<0, 17, 0> total_payout = asset<0, 17, 0>(0, SBD_SYMBOL_NAME);
                 int32_t net_votes = 0;
                 uint32_t top_posts = 0;
                 uint32_t comments = 0;
@@ -483,7 +478,7 @@ namespace steemit {
                 id_type id;
                 account_object::id_type author;
                 tag_name_type tag;
-                asset total_rewards = asset(0, SBD_SYMBOL);
+                asset<0, 17, 0> total_rewards = asset<0, 17, 0>(0, SBD_SYMBOL_NAME);
                 uint32_t total_posts = 0;
             };
 
@@ -511,13 +506,13 @@ namespace steemit {
                     ordered_unique<tag<by_author_tag_rewards>, composite_key<author_tag_stats_object,
                             member<author_tag_stats_object, account_object::id_type, &author_tag_stats_object::author>,
                             member<author_tag_stats_object, tag_name_type, &author_tag_stats_object::tag>,
-                            member<author_tag_stats_object, asset, &author_tag_stats_object::total_rewards> >,
-                            composite_key_compare<less<account_object::id_type>, less<tag_name_type>, greater<asset>>>,
+                            member<author_tag_stats_object, asset<0, 17, 0>, &author_tag_stats_object::total_rewards> >,
+                            composite_key_compare<less<account_object::id_type>, less<tag_name_type>, greater<asset<0, 17, 0>>>>,
                     ordered_unique<tag<by_tag_rewards_author>, composite_key<author_tag_stats_object,
                             member<author_tag_stats_object, tag_name_type, &author_tag_stats_object::tag>,
-                            member<author_tag_stats_object, asset, &author_tag_stats_object::total_rewards>,
+                            member<author_tag_stats_object, asset<0, 17, 0>, &author_tag_stats_object::total_rewards>,
                             member<author_tag_stats_object, account_object::id_type, &author_tag_stats_object::author> >,
-                            composite_key_compare<less<tag_name_type>, greater<asset>,
+                            composite_key_compare<less<tag_name_type>, greater<asset<0, 17, 0>>,
                                     less<account_object::id_type>>> > > author_tag_stats_index;
 
             /**
@@ -537,7 +532,7 @@ namespace steemit {
 
                 virtual ~tags_plugin();
 
-                APPBASE_PLUGIN_REQUIRES((steemit::plugins::chain::chain_plugin))
+                APPBASE_PLUGIN_REQUIRES((chain_interface::chain_plugin))
                 static const std::string& name() { static std::string name = TAGS_PLUGIN_NAME; return name; }
 
 
@@ -552,11 +547,9 @@ namespace steemit {
                 //                   const steemit::application::comment_api_obj &c,
                 //                   const std::function<bool(const steemit::application::comment_api_obj &)> &condition);
 
-                friend class detail::tags_plugin_impl;
-
                 void plugin_shutdown() override {}
-
-                std::unique_ptr<detail::tags_plugin_impl> my;
+                struct tags_plugin_impl;
+                std::unique_ptr<tags_plugin_impl> my;
             };
 
 
@@ -566,21 +559,21 @@ namespace steemit {
 
 
 
-FC_REFLECT(steemit::plugins::tags::tag_object,
+FC_REFLECT((steemit::plugins::tags::tag_object),
            (id)(name)(created)(active)(cashout)(net_rshares)(net_votes)(hot)(trending)(promoted_balance)(children)(
                    children_rshares2)(author)(parent)(comment))
 
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::tags::tag_object, steemit::plugins::tags::tag_index)
 
-FC_REFLECT(steemit::plugins::tags::tag_stats_object,
+FC_REFLECT((steemit::plugins::tags::tag_stats_object),
            (id)(tag)(total_children_rshares2)(total_payout)(net_votes)(top_posts)(comments));
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::tags::tag_stats_object, steemit::plugins::tags::tag_stats_index)
 
-FC_REFLECT(steemit::plugins::tags::peer_stats_object,
+FC_REFLECT((steemit::plugins::tags::peer_stats_object),
            (id)(voter)(peer)(direct_positive_votes)(direct_votes)(indirect_positive_votes)(indirect_votes)(rank));
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::tags::peer_stats_object, steemit::plugins::tags::peer_stats_index)
 
-FC_REFLECT(steemit::plugins::tags::comment_metadata, (tags));
+FC_REFLECT((steemit::plugins::tags::comment_metadata), (tags));
 
-FC_REFLECT(steemit::plugins::tags::author_tag_stats_object, (id)(author)(tag)(total_posts)(total_rewards))
+FC_REFLECT((steemit::plugins::tags::author_tag_stats_object), (id)(author)(tag)(total_posts)(total_rewards))
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::tags::author_tag_stats_object, steemit::plugins::tags::author_tag_stats_index)

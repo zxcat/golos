@@ -26,7 +26,7 @@ namespace steemit {
     namespace plugins{
     namespace account_statistics {
 
-        using namespace chain;
+        using namespace steemit::chain;
 
 
         enum account_statistics_plugin_object_types {
@@ -135,7 +135,7 @@ namespace steemit {
         public:
 
             static const std::string& name() { static std::string name = ACCOUNT_STATISTICS_PLUGIN_NAME; return name; }
-            APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+            APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain_interface::chain_plugin) )
 
             account_statistics_plugin();
 
@@ -169,7 +169,7 @@ namespace steemit {
     }
 }} // steemit::account_statistics
 
-FC_REFLECT(steemit::plugins::account_statistics::account_stats_bucket_object,
+FC_REFLECT((steemit::plugins::account_statistics::account_stats_bucket_object),
         (id)
                 (open)
                 (seconds)
@@ -237,7 +237,7 @@ FC_REFLECT(steemit::plugins::account_statistics::account_stats_bucket_object,
 //SET_INDEX_TYPE( steemit::account_statistics::account_stats_bucket_object,)
 
 FC_REFLECT(
-        steemit::plugins::account_statistics::account_activity_bucket_object,
+(steemit::plugins::account_statistics::account_activity_bucket_object),
         (id)
                 (open)
                 (seconds)

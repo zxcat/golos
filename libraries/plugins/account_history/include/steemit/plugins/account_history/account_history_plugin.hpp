@@ -37,11 +37,11 @@ namespace steemit {
             class account_history_plugin final : public appbase::plugin<account_history_plugin> {
             public:
                 constexpr  static const  char*__name__ ="account_history";
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain_interface::chain_plugin) )
                 static const std::string& name() { static std::string name = __name__; return name; }
                 account_history_plugin();
 
-                virtual ~account_history_plugin();
+                ~account_history_plugin();
 
                 void set_program_options(
                         boost::program_options::options_description &cli,
@@ -51,9 +51,8 @@ namespace steemit {
                 void plugin_startup() override ;
                 void plugin_shutdown() override {}
                 flat_map<string, string> tracked_accounts() const; /// map start_range to end_range
-
+            private:
                 struct account_history_plugin_impl;
-
                 std::unique_ptr<account_history_plugin_impl> my;
             };
 

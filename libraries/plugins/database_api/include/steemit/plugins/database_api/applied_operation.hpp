@@ -3,7 +3,7 @@
 #include <steemit/protocol/operations/operations.hpp>
 
 #include <steemit/chain/steem_object_types.hpp>
-#include <steemit/chain/history_object.hpp>
+#include <steemit/chain/objects/history_object.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -26,7 +26,7 @@ namespace steemit {
     }
 }}
 
-FC_REFLECT(steemit::plugins::database_api::applied_operation,
+FC_REFLECT((steemit::plugins::database_api::applied_operation),
         (trx_id)
                 (block)
                 (trx_in_block)

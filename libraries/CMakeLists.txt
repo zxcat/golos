@@ -1,3 +1,4 @@
+add_subdirectory(version)
 add_subdirectory(chain)
 add_subdirectory(protocol)
 add_subdirectory(network)

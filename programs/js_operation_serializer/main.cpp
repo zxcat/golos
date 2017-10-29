@@ -1,5 +1,5 @@
 #include <steemit/protocol/protocol.hpp>
-#include <steemit/chain/steem_objects.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 using namespace steemit::chain;
@@ -70,6 +70,13 @@ namespace detail_ns {
         static std::string name() {
             return remove_namespace(fc::get_typename<T>::name());
         };
+    };
+
+    template<>
+    struct js_name<fc::fixed_string<> > {
+        static std::string name() {
+            return "string";
+        }
     };
 
     template<typename T, size_t N>

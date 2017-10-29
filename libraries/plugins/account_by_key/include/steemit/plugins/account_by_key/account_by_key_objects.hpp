@@ -2,13 +2,15 @@
 
 #include <steemit/chain/steem_object_types.hpp>
 #include <boost/multi_index/composite_key.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 
 namespace steemit {
     namespace plugins {
         namespace account_by_key {
 
             using namespace std;
-            using namespace steemit::chain;
+            using chainbase::object;
+            using steemit::chain::by_id;
 
 #ifndef ACCOUNT_BY_KEY_SPACE_ID
 #define ACCOUNT_BY_KEY_SPACE_ID 11
@@ -28,8 +30,8 @@ namespace steemit {
 
                 id_type id;
 
-                public_key_type key;
-                account_name_type account;
+                protocol::public_key_type key;
+                protocol::account_name_type account;
             };
 
             typedef key_lookup_object::id_type key_lookup_id_type;
@@ -59,8 +61,8 @@ namespace steemit {
                             ordered_unique<tag<by_id>, member<key_lookup_object, key_lookup_id_type, &key_lookup_object::id>>,
                             ordered_unique<tag<by_key>,
                                     composite_key<key_lookup_object,
-                                            member<key_lookup_object, public_key_type, &key_lookup_object::key>,
-                                            member<key_lookup_object, account_name_type, &key_lookup_object::account>
+                                            member<key_lookup_object, protocol::public_key_type, &key_lookup_object::key>,
+                                            member<key_lookup_object, protocol::account_name_type, &key_lookup_object::account>
                                     >
                             >
                     >,
@@ -72,5 +74,5 @@ namespace steemit {
 } // steemit::account_by_key
 
 
-FC_REFLECT(steemit::plugins::account_by_key::key_lookup_object, (id)(key)(account))
+FC_REFLECT((steemit::plugins::account_by_key::key_lookup_object), (id)(key)(account))
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::account_by_key::key_lookup_object, steemit::plugins::account_by_key::key_lookup_index)

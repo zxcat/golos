@@ -2,14 +2,14 @@
 
 #include <steemit/application/api_objects/comment_api_obj.hpp>
 
-#include <steemit/chain/account_object.hpp>
-#include <steemit/chain/block_summary_object.hpp>
-#include <steemit/chain/comment_object.hpp>
-#include <steemit/chain/global_property_object.hpp>
-#include <steemit/chain/history_object.hpp>
-#include <steemit/chain/steem_objects.hpp>
-#include <steemit/chain/transaction_object.hpp>
-#include <steemit/chain/witness_objects.hpp>
+#include <steemit/chain/objects/account_object.hpp>
+#include <steemit/chain/objects/block_summary_object.hpp>
+#include <steemit/chain/objects/comment_object.hpp>
+#include <steemit/chain/objects/global_property_object.hpp>
+#include <steemit/chain/objects/history_object.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
+#include <steemit/chain/objects/transaction_object.hpp>
+#include <steemit/chain/objects/witness_object.hpp>
 
 #include <steemit/tags/tags_plugin.hpp>
 #include <steemit/languages/languages_plugin.hpp>
@@ -18,47 +18,6 @@ namespace steemit {
     namespace application {
 
         using namespace steemit::chain;
-
-/*struct limit_order
-{
-   limit_order( chain::limit_order_object& o ):
-      id( o.id ),
-      created( o.created ),
-      expiration( o.expiration ),
-      seller( o.seller ),
-      order_id( o.order_id ),
-      for_sale( o.for_sale ),
-      sell_price( o.sell_price )
-   {}
-
-   limit_order(){}
-
-   chain::integral_id_type id;
-   time_point_sec             created;
-   time_point_sec             expiration;
-   account_name_type          seller;
-   uint32_t                   order_id;
-   share_type                 for_sale;
-   price                      sell_price;
-};*/
-
-
-        typedef chain::change_recovery_account_request_object change_recovery_account_request_api_obj;
-        typedef chain::block_summary_object block_summary_api_obj;
-        typedef chain::comment_vote_object comment_vote_api_obj;
-        typedef chain::dynamic_global_property_object dynamic_global_property_api_obj;
-        typedef chain::convert_request_object convert_request_api_obj;
-        typedef chain::escrow_object escrow_api_obj;
-        typedef chain::liquidity_reward_balance_object liquidity_reward_balance_api_obj;
-        typedef chain::limit_order_object limit_order_api_obj;
-        typedef chain::withdraw_vesting_route_object withdraw_vesting_route_api_obj;
-        typedef chain::decline_voting_rights_request_object decline_voting_rights_request_api_obj;
-        typedef chain::witness_vote_object witness_vote_api_obj;
-        typedef chain::witness_schedule_object witness_schedule_api_obj;
-        typedef chain::account_bandwidth_object account_bandwidth_api_obj;
-        typedef chain::vesting_delegation_object vesting_delegation_api_obj;
-        typedef chain::vesting_delegation_expiration_object vesting_delegation_expiration_api_obj;
-        typedef chain::reward_fund_object reward_fund_api_obj;
 
         struct category_api_obj {
             category_api_obj(const chain::category_object &c) :
@@ -76,7 +35,7 @@ namespace steemit {
             category_object::id_type id;
             string name;
             share_type abs_rshares;
-            asset total_payouts;
+            asset<0, 17, 0> total_payouts;
             uint32_t discussions;
             time_point_sec last_update;
         };
@@ -96,7 +55,7 @@ namespace steemit {
 
             string name;
             fc::uint128_t total_children_rshares2;
-            asset total_payouts;
+            asset<0, 17, 0> total_payouts;
             int32_t net_votes = 0;
             uint32_t top_posts = 0;
             uint32_t comments = 0;
@@ -117,7 +76,7 @@ namespace steemit {
 
             string name;
             fc::uint128_t total_children_rshares2;
-            asset total_payouts;
+            asset<0, 17, 0> total_payouts;
             int32_t net_votes = 0;
             uint32_t top_posts = 0;
             uint32_t comments = 0;
@@ -246,15 +205,15 @@ namespace steemit {
             uint16_t voting_power;
             time_point_sec last_vote_time;
 
-            asset balance;
-            asset savings_balance;
+            asset<0, 17, 0> balance;
+            asset<0, 17, 0> savings_balance;
 
-            asset sbd_balance;
+            asset<0, 17, 0> sbd_balance;
             uint128_t sbd_seconds;
             time_point_sec sbd_seconds_last_update;
             time_point_sec sbd_last_interest_payment;
 
-            asset savings_sbd_balance;
+            asset<0, 17, 0> savings_sbd_balance;
             uint128_t savings_sbd_seconds;
             time_point_sec savings_sbd_seconds_last_update;
             time_point_sec savings_sbd_last_interest_payment;
@@ -264,10 +223,10 @@ namespace steemit {
             share_type curation_rewards;
             share_type posting_rewards;
 
-            asset vesting_shares;
-            asset delegated_vesting_shares;
-            asset received_vesting_shares;
-            asset vesting_withdraw_rate;
+            asset<0, 17, 0> vesting_shares;
+            asset<0, 17, 0> delegated_vesting_shares;
+            asset<0, 17, 0> received_vesting_shares;
+            asset<0, 17, 0> vesting_withdraw_rate;
             time_point_sec next_vesting_withdrawal;
             share_type withdrawn;
             share_type to_withdraw;
@@ -351,7 +310,7 @@ namespace steemit {
             account_name_type to;
             string memo;
             uint32_t request_id = 0;
-            asset amount;
+            asset<0, 17, 0> amount;
             time_point_sec complete;
         };
 
@@ -366,8 +325,8 @@ namespace steemit {
             }
 
             feed_history_object::id_type id;
-            price current_median_history;
-            deque<price> price_history;
+            price<0, 17, 0> current_median_history;
+            deque<price<0, 17, 0>> price_history;
         };
 
         struct witness_api_obj {
@@ -406,8 +365,8 @@ namespace steemit {
             uint64_t last_confirmed_block_num;
             uint64_t pow_worker;
             public_key_type signing_key;
-            chain_properties props;
-            price sbd_exchange_rate;
+            chain_properties<0, 17, 0> props;
+            price<0, 17, 0> sbd_exchange_rate;
             time_point_sec last_sbd_exchange_update;
             share_type votes;
             fc::uint128 virtual_last_update;
@@ -422,11 +381,11 @@ namespace steemit {
     }
 } // steemit::application
 
-FC_REFLECT(steemit::application::category_api_obj,
+FC_REFLECT((steemit::application::category_api_obj),
         (id)(name)(abs_rshares)(total_payouts)(discussions)(last_update)
 )
 
-FC_REFLECT(steemit::application::account_api_obj,
+FC_REFLECT((steemit::application::account_api_obj),
         (id)(name)(owner)(active)(posting)(memo_key)(json_metadata)(proxy)(last_owner_update)(last_account_update)
                 (created)(mined)
                 (owner_challenged)(active_challenged)(last_owner_proved)(last_active_proved)(recovery_account)(last_account_recovery)(reset_account)
@@ -445,21 +404,21 @@ FC_REFLECT(steemit::application::account_api_obj,
                 (new_average_bandwidth)(new_average_market_bandwidth)
 )
 
-FC_REFLECT(steemit::application::owner_authority_history_api_obj,
+FC_REFLECT((steemit::application::owner_authority_history_api_obj),
         (id)
                 (account)
                 (previous_owner_authority)
                 (last_valid_time)
 )
 
-FC_REFLECT(steemit::application::account_recovery_request_api_obj,
+FC_REFLECT((steemit::application::account_recovery_request_api_obj),
         (id)
                 (account_to_recover)
                 (new_owner_authority)
                 (expires)
 )
 
-FC_REFLECT(steemit::application::savings_withdraw_api_obj,
+FC_REFLECT((steemit::application::savings_withdraw_api_obj),
         (id)
                 (from)
                 (to)
@@ -469,13 +428,13 @@ FC_REFLECT(steemit::application::savings_withdraw_api_obj,
                 (complete)
 )
 
-FC_REFLECT(steemit::application::feed_history_api_obj,
+FC_REFLECT((steemit::application::feed_history_api_obj),
         (id)
                 (current_median_history)
                 (price_history)
 )
 
-FC_REFLECT(steemit::application::tag_api_obj,
+FC_REFLECT((steemit::application::tag_api_obj),
         (name)
                 (total_children_rshares2)
                 (total_payouts)
@@ -485,7 +444,7 @@ FC_REFLECT(steemit::application::tag_api_obj,
 )
 
 
-FC_REFLECT(steemit::application::language_api_obj,
+FC_REFLECT((steemit::application::language_api_obj),
         (name)
                 (total_children_rshares2)
                 (total_payouts)
@@ -495,7 +454,7 @@ FC_REFLECT(steemit::application::language_api_obj,
 )
 
 
-FC_REFLECT(steemit::application::witness_api_obj,
+FC_REFLECT((steemit::application::witness_api_obj),
         (id)
                 (owner)
                 (created)

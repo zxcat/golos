@@ -5,7 +5,7 @@
 #include <boost/program_options.hpp>
 #include <string>
 #include <vector>
-#include <plugins/chain/include/steemit/plugins/chain/chain_plugin.hpp>
+#include <steemit/plugins/chain/chain_plugin.hpp>
 
 namespace steemit {
     namespace protocol {
@@ -20,7 +20,7 @@ namespace steemit {
 
             class block_info_plugin final : public appbase::plugin<block_info_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain_interface::chain_plugin) )
                 constexpr const static char* __name__="block_info";
                 static const std::string& name() { static std::string name = __name__; return name; }
                 block_info_plugin();
@@ -35,7 +35,7 @@ namespace steemit {
 
                 void plugin_shutdown()override;
 
-                void on_applied_block(const chain::signed_block &b);
+                void on_applied_block(const protocol::signed_block &b);
 
                 std::vector<block_info> _block_info;
 

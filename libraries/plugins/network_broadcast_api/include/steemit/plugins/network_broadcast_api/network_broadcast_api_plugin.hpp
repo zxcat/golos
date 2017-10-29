@@ -15,7 +15,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
             public:
                 APPBASE_PLUGIN_REQUIRES(
                         (json_rpc::json_rpc_plugin)
-                        (chain::chain_plugin)
+                        (chain_interface::chain_plugin)
                         (p2p::p2p_plugin)
                 )
 

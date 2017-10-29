@@ -1,7 +1,6 @@
 # Introducing Golos (beta)
 
 [![Build Status](https://travis-ci.org/GolosChain/golos.svg?branch=master)](https://travis-ci.org/GolosChain/golos)
-[![Stories in Ready](https://badge.waffle.io/GolosChain/golos.svg?label=ready&title=Ready)](http://waffle.io/GolosChain/golos)
 
 Golos is an experimental Proof of Work blockchain with an unproven consensus
 algorithm.
@@ -42,7 +41,6 @@ To run a node with *all* the data (e.g. for supporting a content website)
 that uses ca. 14GB of memory and growing:
 
     docker run \
-        --env USE_WAY_TOO_MUCH_RAM=1 \
         -d -p 2001:2001 -p 8090:8090 --name golos-full \
         goloschain/golos
 

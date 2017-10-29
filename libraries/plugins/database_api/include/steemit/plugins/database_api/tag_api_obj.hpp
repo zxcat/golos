@@ -21,7 +21,7 @@ namespace steemit {
 
                 string name;
                 fc::uint128_t total_children_rshares2;
-                asset total_payouts;
+                asset<0,17,0> total_payouts;
                 int32_t net_votes = 0;
                 uint32_t top_posts = 0;
                 uint32_t comments = 0;
@@ -30,7 +30,7 @@ namespace steemit {
 
 
 
-FC_REFLECT(steemit::plugins::database_api::tag_api_object,
+FC_REFLECT((steemit::plugins::database_api::tag_api_object),
         (name)
         (total_children_rshares2)
         (total_payouts)

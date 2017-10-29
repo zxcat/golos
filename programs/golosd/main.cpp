@@ -38,6 +38,7 @@
 #include <csignal>
 #include <vector>
 #include <fc/log/console_appender.hpp>
+#include <fc/log/json_console_appender.hpp>
 #include <fc/log/file_appender.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>

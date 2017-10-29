@@ -8,7 +8,7 @@
 namespace steemit {
     namespace plugins {
     namespace private_message {
-        using namespace chain;
+        using namespace steemit::chain;
 
 //
 // Plugins should #define their SPACE_ID's so plugins with
@@ -140,7 +140,7 @@ namespace steemit {
         public:
             constexpr static const char* __name__= "private_message";
             static const std::string& name() { static std::string name = __name__; return name; }
-            APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+            APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
 
             private_message_plugin();
 
@@ -169,11 +169,11 @@ namespace steemit {
 } //steemit::private_message
 
 
-FC_REFLECT(steemit::plugins::private_message::message_body, (thread_start)(subject)(body)(json_meta)(cc));
+FC_REFLECT((steemit::plugins::private_message::message_body), (thread_start)(subject)(body)(json_meta)(cc));
 
-FC_REFLECT(steemit::plugins::private_message::message_object, (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
+FC_REFLECT((steemit::plugins::private_message::message_object), (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::private_message::message_object, steemit::plugins::private_message::message_index);
 
-FC_REFLECT(steemit::plugins::private_message::message_api_obj, (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
+FC_REFLECT((steemit::plugins::private_message::message_api_obj), (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
 
-FC_REFLECT_DERIVED(steemit::plugins::private_message::extended_message_object, (steemit::plugins::private_message::message_api_obj), (message));
+FC_REFLECT_DERIVED((steemit::plugins::private_message::extended_message_object), ((steemit::plugins::private_message::message_api_obj)), (message));

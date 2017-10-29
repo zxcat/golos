@@ -1,9 +1,13 @@
 #include <steemit/plugins/account_statistics/account_statistics_plugin.hpp>
+#include <steemit/chain/objects/account_object.hpp>
+#include <steemit/chain/objects/comment_object.hpp>
+
 
 namespace steemit {
     namespace plugins {
         namespace account_statistics {
 
+            using namespace steemit::chain;
 
             struct account_statistics_plugin::account_statistics_plugin_impl {
             public:
@@ -30,12 +34,12 @@ namespace steemit {
                 const account_statistics_plugin &_plugin;
                 const account_stats_bucket_object &_stats;
                 const account_activity_bucket_object &_activity;
-                chain::database &_db;
+                database &_db;
 
                 operation_process(account_statistics_plugin &asp, const account_stats_bucket_object &s,
                                   const account_activity_bucket_object &a)
                         : _plugin(asp), _stats(s), _activity(a),
-                          _db(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()) {
+                          _db(appbase::app().get_plugin<steemit::plugins::chain_interface::chain_plugin>().db()) {
                 }
 
                 typedef void result_type;

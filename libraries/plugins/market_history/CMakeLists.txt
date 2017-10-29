@@ -38,7 +38,9 @@ target_link_libraries(
         appbase
 )
 target_include_directories(golos_${CURRENT_TARGET}
-        PUBLIC "include")
+
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../version/include")
+
 
 install(TARGETS
         golos_${CURRENT_TARGET}

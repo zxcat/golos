@@ -13,7 +13,7 @@ namespace detail { class p2p_plugin_impl; }
 
 class p2p_plugin final : public appbase::plugin<p2p_plugin> {
 public:
-   APPBASE_PLUGIN_REQUIRES((chain::chain_plugin))
+   APPBASE_PLUGIN_REQUIRES((chain_interface::chain_plugin))
 
    p2p_plugin();
    ~p2p_plugin();
