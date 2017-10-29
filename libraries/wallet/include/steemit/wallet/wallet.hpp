@@ -78,7 +78,8 @@ namespace steemit {
          */
         class wallet_api {
         public:
-            wallet_api(const wallet_data &initial_data, fc::api<steemit::wallet::remote_node_api> rapi);
+            wallet_api(const wallet_data &initial_data, const steemit::protocol::chain_id_type &_steem_chain_id,
+                       fc::api<remote_node_api> rapi);
 
             virtual ~wallet_api();
 
@@ -136,12 +137,17 @@ namespace steemit {
              * Returns the queue of pow miners waiting to produce blocks.
              */
             vector<account_name_type> get_miner_queue() const;
-=======
-             * Returns the state info associated with the URL
-             */
+
+            =======
+            *
+            Returns the
+            state info
+            associated with
+            the URL
+            */
             // TODO
             // condenser_api::state get_state( string url );
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Returns vesting withdraw routes for an account.
@@ -169,8 +175,10 @@ namespace steemit {
              * @param limit the maximum number of accounts to return (max: 1000)
              * @returns a list of accounts mapping account names to account ids
              */
-<<<<<<< HEAD
-            set<string> list_accounts(const string &lowerbound, uint32_t limit);
+            <<<<<<<
+            HEAD set<string>
+
+            list_accounts(const string &lowerbound, uint32_t limit);
 
             /** List the balances of an account.
              * Each account can have multiple balances, one for each type of asset owned by that
@@ -191,9 +199,12 @@ namespace steemit {
              * @returns the list of asset objects, ordered by symbol
              */
             vector<asset_object> list_assets(const string &lowerbound, uint32_t limit) const;
-=======
+
+            =======
+
             vector<account_name_type> list_accounts(const string &lowerbound, uint32_t limit);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns the block chain's rapidly-changing properties.
              * The returned object contains information that changes every block interval
@@ -201,11 +212,16 @@ namespace steemit {
              * @see \c get_global_properties() for less-frequently changing properties
              * @returns the dynamic global properties
              */
-<<<<<<< HEAD
-            dynamic_global_property_object get_dynamic_global_properties() const;
-=======
+            <<<<<<<
+            HEAD dynamic_global_property_object
+
+            get_dynamic_global_properties() const;
+
+            =======
+
             database_api::dynamic_global_property_object get_dynamic_global_properties() const;
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns information about the given account.
              *
@@ -416,14 +432,22 @@ namespace steemit {
              *  @param json_meta JSON Metadata associated with the new account
              *  @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction create_account_delegated(string creator, asset<0, 17, 0> steem_fee,
-                                                                  asset<0, 17, 0> delegated_vests, string new_account_name,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_account_delegated(string
+            creator,
+            asset<0, 17, 0> steem_fee, asset<0, 17, 0>
+            delegated_vests,
+            string new_account_name,
+            =======
+
             annotated_signed_transaction create_account_delegated(string creator, asset steemit_fee,
                                                                   asset delegated_vests, string new_account_name,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                                  string json_meta, bool broadcast);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            string json_meta,
+            bool broadcast
+            );
 
             /**
              * This method is used by faucets to create new accounts for other users which must
@@ -444,17 +468,26 @@ namespace steemit {
              * @param memo public memo key of the new account
              * @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction create_account_with_keys_delegated(string creator, asset<0, 17, 0> steem_fee,
-                                                                            asset<0, 17, 0> delegated_vests, string newname,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_account_with_keys_delegated(string
+            creator,
+            asset<0, 17, 0> steem_fee, asset<0, 17, 0>
+            delegated_vests,
+            string newname,
+            =======
+
             annotated_signed_transaction create_account_with_keys_delegated(string creator, asset steemit_fee,
                                                                             asset delegated_vests, string newname,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                                            string json_meta, public_key_type owner,
-                                                                            public_key_type active,
-                                                                            public_key_type posting,
-                                                                            public_key_type memo, bool broadcast) const;
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            string json_meta, public_key_type
+            owner,
+            public_key_type active, public_key_type
+            posting,
+            public_key_type memo,
+            bool broadcast
+            ) const;
 
             /**
              * This method updates the keys of an existing account.
@@ -536,10 +569,11 @@ namespace steemit {
              */
             annotated_signed_transaction update_account_memo_key(string account_name, public_key_type key,
                                                                  bool broadcast);
-<<<<<<< HEAD
-=======
 
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            <<<<<<< HEAD
+            =======
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * This method delegates VESTS from one account to another.
@@ -549,13 +583,20 @@ namespace steemit {
              * @param vesting_shares The amount of VESTS to delegate
              * @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee, asset<0, 17, 0> vesting_shares, bool broadcast);
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            delegate_vesting_shares(string
+            delegator,
+            string delegatee, asset<0, 17, 0>
+            vesting_shares,
+            bool broadcast
+            );
+            =======
+
             annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee,
                                                                  asset vesting_shares, bool broadcast);
 
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  This method is used to convert a JSON transaction to its transaction ID.
@@ -591,11 +632,15 @@ namespace steemit {
              *
              * @returns All pending conversion requests by account
              */
-<<<<<<< HEAD
-            vector<convert_request_object> get_conversion_requests(string owner);
-=======
-            vector<database_api::convert_request_api_object> get_conversion_requests(string owner);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            <<<<<<<
+            HEAD vector<convert_request_object>
+            get_conversion_requests(string
+            owner);
+            =======
+
+            vector <database_api::convert_request_api_object> get_conversion_requests(string owner);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
 
             /**
@@ -609,11 +654,17 @@ namespace steemit {
              */
             annotated_signed_transaction update_witness(string witness_name, string url,
                                                         public_key_type block_signing_key,
-<<<<<<< HEAD
-                                                        const chain_properties<0, 17, 0> &props, bool broadcast = false);
-=======
-                                                        const chain_properties &props, bool broadcast = false);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            <<<<<<<
+            HEAD const chain_properties<0, 17, 0>
+            &props,
+            bool broadcast = false
+            );
+            =======
+            const chain_properties &props,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Set the voting proxy for an account.
              *
@@ -656,12 +707,20 @@ namespace steemit {
              * @param memo A memo for the transactionm, encrypted with the to account's public memo key
              * @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction transfer(string from, string to, asset<0, 17, 0> amount, string memo,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            string memo,
+            =======
+
             annotated_signed_transaction transfer(string from, string to, asset amount, string memo,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                  bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              * Transfer funds from one account to another using escrow. steemit and SBD can be transferred.
@@ -679,14 +738,22 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_transfer(string from, string to, string agent, uint32_t escrow_id,
-<<<<<<< HEAD
-                                                         asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, asset<0, 17, 0> fee,
-=======
-                                                         asset sbd_amount, asset steemit_amount, asset fee,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                         time_point_sec ratification_deadline,
-                                                         time_point_sec escrow_expiration, string json_meta,
-                                                         bool broadcast = false);
+
+            <<<<<<<
+            HEAD asset<0, 17, 0>
+            sbd_amount,
+            asset<0, 17, 0> steem_amount, asset<0, 17, 0>
+            fee,
+            =======
+            asset sbd_amount, asset
+            steemit_amount,
+            asset fee,
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            time_point_sec ratification_deadline, time_point_sec
+            escrow_expiration,
+            string json_meta,
+            bool broadcast = false
+            );
 
             /**
              * Approve a proposed escrow transfer. Funds cannot be released until after approval. This is in lieu of requiring
@@ -730,12 +797,23 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_release(string from, string to, string agent, string who,
-<<<<<<< HEAD
-                                                        string receiver, uint32_t escrow_id, asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, bool broadcast = false);
-=======
-                                                        string receiver, uint32_t escrow_id, asset sbd_amount,
-                                                        asset steemit_amount, bool broadcast = false);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            <<<<<<<
+            HEAD string
+            receiver,
+            uint32_t escrow_id, asset<0, 17, 0>
+            sbd_amount,
+            asset<0, 17, 0> steem_amount,
+            bool broadcast = false
+            );
+            =======
+            string receiver, uint32_t
+            escrow_id,
+            asset sbd_amount, asset
+            steemit_amount,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Transfer steemit into a vesting fund represented by vesting shares (VESTS). VESTS are required to vesting
@@ -747,32 +825,55 @@ namespace steemit {
              * @param amount The amount of steemit to vest i.e. "100.00 steemit"
              * @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction transfer_to_vesting(string from, string to, asset<0, 17, 0> amount,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer_to_vesting(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            =======
+
             annotated_signed_transaction transfer_to_vesting(string from, string to, asset amount,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                             bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              *  Transfers into savings happen immediately, transfers from savings take 72 hours
              */
-<<<<<<< HEAD
-            annotated_signed_transaction transfer_to_savings(string from, string to, asset<0, 17, 0> amount, string memo,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer_to_savings(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            string memo,
+            =======
+
             annotated_signed_transaction transfer_to_savings(string from, string to, asset amount, string memo,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                             bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              * @param request_id - an unique ID assigned by from account, the id is used to cancel the operation and can be reused after the transfer completes
              */
             annotated_signed_transaction transfer_from_savings(string from, uint32_t request_id, string to,
-<<<<<<< HEAD
-                                                               asset<0, 17, 0> amount, string memo, bool broadcast = false);
-=======
-                                                               asset amount, string memo, bool broadcast = false);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            <<<<<<<
+            HEAD asset<0, 17, 0>
+            amount,
+            string memo,
+            bool broadcast = false
+            );
+            =======
+            asset amount, string
+            memo,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  @param request_id the id used in transfer_from_savings
@@ -790,7 +891,8 @@ namespace steemit {
              *    withdrawn and deposited back as steemit. i.e. "10.000000 VESTS"
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction withdraw_vesting(string from, asset<0, 17, 0> vesting_shares, bool broadcast = false);
+            annotated_signed_transaction withdraw_vesting(string from, asset<0, 17, 0> vesting_shares,
+                                                          bool broadcast = false);
 
             /**
              * Set up a vesting withdraw route. When vesting shares are withdrawn, they will be routed to these accounts
@@ -860,14 +962,17 @@ namespace steemit {
              *
              * @param limit Maximum number of orders to return for bids and asks. Max is 1000.
              */
-<<<<<<< HEAD
-            market_history::order_book get_order_book(const string &base, const string &quote, unsigned limit = 50);
+            <<<<<<<
+            HEAD
+                    market_history::order_book
 
-            vector<extended_limit_order> get_limit_orders_by_owner(string account_name);
+            get_order_book(const string &base, const string &quote, unsigned limit = 50);
 
-            vector<call_order_object> get_call_orders_by_owner(string account_name);
+            vector <extended_limit_order> get_limit_orders_by_owner(string account_name);
 
-            vector<force_settlement_object> get_settle_orders_by_owner(string account_name);
+            vector <call_order_object> get_call_orders_by_owner(string account_name);
+
+            vector <force_settlement_object> get_settle_orders_by_owner(string account_name);
 
             /** Returns the collateral_bid object for the given MPA
              *
@@ -876,8 +981,8 @@ namespace steemit {
              * @param start the sequence number where to start looping back throw the history
              * @returns a list of \c collateral_bid_objects
              */
-            vector<collateral_bid_object> get_collateral_bids(string asset, uint32_t limit = 100,
-                                                              uint32_t start = 0) const;
+            vector <collateral_bid_object> get_collateral_bids(string asset, uint32_t limit = 100,
+                                                               uint32_t start = 0) const;
 
             /** Creates or updates a bid on an MPA after global settlement.
              *
@@ -898,12 +1003,13 @@ namespace steemit {
 
             signed_transaction bid_collateral(string bidder_name, string debt_amount, string debt_symbol,
                                               string additional_collateral, bool broadcast = false);
-=======
+
+            =======
             // TODO
             // market_history::get_order_book_return get_order_book( uint32_t limit = 1000 );
             // TODO
             // vector< condenser_api::extended_limit_order > get_open_orders( string accountname );
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Creates a limit order at the price amount_to_sell / min_to_receive and will deduct amount_to_sell from account
@@ -916,14 +1022,23 @@ namespace steemit {
              *  @param expiration the time the order should expire if it has not been filled
              *  @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction create_order(string owner, uint32_t order_id, asset<0, 17, 0> amount_to_sell,
-                                                      asset<0, 17, 0> min_to_receive, bool fill_or_kill, uint32_t expiration,
-=======
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_order(string
+            owner,
+            uint32_t order_id, asset<0, 17, 0>
+            amount_to_sell,
+            asset<0, 17, 0> min_to_receive,
+            bool fill_or_kill, uint32_t
+            expiration,
+            =======
+
             annotated_signed_transaction create_order(string owner, uint32_t order_id, asset amount_to_sell,
                                                       asset min_to_receive, bool fill_or_kill, uint32_t expiration,
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
-                                                      bool broadcast);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast
+            );
 
             /**
              * Cancel an order created with create_order
@@ -932,8 +1047,13 @@ namespace steemit {
              * @param orderid The unique identifier assigned to the order by its creator
              * @param broadcast true if you wish to broadcast the transaction
              */
-<<<<<<< HEAD
-            annotated_signed_transaction cancel_order(string owner, protocol::integral_id_type order_id, bool broadcast);
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            cancel_order(string
+            owner,
+            protocol::integral_id_type order_id,
+            bool broadcast
+            );
 
             /** Place a limit order attempting to sell one asset for another.
              *
@@ -973,7 +1093,9 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction selling the funds
              */
-            signed_transaction sell_asset(string seller_account, asset<0, 17, 0> amount_to_sell, asset<0, 17, 0> amount_to_receive, uint32_t timeout_sec, protocol::integral_id_type order_id, bool fill_or_kill, bool broadcast);
+            signed_transaction sell_asset(string seller_account, asset<0, 17, 0> amount_to_sell,
+                                          asset<0, 17, 0> amount_to_receive, uint32_t timeout_sec,
+                                          protocol::integral_id_type order_id, bool fill_or_kill, bool broadcast);
 
             /** Place a limit order attempting to sell one asset for another.
              *
@@ -991,7 +1113,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network.
              * @returns The signed transaction selling the funds.
              */
-            signed_transaction sell(string seller_account, string base, string quote, double rate, double amount, protocol::integral_id_type order_id, bool broadcast);
+            signed_transaction sell(string seller_account, string base, string quote, double rate, double amount,
+                                    protocol::integral_id_type order_id, bool broadcast);
 
             /** Place a limit order attempting to buy one asset with another.
              *
@@ -1008,7 +1131,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network.
              * @returns The signed transaction selling the funds.
              */
-            signed_transaction buy(string buyer_account, string base, string quote, double rate, double amount, protocol::integral_id_type order_id, bool broadcast);
+            signed_transaction buy(string buyer_account, string base, string quote, double rate, double amount,
+                                   protocol::integral_id_type order_id, bool broadcast);
 
             /** Borrow an asset or update the debt/collateral ratio for the loan.
              *
@@ -1022,8 +1146,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction borrowing the asset
              */
-            signed_transaction borrow_asset(string borrower_name, asset<0, 17, 0> amount_to_borrow, asset<0, 17, 0> amount_of_collateral,
-                                            bool broadcast);
+            signed_transaction borrow_asset(string borrower_name, asset<0, 17, 0> amount_to_borrow,
+                                            asset<0, 17, 0> amount_of_collateral, bool broadcast);
 
             /** Creates a new user-issued or market-issued asset.
              *
@@ -1047,7 +1171,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction creating a new asset
              */
-            signed_transaction create_asset(string issuer, string symbol, uint8_t precision, asset_options<0, 17, 0> common,
+            signed_transaction create_asset(string issuer, string symbol, uint8_t precision,
+                                            asset_options<0, 17, 0> common,
                                             fc::optional<bitasset_options> bitasset_opts, bool broadcast = false);
 
             /** Issue new shares of an asset.
@@ -1058,7 +1183,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction issuing the new shares
              */
-            signed_transaction issue_asset(string to_account, asset<0, 17, 0> amount, string memo, bool broadcast = false);
+            signed_transaction issue_asset(string to_account, asset<0, 17, 0> amount, string memo,
+                                           bool broadcast = false);
 
             /** Update the core options on an asset.
              * There are a number of options which all assets in the network use. These options are
@@ -1076,8 +1202,8 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction updating the asset
              */
-            signed_transaction update_asset(string symbol, optional<string> new_issuer, asset_options<0, 17, 0> new_options,
-                                            bool broadcast = false);
+            signed_transaction update_asset(string symbol, optional<string> new_issuer,
+                                            asset_options<0, 17, 0> new_options, bool broadcast = false);
 
             /** Update the options specific to a BitAsset.
              *
@@ -1215,10 +1341,16 @@ namespace steemit {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction changing the whitelisting status
              */
-            signed_transaction whitelist_account(string authorizing_account, string account_to_list, account_whitelist_operation<0, 17, 0>::account_listing new_listing_status, bool broadcast = false);
-=======
+            signed_transaction whitelist_account(string authorizing_account, string account_to_list,
+                                                 account_whitelist_operation<0, 17,
+                                                         0>::account_listing new_listing_status,
+                                                 bool broadcast = false);
+
+            =======
+
             annotated_signed_transaction cancel_order(string owner, uint32_t orderid, bool broadcast);
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Post or update a comment.
@@ -1235,7 +1367,9 @@ namespace steemit {
             annotated_signed_transaction post_comment(string author, string permlink, string parent_author,
                                                       string parent_permlink, string title, string body, string json,
                                                       bool broadcast);
-<<<<<<< HEAD
+
+            <<<<<<<
+            HEAD
 
             /**
              * Extend the comment payout window by passing the required SBD to spend
@@ -1246,8 +1380,14 @@ namespace steemit {
              * @param extension_cost SBD amount payer will spend on payout window extension
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction extend_payout_by_cost(string payer, string author, string permlink,
-                                                               asset<0, 17, 0> extension_cost, bool broadcast);
+                    annotated_signed_transaction
+            extend_payout_by_cost(string
+            payer,
+            string author, string
+            permlink,
+            asset<0, 17, 0> extension_cost,
+            bool broadcast
+            );
 
             /**
              * Extend the comment payout window by passing the required SBD to spend
@@ -1279,7 +1419,7 @@ namespace steemit {
              * @param limit amount of messages to retrieve
              * @return message api objects vector
              */
-            vector<extended_message_object> get_inbox(string account, fc::time_point newest, uint32_t limit);
+            vector <extended_message_object> get_inbox(string account, fc::time_point newest, uint32_t limit);
 
             /**
              * Retrieves the private message outbox for the account mentioned
@@ -1288,9 +1428,10 @@ namespace steemit {
              * @param limit amount of messages to retrieve
              * @return message api objects vector
              */
-            vector<extended_message_object> get_outbox(string account, fc::time_point newest, uint32_t limit);
-=======
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            vector <extended_message_object> get_outbox(string account, fc::time_point newest, uint32_t limit);
+
+            =======
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Vote on a comment to be paid steemit
@@ -1357,7 +1498,7 @@ namespace steemit {
             annotated_signed_transaction change_recovery_account(string owner, string new_recovery_account,
                                                                  bool broadcast);
 
-            vector<database_api::owner_authority_history_api_object> get_owner_history(string account) const;
+            vector <database_api::owner_authority_history_api_object> get_owner_history(string account) const;
 
             /**
              * Prove an account's active authority, fulfilling a challenge, restoring posting rights, and making
@@ -1384,7 +1525,7 @@ namespace steemit {
              *
              *  @param what - a set of things to follow: posts, comments, votes, ignore
              */
-            annotated_signed_transaction follow(string follower, string following, set<string> what, bool broadcast);
+            annotated_signed_transaction follow(string follower, string following, set <string> what, bool broadcast);
 
 
             std::map<string, std::function<string(fc::variant, const fc::variants &)>> get_result_formatters() const;
@@ -1411,7 +1552,8 @@ namespace steemit {
 
             annotated_signed_transaction decline_voting_rights(string account, bool decline, bool broadcast);
 
-<<<<<<< HEAD
+            <<<<<<<
+            HEAD
             /** Approve or disapprove a proposal.
              *
              * @param owner The account paying the fee for the op.
@@ -1420,8 +1562,10 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
-            signed_transaction approve_proposal(const string &owner, integral_id_type proposal_id,
-                                                const approval_delta &delta, bool broadcast /* = false */
+                    signed_transaction
+
+            approve_proposal(const string &owner, integral_id_type proposal_id, const approval_delta &delta,
+                             bool broadcast /* = false */
             );
 
             /**
@@ -1468,9 +1612,10 @@ namespace steemit {
              * @ingroup Transaction Builder API
              */
             void remove_builder_transaction(transaction_handle_type handle);
-=======
+
+            =======
             // annotated_signed_transaction claim_reward_balance( string account, asset reward_steemit, asset reward_sbd, asset reward_vests, bool broadcast );
->>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
         };
 
         struct plain_keys {
