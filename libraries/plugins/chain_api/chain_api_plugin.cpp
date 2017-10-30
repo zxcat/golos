@@ -2,7 +2,7 @@
 #include <steemit/plugins/chain_api/chain_api.hpp>
 
 
-namespace steemit { namespace plugins { namespace chain {
+namespace steemit { namespace plugins { namespace chain_interface {
 
 chain_api_plugin::chain_api_plugin() {}
 chain_api_plugin::~chain_api_plugin() {}

@@ -5,7 +5,7 @@
 
 #include <fc/optional.hpp>
 
-namespace steemit { namespace plugins { namespace chain {
+namespace steemit { namespace plugins { namespace chain_interface {
 
 namespace detail { class chain_api_impl; }
 
@@ -47,6 +47,6 @@ class chain_api
 
 } } } // steemit::plugins::chain
 
-FC_REFLECT( steemit::plugins::chain::push_block_args, (block)(currently_syncing) )
-FC_REFLECT( steemit::plugins::chain::push_block_return, (success)(error) )
-FC_REFLECT( steemit::plugins::chain::push_transaction_return, (success)(error) )
+FC_REFLECT( (steemit::plugins::chain_interface::push_block_args), (block)(currently_syncing) )
+FC_REFLECT( (steemit::plugins::chain_interface::push_block_return), (success)(error) )
+FC_REFLECT( (steemit::plugins::chain_interface::push_transaction_return), (success)(error) )
