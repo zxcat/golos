@@ -135,7 +135,7 @@ namespace steemit {
             uint64_t get_witness_count()const ;
 
             // Balances
-            vector<asset> get_account_balances(account_name_type account_name, const flat_set<asset_name_type> &assets) const;
+            vector<asset<0,17,0>> get_account_balances(account_name_type account_name, const flat_set<asset_name_type> &assets) const;
 
             // Assets
             vector<optional<asset_object>> get_assets(const vector<asset_name_type> &asset_symbols)const;
@@ -385,7 +385,7 @@ namespace steemit {
         }
 
             database_api::database_api_impl::database_api_impl()
-                    :_db( appbase::app().get_plugin< steemit::plugins::chain::chain_plugin >().db() ){
+                    :_db( appbase::app().get_plugin< chain_interface::chain_plugin >().db() ){
             wlog("creating database api ${x}", ("x", int64_t(this)));
 
             try {
@@ -553,32 +553,33 @@ namespace steemit {
         }
 
         std::vector<extended_account> database_api::database_api_impl::get_accounts(std::vector<std::string> names) const {
-                const auto &idx =  database().get_index<account_index>().indices().get<by_name>();
-                const auto &vidx = database().get_index<witness_vote_index>().indices().get<by_account_witness>();
-                std::vector<extended_account> results;
+            const auto &idx = database().get_index<account_index>().indices().get<by_name>();
+            const auto &vidx =database().get_index<witness_vote_index>().indices().get<by_account_witness>();
+            std::vector<extended_account> results;
 
-                for (auto name: names) {
-                    auto itr = idx.find(name);
-                    if (itr != idx.end()) {
-                        results.push_back(extended_account(*itr, database()));
+            for (auto name: names) {
+                auto itr = idx.find(name);
+                if (itr != idx.end()) {
+                    results.push_back(extended_account(*itr, database()));
 
-                        if (_follow_api) {
-                            follow_api::get_account_reputations_args args;
-                            args.account_lower_bound=itr->name;
-                            args.limit=1;
-                            results.back().reputation = _follow_api->get_account_reputations(args).reputations[0].reputation;
-                        }
+                    if (_follow_api) {
+                        follow_api::get_account_reputations_args args;
+                        args.account_lower_bound=itr->name;
+                        args.limit=1;
+                        results.back().reputation = _follow_api->get_account_reputations(args).reputations[0].reputation;
+                    }
 
-                        auto vitr = vidx.lower_bound(boost::make_tuple(itr->id, witness_object::id_type()));
-                        while (vitr != vidx.end() && vitr->account == itr->id) {
-                            results.back().witness_votes.insert(database().get(vitr->witness).owner);
-                            ++vitr;
-                        }
+                    auto vitr = vidx.lower_bound(boost::make_tuple(itr->name, account_name_type()));
+                    while (vitr != vidx.end() && vitr->account == itr->name) {
+                        results.back().witness_votes.insert(_db.get_witness(vitr->witness).owner);
+                        ++vitr;
                     }
                 }
+            }
 
-                return results;
+            return results;
         }
+
 
         DEFINE_API(database_api,lookup_account_names){
             CHECK_ARG_SIZE( 1 )
@@ -899,13 +900,13 @@ namespace steemit {
             return my->get_account_balances(name, assets);
         }
 
-        vector<asset> database_api::database_api_impl::get_account_balances(account_name_type acnt, const flat_set<asset_name_type> &assets) const {
-            vector<asset> result;
+        vector<asset<0,17,0>> database_api::database_api_impl::get_account_balances(account_name_type acnt, const flat_set<asset_name_type> &assets) const {
+            vector<asset<0,17,0>> result;
             if (assets.empty()) {
                 // if the caller passes in an empty list of assets, return balances for all assets the account owns
                 auto range = database().get_index<account_balance_index>().indices().get<by_account_asset>().equal_range(boost::make_tuple(acnt));
                 for (const account_balance_object &balance : boost::make_iterator_range(range.first, range.second)) {
-                    result.push_back(asset(balance.get_balance()));
+                    result.push_back(asset<0,17,0>(balance.get_balance()));
                 }
             } else {
                 result.reserve(assets.size());
@@ -1181,7 +1182,7 @@ namespace steemit {
 
             /// reuse trx.verify_authority by creating a dummy transfer
             signed_transaction trx;
-            transfer_operation op;
+            transfer_operation<0,17,0> op;
             op.from = account->name;
             trx.operations.emplace_back(op);
 
@@ -1305,12 +1306,12 @@ namespace steemit {
             const auto &cidx = database().get_index<tags::tag_index>().indices().get<tags::by_comment>();
             auto itr = cidx.lower_bound(d.id);
             if (itr != cidx.end() && itr->comment == d.id) {
-                d.promoted = asset(itr->promoted_balance, SBD_SYMBOL);
+                d.promoted = asset<0,17,0>(itr->promoted_balance, SBD_SYMBOL);
             }
 
             const auto &props = database().get_dynamic_global_properties();
             const auto &hist = database().get_feed_history();
-            asset pot;
+            asset<0,17,0> pot;
             if (database().has_hardfork(STEEMIT_HARDFORK_0_17__91)) {
                 pot = database().get_reward_fund(database().get_comment(d.author, d.permlink)).reward_balance;
             } else {
@@ -1350,8 +1351,8 @@ namespace steemit {
                 tpp *= pot.amount.value;
                 tpp /= total_r2;
 
-                d.pending_payout_value = asset(static_cast<uint64_t>(r2), pot.symbol);
-                d.total_pending_payout_value = asset(static_cast<uint64_t>(tpp), pot.symbol);
+                d.pending_payout_value = asset<0,17,0>(static_cast<uint64_t>(r2), pot.symbol);
+                d.total_pending_payout_value = asset<0,17,0>(static_cast<uint64_t>(tpp), pot.symbol);
 
                 if (_follow_api) {
                     follow_api::get_account_reputations_args args;
@@ -1507,7 +1508,7 @@ namespace steemit {
             CHECK_ARG_SIZE( 3 )
             auto author   = args[0].as<string>();
             auto permlink = args[1].as<string>();
-            auto cost     = args[0].as<asset>();
+            auto cost     = args[0].as<asset<0,17,0>>();
             return my->database().get_payout_extension_time(my->database().get_comment(author, permlink), cost);
         }
 
@@ -1661,7 +1662,7 @@ namespace steemit {
 
                 try {
                     discussion insert_discussion = get_discussion(tidx_itr->comment, query.truncate_body);
-                    insert_discussion.promoted = asset(tidx_itr->promoted_balance, SBD_SYMBOL);
+                    insert_discussion.promoted = asset<0,17,0>(tidx_itr->promoted_balance, SBD_SYMBOL);
 
                     if (filter(insert_discussion)) {
                         ++filter_count;

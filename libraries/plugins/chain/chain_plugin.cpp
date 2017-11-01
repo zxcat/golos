@@ -1,5 +1,5 @@
 #include <steemit/chain/database_exceptions.hpp>
-
+#include <steemit/chain/database.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
 
 #include <fc/io/json.hpp>
@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include <steemit/protocol/protocol.hpp>
-namespace steemit { namespace plugins { namespace chain {
+namespace steemit { namespace plugins { namespace chain_interface {
 
 using namespace steemit;
 using fc::flat_map;
@@ -25,11 +25,11 @@ class chain_plugin_impl {
       bool                             check_locks = false;
       bool                             validate_invariants = false;
       uint32_t                         flush_interval = 0;
-      flat_map<uint32_t,block_id_type> loaded_checkpoints;
+      flat_map<uint32_t,protocol::block_id_type> loaded_checkpoints;
 
       uint32_t allow_future_time = 5;
 
-      database  db;
+    steemit::chain::database  db;
 };
 
 } // detail
@@ -37,8 +37,8 @@ class chain_plugin_impl {
 chain_plugin::chain_plugin() : my( new detail::chain_plugin_impl() ) {}
 chain_plugin::~chain_plugin(){}
 
-database& chain_plugin::db() { return my->db; }
-const database& chain_plugin::db() const { return my->db; }
+steemit::chain::database& chain_plugin::db() { return my->db; }
+const steemit::chain::database& chain_plugin::db() const { return my->db; }
 
 void chain_plugin::set_program_options(options_description& cli, options_description& cfg) {
    cfg.add_options()
@@ -83,7 +83,7 @@ void chain_plugin::plugin_initialize(const variables_map& options) {
       auto cps = options.at("checkpoint").as<vector<string>>();
       my->loaded_checkpoints.reserve(cps.size());
       for(const auto& cp : cps) {
-         auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type>>();
+         auto item = fc::json::from_string(cp).as<std::pair<uint32_t,protocol::block_id_type>>();
          my->loaded_checkpoints[item.first] = item.second;
       }
    }
@@ -116,7 +116,7 @@ void chain_plugin::plugin_startup() {
          try {
             my->db.reindex( app().data_dir() / "blockchain", my->shared_memory_dir, my->shared_memory_size );
          }
-         catch( block_log_exception& ) {
+         catch( steemit::chain::block_log& ) {
             wlog( "Error opening block log. Having to resync from network..." );
             my->db.open( app().data_dir() / "blockchain", my->shared_memory_dir, 0, my->shared_memory_size, chainbase::database::read_write/*, my->validate_invariants*/ );
          }
@@ -133,7 +133,7 @@ void chain_plugin::plugin_shutdown() {
    ilog("database closed successfully");
 }
 
-bool chain_plugin::accept_block( const signed_block& block, bool currently_syncing, uint32_t skip ) {
+bool chain_plugin::accept_block( const protocol::signed_block& block, bool currently_syncing, uint32_t skip ) {
    if (currently_syncing && block.block_num() % 10000 == 0) {
       ilog("Syncing Blockchain --- Got block: #${n} time: ${t} producer: ${p}",
            ("t", block.timestamp)
@@ -146,20 +146,20 @@ bool chain_plugin::accept_block( const signed_block& block, bool currently_synci
    return db().push_block(block, skip);
 }
 
-void chain_plugin::accept_transaction( const signed_transaction& trx ) {
+void chain_plugin::accept_transaction( const protocol::signed_transaction& trx ) {
    db().push_transaction(trx);
 }
 
-bool chain_plugin::block_is_on_preferred_chain(const block_id_type& block_id ) {
+bool chain_plugin::block_is_on_preferred_chain(const protocol::block_id_type& block_id ) {
    // If it's not known, it's not preferred.
    if( !db().is_known_block(block_id) ) return false;
 
    // Extract the block number from block_id, and fetch that block number's ID from the database.
    // If the database's block ID matches block_id, then block_id is on the preferred chain. Otherwise, it's on a fork.
-   return db().get_block_id_for_num( block_header::num_from_id( block_id ) ) == block_id;
+   return db().get_block_id_for_num( protocol::block_header::num_from_id( block_id ) ) == block_id;
 }
 
-void chain_plugin::check_time_in_block( const signed_block& block ) {
+void chain_plugin::check_time_in_block( const protocol::signed_block& block ) {
    time_point_sec now = fc::time_point::now();
 
    uint64_t max_accept_time = now.sec_since_epoch();

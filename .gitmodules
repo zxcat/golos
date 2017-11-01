@@ -4,12 +4,6 @@
 [submodule "frameworks/chainbase"]
 	path = frameworks/chainbase
 	url = https://github.com/GolosChain/chainbase.git
-[submodule "frameworks/libcds"]
-	path = frameworks/libcds
-	url = https://github.com/khizmax/libcds.git
-[submodule "frameworks/cld2"]
-	path = frameworks/cld2
-	url = https://github.com/CLD2Owners/cld2.git
 [submodule "frameworks/appbase"]
 	path = frameworks/appbase
 	url = https://github.com/GolosChain/appbase.git

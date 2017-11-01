@@ -68,7 +68,7 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
             private:
                 p2p::p2p_plugin&                                      _p2p;
-                chain::chain_plugin&                                  _chain;
+                chain_interface::chain_plugin&                        _chain;
                 map< transaction_id_type, confirmation_callback >     _callbacks;
                 map< time_point_sec, vector< transaction_id_type > >  _callback_expirations;
                 boost::mutex                                          _mtx;
@@ -76,11 +76,11 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
         } } }
 
-FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_transaction_args,
+FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_transaction_args),
             (trx)(max_block_age) )
 
-FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_block_args,
+FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_block_args),
             (block) )
 
-FC_REFLECT( steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_return,
+FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_return),
             (id)(block_num)(trx_num)(expired) )

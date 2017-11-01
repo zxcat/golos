@@ -44,4 +44,4 @@ struct void_type {};
 
 } } } // steem::plugins::json_rpc
 
-FC_REFLECT( steemit::plugins::json_rpc::void_type, )
+FC_REFLECT( (steemit::plugins::json_rpc::void_type), )

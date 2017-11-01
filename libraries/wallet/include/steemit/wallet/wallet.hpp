@@ -78,7 +78,8 @@ namespace steemit {
          */
         class wallet_api {
         public:
-            wallet_api(const wallet_data &initial_data, fc::api<steemit::wallet::remote_node_api> rapi);
+            wallet_api(const wallet_data &initial_data, const steemit::protocol::chain_id_type &_steem_chain_id,
+                       fc::api<remote_node_api> rapi);
 
             virtual ~wallet_api();
 
@@ -132,10 +133,21 @@ namespace steemit {
             vector<account_name_type> get_active_witnesses() const;
 
             /**
-             * Returns the state info associated with the URL
+<<<<<<< HEAD
+             * Returns the queue of pow miners waiting to produce blocks.
              */
+            vector<account_name_type> get_miner_queue() const;
+
+            =======
+            *
+            Returns the
+            state info
+            associated with
+            the URL
+            */
             // TODO
             // condenser_api::state get_state( string url );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Returns vesting withdraw routes for an account.
@@ -163,7 +175,36 @@ namespace steemit {
              * @param limit the maximum number of accounts to return (max: 1000)
              * @returns a list of accounts mapping account names to account ids
              */
+            <<<<<<<
+            HEAD set<string>
+
+            list_accounts(const string &lowerbound, uint32_t limit);
+
+            /** List the balances of an account.
+             * Each account can have multiple balances, one for each type of asset owned by that
+             * account.  The returned list will only contain assets for which the account has a
+             * nonzero balance
+             * @param account_name the name or id of the account whose balances you want
+             * @returns a list of the given account's balances
+             */
+            vector<asset<0, 17, 0>> list_account_balances(const account_name_type &account_name);
+
+            /** Lists all assets registered on the blockchain.
+             *
+             * To list all assets, pass the empty string \c "" for the lowerbound to start
+             * at the beginning of the list, and iterate as necessary.
+             *
+             * @param lowerbound  the symbol of the first asset to include in the list.
+             * @param limit the maximum number of assets to return (max: 100)
+             * @returns the list of asset objects, ordered by symbol
+             */
+            vector<asset_object> list_assets(const string &lowerbound, uint32_t limit) const;
+
+            =======
+
             vector<account_name_type> list_accounts(const string &lowerbound, uint32_t limit);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns the block chain's rapidly-changing properties.
              * The returned object contains information that changes every block interval
@@ -171,7 +212,16 @@ namespace steemit {
              * @see \c get_global_properties() for less-frequently changing properties
              * @returns the dynamic global properties
              */
+            <<<<<<<
+            HEAD dynamic_global_property_object
+
+            get_dynamic_global_properties() const;
+
+            =======
+
             database_api::dynamic_global_property_object get_dynamic_global_properties() const;
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Returns information about the given account.
              *
@@ -382,9 +432,22 @@ namespace steemit {
              *  @param json_meta JSON Metadata associated with the new account
              *  @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_account_delegated(string
+            creator,
+            asset<0, 17, 0> steem_fee, asset<0, 17, 0>
+            delegated_vests,
+            string new_account_name,
+            =======
+
             annotated_signed_transaction create_account_delegated(string creator, asset steemit_fee,
                                                                   asset delegated_vests, string new_account_name,
-                                                                  string json_meta, bool broadcast);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            string json_meta,
+            bool broadcast
+            );
 
             /**
              * This method is used by faucets to create new accounts for other users which must
@@ -405,12 +468,26 @@ namespace steemit {
              * @param memo public memo key of the new account
              * @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_account_with_keys_delegated(string
+            creator,
+            asset<0, 17, 0> steem_fee, asset<0, 17, 0>
+            delegated_vests,
+            string newname,
+            =======
+
             annotated_signed_transaction create_account_with_keys_delegated(string creator, asset steemit_fee,
                                                                             asset delegated_vests, string newname,
-                                                                            string json_meta, public_key_type owner,
-                                                                            public_key_type active,
-                                                                            public_key_type posting,
-                                                                            public_key_type memo, bool broadcast) const;
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            string json_meta, public_key_type
+            owner,
+            public_key_type active, public_key_type
+            posting,
+            public_key_type memo,
+            bool broadcast
+            ) const;
 
             /**
              * This method updates the keys of an existing account.
@@ -493,6 +570,10 @@ namespace steemit {
             annotated_signed_transaction update_account_memo_key(string account_name, public_key_type key,
                                                                  bool broadcast);
 
+            <<<<<<< HEAD
+            =======
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * This method delegates VESTS from one account to another.
@@ -502,9 +583,20 @@ namespace steemit {
              * @param vesting_shares The amount of VESTS to delegate
              * @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            delegate_vesting_shares(string
+            delegator,
+            string delegatee, asset<0, 17, 0>
+            vesting_shares,
+            bool broadcast
+            );
+            =======
+
             annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee,
                                                                  asset vesting_shares, bool broadcast);
 
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  This method is used to convert a JSON transaction to its transaction ID.
@@ -540,7 +632,15 @@ namespace steemit {
              *
              * @returns All pending conversion requests by account
              */
-            vector<database_api::convert_request_api_object> get_conversion_requests(string owner);
+            <<<<<<<
+            HEAD vector<convert_request_object>
+            get_conversion_requests(string
+            owner);
+            =======
+
+            vector <database_api::convert_request_api_object> get_conversion_requests(string owner);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
 
             /**
@@ -554,7 +654,17 @@ namespace steemit {
              */
             annotated_signed_transaction update_witness(string witness_name, string url,
                                                         public_key_type block_signing_key,
-                                                        const chain_properties &props, bool broadcast = false);
+
+            <<<<<<<
+            HEAD const chain_properties<0, 17, 0>
+            &props,
+            bool broadcast = false
+            );
+            =======
+            const chain_properties &props,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /** Set the voting proxy for an account.
              *
@@ -597,8 +707,20 @@ namespace steemit {
              * @param memo A memo for the transactionm, encrypted with the to account's public memo key
              * @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            string memo,
+            =======
+
             annotated_signed_transaction transfer(string from, string to, asset amount, string memo,
-                                                  bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              * Transfer funds from one account to another using escrow. steemit and SBD can be transferred.
@@ -616,10 +738,22 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_transfer(string from, string to, string agent, uint32_t escrow_id,
-                                                         asset sbd_amount, asset steemit_amount, asset fee,
-                                                         time_point_sec ratification_deadline,
-                                                         time_point_sec escrow_expiration, string json_meta,
-                                                         bool broadcast = false);
+
+            <<<<<<<
+            HEAD asset<0, 17, 0>
+            sbd_amount,
+            asset<0, 17, 0> steem_amount, asset<0, 17, 0>
+            fee,
+            =======
+            asset sbd_amount, asset
+            steemit_amount,
+            asset fee,
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            time_point_sec ratification_deadline, time_point_sec
+            escrow_expiration,
+            string json_meta,
+            bool broadcast = false
+            );
 
             /**
              * Approve a proposed escrow transfer. Funds cannot be released until after approval. This is in lieu of requiring
@@ -663,8 +797,23 @@ namespace steemit {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction escrow_release(string from, string to, string agent, string who,
-                                                        string receiver, uint32_t escrow_id, asset sbd_amount,
-                                                        asset steemit_amount, bool broadcast = false);
+
+            <<<<<<<
+            HEAD string
+            receiver,
+            uint32_t escrow_id, asset<0, 17, 0>
+            sbd_amount,
+            asset<0, 17, 0> steem_amount,
+            bool broadcast = false
+            );
+            =======
+            string receiver, uint32_t
+            escrow_id,
+            asset sbd_amount, asset
+            steemit_amount,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Transfer steemit into a vesting fund represented by vesting shares (VESTS). VESTS are required to vesting
@@ -676,20 +825,55 @@ namespace steemit {
              * @param amount The amount of steemit to vest i.e. "100.00 steemit"
              * @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer_to_vesting(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            =======
+
             annotated_signed_transaction transfer_to_vesting(string from, string to, asset amount,
-                                                             bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              *  Transfers into savings happen immediately, transfers from savings take 72 hours
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            transfer_to_savings(string
+            from,
+            string to, asset<0, 17, 0>
+            amount,
+            string memo,
+            =======
+
             annotated_signed_transaction transfer_to_savings(string from, string to, asset amount, string memo,
-                                                             bool broadcast = false);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast = false
+            );
 
             /**
              * @param request_id - an unique ID assigned by from account, the id is used to cancel the operation and can be reused after the transfer completes
              */
             annotated_signed_transaction transfer_from_savings(string from, uint32_t request_id, string to,
-                                                               asset amount, string memo, bool broadcast = false);
+
+            <<<<<<<
+            HEAD asset<0, 17, 0>
+            amount,
+            string memo,
+            bool broadcast = false
+            );
+            =======
+            asset amount, string
+            memo,
+            bool broadcast = false
+            );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  @param request_id the id used in transfer_from_savings
@@ -707,7 +891,8 @@ namespace steemit {
              *    withdrawn and deposited back as steemit. i.e. "10.000000 VESTS"
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction withdraw_vesting(string from, asset vesting_shares, bool broadcast = false);
+            annotated_signed_transaction withdraw_vesting(string from, asset<0, 17, 0> vesting_shares,
+                                                          bool broadcast = false);
 
             /**
              * Set up a vesting withdraw route. When vesting shares are withdrawn, they will be routed to these accounts
@@ -732,7 +917,7 @@ namespace steemit {
              *  @param amount The amount of SBD to convert
              *  @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction convert_sbd(string from, asset amount, bool broadcast = false);
+            annotated_signed_transaction convert_sbd(string from, asset<0, 17, 0> amount, bool broadcast = false);
 
             /**
              * A witness can public a price feed for the steemit:SBD market. The median price feed is used
@@ -742,7 +927,7 @@ namespace steemit {
              * @param exchange_rate The desired exchange rate
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction publish_feed(string witness, price exchange_rate, bool broadcast);
+            annotated_signed_transaction publish_feed(string witness, price<0, 17, 0> exchange_rate, bool broadcast);
 
             /** Signs a transaction.
              *
@@ -777,10 +962,54 @@ namespace steemit {
              *
              * @param limit Maximum number of orders to return for bids and asks. Max is 1000.
              */
+            <<<<<<<
+            HEAD
+                    market_history::order_book
+
+            get_order_book(const string &base, const string &quote, unsigned limit = 50);
+
+            vector <extended_limit_order> get_limit_orders_by_owner(string account_name);
+
+            vector <call_order_object> get_call_orders_by_owner(string account_name);
+
+            vector <force_settlement_object> get_settle_orders_by_owner(string account_name);
+
+            /** Returns the collateral_bid object for the given MPA
+             *
+             * @param asset the name or id of the asset
+             * @param limit the number of entries to return
+             * @param start the sequence number where to start looping back throw the history
+             * @returns a list of \c collateral_bid_objects
+             */
+            vector <collateral_bid_object> get_collateral_bids(string asset, uint32_t limit = 100,
+                                                               uint32_t start = 0) const;
+
+            /** Creates or updates a bid on an MPA after global settlement.
+             *
+             * In order to revive a market-pegged asset after global settlement (aka
+             * black swan), investors can bid collateral in order to take over part of
+             * the debt and the settlement fund, see BSIP-0018. Updating an existing
+             * bid to cover 0 debt will delete the bid.
+             *
+             * @param bidder_name the name or id of the account making the bid
+             * @param debt_amount the amount of debt of the named asset to bid for
+             * @param debt_symbol the name or id of the MPA to bid for
+             * @param additional_collateral the amount of additional collateral to bid
+             *        for taking over debt_amount. The asset type of this amount is
+             *        determined automatically from debt_symbol.
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction creating/updating the bid
+             */
+
+            signed_transaction bid_collateral(string bidder_name, string debt_amount, string debt_symbol,
+                                              string additional_collateral, bool broadcast = false);
+
+            =======
             // TODO
             // market_history::get_order_book_return get_order_book( uint32_t limit = 1000 );
             // TODO
             // vector< condenser_api::extended_limit_order > get_open_orders( string accountname );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Creates a limit order at the price amount_to_sell / min_to_receive and will deduct amount_to_sell from account
@@ -793,9 +1022,23 @@ namespace steemit {
              *  @param expiration the time the order should expire if it has not been filled
              *  @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            create_order(string
+            owner,
+            uint32_t order_id, asset<0, 17, 0>
+            amount_to_sell,
+            asset<0, 17, 0> min_to_receive,
+            bool fill_or_kill, uint32_t
+            expiration,
+            =======
+
             annotated_signed_transaction create_order(string owner, uint32_t order_id, asset amount_to_sell,
                                                       asset min_to_receive, bool fill_or_kill, uint32_t expiration,
-                                                      bool broadcast);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+            bool broadcast
+            );
 
             /**
              * Cancel an order created with create_order
@@ -804,7 +1047,310 @@ namespace steemit {
              * @param orderid The unique identifier assigned to the order by its creator
              * @param broadcast true if you wish to broadcast the transaction
              */
+            <<<<<<<
+            HEAD annotated_signed_transaction
+            cancel_order(string
+            owner,
+            protocol::integral_id_type order_id,
+            bool broadcast
+            );
+
+            /** Place a limit order attempting to sell one asset for another.
+             *
+             * Buying and selling are the same operation on Graphene; if you want to buy GOLOS
+             * with USD, you should sell USD for GOLOS.
+             *
+             * The blockchain will attempt to sell the \c symbol_to_sell for as
+             * much \c symbol_to_receive as possible, as long as the price is at
+             * least \c min_to_receive / \c amount_to_sell.
+             *
+             * In addition to the transaction fees, market fees will apply as specified
+             * by the issuer of both the selling asset and the receiving asset as
+             * a percentage of the amount exchanged.
+             *
+             * If either the selling asset or the receiving asset is whitelist
+             * restricted, the order will only be created if the seller is on
+             * the whitelist of the restricted asset type.
+             *
+             * Market orders are matched in the order they are included
+             * in the block chain.
+             *
+             * @todo Allow order expiration to be set here.  Document default/max expiration time
+             *
+             * @param seller_account the account providing the asset being sold, and which will
+             *                       receive the proceeds of the sale.
+             * @param amount_to_sell the amount of the asset being sold to sell (in nominal units)
+             * @param amount_to_receive the minimum amount you are willing to receive in return for
+             *                       selling the entire amount_to_sell
+             * @param timeout_sec if the order does not fill immediately, this is the length of
+             *                    time the order will remain on the order books before it is
+             *                    cancelled and the un-spent funds are returned to the seller's
+             *                    account
+             * @param fill_or_kill if true, the order will only be included in the blockchain
+             *                     if it is filled immediately; if false, an open order will be
+             *                     left on the books to fill any amount that cannot be filled
+             *                     immediately.
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction selling the funds
+             */
+            signed_transaction sell_asset(string seller_account, asset<0, 17, 0> amount_to_sell,
+                                          asset<0, 17, 0> amount_to_receive, uint32_t timeout_sec,
+                                          protocol::integral_id_type order_id, bool fill_or_kill, bool broadcast);
+
+            /** Place a limit order attempting to sell one asset for another.
+             *
+             * This API call abstracts away some of the details of the sell_asset call to be more
+             * user friendly. All orders placed with sell never timeout and will not be killed if they
+             * cannot be filled immediately. If you wish for one of these parameters to be different,
+             * then sell_asset should be used instead.
+             *
+             * @param seller_account the account providing the asset being sold, and which will
+             *                       receive the processed of the sale.
+             * @param base The name or id of the asset to sell.
+             * @param quote The name or id of the asset to recieve.
+             * @param rate The rate in base:quote at which you want to sell.
+             * @param amount The amount of base you want to sell.
+             * @param broadcast true to broadcast the transaction on the network.
+             * @returns The signed transaction selling the funds.
+             */
+            signed_transaction sell(string seller_account, string base, string quote, double rate, double amount,
+                                    protocol::integral_id_type order_id, bool broadcast);
+
+            /** Place a limit order attempting to buy one asset with another.
+             *
+             * This API call abstracts away some of the details of the sell_asset call to be more
+             * user friendly. All orders placed with buy never timeout and will not be killed if they
+             * cannot be filled immediately. If you wish for one of these parameters to be different,
+             * then sell_asset should be used instead.
+             *
+             * @param buyer_account The account buying the asset for another asset.
+             * @param base The name or id of the asset to buy.
+             * @param quote The name or id of the assest being offered as payment.
+             * @param rate The rate in base:quote at which you want to buy.
+             * @param amount the amount of base you want to buy.
+             * @param broadcast true to broadcast the transaction on the network.
+             * @returns The signed transaction selling the funds.
+             */
+            signed_transaction buy(string buyer_account, string base, string quote, double rate, double amount,
+                                   protocol::integral_id_type order_id, bool broadcast);
+
+            /** Borrow an asset or update the debt/collateral ratio for the loan.
+             *
+             * This is the first step in shorting an asset.  Call \c sell_asset() to complete the short.
+             * @param borrower_name the name or id of the account associated with the transaction.
+             * @param amount_to_borrow the amount of the asset being borrowed.
+             * Make this value negative to pay back debt.
+             * @param amount_of_collateral the amount of the backing asset to add to your collateral
+             *        position.  Make this negative to claim back some of your collateral.
+             *        The backing asset is defined in the \c bitasset_options for the asset being borrowed.
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction borrowing the asset
+             */
+            signed_transaction borrow_asset(string borrower_name, asset<0, 17, 0> amount_to_borrow,
+                                            asset<0, 17, 0> amount_of_collateral, bool broadcast);
+
+            /** Creates a new user-issued or market-issued asset.
+             *
+             * Many options can be changed later using \c update_asset()
+             *
+             * Right now this function is difficult to use because you must provide raw JSON data
+             * structures for the options objects, and those include prices and asset ids.
+             *
+             * @param issuer the name or id of the account who will pay the fee and become the
+             *               issuer of the new asset.  This can be updated later
+             * @param symbol the ticker symbol of the new asset
+             * @param precision the number of digits of precision to the right of the decimal point,
+             *                  must be less than or equal to 12
+             * @param common asset options required for all new assets.
+             *               Note that core_exchange_rate technically needs to store the asset ID of
+             *               this new asset. Since this ID is not known at the time this operation is
+             *               created, create this price as though the new asset has instance ID 1, and
+             *               the chain will overwrite it with the new asset's ID.
+             * @param bitasset_opts options specific to BitAssets.  This may be null unless the
+             *               \c market_issued flag is set in common.flags
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction creating a new asset
+             */
+            signed_transaction create_asset(string issuer, string symbol, uint8_t precision,
+                                            asset_options<0, 17, 0> common,
+                                            fc::optional<bitasset_options> bitasset_opts, bool broadcast = false);
+
+            /** Issue new shares of an asset.
+             *
+             * @param to_account the name or id of the account to receive the new shares
+             * @param amount the amount to issue, in nominal units
+             * @param memo a memo to include in the transaction, readable by the recipient
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction issuing the new shares
+             */
+            signed_transaction issue_asset(string to_account, asset<0, 17, 0> amount, string memo,
+                                           bool broadcast = false);
+
+            /** Update the core options on an asset.
+             * There are a number of options which all assets in the network use. These options are
+             * enumerated in the asset_object::asset_options<0, 17, 0> struct. This command is used to update
+             * these options for an existing asset.
+             *
+             * @note This operation cannot be used to update BitAsset-specific options. For these options,
+             * \c update_bitasset() instead.
+             *
+             * @param symbol the name or id of the asset to update
+             * @param new_issuer if changing the asset's issuer, the name or id of the new issuer.
+             *                   null if you wish to remain the issuer of the asset
+             * @param new_options the new asset_options<0, 17, 0> object, which will entirely replace the existing
+             *                    options.
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction updating the asset
+             */
+            signed_transaction update_asset(string symbol, optional<string> new_issuer,
+                                            asset_options<0, 17, 0> new_options, bool broadcast = false);
+
+            /** Update the options specific to a BitAsset.
+             *
+             * BitAssets have some options which are not relevant to other asset types. This operation is used to update those
+             * options an an existing BitAsset.
+             *
+             * @see update_asset()
+             *
+             * @param symbol the name or id of the asset to update, which must be a market-issued asset
+             * @param new_options the new bitasset_options object, which will entirely replace the existing
+             *                    options.
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction updating the bitasset
+             */
+            signed_transaction update_bitasset(string symbol, bitasset_options new_options, bool broadcast = false);
+
+            /** Update the set of feed-producing accounts for a BitAsset.
+             *
+             * BitAssets have price feeds selected by taking the median values of recommendations from a set of feed producers.
+             * This command is used to specify which accounts may produce feeds for a given BitAsset.
+             * @param symbol the name or id of the asset to update
+             * @param new_feed_producers a list of account names or ids which are authorized to produce feeds for the asset.
+             *                           this list will completely replace the existing list
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction updating the bitasset's feed producers
+             */
+            signed_transaction update_asset_feed_producers(string symbol, flat_set<string> new_feed_producers,
+                                                           bool broadcast = false);
+
+            /** Publishes a price feed for the named asset.
+             *
+             * Price feed providers use this command to publish their price feeds for market-issued assets. A price feed is
+             * used to tune the market for a particular market-issued asset. For each value in the feed, the median across all
+             * committee_member feeds for that asset is calculated and the market for the asset is configured with the median of that
+             * value.
+             *
+             * The feed object in this command contains three prices: a call price limit, a short price limit, and a settlement price.
+             * The call limit price is structured as (collateral asset) / (debt asset) and the short limit price is structured
+             * as (asset for sale) / (collateral asset). Note that the asset IDs are opposite to eachother, so if we're
+             * publishing a feed for USD, the call limit price will be CORE/USD and the short limit price will be USD/CORE. The
+             * settlement price may be flipped either direction, as long as it is a ratio between the market-issued asset and
+             * its collateral.
+             *
+             * @param publishing_account the account publishing the price feed
+             * @param symbol the name or id of the asset whose feed we're publishing
+             * @param feed the price_feed object containing the three prices making up the feed
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction updating the price feed for the given asset
+             */
+            signed_transaction publish_asset_feed(string publishing_account, string symbol, price_feed<0, 17, 0> feed,
+                                                  bool broadcast = false);
+
+            /** Pay into the fee pool for the given asset.
+             *
+             * User-issued assets can optionally have a pool of the core asset which is
+             * automatically used to pay transaction fees for any transaction using that
+             * asset (using the asset's core exchange rate).
+             *
+             * This command allows anyone to deposit the core asset into this fee pool.
+             *
+             * @param from the name or id of the account sending the core asset
+             * @param symbol the name or id of the asset whose fee pool you wish to fund
+             * @param amount the amount of the core asset to deposit
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction funding the fee pool
+             */
+            signed_transaction fund_asset_fee_pool(string from, string symbol, string amount, bool broadcast = false);
+
+            /** Burns the given user-issued asset.
+             *
+             * This command burns the user-issued asset to reduce the amount in circulation.
+             * @note you cannot burn market-issued assets.
+             * @param from the account containing the asset you wish to burn
+             * @param amount the amount to burn, in nominal units
+             * @param symbol the name or id of the asset to burn
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction burning the asset
+             */
+            signed_transaction reserve_asset(string from, string amount, string symbol, bool broadcast = false);
+
+            /** Forces a global settling of the given asset (black swan or prediction markets).
+             *
+             * In order to use this operation, asset_to_settle must have the global_settle flag set
+             *
+             * When this operation is executed all balances are converted into the backing asset at the
+             * settle_price and all open margin positions are called at the settle price.  If this asset is
+             * used as backing for other bitassets, those bitassets will be force settled at their current
+             * feed price.
+             *
+             * @note this operation is used only by the asset issuer, \c settle_asset() may be used by
+             *       any user owning the asset
+             *
+             * @param symbol the name or id of the asset to force settlement on
+             * @param settle_price the price at which to settle
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction settling the named asset
+             */
+            signed_transaction global_settle_asset(string symbol, price<0, 17, 0> settle_price, bool broadcast = false);
+
+            /** Schedules a market-issued asset for automatic settlement.
+             *
+             * Holders of market-issued assests may request a forced settlement for some amount of their asset. This means that
+             * the specified sum will be locked by the chain and held for the settlement period, after which time the chain will
+             * choose a margin posision holder and buy the settled asset using the margin's collateral. The price of this sale
+             * will be based on the feed price for the market-issued asset being settled. The exact settlement price will be the
+             * feed price at the time of settlement with an offset in favor of the margin position, where the offset is a
+             * blockchain parameter set in the global_property_object.
+             *
+             * @param account_to_settle the name or id of the account owning the asset
+             * @param amount_to_settle the amount of the named asset to schedule for settlement
+             * @param symbol the name or id of the asset to settlement on
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction settling the named asset
+             */
+            signed_transaction settle_asset(string account_to_settle, string amount_to_settle, string symbol,
+                                            bool broadcast = false);
+
+            /** Whitelist and blacklist accounts, primarily for transacting in whitelisted assets.
+             *
+             * Accounts can freely specify opinions about other accounts, in the form of either whitelisting or blackl      isting
+             * them. This information is used in chain validation only to determine whether an account is authorized to tra      nsact
+             * in an asset type which enforces a whitelist, but third parties can use this information for other uses as wel      l,
+             * as long as it does not conflict with the use of whitelisted assets.
+             *
+             * An asset which enforces a whitelist specifies a list of accounts to maintain its whitelist, and a list of
+             * accounts to maintain its blacklist. In order for a given account A to hold and transact in a whitel      isted asset S,
+             * A must be whitelisted by at least one of S's whitelist_authorities and blacklisted by none of S's
+             * blacklist_authorities. If A receives a balance of S, and is later removed from the whitelist(s) which allowe      d it
+             * to hold S, or added to any blacklist S specifies as authoritative, A's balance of S will be frozen until       A's
+             * authorization is reinstated.
+             *
+             * @param authorizing_account the account who is doing the whitelisting
+             * @param account_to_list the account being whitelisted
+             * @param new_listing_status the new whitelisting status
+             * @param broadcast true to broadcast the transaction on the network
+             * @returns the signed transaction changing the whitelisting status
+             */
+            signed_transaction whitelist_account(string authorizing_account, string account_to_list,
+                                                 account_whitelist_operation<0, 17,
+                                                         0>::account_listing new_listing_status,
+                                                 bool broadcast = false);
+
+            =======
+
             annotated_signed_transaction cancel_order(string owner, uint32_t orderid, bool broadcast);
+
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              *  Post or update a comment.
@@ -821,6 +1367,71 @@ namespace steemit {
             annotated_signed_transaction post_comment(string author, string permlink, string parent_author,
                                                       string parent_permlink, string title, string body, string json,
                                                       bool broadcast);
+
+            <<<<<<<
+            HEAD
+
+            /**
+             * Extend the comment payout window by passing the required SBD to spend
+             *
+             * @param payer the name of the account paying for the transaction
+             * @param author the name of the account authoring the comment
+             * @param permlink comment permlink
+             * @param extension_cost SBD amount payer will spend on payout window extension
+             * @param broadcast true if you wish to broadcast the transaction
+             */
+                    annotated_signed_transaction
+            extend_payout_by_cost(string
+            payer,
+            string author, string
+            permlink,
+            asset<0, 17, 0> extension_cost,
+            bool broadcast
+            );
+
+            /**
+             * Extend the comment payout window by passing the required SBD to spend
+             *
+             * @param payer the name of the account paying for the transaction
+             * @param author the name of the account authoring the comment
+             * @param permlink comment permlink
+             * @param extension_time the payout window final time point
+             * @param broadcast true if you wish to broadcast the transaction
+             */
+            annotated_signed_transaction extend_payout_by_time(string payer, string author, string permlink,
+                                                               fc::time_point_sec extension_time, bool broadcast);
+
+            /**
+             * Send the encrypted private email-like message to user
+             * @param from message author name
+             * @param to message recipient name
+             * @param subject message subject
+             * @param body message content
+             * @param broadcast true if you wish to broadcast the transaction
+             */
+            annotated_signed_transaction send_private_message(string from, string to, string subject, string body,
+                                                              bool broadcast);
+
+            /**
+             * Retrieves the private message inbox for the account mentioned
+             * @param account account to retrieve inbox for
+             * @param newest timestamp to start retrieve messages from
+             * @param limit amount of messages to retrieve
+             * @return message api objects vector
+             */
+            vector <extended_message_object> get_inbox(string account, fc::time_point newest, uint32_t limit);
+
+            /**
+             * Retrieves the private message outbox for the account mentioned
+             * @param account account to retrieve outbox for
+             * @param newest timestamp to start retireve messages from
+             * @param limit amount of messages to retrieve
+             * @return message api objects vector
+             */
+            vector <extended_message_object> get_outbox(string account, fc::time_point newest, uint32_t limit);
+
+            =======
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
             /**
              * Vote on a comment to be paid steemit
@@ -887,7 +1498,7 @@ namespace steemit {
             annotated_signed_transaction change_recovery_account(string owner, string new_recovery_account,
                                                                  bool broadcast);
 
-            vector<database_api::owner_authority_history_api_object> get_owner_history(string account) const;
+            vector <database_api::owner_authority_history_api_object> get_owner_history(string account) const;
 
             /**
              * Prove an account's active authority, fulfilling a challenge, restoring posting rights, and making
@@ -914,7 +1525,7 @@ namespace steemit {
              *
              *  @param what - a set of things to follow: posts, comments, votes, ignore
              */
-            annotated_signed_transaction follow(string follower, string following, set<string> what, bool broadcast);
+            annotated_signed_transaction follow(string follower, string following, set <string> what, bool broadcast);
 
 
             std::map<string, std::function<string(fc::variant, const fc::variants &)>> get_result_formatters() const;
@@ -941,7 +1552,70 @@ namespace steemit {
 
             annotated_signed_transaction decline_voting_rights(string account, bool decline, bool broadcast);
 
+            <<<<<<<
+            HEAD
+            /** Approve or disapprove a proposal.
+             *
+             * @param owner The account paying the fee for the op.
+             * @param proposal_id The proposal to modify.
+             * @param delta Members contain approvals to create or remove. In JSON you can leave empty members undefi      ned.
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+                    signed_transaction
+
+            approve_proposal(const string &owner, integral_id_type proposal_id, const approval_delta &delta,
+                             bool broadcast /* = false */
+            );
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            transaction_handle_type begin_builder_transaction();
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            void add_operation_to_builder_transaction(transaction_handle_type transaction_handle, const operation &op);
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            void replace_operation_in_builder_transaction(transaction_handle_type handle, unsigned operation_index,
+                                                          const operation &new_op);
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            transaction preview_builder_transaction(transaction_handle_type handle);
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            signed_transaction sign_builder_transaction(transaction_handle_type transaction_handle,
+                                                        bool broadcast = true);
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            signed_transaction propose_builder_transaction(transaction_handle_type handle,
+                                                           time_point_sec expiration = time_point::now() +
+                                                                                       fc::minutes(1),
+                                                           uint32_t review_period_seconds = 0, bool broadcast = true);
+
+            signed_transaction propose_builder_transaction2(transaction_handle_type handle, string account_name_or_id,
+                                                            time_point_sec expiration = time_point::now() +
+                                                                                        fc::minutes(1),
+                                                            uint32_t review_period_seconds = 0, bool broadcast = true);
+
+            /**
+             * @ingroup Transaction Builder API
+             */
+            void remove_builder_transaction(transaction_handle_type handle);
+
+            =======
             // annotated_signed_transaction claim_reward_balance( string account, asset reward_steemit, asset reward_sbd, asset reward_vests, bool broadcast );
+            >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
         };
 
         struct plain_keys {
@@ -952,13 +1626,77 @@ namespace steemit {
     }
 }
 
-
+<<<<<<< HEAD
 FC_REFLECT((steemit::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
 
 FC_REFLECT((steemit::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key))
 
+FC_REFLECT_DERIVED((steemit::wallet::signed_block_with_info), ((steemit::chain::signed_block)),
+                   (block_id)(signing_key)(transaction_ids))
+
+FC_REFLECT((steemit::wallet::plain_keys), (checksum)(keys))
+=======
+
+FC_REFLECT((steemit::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
+
+FC_REFLECT((steemit::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key))
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+
 FC_REFLECT((steemit::wallet::plain_keys), ((checksum)(keys)))
 
+<<<<<<< HEAD
+FC_REFLECT((steemit::wallet::approval_delta),
+           (active_approvals_to_add)(active_approvals_to_remove)(owner_approvals_to_add)(owner_approvals_to_remove)(
+                   posting_approvals_to_add)(posting_approvals_to_remove)(key_approvals_to_add)(
+                   key_approvals_to_remove))
+
+FC_API(steemit::wallet::wallet_api,
+/// wallet api
+       (help)(get_help)(about)(is_new)(is_locked)(lock)(unlock)(set_password)(load_wallet_file)(save_wallet_file)
+
+               /// key api
+               (import_key)(suggest_brain_key)(list_keys)(get_private_key)(get_private_key_from_password)(
+               normalize_brain_key)
+
+               /// query api
+               (info)(list_my_accounts)(list_accounts)(list_witnesses)(get_witness)(get_steem_per_mvests)(
+               get_account_count)(get_account)(get_block)(get_ops_in_block)(get_feed_history)(get_conversion_requests)(
+               get_account_history)(get_withdraw_routes)
+
+               /// transaction api
+               (create_account)(create_account_with_keys)(create_account_delegated)(create_account_with_keys_delegated)(
+               update_account)(update_account_auth_key)(update_account_auth_account)(update_account_auth_threshold)(
+               update_account_meta)(update_account_memo_key)(delegate_vesting_shares)(update_witness)(set_voting_proxy)(
+               vote_for_witness)(follow)(transfer)(transfer_to_vesting)(withdraw_vesting)(set_withdraw_vesting_route)(
+               convert_sbd)(publish_feed)(get_order_book)(get_limit_orders_by_owner)(get_call_orders_by_owner)(
+               get_settle_orders_by_owner)(create_order)(cancel_order)(post_comment)(extend_payout_by_cost)(
+               extend_payout_by_time)(vote)(set_transaction_expiration)(challenge)(prove)(request_account_recovery)(
+               recover_account)(change_recovery_account)(get_owner_history)(transfer_to_savings)(transfer_from_savings)(
+               cancel_transfer_from_savings)(get_encrypted_memo)(decrypt_memo)(decline_voting_rights)
+
+               /// private message api
+               (send_private_message)(get_inbox)(get_outbox)
+
+               /// helper api
+               (get_prototype_operation)(serialize_transaction)(sign_transaction)
+
+               (network_add_nodes)(network_get_connected_peers)
+
+               (get_active_witnesses)(get_miner_queue)(get_transaction)
+
+               (list_account_balances)(list_assets)(sell_asset)(sell)(buy)(borrow_asset)
+
+               (create_asset)(update_asset)(update_bitasset)(update_asset_feed_producers)(publish_asset_feed)(
+               issue_asset)(get_asset)(get_bitasset_data)(fund_asset_fee_pool)(reserve_asset)(global_settle_asset)(
+               settle_asset)(whitelist_account)(bid_collateral)(get_collateral_bids)
+
+               (get_proposal)(approve_proposal)
+
+               /// transaction builder api
+               (begin_builder_transaction)(add_operation_to_builder_transaction)(
+               replace_operation_in_builder_transaction)(preview_builder_transaction)(sign_builder_transaction)(
+               propose_builder_transaction)(propose_builder_transaction2)(remove_builder_transaction))
+=======
 FC_REFLECT_ENUM((steemit::wallet::authority_type), ((owner)(active)(posting)))
 
 FC_API(steemit::wallet::wallet_api,
@@ -1045,5 +1783,6 @@ FC_API(steemit::wallet::wallet_api,
 // (get_active_witnesses)
 // (get_transaction)
 )
+>>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
 
 FC_REFLECT((steemit::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))

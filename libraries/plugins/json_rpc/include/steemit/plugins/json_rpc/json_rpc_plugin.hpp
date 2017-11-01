@@ -135,4 +135,4 @@ using api_method = std::function< fc::variant(const fc::variant&) >;
 
         } } } // steem::plugins::json_rpc
 
-FC_REFLECT( steemit::plugins::json_rpc::api_method_signature, (args)(ret) )
+FC_REFLECT( (steemit::plugins::json_rpc::api_method_signature), (args)(ret) )

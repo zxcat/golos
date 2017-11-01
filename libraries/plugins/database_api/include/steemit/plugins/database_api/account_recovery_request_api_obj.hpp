@@ -1,7 +1,7 @@
 #ifndef GOLOS_ACCOUNT_RECOVERY_REQUEST_API_OBJ_HPP
 #define GOLOS_ACCOUNT_RECOVERY_REQUEST_API_OBJ_HPP
 
-#include <steemit/chain/account_object.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -28,7 +28,7 @@ namespace steemit {
         }}}
 
 
-FC_REFLECT(steemit::plugins::database_api::account_recovery_request_api_obj,
+FC_REFLECT((steemit::plugins::database_api::account_recovery_request_api_obj),
 (id)
         (account_to_recover)
         (new_owner_authority)

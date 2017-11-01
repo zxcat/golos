@@ -40,6 +40,9 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::plugins::database_api::discussion_query, (select_tags)(filter_tags)(select_authors)(truncate_body)(start_author)(start_permlink)(parent_author)(parent_permlink)(limit)(select_languages)(filter_languages));
+FC_REFLECT(
+        (steemit::plugins::database_api::discussion_query),
+        (select_tags)(filter_tags)(select_authors)(truncate_body)(start_author)(start_permlink)(parent_author)(parent_permlink)(limit)(select_languages)(filter_languages)
+);
 
 #endif //GOLOS_DISCUSSION_QUERY_H

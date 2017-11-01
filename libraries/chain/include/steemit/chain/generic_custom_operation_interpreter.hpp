@@ -7,14 +7,11 @@
 #include <steemit/chain/evaluator.hpp>
 #include <steemit/chain/evaluator_registry.hpp>
 #include <steemit/chain/custom_operation_interpreter.hpp>
-
-//#include <graphene/schema/schema.hpp>
-
+#include <fc/io/json.hpp>
 #include <fc/variant.hpp>
 
 #include <string>
 #include <vector>
-#include <fc/io/json.hpp>
 
 namespace steemit {
     namespace chain {
@@ -97,13 +94,11 @@ namespace steemit {
                 }
                 FC_CAPTURE_AND_RETHROW((outer_o))
             }
-
-            /*
+/*
             virtual std::shared_ptr<graphene::schema::abstract_schema> get_operation_schema() override {
                 return graphene::schema::get_schema_for_type<CustomOperationType>();
             }
             */
         };
-
     }
 }

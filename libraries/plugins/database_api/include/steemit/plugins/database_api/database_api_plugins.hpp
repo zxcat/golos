@@ -9,7 +9,7 @@
 namespace steemit {
     namespace plugins {
         namespace database_api {
-
+            using namespace appbase;
             class database_api_plugin final : public appbase::plugin<database_api_plugin> {
             public:
                 constexpr static const char *__name__ = "database_api";
@@ -19,7 +19,7 @@ namespace steemit {
 
                 ~database_api_plugin();
 
-                APPBASE_PLUGIN_REQUIRES((steemit::plugins::json_rpc::json_rpc_plugin) (steemit::plugins::chain::chain_plugin))
+                APPBASE_PLUGIN_REQUIRES((json_rpc::json_rpc_plugin) (chain_interface::chain_plugin))
 
                 void set_program_options(
                         options_description &cli,

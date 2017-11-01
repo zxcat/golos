@@ -18,7 +18,7 @@ namespace steemit {
 
             class snapshot_plugin final : public appbase::plugin<snapshot_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
                 static const std::string& name() { static std::string name = SNAPSHOT_PLUGIN_NAME; return name; }
                 /**
                  * The plugin requires a constructor which takes app.  This is called regardless of whether the plugin is loaded.

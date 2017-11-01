@@ -38,8 +38,8 @@ class account_by_key_api
 
 } } } // steemit::plugins::account_by_key
 
-FC_REFLECT( steemit::plugins::account_by_key::get_key_references_args,
+FC_REFLECT((steemit::plugins::account_by_key::get_key_references_args),
    (keys) )
 
-FC_REFLECT( steemit::plugins::account_by_key::get_key_references_return,
+FC_REFLECT( (steemit::plugins::account_by_key::get_key_references_return),
    (accounts) )

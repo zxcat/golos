@@ -1,7 +1,7 @@
 #ifndef GOLOS_OWNER_AUTHORITY_HISTORY_API_OBJ_HPP
 #define GOLOS_OWNER_AUTHORITY_HISTORY_API_OBJ_HPP
 
-#include <chain/include/steemit/chain/account_object.hpp>
+#include <chain/include/steemit/chain/objects/account_object.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -26,7 +26,7 @@ namespace steemit {
             };
         }}}
 
-FC_REFLECT(steemit::plugins::database_api::owner_authority_history_api_object,
+FC_REFLECT((steemit::plugins::database_api::owner_authority_history_api_object),
 (id)
         (account)
         (previous_owner_authority)

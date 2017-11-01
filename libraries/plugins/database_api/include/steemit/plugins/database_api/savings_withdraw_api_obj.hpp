@@ -1,7 +1,7 @@
 #ifndef GOLOS_SAVINGS_WITHDRAW_API_OBJ_HPP
 #define GOLOS_SAVINGS_WITHDRAW_API_OBJ_HPP
 
-#include <steemit/chain/steem_objects.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -27,12 +27,12 @@ namespace steemit {
                 account_name_type to;
                 string memo;
                 uint32_t request_id = 0;
-                asset amount;
+                asset<0,17,0> amount;
                 time_point_sec complete;
             };
         }}}
 
-FC_REFLECT(steemit::plugins::database_api::savings_withdraw_api_object,
+FC_REFLECT((steemit::plugins::database_api::savings_withdraw_api_object),
 (id)
         (from)
         (to)

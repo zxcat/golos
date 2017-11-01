@@ -1,16 +1,13 @@
 #include <steemit/plugins/follow/follow_objects.hpp>
 #include <steemit/plugins/follow/follow_operations.hpp>
-
+#include <steemit/plugins/follow/follow_evaluators.hpp>
 #include <steemit/protocol/config.hpp>
-
 #include <steemit/chain/database.hpp>
 #include <steemit/chain/generic_custom_operation_interpreter.hpp>
 #include <steemit/chain/operation_notification.hpp>
-#include <steemit/chain/account_object.hpp>
-#include <steemit/chain/comment_object.hpp>
-
+#include <steemit/chain/objects/account_object.hpp>
+#include <steemit/chain/objects/comment_object.hpp>
 #include <fc/smart_ref_impl.hpp>
-
 #include <memory>
 
 namespace steemit {
@@ -30,7 +27,8 @@ namespace steemit {
                 void operator()(const T &) const {
                 }
 
-                void operator()(const vote_operation &op) const {
+                template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+                void operator()(const vote_operation<Major, Hardfork, Release> &op) const {
                     try {
 
                         const auto &c = db.get_comment(op.author, op.permlink);
@@ -57,7 +55,8 @@ namespace steemit {
                     }
                 }
 
-                void operator()(const delete_comment_operation &op) const {
+                template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+                void operator()(const delete_comment_operation<Major, Hardfork, Release> &op) const {
                     try {
                         const auto *comment = db.find_comment(op.author, op.permlink);
 
@@ -130,7 +129,8 @@ namespace steemit {
                     } FC_CAPTURE_AND_RETHROW()
                 }
 
-                void operator()(const comment_operation &op) const {
+                template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+                void operator()(const comment_operation<Major, Hardfork, Release> &op) const {
                     try {
                         if (op.parent_author.size() > 0) {
                             return;
@@ -212,7 +212,8 @@ namespace steemit {
                     } FC_LOG_AND_RETHROW()
                 }
 
-                void operator()(const vote_operation &op) const {
+                template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+                void operator()(const vote_operation<Major, Hardfork, Release> &op) const {
                     try {
                         const auto &comment = db.get_comment(op.author, op.permlink);
 
@@ -268,7 +269,7 @@ namespace steemit {
 
                 struct follow_plugin::follow_plugin_impl {
                 public:
-                    follow_plugin_impl() : database_(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()) {}
+                    follow_plugin_impl() : database_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {}
 
                     ~follow_plugin_impl(){};
 

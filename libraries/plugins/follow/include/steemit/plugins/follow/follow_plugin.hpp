@@ -10,7 +10,7 @@ namespace steemit {
             public:
 
                 constexpr static const char* __name__ = "follow";
-                APPBASE_PLUGIN_REQUIRES( (chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
                 static const std::string& name() { static std::string name = __name__; return name; }
                 follow_plugin();
 

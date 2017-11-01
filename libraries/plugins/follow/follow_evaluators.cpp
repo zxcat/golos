@@ -1,8 +1,8 @@
 #include <steemit/plugins/follow/follow_operations.hpp>
 #include <steemit/plugins/follow/follow_objects.hpp>
-
-#include <steemit/chain/account_object.hpp>
-#include <steemit/chain/comment_object.hpp>
+#include <steemit/plugins/follow/follow_evaluators.hpp>
+#include <steemit/chain/objects/account_object.hpp>
+#include <steemit/chain/objects/comment_object.hpp>
 
 namespace steemit {
     namespace plugins {
@@ -10,8 +10,8 @@ namespace steemit {
 
             void follow_evaluator::do_apply(const follow_operation &o) {
                 try {
-                    static map<string, follow_type> follow_type_map = []() {
-                        map<string, follow_type> follow_map;
+                    static std::map<std::string, follow_type> follow_type_map = []() {
+                        std::map<std::string, follow_type> follow_map;
                         follow_map["undefined"] = follow_type::undefined;
                         follow_map["blog"] = follow_type::blog;
                         follow_map["ignore"] = follow_type::ignore;
@@ -41,8 +41,7 @@ namespace steemit {
                     }
 
                     if (what & (1 << ignore))
-                        FC_ASSERT(!(what & (1
-                                << blog)), "Cannot follow blog and ignore author at the same time");
+                        FC_ASSERT(!(what & (1 << blog)), "Cannot follow blog and ignore author at the same time");
 
                     bool was_followed = false;
 
@@ -101,13 +100,11 @@ namespace steemit {
                             }
                         });
                     }
-                }
-                FC_CAPTURE_AND_RETHROW((o))
+                } FC_CAPTURE_AND_RETHROW((o))
             }
 
             void reblog_evaluator::do_apply(const reblog_operation &o) {
                 try {
-                    auto &db = get_database();
                     const auto &c = db.get_comment(o.author, o.permlink);
                     FC_ASSERT(c.parent_author.size() == 0, "Only top level posts can be reblogged");
 
@@ -117,15 +114,13 @@ namespace steemit {
                     auto next_blog_id = 0;
                     auto last_blog = blog_idx.lower_bound(o.account);
 
-                    if (last_blog != blog_idx.end() &&
-                        last_blog->account == o.account) {
+                    if (last_blog != blog_idx.end() && last_blog->account == o.account) {
                         next_blog_id = last_blog->blog_feed_id + 1;
                     }
 
                     auto blog_itr = blog_comment_idx.find(boost::make_tuple(c.id, o.account));
 
-                    FC_ASSERT(blog_itr ==
-                              blog_comment_idx.end(), "Account has already reblogged this post");
+                    FC_ASSERT(blog_itr == blog_comment_idx.end(), "Account has already reblogged this post");
                     db.create<blog_object>([&](blog_object &b) {
                         b.account = o.account;
                         b.comment = c.id;
@@ -135,9 +130,7 @@ namespace steemit {
 
                     const auto &stats_idx = db.get_index<blog_author_stats_index, by_blogger_guest_count>();
                     auto stats_itr = stats_idx.lower_bound(boost::make_tuple(o.account, c.author));
-                    if (stats_itr != stats_idx.end() &&
-                        stats_itr->blogger == o.account &&
-                        stats_itr->guest == c.author) {
+                    if (stats_itr != stats_idx.end() && stats_itr->blogger == o.account && stats_itr->guest == c.author) {
                         db.modify(*stats_itr, [&](blog_author_stats_object &s) {
                             ++s.count;
                         });
@@ -160,8 +153,7 @@ namespace steemit {
                             uint32_t next_id = 0;
                             auto last_feed = feed_idx.lower_bound(itr->follower);
 
-                            if (last_feed != feed_idx.end() &&
-                                last_feed->account == itr->follower) {
+                            if (last_feed != feed_idx.end() && last_feed->account == itr->follower) {
                                 next_id = last_feed->account_feed_id + 1;
                             }
 
@@ -187,7 +179,8 @@ namespace steemit {
                             const auto &old_feed_idx = db.get_index<feed_index>().indices().get<by_old_feed>();
                             auto old_feed = old_feed_idx.lower_bound(itr->follower);
 
-                            while (old_feed->account == itr->follower && next_id - old_feed->account_feed_id > _plugin->max_feed_size()) {
+                            while (old_feed->account == itr->follower &&
+                                   next_id - old_feed->account_feed_id > _plugin->max_feed_size()) {
                                 db.remove(*old_feed);
                                 old_feed = old_feed_idx.lower_bound(itr->follower);
                             };
@@ -195,8 +188,7 @@ namespace steemit {
 
                         ++itr;
                     }
-                }
-                FC_CAPTURE_AND_RETHROW((o))
+                } FC_CAPTURE_AND_RETHROW((o))
             }
 
         }

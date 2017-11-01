@@ -1,7 +1,7 @@
 #ifndef GOLOS_ACCOUNT_API_OBJ_HPP
 #define GOLOS_ACCOUNT_API_OBJ_HPP
 
-#include <steemit/chain/account_object.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 #include <steemit/chain/database.hpp>
 
 namespace steemit {
@@ -135,15 +135,15 @@ namespace steemit {
                 uint16_t voting_power;
                 time_point_sec last_vote_time;
 
-                asset balance;
-                asset savings_balance;
+                asset<0,17,0> balance;
+                asset<0,17,0> savings_balance;
 
-                asset sbd_balance;
+                asset<0,17,0> sbd_balance;
                 uint128_t sbd_seconds;
                 time_point_sec sbd_seconds_last_update;
                 time_point_sec sbd_last_interest_payment;
 
-                asset savings_sbd_balance;
+                asset<0,17,0> savings_sbd_balance;
                 uint128_t savings_sbd_seconds;
                 time_point_sec savings_sbd_seconds_last_update;
                 time_point_sec savings_sbd_last_interest_payment;
@@ -153,10 +153,10 @@ namespace steemit {
                 share_type curation_rewards;
                 share_type posting_rewards;
 
-                asset vesting_shares;
-                asset delegated_vesting_shares;
-                asset received_vesting_shares;
-                asset vesting_withdraw_rate;
+                asset<0,17,0> vesting_shares;
+                asset<0,17,0> delegated_vesting_shares;
+                asset<0,17,0> received_vesting_shares;
+                asset<0,17,0> vesting_withdraw_rate;
                 time_point_sec next_vesting_withdrawal;
                 share_type withdrawn;
                 share_type to_withdraw;
@@ -182,7 +182,7 @@ namespace steemit {
         }}}
 
 
-FC_REFLECT(steemit::plugins::database_api::account_api_object,
+FC_REFLECT((steemit::plugins::database_api::account_api_object),
 (id)(name)(owner)(active)(posting)(memo_key)(json_metadata)(proxy)(last_owner_update)(last_account_update)
         (created)(mined)
         (owner_challenged)(active_challenged)(last_owner_proved)(last_active_proved)(recovery_account)(last_account_recovery)(reset_account)

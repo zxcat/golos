@@ -38,7 +38,7 @@ namespace steemit { namespace plugins { namespace test_api {
 
         } } } // steem::plugins::test_api
 
-FC_REFLECT( steemit::plugins::test_api::test_api_a_args, )
-FC_REFLECT( steemit::plugins::test_api::test_api_b_args, )
-FC_REFLECT( steemit::plugins::test_api::test_api_a_return, (value) )
-FC_REFLECT( steemit::plugins::test_api::test_api_b_return, (value) )
+FC_REFLECT( (steemit::plugins::test_api::test_api_a_args), )
+FC_REFLECT( (steemit::plugins::test_api::test_api_b_args), )
+FC_REFLECT( (steemit::plugins::test_api::test_api_a_return), (value) )
+FC_REFLECT( (steemit::plugins::test_api::test_api_b_return), (value) )

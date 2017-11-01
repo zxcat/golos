@@ -18,4 +18,4 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::plugins::market_history::key_interface, (base)(quote));
+FC_REFLECT((steemit::plugins::market_history::key_interface), (base)(quote));

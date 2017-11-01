@@ -37,7 +37,7 @@ namespace steemit {
             class blockchain_statistics_plugin final : public appbase::plugin<blockchain_statistics_plugin> {
             public:
                 static const std::string& name() { static std::string name = BLOCKCHAIN_STATISTICS_PLUGIN_NAME; return name; }
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
                 blockchain_statistics_plugin();
 
                 ~blockchain_statistics_plugin();
@@ -140,7 +140,7 @@ namespace steemit {
     }
 } // steemit::blockchain_statistics
 
-FC_REFLECT(steemit::plugins::blockchain_statistics::bucket_object,
+FC_REFLECT((steemit::plugins::blockchain_statistics::bucket_object),
         (id)
                 (open)
                 (seconds)

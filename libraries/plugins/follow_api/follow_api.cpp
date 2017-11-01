@@ -1,4 +1,4 @@
-#include <steemit/chain/account_object.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 #include <steemit/plugins/follow_api/follow_api.hpp>
 #include <steemit/plugins/json_rpc/utility.hpp>
 #include <steemit/plugins/chain/chain_plugin.hpp>
@@ -21,7 +21,7 @@ namespace steemit {
 
             struct follow_api::follow_api_impl {
                 follow_api_impl()
-                        : db_(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()) {}
+                        : db_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {}
 
                 DECLARE_API(
                         (get_followers)

@@ -61,9 +61,9 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::plugins::market_history::order_history_object, (id)(key)(time)(op));
+FC_REFLECT((steemit::plugins::market_history::order_history_object), (id)(key)(time)(op));
 CHAINBASE_SET_INDEX_TYPE(steemit::plugins::market_history::order_history_object, steemit::plugins::market_history::order_history_index);
 
-FC_REFLECT_DERIVED(steemit::plugins::market_history::history_key, (steemit::plugins::market_history::key_interface), (sequence));
+FC_REFLECT_DERIVED((steemit::plugins::market_history::history_key), ((steemit::plugins::market_history::key_interface)), (sequence));
 
 #endif //GOLOS_ORDER_HISTORY_OBJECT_HPP

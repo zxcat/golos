@@ -1,7 +1,7 @@
 #ifndef GOLOS_FORWARD_HPP
 #define GOLOS_FORWARD_HPP
 
-#include <chain/include/steemit/chain/steem_objects.hpp>
+#include <chain/include/steemit/chain/objects/steem_objects.hpp>
 
 namespace steemit {
     namespace plugins {

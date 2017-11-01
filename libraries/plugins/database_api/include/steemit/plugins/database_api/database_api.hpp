@@ -3,10 +3,10 @@
 #include <steemit/plugins/database_api/state.hpp>
 
 #include <steemit/chain/database.hpp>
-#include <steemit/chain/proposal_object.hpp>
-#include <steemit/chain/steem_objects.hpp>
+#include <steemit/chain/objects/proposal_object.hpp>
+#include <steemit/chain/objects/steem_objects.hpp>
 #include <steemit/chain/steem_object_types.hpp>
-#include <steemit/chain/history_object.hpp>
+#include <steemit/chain/objects/history_object.hpp>
 
 
 #include <fc/optional.hpp>
@@ -109,6 +109,10 @@ namespace steemit {
 
             using get_account_history_return_type = map<uint32_t, applied_operation> ;
             using get_tags_used_by_author_return_type=vector<pair<std::string, uint32_t>>;
+            using chain_properties_17 = chain_properties<0,17,0>;
+            using price_17 = price<0,17,0>;
+            using asset_17 = asset<0,17,0>;
+
 
             ///               API,                                    args,                return
             DEFINE_API_ARGS( get_trending_tags,                      vector< variant >,   vector<tag_api_object> )
@@ -118,8 +122,8 @@ namespace steemit {
             DEFINE_API_ARGS( get_ops_in_block,                       vector< variant >,   vector< applied_operation > )
             DEFINE_API_ARGS( get_config,                             void_type,           variant_object )
             DEFINE_API_ARGS( get_dynamic_global_properties,          void_type,           dynamic_global_property_api_object )
-            DEFINE_API_ARGS( get_chain_properties,                   void_type,           chain_properties )
-            DEFINE_API_ARGS( get_current_median_history_price,       void_type,           price )
+            DEFINE_API_ARGS( get_chain_properties,                   void_type,           chain_properties_17 )
+            DEFINE_API_ARGS( get_current_median_history_price,       void_type,           price_17 )
             DEFINE_API_ARGS( get_feed_history,                       void_type,           feed_history_api_obj )
             DEFINE_API_ARGS( get_witness_schedule,                   void_type,           witness_schedule_api_object )
             DEFINE_API_ARGS( get_hardfork_version,                   void_type,           hardfork_version )
@@ -180,7 +184,7 @@ namespace steemit {
             ///categories
             DEFINE_API_ARGS( get_trending_categories,                vector< variant >,   vector<category_api_obj>)
             ///
-            DEFINE_API_ARGS(get_account_balances,                    vector< variant >,   vector<asset> )
+            DEFINE_API_ARGS(get_account_balances,                    vector< variant >,   vector<asset_17> )
             DEFINE_API_ARGS(get_active_categories,                   vector< variant >,   vector<category_api_obj> )
             DEFINE_API_ARGS(get_recent_categories,                   vector< variant >,   vector<category_api_obj> )
             DEFINE_API_ARGS(get_proposed_transactions,               vector< variant >,   vector<proposal_object> )
@@ -190,7 +194,7 @@ namespace steemit {
             DEFINE_API_ARGS(get_assets,                              vector< variant >,   vector<optional<asset_object>> )
             DEFINE_API_ARGS(get_best_categories,                     vector< variant >,   vector<category_api_obj>)
             DEFINE_API_ARGS(lookup_asset_symbols,                    vector< variant >,   vector<optional<asset_object>> )
-            DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   asset)
+            DEFINE_API_ARGS(get_payout_extension_cost,               vector< variant >,   asset_17)
             DEFINE_API_ARGS(get_payout_extension_time,               vector< variant >,   fc::time_point_sec)
 
 
@@ -650,19 +654,20 @@ namespace steemit {
     }
 }}
 
-FC_REFLECT(steemit::plugins::database_api::scheduled_hardfork, (hf_version)(live_time))
-FC_REFLECT(steemit::plugins::database_api::withdraw_route, (from_account)(to_account)(percent)(auto_vest))
+
+FC_REFLECT((steemit::plugins::database_api::scheduled_hardfork), (hf_version)(live_time));
+FC_REFLECT((steemit::plugins::database_api::withdraw_route), (from_account)(to_account)(percent)(auto_vest));
 
 FC_REFLECT_ENUM(steemit::plugins::database_api::withdraw_route_type, (incoming)(outgoing)(all))
 
-FC_REFLECT( steemit::plugins::database_api::tag_count_object,
+FC_REFLECT( (steemit::plugins::database_api::tag_count_object),
             (tag)(count) )
 
-FC_REFLECT( steemit::plugins::database_api::get_tags_used_by_author,
+FC_REFLECT( (steemit::plugins::database_api::get_tags_used_by_author),
             (tags) )
 
-FC_REFLECT( steemit::plugins::database_api::signed_block_api_object,
+FC_REFLECT( (steemit::plugins::database_api::signed_block_api_object),
             (block_id)(signing_key)(transaction_ids) )
 
-FC_REFLECT( steemit::plugins::database_api::operation_api_object,
+FC_REFLECT( (steemit::plugins::database_api::operation_api_object),
             (trx_id)(block)(trx_in_block)(op_in_trx)(virtual_op)(timestamp)(op) )

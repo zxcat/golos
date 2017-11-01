@@ -10,7 +10,7 @@ namespace detail {
 class account_by_key_api_impl
 {
    public:
-      account_by_key_api_impl() : _db( appbase::app().get_plugin< steemit::plugins::chain::chain_plugin >().db() ) {}
+      account_by_key_api_impl() : _db( appbase::app().get_plugin< chain_interface::chain_plugin >().db() ) {}
 
       get_key_references_return get_key_references( const get_key_references_args& args )const;
 

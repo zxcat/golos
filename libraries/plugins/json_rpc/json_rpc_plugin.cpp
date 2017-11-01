@@ -259,5 +259,5 @@ string json_rpc_plugin::call( const string& message ) {
 
 } } } // steem::plugins::json_rpc
 
-FC_REFLECT( steemit::plugins::json_rpc::json_rpc_error, (code)(message)(data) )
-FC_REFLECT( steemit::plugins::json_rpc::json_rpc_response, (jsonrpc)(result)(error)(id) )
+FC_REFLECT( (steemit::plugins::json_rpc::json_rpc_error), (code)(message)(data) )
+FC_REFLECT( (steemit::plugins::json_rpc::json_rpc_response), (jsonrpc)(result)(error)(id) )

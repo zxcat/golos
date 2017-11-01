@@ -29,7 +29,7 @@ namespace steemit {
 
             class market_history_plugin final : public appbase::plugin<market_history_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES( (steemit::plugins::chain::chain_plugin) )
+                APPBASE_PLUGIN_REQUIRES( (chain_interface::chain_plugin) )
                 static const std::string& name() { static std::string name = MARKET_HISTORY_PLUGIN_NAME; return name; }
                 market_history_plugin();
 

@@ -1,9 +1,8 @@
 #include <steemit/plugins/snapshot/snapshot_plugin.hpp>
 #include <steemit/plugins/snapshot/snapshot_state.hpp>
 
-#include <steemit/chain/account_object.hpp>
+#include <steemit/chain/objects/account_object.hpp>
 #include <steemit/chain/operation_notification.hpp>
-
 #include <steemit/plugins/account_by_key/account_by_key_plugin.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <fc/io/json.hpp>
@@ -15,7 +14,7 @@ namespace steemit {
                 struct snapshot_plugin::snapshot_plugin_impl {
                 public:
                     snapshot_plugin_impl(snapshot_plugin &plugin)
-                            : self(plugin),database_(appbase::app().get_plugin<steemit::plugins::chain::chain_plugin>().db()) {}
+                            : self(plugin),database_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {}
 
                     steemit::chain::database &database() {
                         return database_;
@@ -70,7 +69,8 @@ namespace steemit {
                     void operator()(const T &) const {
                     }
 
-                    void operator()(const chain::hardfork_operation &op) const {
+                    template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+                    void operator()(const chain::hardfork_operation<Major, Hardfork, Release> &op) const {
                         if (op.hardfork_id == STEEMIT_HARDFORK_0_17) {
 
 
@@ -122,7 +122,7 @@ namespace steemit {
 
                     snapshot_state snapshot = fc::json::from_file(fc::path(iterator)).as<snapshot_state>();
                     for (account_summary &account : snapshot.accounts) {
-                        if (!db.find_account(account.name)) {
+                        if (db.find_account(account.name) == nullptr) {
                             const chain::account_object &new_account = db.create<chain::account_object>([&](chain::account_object &a) {
                                 a.name = account.name;
                                 a.memo_key = account.keys.memo_key;

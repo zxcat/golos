@@ -64,7 +64,7 @@ std::vector<fc::ip::endpoint> resolve_string_to_ip_endpoints( const std::string&
 class p2p_plugin_impl : public steemit::network::node_delegate {
 public:
 
-   p2p_plugin_impl( chain::chain_plugin& c )
+   p2p_plugin_impl( chain_interface::chain_plugin& c )
       : chain( c ) {}
    virtual ~p2p_plugin_impl() {}
 
@@ -101,7 +101,7 @@ public:
 
    std::unique_ptr<steemit::network::node> node;
 
-   chain::chain_plugin& chain;
+   chain_interface::chain_plugin& chain;
 
    fc::thread p2p_thread;
 };
@@ -157,14 +157,14 @@ bool p2p_plugin_impl::handle_block( const block_message& blk_msg, bool sync_mode
       }
 
       return result;
-   } catch ( const chain::unlinkable_block_exception& e ) {
+   } catch ( const  steemit::chain::exceptions::chain::unlinkable_block<>& e ) {
       // translate to a graphene::net exception
       fc_elog(fc::logger::get("sync"),
             "Error when pushing block, current head block is ${head}:\n${e}",
             ("e", e.to_detail_string())
             ("head", head_block_num));
       elog("Error when pushing block:\n${e}", ("e", e.to_detail_string()));
-      FC_THROW_EXCEPTION(steemit::network::unlinkable_block_exception, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
+      FC_THROW_EXCEPTION(steemit::network::exceptions::unlinkable_block<>, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
    } catch( const fc::exception& e ) {
       fc_elog(fc::logger::get("sync"),
             "Error when pushing block, current head block is ${head}:\n${e}",
@@ -217,7 +217,7 @@ std::vector< item_hash_t > p2p_plugin_impl::get_block_ids( const std::vector< it
          }
 
          if (!found_a_block_in_synopsis)
-            FC_THROW_EXCEPTION(steemit::network::peer_is_on_an_unreachable_fork, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
+            FC_THROW_EXCEPTION(steemit::network::exceptions::peer_is_on_an_unreachable_fork<>, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
       }
 
       for( uint32_t num = block_header::num_from_id(last_known_block_id); num <= chain.db().head_block_num() && result.size() < limit; ++num ) {
@@ -324,7 +324,7 @@ std::vector< item_hash_t > p2p_plugin_impl::get_blockchain_synopsis( const item_
                   "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})",
                   ("low_block_num", low_block_num)
                   ("non_fork_high_block_num", non_fork_high_block_num));
-               FC_THROW_EXCEPTION(steemit::network::block_older_than_undo_history, "Peer is are on a fork I'm unable to switch to");
+               FC_THROW_EXCEPTION(steemit::network::exceptions::block_older_than_undo_history<>, "Peer is are on a fork I'm unable to switch to");
             }
          }
       }
@@ -440,7 +440,7 @@ void p2p_plugin::set_program_options( bpo::options_description& cli, bpo::option
 }
 
 void p2p_plugin::plugin_initialize(const boost::program_options::variables_map& options) {
-   my.reset(new detail::p2p_plugin_impl( appbase::app().get_plugin< chain::chain_plugin >() ));
+   my.reset(new detail::p2p_plugin_impl( appbase::app().get_plugin< chain_interface::chain_plugin >() ));
 
    if( options.count( "p2p-endpoint" ) )
       my->endpoint = fc::ip::endpoint::from_string( options.at( "p2p-endpoint" ).as< string >() );

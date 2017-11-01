@@ -11,8 +11,6 @@
 
 namespace steemit { namespace plugins { namespace webserver {
 
-namespace detail { class webserver_plugin_impl; }
-
 using namespace appbase;
 
 /**
@@ -45,7 +43,8 @@ class webserver_plugin final : public appbase::plugin< webserver_plugin > {
       void plugin_shutdown() override;
 
    private:
-      std::unique_ptr< detail::webserver_plugin_impl > my;
+      struct webserver_plugin_impl;
+      std::unique_ptr< webserver_plugin_impl > my;
 };
 
 } } } // steem::plugins::webserver
