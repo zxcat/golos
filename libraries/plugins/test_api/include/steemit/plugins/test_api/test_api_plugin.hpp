@@ -7,12 +7,15 @@
 namespace steemit { namespace plugins { namespace test_api {
 
             using namespace appbase;
+            using json_rpc::msg_pack;
+            using fc::variant;
 
-            struct test_api_a_args {};
-            struct test_api_b_args {};
+            struct test_api_a_t { std::string value; };
+            struct test_api_b_t { std::string value; };
 
-            struct test_api_a_return { std::string value; };
-            struct test_api_b_return { std::string value; };
+            ///               API,        args,       return
+            DEFINE_API_ARGS( test_api_a,  msg_pack,   test_api_a_t )
+            DEFINE_API_ARGS( test_api_b,  msg_pack,   test_api_b_t )
 
             class test_api_plugin final : public appbase::plugin< test_api_plugin > {
             public:
@@ -31,14 +34,12 @@ namespace steemit { namespace plugins { namespace test_api {
                 void plugin_shutdown() override;
 
                 DECLARE_API(
-                (test_api_a)
+                         (test_api_a)
                         (test_api_b)
                 )
             };
 
         } } } // steem::plugins::test_api
 
-FC_REFLECT( (steemit::plugins::test_api::test_api_a_args), )
-FC_REFLECT( (steemit::plugins::test_api::test_api_b_args), )
-FC_REFLECT( (steemit::plugins::test_api::test_api_a_return), (value) )
-FC_REFLECT( (steemit::plugins::test_api::test_api_b_return), (value) )
+FC_REFLECT( (steemit::plugins::test_api::test_api_a_t), (value) )
+FC_REFLECT( (steemit::plugins::test_api::test_api_b_t), (value) )

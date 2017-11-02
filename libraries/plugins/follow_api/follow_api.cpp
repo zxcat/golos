@@ -19,33 +19,32 @@ namespace steemit {
                 }
             }
 
-            struct follow_api::follow_api_impl {
-                follow_api_impl()
-                        : db_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {}
+            struct follow_api::follow_api_impl final {
+                follow_api_impl() : db_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {}
 
-                DECLARE_API(
-                        (get_followers)
-                                (get_following)
-                                (get_feed_entries)
-                                (get_feed)
-                                (get_blog_entries)
-                                (get_blog)
-                                (get_account_reputations)
-                                (get_follow_count)
-                                (get_reblogged_by)
-                                (get_blog_authors)
-                )
+                get_followers_r           get_followers           (const get_followers_a&);
+                get_following_r           get_following           (const get_following_a&);
+                get_feed_entries_r        get_feed_entries        (const get_feed_entries_a&);
+                get_feed_r                get_feed                (const get_feed_a&);
+                get_blog_entries_r        get_blog_entries        (const get_blog_entries_a&);
+                get_blog_r                get_blog                (const get_blog_a&);
+                get_account_reputations_r get_account_reputations (const get_account_reputations_a&);
+                get_follow_count_r        get_follow_count        (const get_follow_count_a&);
+                get_reblogged_by_r        get_reblogged_by        (const get_reblogged_by_a&);
+                get_blog_authors_r        get_blog_authors        (const get_blog_authors_a&);
 
                 steemit::chain::database &database() {
                     return db_;
                 }
 
+            private:
                 steemit::chain::database &db_;
             };
 
-            DEFINE_API(follow_api::follow_api_impl, get_followers) {
+            get_followers_r follow_api::follow_api_impl::get_followers(const get_followers_a&args) {
+
                 FC_ASSERT(args.limit <= 1000);
-                get_followers_return result;
+                get_followers_r result;
                 result.followers.reserve(args.limit);
 
                 const auto &idx = database().get_index<follow_index>().indices().get<by_following_follower>();
@@ -65,9 +64,9 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_following) {
+            get_following_r follow_api::follow_api_impl::get_following(const get_following_a&args) {
                 FC_ASSERT(args.limit <= 100);
-                get_following_return result;
+                get_following_r result;
                 const auto &idx = database().get_index<follow_index>().indices().get<by_follower_following>();
                 auto itr = idx.lower_bound(std::make_tuple(args.account, args.start));
                 while (itr != idx.end() && result.following.size() < args.limit && itr->follower == args.account) {
@@ -85,12 +84,12 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_follow_count) {
-                get_follow_count_return result;
+            get_follow_count_r follow_api::follow_api_impl::get_follow_count(const get_follow_count_a&args) {
+                get_follow_count_r result;
                 auto itr = database().find<follow_count_object, by_account>(args.account);
 
                 if (itr != nullptr) {
-                    result = get_follow_count_return{itr->account, itr->follower_count, itr->following_count};
+                    result = get_follow_count_r{itr->account, itr->follower_count, itr->following_count};
                 } else {
                     result.account = args.account;
                 }
@@ -98,12 +97,12 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_feed_entries) {
+            get_feed_entries_r follow_api::follow_api_impl::get_feed_entries(const get_feed_entries_a&args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 feed entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
 
-                get_feed_entries_return result;
+                get_feed_entries_r result;
                 result.feed.reserve(args.limit);
 
                 const auto &db = database();
@@ -132,12 +131,12 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_feed) {
+            get_feed_r follow_api::follow_api_impl::get_feed(const get_feed_a&args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 feed entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
 
-                get_feed_return result;
+                get_feed_r result;
                 result.feed.reserve(args.limit);
 
                 const auto &db = database();
@@ -165,12 +164,12 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_blog_entries) {
+            get_blog_entries_r follow_api::follow_api_impl::get_blog_entries(const get_blog_entries_a&args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 blog entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
 
-                get_blog_entries_return result;
+                get_blog_entries_r result;
                 result.blog.reserve(args.limit);
 
                 const auto &db = database();
@@ -194,12 +193,12 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_blog) {
+            get_blog_r follow_api::follow_api_impl::get_blog(const get_blog_a&args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 blog entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
 
-                get_blog_return result;
+                get_blog_r result;
                 result.blog.reserve(args.limit);
 
                 const auto &db = database();
@@ -222,7 +221,7 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_account_reputations) {
+            get_account_reputations_r follow_api::follow_api_impl::get_account_reputations(const get_account_reputations_a&args) {
                 FC_ASSERT(args.limit <= 1000, "Cannot retrieve more than 1000 account reputations at a time.");
 
                 const auto &acc_idx = database().get_index<account_index>().indices().get<by_name>();
@@ -230,7 +229,7 @@ namespace steemit {
 
                 auto acc_itr = acc_idx.lower_bound(args.account_lower_bound);
 
-                get_account_reputations_return result;
+                get_account_reputations_r result;
                 result.reputations.reserve(args.limit);
 
                 while (acc_itr != acc_idx.end() && result.reputations.size() < args.limit) {
@@ -248,9 +247,9 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_reblogged_by) {
+            get_reblogged_by_r follow_api::follow_api_impl::get_reblogged_by(const get_reblogged_by_a&args){
                 auto &db = database();
-                get_reblogged_by_return result;
+                get_reblogged_by_r result;
                 const auto &post = db.get_comment(args.author, args.permlink);
                 const auto &blog_idx = db.get_index<blog_index, by_comment>();
                 auto itr = blog_idx.lower_bound(post.id);
@@ -261,9 +260,9 @@ namespace steemit {
                 return result;
             }
 
-            DEFINE_API(follow_api::follow_api_impl, get_blog_authors) {
+            get_blog_authors_r follow_api::follow_api_impl::get_blog_authors(const get_blog_authors_a&args){
                 auto &db = database();
-                get_blog_authors_return result;
+                get_blog_authors_r result;
                 const auto &stats_idx = db.get_index<blog_author_stats_index, by_blogger_guest_count>();
                 auto itr = stats_idx.lower_bound(boost::make_tuple(args.blog_account));
                 while (itr != stats_idx.end() && itr->blogger == args.blog_account && result.blog_authors.size()) {
@@ -274,83 +273,154 @@ namespace steemit {
             }
 
 
-            follow_api::follow_api() {
-                my = std::make_shared<follow_api_impl>();
+            follow_api::follow_api():my(new follow_api_impl){
                 JSON_RPC_REGISTER_API(__name__);
             }
-                DEFINE_API(follow_api, get_followers)
-                {
+                DEFINE_API(follow_api, get_followers) {
+                    auto tmp = args.args->at(0).as<get_followers_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_followers(args);
+                        return my->get_followers(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_following)
-                {
+                DEFINE_API(follow_api, get_following) {
+                    auto tmp = args.args->at(0).as<get_following_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_following(args);
+                        return my->get_following(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_follow_count)
-                {
+                DEFINE_API(follow_api, get_follow_count) {
+                    auto tmp = args.args->at(0).as<get_follow_count_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_follow_count(args);
+                        return my->get_follow_count(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_feed_entries)
-                {
+                DEFINE_API(follow_api, get_feed_entries) {
+                    auto tmp = args.args->at(0).as<get_feed_entries_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_feed_entries(args);
+                        return my->get_feed_entries(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_feed)
-                {
+                DEFINE_API(follow_api, get_feed) {
+                    auto tmp = args.args->at(0).as<get_feed_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_feed(args);
+                        return my->get_feed(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_blog_entries)
-                {
+                DEFINE_API(follow_api, get_blog_entries) {
+                    auto tmp = args.args->at(0).as<get_blog_entries_a>();
                     return my->database().with_read_lock([&]() {
-                        return my->get_blog_entries(args);
+                        return my->get_blog_entries(tmp);
                     });
                 }
 
-                DEFINE_API(follow_api, get_blog)
-                {
-                    return my->database().with_read_lock([&]() {
-                        return my->get_blog(args);
-                    });
+                DEFINE_API(follow_api, get_blog) {
+                    auto tmp = args.args->at(0).as<get_blog_a>();
+                    return my->database().with_read_lock(
+                        [&]() {
+                            return my->get_blog(tmp);
+                        }
+                    );
                 }
 
-                DEFINE_API(follow_api, get_account_reputations)
-                {
-                    return my->database().with_read_lock([&]() {
-                        return my->get_account_reputations(args);
-                    });
-                }
-
-                DEFINE_API(follow_api, get_reblogged_by)
-                {
+                DEFINE_API(follow_api, get_account_reputations) {
+                    auto tmp = args.args->at(0).as<get_account_reputations_a>();
                     return my->database().with_read_lock(
                             [&]() {
-                                return my->get_reblogged_by(args);
+                                return my->get_account_reputations(tmp);
                             }
                     );
                 }
 
-                DEFINE_API(follow_api, get_blog_authors)
-                {
+                DEFINE_API(follow_api, get_reblogged_by) {
+                    auto tmp = args.args->at(0).as<get_reblogged_by_a>();
                     return my->database().with_read_lock(
                             [&]() {
-                                return my->get_blog_authors(args);
+                                return my->get_reblogged_by(tmp);
                             }
                     );
                 }
+
+                DEFINE_API(follow_api, get_blog_authors) {
+                    auto tmp = args.args->at(0).as<get_blog_authors_a>();
+                    return my->database().with_read_lock(
+                            [&]() {
+                                return my->get_blog_authors(tmp);
+                            }
+                    );
+                }
+
+    get_followers_r follow_api::get_followers_native(const get_followers_a& args) {
+            return my->database().with_read_lock([&]() {
+            return my->get_followers(args);
+        });
+    }
+
+    get_following_r follow_api::get_following_native(const get_following_a&args){
+        return my->database().with_read_lock([&]() {
+            return my->get_following(args);
+        });
+    }
+
+    get_follow_count_r follow_api::get_follow_count_native(const get_follow_count_a& args){
+        return my->database().with_read_lock([&]() {
+            return my->get_follow_count(args);
+        });
+    }
+
+    get_feed_entries_r follow_api::get_feed_entries_native(const get_feed_entries_a&args){
+        return my->database().with_read_lock([&]() {
+            return my->get_feed_entries(args);
+        });
+    }
+
+    get_feed_r follow_api::get_feed_native(const get_feed_a&args){
+        return my->database().with_read_lock([&]() {
+            return my->get_feed(args);
+        });
+    }
+
+    get_blog_entries_r follow_api::get_blog_entries_native(const get_blog_entries_a&args){
+        return my->database().with_read_lock([&]() {
+            return my->get_blog_entries(args);
+        });
+    }
+
+    get_blog_r follow_api::get_blog_native(const get_blog_a&args){
+        return my->database().with_read_lock(
+                [&]() {
+                    return my->get_blog(args);
+                }
+        );
+    }
+
+    get_account_reputations_r follow_api::get_account_reputations_native(const get_account_reputations_a&args){
+        return my->database().with_read_lock(
+                [&]() {
+                    return my->get_account_reputations(args);
+                }
+        );
+    }
+
+    get_reblogged_by_r follow_api::get_reblogged_by_native(const get_reblogged_by_a& args){
+        return my->database().with_read_lock(
+                [&]() {
+                    return my->get_reblogged_by(args);
+                }
+        );
+    }
+
+    get_blog_authors_r follow_api::get_blog_authors_native(const get_blog_authors_a& args){
+        return my->database().with_read_lock(
+                [&]() {
+                    return my->get_blog_authors(args);
+                }
+        );
+    }
 
             }
         }

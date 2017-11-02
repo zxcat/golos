@@ -14,14 +14,14 @@ namespace steemit { namespace plugins { namespace test_api {
             void test_api_plugin::plugin_startup() {}
             void test_api_plugin::plugin_shutdown() {}
 
-            test_api_a_return test_api_plugin::test_api_a( const test_api_a_args& args ) {
-               test_api_a_return result;
+            DEFINE_API(test_api_plugin,test_api_a){
+               test_api_a_t result;
                result.value = "A";
                return result;
             }
 
-            test_api_b_return test_api_plugin::test_api_b( const test_api_b_args& args ) {
-               test_api_b_return result;
+            DEFINE_API(test_api_plugin,test_api_b){
+               test_api_b_t result;
                result.value = "B";
                return result;
             }

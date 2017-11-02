@@ -5,6 +5,8 @@
 #include <fc/reflect/reflect.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/cat.hpp>
+#include <fc/optional.hpp>
+#include <fc/variant.hpp>
 
 #define DEFINE_API_ARGS( api_name, arg_type, return_type )  \
 typedef arg_type api_name ## _args;                         \
@@ -39,7 +41,11 @@ BOOST_PP_CAT( method, _return ) method( const BOOST_PP_CAT( method, _args )& );
 api_name ## _return class :: api_name ( const api_name ## _args& args )
 
 namespace steemit { namespace plugins { namespace json_rpc {
-
+            struct msg_pack final {
+                std::string plugin;
+                std::string method;
+                fc::optional<std::vector<fc::variant>> args;
+            };
 struct void_type {};
 
 } } } // steem::plugins::json_rpc
