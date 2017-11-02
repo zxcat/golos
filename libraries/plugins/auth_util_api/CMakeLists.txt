@@ -26,7 +26,6 @@ add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
 
-
 target_link_libraries( 
 	golos_${CURRENT_TARGET}
 
@@ -39,15 +38,6 @@ target_link_libraries(
   golos::auth_util_plugin
 	appbase
 )
-       # golos_${CURRENT_TARGET}
-        
-        
-       #  golos::database_api_plugin
-        
-       #  golos::json_rpc_plugin
-       #  graphene_utilities
-        
-       #  fc
 
 target_include_directories( golos_${CURRENT_TARGET}
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../")

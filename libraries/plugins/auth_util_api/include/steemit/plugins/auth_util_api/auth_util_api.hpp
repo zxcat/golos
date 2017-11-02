@@ -36,8 +36,9 @@ public:
 
    // check_authority_signature_result check_authority_signature( check_authority_signature_params args );
 
-private:
-   struct auth_util_api_impl;
+// private:
+protected:
+   class auth_util_api_impl;
    std::shared_ptr < auth_util_api_impl > my;
 };
 

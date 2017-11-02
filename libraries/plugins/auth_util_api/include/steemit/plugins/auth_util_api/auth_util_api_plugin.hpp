@@ -1,9 +1,8 @@
 #pragma once
 
 #include <steemit/plugins/auth_util_api/auth_util_api_plugin.hpp>
-// 
 #include <steemit/plugins/auth_util_api/auth_util_api.hpp>
-// 
+
 #include <steemit/plugins/json_rpc/json_rpc_plugin.hpp>
 #include <appbase/application.hpp>
 #include <string>
@@ -17,7 +16,6 @@ using namespace appbase;
 class auth_util_api_plugin : public appbase::plugin< auth_util_api_plugin > {
 public:
 	APPBASE_PLUGIN_REQUIRES(
-		// (steemit::plugins::auth_util_api::auth_util_api)
 		(steemit::plugins::json_rpc::json_rpc_plugin)
 	)
 
