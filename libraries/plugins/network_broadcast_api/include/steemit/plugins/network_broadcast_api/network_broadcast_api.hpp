@@ -13,27 +13,15 @@
 
 namespace steemit { namespace plugins { namespace network_broadcast_api {
 
-            using std::vector;
-            using fc::variant;
-            using fc::optional;
-            using steemit::plugins::json_rpc::void_type;
+            using json_rpc::msg_pack;
+            using json_rpc::void_type;
 
-            using steemit::protocol::signed_transaction;
-            using steemit::protocol::transaction_id_type;
             using steemit::protocol::signed_block;
+            using steemit::protocol::transaction_id_type;
 
-            struct broadcast_transaction_args {
-                signed_transaction   trx;
-                int32_t              max_block_age = -1;
-            };
-
-            typedef void_type broadcast_transaction_return;
-
-            typedef broadcast_transaction_args broadcast_transaction_synchronous_args;
-
-            struct broadcast_transaction_synchronous_return {
-                broadcast_transaction_synchronous_return() {}
-                broadcast_transaction_synchronous_return( transaction_id_type txid, int32_t bn, int32_t tn, bool ex )
+            struct broadcast_transaction_synchronous_t {
+                broadcast_transaction_synchronous_t() {}
+                broadcast_transaction_synchronous_t( transaction_id_type txid, int32_t bn, int32_t tn, bool ex )
                         : id(txid), block_num(bn), trx_num(tn), expired(ex) {}
 
                 transaction_id_type   id;
@@ -42,13 +30,11 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
                 bool                  expired   = false;
             };
 
-            struct broadcast_block_args {
-                signed_block   block;
-            };
 
-            typedef void_type broadcast_block_return;
-
-            typedef std::function< void( const broadcast_transaction_synchronous_return& ) > confirmation_callback;
+            ///               API,                                    args,                return
+            DEFINE_API_ARGS( broadcast_transaction,                   msg_pack,   void_type )
+            DEFINE_API_ARGS( broadcast_transaction_synchronous,       msg_pack,   broadcast_transaction_synchronous_t )
+            DEFINE_API_ARGS( broadcast_block,                         msg_pack,   void_type )
 
             class network_broadcast_api final {
             public:
@@ -67,20 +53,12 @@ namespace steemit { namespace plugins { namespace network_broadcast_api {
 
 
             private:
-                p2p::p2p_plugin&                                      _p2p;
-                chain_interface::chain_plugin&                        _chain;
-                map< transaction_id_type, confirmation_callback >     _callbacks;
-                map< time_point_sec, vector< transaction_id_type > >  _callback_expirations;
-                boost::mutex                                          _mtx;
+                struct impl;
+                std::unique_ptr<impl>pimpl;
             };
 
         } } }
 
-FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_transaction_args),
-            (trx)(max_block_age) )
 
-FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_block_args),
-            (block) )
-
-FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_return),
+FC_REFLECT( (steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_t),
             (id)(block_num)(trx_num)(expired) )

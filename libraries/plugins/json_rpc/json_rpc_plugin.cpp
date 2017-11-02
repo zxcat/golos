@@ -36,9 +36,9 @@ namespace steemit { namespace plugins { namespace json_rpc {
                     json_rpc_plugin_impl(){}
                     ~json_rpc_plugin_impl(){}
 
-                    void add_api_method( const string& api_name, const string& method_name, const api_method& api, const api_method_signature& sig ){
+                    void add_api_method( const string& api_name, const string& method_name, const api_method& api/*, const api_method_signature& sig*/ ){
                        _registered_apis[ api_name ][ method_name ] = api;
-                       _method_sigs[ api_name ][ method_name ] = sig;
+                      // _method_sigs[ api_name ][ method_name ] = sig;
 
                        std::stringstream canonical_name;
                        canonical_name << api_name << '.' << method_name;
@@ -54,7 +54,8 @@ namespace steemit { namespace plugins { namespace json_rpc {
 
                        return &(method_itr->second);
                     }
-                    api_method* process_params( string method, const fc::variant_object& request, fc::variant& func_args ){
+
+                    api_method* process_params( string method, const fc::variant_object& request, msg_pack& func_args ){
                        api_method* ret = nullptr;
 
                        if( method == "call" ) {
@@ -68,8 +69,10 @@ namespace steemit { namespace plugins { namespace json_rpc {
                           FC_ASSERT( v.size() == 2 || v.size() == 3, "params should be {\"api\", \"method\", \"args\"" );
 
                           ret = find_api_method( v[0].as_string(), v[1].as_string() );
-
-                          func_args = ( v.size() == 3 ) ? v[2] : fc::json::from_string( "{}" );
+                          func_args.plugin = v[0].as_string();
+                          func_args.method = v[1].as_string();
+                          fc::variant tmp = ( v.size() == 3 ) ? v[2] : fc::json::from_string( "{}" );
+                          func_args.args = tmp.as<std::vector<fc::variant>>();
                        }
                        else {
                           vector< std::string > v;
@@ -78,8 +81,10 @@ namespace steemit { namespace plugins { namespace json_rpc {
                           FC_ASSERT( v.size() == 2, "method specification invalid. Should be api.method" );
 
                           ret = find_api_method( v[0], v[1] );
-
-                          func_args = request.contains( "params" ) ? request[ "params" ] : fc::json::from_string( "{}" );
+                          func_args.plugin = v[0];
+                          func_args.method = v[1];
+                          fc::variant tmp = ( v.size() == 3 ) ? v[2] : fc::json::from_string( "{}" );
+                          func_args.args = tmp.as<std::vector<fc::variant>>();
                        }
 
                        return ret;
@@ -108,7 +113,7 @@ namespace steemit { namespace plugins { namespace json_rpc {
 
                                 // This is to maintain backwards compatibility with existing call structure.
                                 if( ( method == "call" && request.contains( "params" ) ) || method != "call" ) {
-                                   fc::variant func_args;
+                                   msg_pack func_args;
                                    api_method* call = nullptr;
 
                                    try {
@@ -143,8 +148,8 @@ namespace steemit { namespace plugins { namespace json_rpc {
                        }
                     }
 
-#define ddump( SEQ ) \
-    dlog( FC_FORMAT(SEQ), FC_FORMAT_ARG_PARAMS(SEQ) )
+                    #define ddump( SEQ ) \
+                    dlog( FC_FORMAT(SEQ), FC_FORMAT_ARG_PARAMS(SEQ) )
 
                     json_rpc_response rpc( const fc::variant& message ){
                        json_rpc_response response;
@@ -176,36 +181,15 @@ namespace steemit { namespace plugins { namespace json_rpc {
 
 
                     void initialize(){
-                       JSON_RPC_REGISTER_API( "jsonrpc" );
+
                     }
 
-                    DECLARE_API(
-                            (get_methods)
-                            (get_signature)
-                    )
+
 
                     map< string, api_description >                     _registered_apis;
                     vector< string >                                   _methods;
                     map< string, map< string, api_method_signature > > _method_sigs;
                 };
-
-                DEFINE_API( json_rpc_plugin::json_rpc_plugin_impl, get_methods ) {
-                  return _methods;
-                }
-
-            DEFINE_API( json_rpc_plugin::json_rpc_plugin_impl, get_signature ) {
-               vector< string > v;
-               boost::split( v, args, boost::is_any_of( "." ) );
-               FC_ASSERT( v.size() == 2, "Invalid method name" );
-
-               auto api_itr = _method_sigs.find( v[0] );
-               FC_ASSERT( api_itr != _method_sigs.end(), "Method ${api}.${method} does not exist.", ("api", v[0])("method", v[1]) );
-
-               auto method_itr = api_itr->second.find( v[1] );
-               FC_ASSERT( method_itr != api_itr->second.end(), "Method ${api}.${method} does not exist", ("api", v[0])("method", v[1]) );
-
-               return method_itr->second;
-            }
 
 json_rpc_plugin::json_rpc_plugin() : my( new json_rpc_plugin_impl() ) {}
 json_rpc_plugin::~json_rpc_plugin() {}
@@ -218,8 +202,8 @@ void json_rpc_plugin::plugin_startup() {
 
 void json_rpc_plugin::plugin_shutdown() {}
 
-void json_rpc_plugin::add_api_method( const string& api_name, const string& method_name, const api_method& api, const api_method_signature& sig ) {
-   my->add_api_method( api_name, method_name, api, sig );
+void json_rpc_plugin::add_api_method( const string& api_name, const string& method_name, const api_method& api/*, const api_method_signature& sig */) {
+   my->add_api_method( api_name, method_name, api/*, sig*/ );
 }
 
 string json_rpc_plugin::call( const string& message ) {
@@ -256,8 +240,15 @@ string json_rpc_plugin::call( const string& message ) {
    }
 
 }
+            fc::variant json_rpc_plugin::call(const msg_pack & msg) {
+               api_method* call = nullptr;
+               call = my->find_api_method(msg.plugin,msg.method);
+               fc::variant tmp;
+               tmp = (*call)(msg);
+               return tmp;
+            }
 
-} } } // steem::plugins::json_rpc
+        } } } // steem::plugins::json_rpc
 
 FC_REFLECT( (steemit::plugins::json_rpc::json_rpc_error), (code)(message)(data) )
 FC_REFLECT( (steemit::plugins::json_rpc::json_rpc_response), (jsonrpc)(result)(error)(id) )

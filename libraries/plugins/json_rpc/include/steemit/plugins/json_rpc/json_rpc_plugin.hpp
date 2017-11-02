@@ -1,7 +1,7 @@
 #pragma once
 
 #include <appbase/application.hpp>
-
+#include <steemit/plugins/json_rpc/utility.hpp>
 #include <fc/variant.hpp>
 #include <fc/io/json.hpp>
 #include <fc/reflect/variant.hpp>
@@ -63,7 +63,7 @@ using namespace appbase;
  *
  * Arguments: Variant object of propert arg type
  */
-using api_method = std::function< fc::variant(const fc::variant&) >;
+using api_method = std::function< fc::variant(const msg_pack&) >;
 
 /**
  * @brief An API, containing APIs and Methods
@@ -93,8 +93,10 @@ using api_method = std::function< fc::variant(const fc::variant&) >;
                 void plugin_startup() override;
                 void plugin_shutdown() override;
 
-                void add_api_method( const string& api_name, const string& method_name, const api_method& api, const api_method_signature& sig );
+                void add_api_method( const string& api_name, const string& method_name, const api_method& api/*, const api_method_signature& sig */);
                 string call( const string& body );
+
+                fc::variant call(const msg_pack&);
 
             private:
                 class json_rpc_plugin_impl;
@@ -119,11 +121,11 @@ using api_method = std::function< fc::variant(const fc::variant&) >;
                             Ret* ret )
                     {
                         _json_rpc_plugin.add_api_method( _api_name, method_name,
-                                                         [&plugin,method]( const fc::variant& args ) -> fc::variant
+                                                         [&plugin,method]( const msg_pack& args ) -> fc::variant
                                                          {
-                                                             return fc::variant( (plugin.*method)( args.as< Args >() ) );
-                                                         },
-                                                         api_method_signature{ fc::variant( Args() ), fc::variant( Ret() ) } );
+                                                             return fc::variant( (plugin.*method)( args ) );
+                                                         });
+                                                         /*api_method_signature{ fc::variant( Args() ), fc::variant( Ret() ) }*/ //);
                     }
 
                 private:
