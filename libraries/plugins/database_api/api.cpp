@@ -384,7 +384,7 @@ namespace golos {
             api::~api() {
             }
 
-            api::api_impl::database_api_impl() : _db(appbase::app().get_plugin<chain::plugin>().db()) {
+            api::api_impl::api_impl() : _db(appbase::app().get_plugin<chain::plugin>().db()) {
                 wlog("creating database api ${x}", ("x", int64_t(this)));
 
                 try {
@@ -775,7 +775,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_witness_by_account) {
+            DEFINE_API(api, get_witness_by_account) {
                 CHECK_ARG_SIZE(1)
                 auto account_name = args.args->at(0).as<std::string>();
                 return my->database().with_read_lock([&]() {
@@ -862,7 +862,7 @@ namespace golos {
                 return witnesses_by_account_name;
             }
 
-            DEFINE_API(database_api, get_witness_count) {
+            DEFINE_API(api, get_witness_count) {
                 return my->database().with_read_lock([&]() {
                     return my->get_witness_count();
                 });
@@ -2448,9 +2448,9 @@ namespace golos {
                     std::vector<category_api_object> result;
                     result.reserve(limit);
 
-                    const auto &nidx = my->database().get_index<chain::category_index>().indices().get<by_name>();
+                    const auto &nidx = my->database().get_index<golos::chain::category_index>().indices().get<by_name>();
 
-                    const auto &ridx = my->database().get_index<chain::category_index>().indices().get<by_rshares>();
+                    const auto &ridx = my->database().get_index<golos::chain::category_index>().indices().get<by_rshares>();
                     auto itr = ridx.begin();
                     if (after != "" && nidx.size()) {
                         auto nitr = nidx.lower_bound(after);
