@@ -1,8 +1,8 @@
 
 
-#include <steemit/plugins/database_api/discussion_query.hpp>
+#include <golos/plugins/database_api/discussion_query.hpp>
 
-namespace steemit {
+namespace golos {
     namespace plugins {
         namespace database_api {
 

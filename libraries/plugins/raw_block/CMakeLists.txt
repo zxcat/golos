@@ -1,23 +1,23 @@
 set(CURRENT_TARGET raw_block_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/raw_block/raw_block_plugin.hpp
-        )
+     include/golos/plugins/raw_block/raw_block_plugin.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        raw_block_plugin.cpp
-)
+     raw_block_plugin.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})

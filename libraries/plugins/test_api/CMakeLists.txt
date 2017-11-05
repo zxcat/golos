@@ -1,24 +1,24 @@
 set(CURRENT_TARGET test_api_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/test_api/test_api_plugin.hpp
-)
+     include/golos/plugins/test_api/test_api_plugin.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        test_api_plugin.cpp
-)
+     test_api_plugin.cpp
+     )
 
-if (BUILD_SHARED_LIBRARIES)
+if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
-else ()
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
+else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
-endif ()
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
+endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 
@@ -37,7 +37,7 @@ target_include_directories(
         "${CMAKE_CURRENT_SOURCE_DIR}/../../"
 )
 
-install( TARGETS
+install(TARGETS
         golos_${CURRENT_TARGET}
 
         RUNTIME DESTINATION bin
@@ -45,7 +45,7 @@ install( TARGETS
         ARCHIVE DESTINATION lib
         )
 
-install( FILES ${HEADERS} DESTINATION "include/steemit/test_api_plugin" )
+install(FILES ${HEADERS} DESTINATION "include/golos/test_api_plugin")
 
 
-#target_link_libraries( test_api_plugin json_rpc_plugin appbase fc )
+#target_link_libraries( test_api_plugin plugin appbase fc )

@@ -1,24 +1,24 @@
 set(CURRENT_TARGET blockchain_statistics_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/blockchain_statistics/blockchain_statistics_plugin.hpp
-)
+     include/golos/plugins/blockchain_statistics/plugin.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        blockchain_statistics_plugin.cpp
-        statistics_sender.cpp
-)
+     plugin.cpp
+     statistics_sender.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
@@ -39,5 +39,5 @@ install(TARGETS
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
-)
+        )
 

@@ -1,6 +1,6 @@
-#include <steemit/plugins/market_history/bucket_object.hpp>
+#include <golos/plugins/market_history/bucket_object.hpp>
 
-namespace steemit {
+namespace golos {
     namespace plugins {
         namespace market_history {
             bucket_key::bucket_key() {
@@ -8,7 +8,8 @@ namespace steemit {
             }
 
             protocol::price<0, 17, 0> bucket_object::high() const {
-                return protocol::asset<0, 17, 0>(high_base, key.base) / protocol::asset<0, 17, 0>(high_quote, key.quote);
+                return protocol::asset<0, 17, 0>(high_base, key.base) /
+                       protocol::asset<0, 17, 0>(high_quote, key.quote);
             }
 
             protocol::price<0, 17, 0> bucket_object::low() const {

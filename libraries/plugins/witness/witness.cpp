@@ -1,16 +1,16 @@
-#include <steemit/plugins/witness/witness.hpp>
+#include <golos/plugins/witness/witness.hpp>
 
-#include <steemit/chain/database_exceptions.hpp>
-#include <steemit/chain/objects/account_object.hpp>
-#include <steemit/chain/objects/steem_objects.hpp>
+#include <golos/chain/database_exceptions.hpp>
+#include <golos/chain/objects/account_object.hpp>
+#include <golos/chain/objects/steem_objects.hpp>
 
-#include <graphene/utilities/key_conversion.hpp>
+#include <golos/utilities/key_conversion.hpp>
 
 #include <fc/time.hpp>
-#include <steemit/network/core_messages.hpp>
+#include <golos/network/core_messages.hpp>
 #include <fc/io/json.hpp>
 
-void new_chain_banner(const steemit::chain::database &db) {
+void new_chain_banner(const golos::chain::database &db) {
     std::cerr << "\n"
             "********************************\n"
             "*                              *\n"
@@ -23,7 +23,7 @@ void new_chain_banner(const steemit::chain::database &db) {
     return;
 }
 
-namespace steemit {
+namespace golos {
     namespace plugins {
         namespace witness_plugin {
 
@@ -32,16 +32,15 @@ namespace steemit {
                 return fc::json::from_string(s).as<T>();
             }
 
-            #define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
-            #define LOAD_VALUE_SET(options, name, container, type) \
+#define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
+#define LOAD_VALUE_SET(options, name, container, type) \
             if( options.count(name) ) { \
                   const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \
                   std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
             }
 
-            void witness_plugin::set_program_options(
-                    boost::program_options::options_description &command_line_options,
-                    boost::program_options::options_description &config_file_options) {
+            void witness_plugin::set_program_options(boost::program_options::options_description &command_line_options,
+                                                     boost::program_options::options_description &config_file_options) {
                 std::string witness_id_example = "initwitness";
                 command_line_options.add_options()("enable-stale-production",
                                                    boost::program_options::bool_switch()->notifier([this](bool e) {
@@ -53,15 +52,12 @@ namespace steemit {
                         "witness,w",
                         boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(),
                         ("name of witness controlled by this node (e.g. " + witness_id_example + " )").c_str())(
-                        "miner,m",
-                        boost::program_options::value<
-                                std::vector<
-                                        std::string>>()->composing()->multitoken(),
+                        "miner,m", boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(),
                         "name of miner and its private key (e.g. [\"account\",\"WIF PRIVATE KEY\"] )")(
                         "mining-threads,t", boost::program_options::value<uint32_t>(),
                         "Number of threads to use for proof of work mining")("private-key",
-                                                                             boost::program_options::value<
-                                                                                     std::vector<std::string>>()->composing()->multitoken(),
+                                                                             boost::program_options::value<std::vector<
+                                                                                     std::string>>()->composing()->multitoken(),
                                                                              "WIF PRIVATE KEY to be used by one or more witnesses or miners")(
                         "miner-account-creation-fee", boost::program_options::value<uint64_t>()->implicit_value(100000),
                         "Account creation fee to be voted on upon successful POW - Minimum fee is 100.000 STEEM (written as 100000)")(
@@ -147,12 +143,12 @@ namespace steemit {
             void witness_plugin::plugin_startup() {
                 try {
                     ilog("witness plugin:  plugin_startup() begin");
-                    auto &db = appbase::app().get_plugin<chain_interface::chain_plugin>().db();
+                    auto &db = appbase::app().get_plugin<chain::plugin>().db();
 
                     if (!_witnesses.empty()) {
                         ilog("Launching block production for ${n} witnesses.", ("n", _witnesses.size()));
 
-                        appbase::app().get_plugin<steemit::plugins::p2p::p2p_plugin>().set_block_production(true);
+                        appbase::app().get_plugin<golos::plugins::p2p::p2p_plugin>().set_block_production(true);
                         if (_production_enabled) {
                             if (db.head_block_num() == 0) {
                                 new_chain_banner(db);
@@ -262,7 +258,7 @@ namespace steemit {
 
             block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block(
                     fc::mutable_variant_object &capture) {
-                chain::database &db = appbase::app().get_plugin<chain_interface::chain_plugin>().db();
+                chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
                 fc::time_point now_fine = fc::time_point::now();
                 fc::time_point_sec now = now_fine + fc::microseconds(500000);
 
@@ -303,7 +299,7 @@ namespace steemit {
                 auto itr = witness_by_name.find(scheduled_witness);
 
                 fc::time_point_sec scheduled_time = db.get_slot_time(slot);
-                steemit::protocol::public_key_type scheduled_key = itr->signing_key;
+                golos::protocol::public_key_type scheduled_key = itr->signing_key;
                 auto private_key_itr = _private_keys.find(scheduled_key);
 
                 if (private_key_itr == _private_keys.end()) {
@@ -330,7 +326,7 @@ namespace steemit {
                                                        _production_skip_flags);
                         capture("n", block.block_num())("t", block.timestamp)("c", now)("w", scheduled_witness);
                         fc::async([this, block]() {
-                            appbase::app().get_plugin<steemit::plugins::p2p::p2p_plugin>().broadcast_block(block);
+                            appbase::app().get_plugin<golos::plugins::p2p::p2p_plugin>().broadcast_block(block);
                         });
 
                         return block_production_condition::produced;
@@ -359,12 +355,12 @@ namespace steemit {
             * and how long it will take to broadcast the work. In other words, we assume 0.5s broadcast times
             * and therefore do not even attempt work that cannot be delivered on time.
             */
-            void witness_plugin::on_applied_block(const steemit::protocol::signed_block &b) {
+            void witness_plugin::on_applied_block(const golos::protocol::signed_block &b) {
                 try {
                     if (!_mining_threads || _miners.size() == 0) {
                         return;
                     }
-                    chain::database &db = appbase::app().get_plugin<chain_interface::chain_plugin>().db();
+                    chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
 
                     const auto &dgp = db.get_dynamic_global_properties();
                     double hps = (_total_hashes * 1000000) / (fc::time_point::now() - _hash_start_time).count();
@@ -419,10 +415,10 @@ namespace steemit {
             }
 
             void witness_plugin::start_mining(const fc::ecc::public_key &pub, const fc::ecc::private_key &pk,
-                                              const std::string &miner, const steemit::protocol::signed_block &b) {
+                                              const std::string &miner, const golos::protocol::signed_block &b) {
                 static uint64_t seed = fc::time_point::now().time_since_epoch().count();
                 static uint64_t start = fc::city_hash64((const char *) &seed, sizeof(seed));
-                chain::database &db = appbase::app().get_plugin<chain_interface::chain_plugin>().db();
+                chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
                 auto head_block_num = b.block_num();
                 auto head_block_time = b.timestamp;
                 auto block_id = b.id();
@@ -478,9 +474,10 @@ namespace steemit {
                                     ++this->_head_block_num;
                                     mainthread->async([this, miner, trx]() {
                                         try {
-                                            appbase::app().get_plugin<chain_interface::chain_plugin>().db().push_transaction(trx);
+                                            appbase::app().get_plugin<chain::plugin>().db().push_transaction(trx);
                                             ilog("Broadcasting Proof of Work for ${miner}", ("miner", miner));
-                                            appbase::app().get_plugin<steemit::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
+                                            appbase::app().get_plugin<
+                                                    golos::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
                                         } catch (const fc::exception &e) {
                                             wdump((e.to_detail_string()));
                                         }
@@ -527,9 +524,10 @@ namespace steemit {
                                     ++this->_head_block_num;
                                     mainthread->async([this, miner, trx]() {
                                         try {
-                                            appbase::app().get_plugin<chain_interface::chain_plugin>().db().push_transaction(trx);
+                                            appbase::app().get_plugin<chain::plugin>().db().push_transaction(trx);
                                             ilog("Broadcasting Proof of Work for ${miner}", ("miner", miner));
-                                            appbase::app().get_plugin<steemit::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
+                                            appbase::app().get_plugin<
+                                                    golos::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
                                         } catch (const fc::exception &e) {
                                             wdump((e.to_detail_string()));
                                         }
@@ -575,11 +573,11 @@ namespace steemit {
                                     trx.sign(pk, STEEMIT_CHAIN_ID);
                                     mainthread->async([this, miner, trx]() {
                                         try {
-                                            appbase::app().get_plugin<chain_interface::chain_plugin>().db().push_transaction(trx);
+                                            appbase::app().get_plugin<chain::plugin>().db().push_transaction(trx);
                                             ilog("Broadcasting Proof of Work for ${miner}", ("miner", miner));
-                                            appbase::app().get_plugin<steemit::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
-                                        }
-                                        catch (const fc::exception &e) {
+                                            appbase::app().get_plugin<
+                                                    golos::plugins::p2p::p2p_plugin>().broadcast_transaction(trx);
+                                        } catch (const fc::exception &e) {
                                             wdump((e.to_detail_string()));
                                         }
                                     });

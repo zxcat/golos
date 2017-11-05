@@ -1,9 +1,9 @@
-#include <steemit/protocol/config.hpp>
-#include <steemit/chain/database.hpp>
-#include <steemit/version/hardfork.hpp>
-#include <steemit/chain/operation_notification.hpp>
-#include <steemit/chain/objects/account_object.hpp>
-#include <steemit/chain/objects/comment_object.hpp>
+#include <golos/protocol/config.hpp>
+#include <golos/chain/database.hpp>
+#include <golos/version/hardfork.hpp>
+#include <golos/chain/operation_notification.hpp>
+#include <golos/chain/objects/account_object.hpp>
+#include <golos/chain/objects/comment_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <fc/io/json.hpp>
@@ -14,28 +14,29 @@
 
 #include "steemit/plugins/tags/tags_plugin.hpp"
 
-namespace steemit {
-    namespace plugins{
-    namespace tags {
+namespace golos {
+    namespace plugins {
+        namespace tags {
 
 
-            using namespace steemit::protocol;
+            using namespace golos::protocol;
 
-        struct tags_plugin::tags_plugin_impl final {
-                        public:
-                            tags_plugin_impl() : _db(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {
-                            }
+            struct tags_plugin::tags_plugin_impl final {
+            public:
+                tags_plugin_impl() : _db(appbase::app().get_plugin<chain::plugin>().db()) {
+                }
 
-                            ~tags_plugin_impl(){}
+                ~tags_plugin_impl() {
+                }
 
-                            steemit::chain::database &database() {
-                                return _db;
-                            }
+                golos::chain::database &database() {
+                    return _db;
+                }
 
-                            void on_operation(const operation_notification &note);
+                void on_operation(const operation_notification &note);
 
-                            steemit::chain::database &_db;
-                        };
+                golos::chain::database &_db;
+            };
 
 
             struct operation_visitor {
@@ -421,7 +422,8 @@ namespace steemit {
                 }
 
                 template<typename Op>
-                void operator()(Op &&) const {} /// ignore all other ops
+                void operator()(Op &&) const {
+                } /// ignore all other ops
             };
 
 
@@ -438,59 +440,61 @@ namespace steemit {
 
 
             tags_plugin::tags_plugin() {
+            }
+
+            tags_plugin::~tags_plugin() {
+
+            }
+
+            /*
+                    bool tags_plugin::filter(const golos::application::discussion_query &query,
+                                             const golos::application::comment_api_object &c,
+                                             const std::function<bool(const golos::application::comment_api_object &)> &condition) {
+                        if (!query.select_authors.empty()) {
+                            if (query.select_authors.find(c.author) == query.select_authors.end()) {
+                                return true;
+                            }
                         }
 
-                        tags_plugin::~tags_plugin() {
+                        tags::comment_metadata meta;
 
+                        if (!c.json_metadata.empty()) {
+                            try {
+                                meta = fc::json::from_string(c.json_metadata).as<tags::comment_metadata>();
+                            } catch (const fc::exception &e) {
+                                // Do nothing on malformed json_metadata
+                            }
                         }
-/*
-        bool tags_plugin::filter(const steemit::application::discussion_query &query,
-                                 const steemit::application::comment_api_obj &c,
-                                 const std::function<bool(const steemit::application::comment_api_obj &)> &condition) {
-            if (!query.select_authors.empty()) {
-                if (query.select_authors.find(c.author) == query.select_authors.end()) {
-                    return true;
-                }
+
+                        for (const std::set<std::string>::value_type &iterator : query.filter_tags) {
+                            if (meta.tags.find(iterator) != meta.tags.end()) {
+                                return true;
+                            }
+                        }
+
+                        return condition(c) || query.filter_tags.find(c.category) != query.filter_tags.end();
+                    }
+            */
+            void tags_plugin::set_program_options(boost::program_options::options_description &cli,
+                                                  boost::program_options::options_description &cfg) {
+
             }
 
-            tags::comment_metadata meta;
-
-            if (!c.json_metadata.empty()) {
-                try {
-                    meta = fc::json::from_string(c.json_metadata).as<tags::comment_metadata>();
-                } catch (const fc::exception &e) {
-                    // Do nothing on malformed json_metadata
-                }
+            void tags_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+                ilog("Initializing tags plugin");
+                my.reset(new tags_plugin_impl);
+                my->database().post_apply_operation.connect([&](const operation_notification &note) {
+                    my->on_operation(note);
+                });
+                my->database().add_plugin_index<tag_index>();
+                my->database().add_plugin_index<tag_stats_index>();
+                my->database().add_plugin_index<peer_stats_index>();
+                my->database().add_plugin_index<author_tag_stats_index>();
             }
 
-            for (const std::set<std::string>::value_type &iterator : query.filter_tags) {
-                if (meta.tags.find(iterator) != meta.tags.end()) {
-                    return true;
-                }
+            void tags_plugin::plugin_startup() {
             }
-
-            return condition(c) || query.filter_tags.find(c.category) != query.filter_tags.end();
         }
-*/
-        void tags_plugin::set_program_options(
-                            boost::program_options::options_description &cli,
-                            boost::program_options::options_description &cfg) {
-
-                    }
-
-                    void tags_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
-                        ilog("Initializing tags plugin");
-                        my.reset(new tags_plugin_impl);
-                        my->database().post_apply_operation.connect([&](const operation_notification &note) { my->on_operation(note); });
-                        my->database().add_plugin_index<tag_index>();
-                        my->database().add_plugin_index<tag_stats_index>();
-                        my->database().add_plugin_index<peer_stats_index>();
-                        my->database().add_plugin_index<author_tag_stats_index>();
-                    }
-
-                    void tags_plugin::plugin_startup() {
-                    }
-    }
-} /// steemit::tags
+    } /// golos::tags
 }
 

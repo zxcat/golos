@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <graphene/utilities/tempdir.hpp>
+#include <golos/utilities/tempdir.hpp>
 
 namespace graphene {
     namespace utilities {

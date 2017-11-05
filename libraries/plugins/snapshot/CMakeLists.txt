@@ -1,24 +1,24 @@
 set(CURRENT_TARGET snapshot_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/snapshot/snapshot_plugin.hpp
-        include/steemit/plugins/snapshot/snapshot_state.hpp
-        )
+     include/golos/plugins/snapshot/snapshot_plugin.hpp
+     include/golos/plugins/snapshot/snapshot_state.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        snapshot_plugin.cpp
-        )
+     snapshot_plugin.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
@@ -33,4 +33,4 @@ target_link_libraries(
 )
 
 target_include_directories(golos_${CURRENT_TARGET}
-        PUBLIC "include")
+                           PUBLIC "include")

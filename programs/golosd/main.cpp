@@ -1,29 +1,29 @@
 #include <appbase/application.hpp>
-#include <steemit/protocol/types.hpp>
+#include <golos/protocol/types.hpp>
 
 
 #include <fc/log/logger_config.hpp>
-#include <graphene/utilities/key_conversion.hpp>
+#include <golos/utilities/key_conversion.hpp>
 #include <fc/git_revision.hpp>
 
 ///PLUGIN
-#include <steemit/plugins/chain/chain_plugin.hpp>
-#include <steemit/plugins/p2p/p2p_plugin.hpp>
-#include <steemit/plugins/webserver/webserver_plugin.hpp>
-#include <steemit/plugins/network_broadcast_api/network_broadcast_api_plugin.hpp>
-#include <steemit/plugins/tags/tags_plugin.hpp>
-#include <steemit/plugins/languages/languages_plugin.hpp>
-#include <steemit/plugins/account_history/account_history_plugin.hpp>
-#include <steemit/plugins/account_by_key/account_by_key_plugin.hpp>
-#include <steemit/plugins/witness/witness.hpp>
-#include <steemit/plugins/follow/follow_plugin.hpp>
-#include <steemit/plugins/market_history/market_history_plugin.hpp>
+#include <golos/plugins/chain/plugin.hpp>
+#include <golos/plugins/p2p/p2p_plugin.hpp>
+#include <golos/plugins/webserver/webserver_plugin.hpp>
+#include <golos/plugins/network_broadcast_api/network_broadcast_api_plugin.hpp>
+#include <golos/plugins/tags/tags_plugin.hpp>
+#include <golos/plugins/languages/plugin.hpp>
+#include <golos/plugins/account_history/plugin.hpp>
+#include <golos/plugins/account_by_key/plugin.hpp>
+#include <golos/plugins/witness/witness.hpp>
+#include <golos/plugins/follow/plugin.hpp>
+#include <golos/plugins/market_history/plugin.hpp>
 ///PLUGIN
 ///API
-#include <steemit/plugins/database_api/database_api_plugins.hpp>
-#include <steemit/plugins/test_api/test_api_plugin.hpp>
-#include <steemit/plugins/follow_api/follow_api_plugin.hpp>
-#include <steemit/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
+#include <golos/plugins/database_api/api_plugin.hpp>
+#include <golos/plugins/test_api/test_api_plugin.hpp>
+#include <golos/plugins/follow_api/api_plugin.hpp>
+#include <golos/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
 ///API
 
 #include <fc/exception/exception.hpp>
@@ -43,8 +43,8 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
 
-namespace bpo = boost::program_options;
-using steemit::protocol::version;
+namespace bpo = boost::program_options::;
+using golos::protocol::version;
 
 
 std::string& version_string() {
@@ -55,7 +55,7 @@ std::string& version_string() {
     return v_str;
 }
 
-namespace steemit {
+namespace golos {
 
     namespace utilities {
         void set_logging_program_options(boost::program_options::options_description &);
@@ -90,7 +90,7 @@ int main( int argc, char** argv ) {
         std::cerr << "------------------------------------------------------\n\n";
         std::cerr << "            STARTING TEST NETWORK\n\n";
         std::cerr << "------------------------------------------------------\n";
-        auto initminer_private_key = steemit::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
+        auto initminer_private_key = golos::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
         std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
         std::cerr << "initminer private key: " << initminer_private_key << "\n";
         std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
@@ -107,25 +107,25 @@ int main( int argc, char** argv ) {
 #endif
 
         // Setup logging config
-        bpo::options_description options;
+        boost::program_options::options_description options;
 
-        steemit::utilities::set_logging_program_options( options );
-        appbase::app().add_program_options( bpo::options_description(), options );
+        golos::utilities::set_logging_program_options( options );
+        appbase::app().add_program_options( boost::program_options::options_description(), options );
 
-        steemit::plugins::register_plugins();
+        golos::plugins::register_plugins();
         appbase::app().set_version_string( version_string() );
 
         if( !appbase::app().initialize<
-                steemit::plugins::chain_interface::chain_plugin,
-                steemit::plugins::p2p::p2p_plugin,
-                steemit::plugins::webserver::webserver_plugin >
+                golos::plugins::chain::plugin,
+                golos::plugins::p2p::p2p_plugin,
+                golos::plugins::webserver::webserver_plugin >
                 ( argc, argv )
         )
 
             return 0;
 
         try {
-            fc::optional< fc::logging_config > logging_config = steemit::utilities::load_logging_config( appbase::app().get_args(), appbase::app().data_dir() );
+            fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( appbase::app().get_args(), appbase::app().data_dir() );
             if( logging_config ) {
                 fc::configure_logging(*logging_config);
             }
@@ -151,7 +151,7 @@ int main( int argc, char** argv ) {
 
     return -1;
 }
-namespace steemit {
+namespace golos {
     namespace utilities{
         using std::string;
         using std::vector;
@@ -207,7 +207,7 @@ namespace steemit {
                     std::vector< string > file_appenders = args["log-file-appender"].as< std::vector< string > >();
 
                     for( string& s : file_appenders ) {
-                        auto file_appender = fc::json::from_string( s ).as< steemit::utilities::file_appender_args>();
+                        auto file_appender = fc::json::from_string( s ).as< golos::utilities::file_appender_args>();
 
                         fc::path file_name = file_appender.file;
                         if( file_name.is_relative() )
@@ -231,7 +231,7 @@ namespace steemit {
                     std::vector< string > loggers = args[ "log-logger" ].as< std::vector< std::string > >();
 
                     for( string& s : loggers ) {
-                        auto logger = fc::json::from_string( s ).as< steemit::utilities::logger_args >();
+                        auto logger = fc::json::from_string( s ).as< golos::utilities::logger_args >();
 
                         fc::logger_config logger_config( logger.name );
                         logger_config.level = fc::variant( logger.level ).as< fc::log_level >();
@@ -253,44 +253,44 @@ namespace steemit {
     namespace plugins {
         void register_plugins() {
 ///PLUGIN
-            appbase::app().register_plugin< steemit::plugins::chain_interface::chain_plugin >();
+            appbase::app().register_plugin< golos::plugins::chain::plugin >();
 
-            appbase::app().register_plugin<steemit::plugins::p2p::p2p_plugin>();
+            appbase::app().register_plugin<golos::plugins::p2p::p2p_plugin>();
 
-            appbase::app().register_plugin<steemit::plugins::json_rpc::json_rpc_plugin>();
+            appbase::app().register_plugin<golos::plugins::json_rpc::plugin>();
 
-            appbase::app().register_plugin<steemit::plugins::webserver::webserver_plugin>();
+            appbase::app().register_plugin<golos::plugins::webserver::webserver_plugin>();
 
-            appbase::app().register_plugin< steemit::plugins::follow::follow_plugin >();
+            appbase::app().register_plugin< golos::plugins::follow::plugin >();
 /*
-            appbase::app().register_plugin< steemit::plugins::account_by_key::account_by_key_plugin >();
+            appbase::app().register_plugin< golos::plugins::account_by_key::plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::account_history::account_history_plugin >();
+            appbase::app().register_plugin< golos::plugins::account_history::plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::market_history::market_history_plugin >();
+            appbase::app().register_plugin< golos::plugins::market_history::plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::languages::languages_plugin >();
+            appbase::app().register_plugin< golos::plugins::languages::plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::tags::tags_plugin >();
+            appbase::app().register_plugin< golos::plugins::tags::tags_plugin >();
 
-            appbase::app().register_plugin<steemit::plugins::witness_plugin::witness_plugin>();
+            appbase::app().register_plugin<golos::plugins::witness_plugin::witness_plugin>();
 */
 
 ///API
-            appbase::app().register_plugin< steemit::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+            appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
 
-            appbase::app().register_plugin< steemit::plugins::database_api::database_api_plugin>();
+            appbase::app().register_plugin< golos::plugins::database_api::api_plugin>();
 
-            appbase::app().register_plugin<steemit::plugins::test_api::test_api_plugin>();
+            appbase::app().register_plugin<golos::plugins::test_api::test_api_plugin>();
 
-            appbase::app().register_plugin< steemit::plugins::follow_api::follow_api_plugin >();
+            appbase::app().register_plugin< golos::plugins::follow::api_plugin >();
 
-            appbase::app().register_plugin<steemit::plugins::tolstoy_api::tolstoy_api_plugin>();
+            appbase::app().register_plugin<golos::plugins::tolstoy_api::tolstoy_api_plugin>();
 
         }
     }
 }
 
-FC_REFLECT( (steemit::utilities::console_appender_args), (appender)(stream) )
-FC_REFLECT( (steemit::utilities::file_appender_args), (appender)(file) )
-FC_REFLECT( (steemit::utilities::logger_args), (name)(level)(appender) )
+FC_REFLECT( (golos::utilities::console_appender_args), (appender)(stream) )
+FC_REFLECT( (golos::utilities::file_appender_args), (appender)(file) )
+FC_REFLECT( (golos::utilities::logger_args), (name)(level)(appender) )

@@ -1,14 +1,14 @@
-#include <steemit/plugins/market_history/key_interface.hpp>
+#include <golos/plugins/market_history/key_interface.hpp>
 
-namespace steemit {
+namespace golos {
     namespace plugins {
         namespace market_history {
             key_interface::key_interface() {
 
             }
 
-            key_interface::key_interface(protocol::asset_name_type base, protocol::asset_name_type quote)
-                    : base(base), quote(quote) {
+            key_interface::key_interface(protocol::asset_name_type base, protocol::asset_name_type quote) : base(base),
+                    quote(quote) {
             }
         }
     }

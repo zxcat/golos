@@ -1,6 +1,6 @@
-#include<steemit/wallet/remote_node_api.hpp>
+#include<golos/wallet/remote_node_api.hpp>
 
-namespace steemit { namespace wallet {
+namespace golos { namespace wallet {
 
 // This class exists only to provide method signature information to fc::api, not to execute calls.
 
@@ -29,7 +29,7 @@ vector< account_name_type > remote_node_api::get_active_witnesses()
 //    FC_ASSERT( false );
 // }
 
-optional< database_api::api_signed_block_object > remote_node_api::get_block( uint32_t )
+optional< api::api_signed_block_object > remote_node_api::get_block( uint32_t )
 {
    FC_ASSERT( false );
 }
@@ -44,7 +44,7 @@ optional< database_api::api_signed_block_object > remote_node_api::get_block( ui
 //    FC_ASSERT( false );
 // }
 
-database_api::dynamic_global_property_api_object remote_node_api::get_dynamic_global_properties()
+api::dynamic_global_property_api_object remote_node_api::get_dynamic_global_properties()
 {
    FC_ASSERT( false );
 }
@@ -59,12 +59,12 @@ price remote_node_api::get_current_median_history_price()
    FC_ASSERT( false );
 }
 
-database_api::feed_history_api_obj remote_node_api::get_feed_history()
+api::feed_history_api_object remote_node_api::get_feed_history()
 {
    FC_ASSERT( false );
 }
 
-database_api::witness_schedule_api_object remote_node_api::get_witness_schedule()
+api::witness_schedule_api_object remote_node_api::get_witness_schedule()
 {
    FC_ASSERT( false );
 }
@@ -79,17 +79,17 @@ hardfork_version remote_node_api::get_hardfork_version()
 //    FC_ASSERT( false );
 // }
 
-database_api::reward_fund_api_object remote_node_api::get_reward_fund( string )
+api::reward_fund_api_object remote_node_api::get_reward_fund( string )
 {
    FC_ASSERT( false );
 }
 
-std::vector< std::vector< steemit::protocol::account_name_type > >  remote_node_api::get_key_references( vector< public_key_type > )
+std::vector< std::vector< golos::protocol::account_name_type > >  remote_node_api::get_key_references( vector< public_key_type > )
 {
    FC_ASSERT( false );
 }
 
-std::vector<steemit::plugins::database_api::extended_account> remote_node_api::get_accounts( vector< account_name_type > )
+std::vector<golos::plugins::database_api::extended_account> remote_node_api::get_accounts( vector< account_name_type > )
 {
    FC_ASSERT( false );
 }
@@ -99,7 +99,7 @@ std::vector<steemit::plugins::database_api::extended_account> remote_node_api::g
 //    FC_ASSERT( false );
 // }
 
-// vector< optional< database_api::api_account_object > > remote_node_api::lookup_account_names( vector< account_name_type > )
+// vector< optional< api::api_account_object > > remote_node_api::lookup_account_names( vector< account_name_type > )
 // {
 //    FC_ASSERT( false );
 // }
@@ -114,22 +114,22 @@ vector< account_name_type > remote_node_api::lookup_accounts( account_name_type,
 //    FC_ASSERT( false );
 // }
 
-vector< database_api::owner_authority_history_api_object > remote_node_api::get_owner_history( account_name_type )
+vector< api::owner_authority_history_api_object > remote_node_api::get_owner_history( account_name_type )
 {
    FC_ASSERT( false );
 }
 
-// optional< database_api::api_account_recovery_request_object > remote_node_api::get_recovery_request( account_name_type )
+// optional< api::api_account_recovery_request_object > remote_node_api::get_recovery_request( account_name_type )
 // {
 //    FC_ASSERT( false );
 // }
 
-// optional< database_api::api_escrow_object > remote_node_api::get_escrow( account_name_type, uint32_t )
+// optional< api::api_escrow_object > remote_node_api::get_escrow( account_name_type, uint32_t )
 // {
 //    FC_ASSERT( false );
 // }
 
-// vector< database_api::api_withdraw_vesting_route_object > remote_node_api::get_withdraw_routes( account_name_type, condenser_api::withdraw_route_type )
+// vector< api::api_withdraw_vesting_route_object > remote_node_api::get_withdraw_routes( account_name_type, condenser_api::withdraw_route_type )
 // {
 //    FC_ASSERT( false );
 // }
@@ -139,42 +139,42 @@ vector< database_api::owner_authority_history_api_object > remote_node_api::get_
 //    FC_ASSERT( false );
 // }
 
-// vector< database_api::api_savings_withdraw_object > remote_node_api::get_savings_withdraw_from( account_name_type )
+// vector< api::api_savings_withdraw_object > remote_node_api::get_savings_withdraw_from( account_name_type )
 // {
 //    FC_ASSERT( false );
 // }
 
-// vector< database_api::api_savings_withdraw_object > remote_node_api::get_savings_withdraw_to( account_name_type )
+// vector< api::api_savings_withdraw_object > remote_node_api::get_savings_withdraw_to( account_name_type )
 // {
 //    FC_ASSERT( false );
 // }
 
-// vector< database_api::api_vesting_delegation_object > remote_node_api::get_vesting_delegations( account_name_type, account_name_type, uint32_t )
+// vector< api::api_vesting_delegation_object > remote_node_api::get_vesting_delegations( account_name_type, account_name_type, uint32_t )
 // {
 //    FC_ASSERT( false );
 // }
 
-// vector< database_api::api_vesting_delegation_expiration_object > remote_node_api::get_expiring_vesting_delegations( account_name_type, time_point_sec, uint32_t )
+// vector< api::api_vesting_delegation_expiration_object > remote_node_api::get_expiring_vesting_delegations( account_name_type, time_point_sec, uint32_t )
 // {
 //    FC_ASSERT( false );
 // }
 
-// vector< optional< database_api::api_witness_object > > remote_node_api::get_witnesses( vector< witness_id_type > )
+// vector< optional< api::api_witness_object > > remote_node_api::get_witnesses( vector< witness_id_type > )
 // {
 //    FC_ASSERT( false );
 // }
 
-vector< database_api::api_convert_request_object > remote_node_api::get_conversion_requests( account_name_type )
+vector< api::api_convert_request_object > remote_node_api::get_conversion_requests( account_name_type )
 {
    FC_ASSERT( false );
 }
 
-optional< database_api::witness_api_object > remote_node_api::get_witness_by_account( account_name_type )
+optional< api::witness_api_object > remote_node_api::get_witness_by_account( account_name_type )
 {
    FC_ASSERT( false );
 }
 
-// vector< database_api::api_witness_object > remote_node_api::get_witnesses_by_vote( account_name_type, uint32_t )
+// vector< api::api_witness_object > remote_node_api::get_witnesses_by_vote( account_name_type, uint32_t )
 // {
 //    FC_ASSERT( false );
 // }
@@ -339,7 +339,7 @@ annotated_signed_transaction remote_node_api::get_transaction( transaction_id_ty
 //    FC_ASSERT( false );
 // }
 
-steemit::plugins::network_broadcast_api::broadcast_transaction_synchronous_return remote_node_api::broadcast_transaction_synchronous( signed_transaction )
+golos::plugins::network_broadcast_api::broadcast_transaction_synchronous_return remote_node_api::broadcast_transaction_synchronous( signed_transaction )
 {
    FC_ASSERT( false );
 }

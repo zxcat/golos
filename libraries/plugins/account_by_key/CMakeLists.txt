@@ -1,24 +1,24 @@
 set(CURRENT_TARGET account_by_key_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/account_by_key/account_by_key_plugin.hpp
-        include/steemit/plugins/account_by_key/account_by_key_objects.hpp
-)
+     include/golos/plugins/account_by_key/plugin.hpp
+     include/golos/plugins/account_by_key/objects.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        account_by_key_plugin.cpp
-)
+     plugin.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-    )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-    )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
@@ -39,4 +39,4 @@ install(TARGETS
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
-)
+        )

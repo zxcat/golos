@@ -1,24 +1,24 @@
 set(CURRENT_TARGET p2p_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/p2p/p2p_plugin.hpp
-)
+     include/golos/plugins/p2p/p2p_plugin.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        p2p_plugin.cpp
-)
+     p2p_plugin.cpp
+     )
 
-if (BUILD_SHARED_LIBRARIES)
+if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
-else ()
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
+else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
-endif ()
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
+endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 
@@ -38,10 +38,10 @@ target_include_directories(
         "${CMAKE_CURRENT_SOURCE_DIR}/../../"
 )
 
-install( TARGETS
-    golos_${CURRENT_TARGET}
+install(TARGETS
+        golos_${CURRENT_TARGET}
 
-   RUNTIME DESTINATION bin
-   LIBRARY DESTINATION lib
-   ARCHIVE DESTINATION lib
-)
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        )

@@ -1,10 +1,10 @@
-#include <steemit/plugins/follow/follow_operations.hpp>
-#include <steemit/plugins/follow/follow_objects.hpp>
-#include <steemit/plugins/follow/follow_evaluators.hpp>
-#include <steemit/chain/objects/account_object.hpp>
-#include <steemit/chain/objects/comment_object.hpp>
+#include <golos/plugins/follow/follow_operations.hpp>
+#include <golos/plugins/follow/follow_objects.hpp>
+#include <golos/plugins/follow/follow_evaluators.hpp>
+#include <golos/chain/objects/account_object.hpp>
+#include <golos/chain/objects/comment_object.hpp>
 
-namespace steemit {
+namespace golos {
     namespace plugins {
         namespace follow {
 
@@ -130,7 +130,8 @@ namespace steemit {
 
                     const auto &stats_idx = db.get_index<blog_author_stats_index, by_blogger_guest_count>();
                     auto stats_itr = stats_idx.lower_bound(boost::make_tuple(o.account, c.author));
-                    if (stats_itr != stats_idx.end() && stats_itr->blogger == o.account && stats_itr->guest == c.author) {
+                    if (stats_itr != stats_idx.end() && stats_itr->blogger == o.account &&
+                        stats_itr->guest == c.author) {
                         db.modify(*stats_itr, [&](blog_author_stats_object &s) {
                             ++s.count;
                         });
@@ -193,4 +194,4 @@ namespace steemit {
 
         }
     }
-} // steemit::follow
+} // golos::follow

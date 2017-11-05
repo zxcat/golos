@@ -1,4 +1,4 @@
-#include <graphene/utilities/key_conversion.hpp>
+#include <golos/utilities/key_conversion.hpp>
 #include <fc/crypto/base58.hpp>
 
 namespace graphene {

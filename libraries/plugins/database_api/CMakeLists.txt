@@ -1,44 +1,44 @@
 set(CURRENT_TARGET database_api_plugin)
 
 list(APPEND ${CURRENT_TARGET}_HEADERS
-        include/steemit/plugins/database_api/applied_operation.hpp
-        include/steemit/plugins/database_api/discussion_query.hpp
-        include/steemit/plugins/database_api/state.hpp
-        include/steemit/plugins/database_api/database_api.hpp
-        include/steemit/plugins/database_api/database_api_plugins.hpp
+     include/golos/plugins/database_api/applied_operation.hpp
+     include/golos/plugins/database_api/discussion_query.hpp
+     include/golos/plugins/database_api/state.hpp
+     include/golos/plugins/database_api/api.hpp
+     include/golos/plugins/database_api/api_plugin.hpp
 
-        include/steemit/plugins/database_api/comment_api_obj.hpp
-        include/steemit/plugins/database_api/category_api_obj.hpp
-        include/steemit/plugins/database_api/account_api_obj.hpp
-        include/steemit/plugins/database_api/account_recovery_request_api_obj.hpp
-        include/steemit/plugins/database_api/feed_history_api_obj.hpp
-        include/steemit/plugins/database_api/forward.hpp
-        include/steemit/plugins/database_api/owner_authority_history_api_obj.hpp
-        include/steemit/plugins/database_api/savings_withdraw_api_obj.hpp
-        include/steemit/plugins/database_api/tag_api_obj.hpp
-        include/steemit/plugins/database_api/witness_api_obj.hpp
+     include/golos/plugins/database_api/api_objects/comment_api_object.hpp
+     include/golos/plugins/database_api/api_objects/category_api_object.hpp
+     include/golos/plugins/database_api/api_objects/account_api_object.hpp
+     include/golos/plugins/database_api/api_objects/account_recovery_request_api_object.hpp
+     include/golos/plugins/database_api/api_objects/feed_history_api_object.hpp
+     include/golos/plugins/database_api/forward.hpp
+     include/golos/plugins/database_api/api_objects/owner_authority_history_api_object.hpp
+     include/golos/plugins/database_api/api_objects/savings_withdraw_api_object.hpp
+     include/golos/plugins/database_api/api_objects/tag_api_object.hpp
+     include/golos/plugins/database_api/api_objects/witness_api_object.hpp
 
 
-)
+     )
 
 list(APPEND ${CURRENT_TARGET}_SOURCES
-        discussion_query.cpp
-        database_api.cpp
-        database_api_plugin.cpp
-        applied_operation.cpp
-)
+     discussion_query.cpp
+     api.cpp
+     api_plugin.cpp
+     applied_operation.cpp
+     )
 
-if (BUILD_SHARED_LIBRARIES)
+if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${${CURRENT_TARGET}_HEADERS}
-            ${${CURRENT_TARGET}_SOURCES}
-)
-else ()
+                ${${CURRENT_TARGET}_HEADERS}
+                ${${CURRENT_TARGET}_SOURCES}
+                )
+else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${${CURRENT_TARGET}_HEADERS}
-            ${${CURRENT_TARGET}_SOURCES}
-)
-endif ()
+                ${${CURRENT_TARGET}_HEADERS}
+                ${${CURRENT_TARGET}_SOURCES}
+                )
+endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})

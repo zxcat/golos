@@ -1,30 +1,30 @@
 set(CURRENT_TARGET market_history_plugin)
 
 list(APPEND ${CURRENT_TARGET}_HEADERS
-        include/steemit/plugins/market_history/bucket_object.hpp
-        include/steemit/plugins/market_history/key_interface.hpp
-        include/steemit/plugins/market_history/market_history_object_types.hpp
-        include/steemit/plugins/market_history/market_history_plugin.hpp
-        include/steemit/plugins/market_history/order_history_object.hpp
-)
+     include/golos/plugins/market_history/bucket_object.hpp
+     include/golos/plugins/market_history/key_interface.hpp
+     include/golos/plugins/market_history/market_history_object_types.hpp
+     include/golos/plugins/market_history/plugin.hpp
+     include/golos/plugins/market_history/order_history_object.hpp
+     )
 
 list(APPEND ${CURRENT_TARGET}_SOURCES
-        bucket_object.cpp
-        key_interface.cpp
-        order_history_object.cpp
-        market_history_plugin.cpp
-)
+     bucket_object.cpp
+     key_interface.cpp
+     order_history_object.cpp
+     plugin.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${${CURRENT_TARGET}_HEADERS}
-            ${${CURRENT_TARGET}_SOURCES}
-    )
+                ${${CURRENT_TARGET}_HEADERS}
+                ${${CURRENT_TARGET}_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${${CURRENT_TARGET}_HEADERS}
-            ${${CURRENT_TARGET}_SOURCES}
-    )
+                ${${CURRENT_TARGET}_HEADERS}
+                ${${CURRENT_TARGET}_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
@@ -39,7 +39,7 @@ target_link_libraries(
 )
 target_include_directories(golos_${CURRENT_TARGET}
 
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../version/include")
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../version/include")
 
 
 install(TARGETS

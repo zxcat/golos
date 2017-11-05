@@ -57,16 +57,16 @@ get_git_head_revision(GIT_REFSPEC GIT_SHA2)
 
 set(BOOST_COMPONENTS)
 list(APPEND BOOST_COMPONENTS thread
-        date_time
-        system
-        filesystem
-        program_options
-        signals
-        serialization
-        chrono
-        unit_test_framework
-        context
-        locale)
+     date_time
+     system
+     filesystem
+     program_options
+     signals
+     serialization
+     chrono
+     unit_test_framework
+     context
+     locale)
 
 option(Boost_USE_STATIC_LIBS "Build with Boost static libraries usage" TRUE)
 
@@ -222,7 +222,7 @@ endif()
 add_subdirectory(frameworks)
 add_subdirectory(libraries)
 add_subdirectory(programs)
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 if(ENABLE_INSTALLER)
 

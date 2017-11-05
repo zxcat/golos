@@ -36,18 +36,18 @@
 #include <fc/thread/scoped_lock.hpp>
 #include <fc/smart_ref_impl.hpp>
 
-#include <graphene/utilities/git_revision.hpp>
-#include <graphene/utilities/key_conversion.hpp>
-#include <graphene/utilities/words.hpp>
+#include <golos/utilities/git_revision.hpp>
+#include <golos/utilities/key_conversion.hpp>
+#include <golos/utilities/words.hpp>
 
-#include <steemit/application/api.hpp>
-#include <steemit/follow/follow_operations.hpp>
-#include <steemit/private_message/private_message_operations.hpp>
-#include <steemit/wallet/wallet.hpp>
-#include <steemit/wallet/api_documentation.hpp>
-#include <steemit/wallet/reflect_utilities.hpp>
+#include <golos/application/api.hpp>
+#include <golos/follow/follow_operations.hpp>
+#include <golos/private_message/private_message_operations.hpp>
+#include <golos/wallet/wallet.hpp>
+#include <golos/wallet/api_documentation.hpp>
+#include <golos/wallet/reflect_utilities.hpp>
 
-#include <steemit/account_by_key/account_by_key_api.hpp>
+#include <golos/account_by_key/account_by_key_api.hpp>
 
 #ifndef WIN32
 
@@ -55,7 +55,7 @@
 
 #define BRAIN_KEY_WORD_COUNT 16
 
-namespace steemit {
+namespace golos {
     namespace wallet {
 
         namespace detail {
@@ -258,7 +258,7 @@ namespace steemit {
                 wallet_api &self;
 
                 wallet_api_impl(wallet_api &s, const wallet_data &initial_data,
-                                const steemit::protocol::chain_id_type &_steem_chain_id, fc::api<remote_node_api> rapi)
+                                const golos::protocol::chain_id_type &_steem_chain_id, fc::api<remote_node_api> rapi)
                         : self(s), _remote_api(rapi) {
                     init_prototype_ops();
 
@@ -473,7 +473,7 @@ namespace steemit {
                     fc::optional<fc::ecc::private_key> optional_private_key = wif_to_key(wif_key);
                     if (!optional_private_key)
                         FC_THROW("Invalid private key");
-                    steemit::chain::public_key_type wif_pub_key = optional_private_key->get_public_key();
+                    golos::chain::public_key_type wif_pub_key = optional_private_key->get_public_key();
 
                     _keys[wif_pub_key] = wif_key;
                     return true;
@@ -541,7 +541,7 @@ namespace steemit {
                     for (int key_index = 0;; ++key_index) {
                         fc::ecc::private_key derived_private_key = derive_private_key(key_to_wif(parent_key),
                                                                                       key_index);
-                        steemit::chain::public_key_type derived_public_key = derived_private_key.get_public_key();
+                        golos::chain::public_key_type derived_public_key = derived_private_key.get_public_key();
                         if (_keys.find(derived_public_key) == _keys.end()) {
                             if (number_of_consecutive_unused_keys) {
                                 ++number_of_consecutive_unused_keys;
@@ -572,9 +572,9 @@ namespace steemit {
                         fc::ecc::private_key memo_privkey = derive_private_key(key_to_wif(active_privkey),
                                                                                memo_key_index);
 
-                        steemit::chain::public_key_type owner_pubkey = owner_privkey.get_public_key();
-                        steemit::chain::public_key_type active_pubkey = active_privkey.get_public_key();
-                        steemit::chain::public_key_type memo_pubkey = memo_privkey.get_public_key();
+                        golos::chain::public_key_type owner_pubkey = owner_privkey.get_public_key();
+                        golos::chain::public_key_type active_pubkey = active_privkey.get_public_key();
+                        golos::chain::public_key_type memo_pubkey = memo_privkey.get_public_key();
 
                         account_create_operation<0, 17, 0> account_create_op;
 
@@ -983,7 +983,7 @@ namespace steemit {
                     }
 
                     try {
-                        _remote_follow_api = _remote_api->get_api_by_name("follow_api")->as<follow::follow_api>();
+                        _remote_follow_api = _remote_api->get_api_by_name("follow")->as<follow::follow_api>();
                     } catch (const fc::exception &e) {
                         elog("Couldn't get follow API");
                         throw (e);
@@ -996,8 +996,8 @@ namespace steemit {
                     }
 
                     try {
-                        _remote_account_by_key_api = _remote_api->get_api_by_name("account_by_key_api")->as<
-                                account_by_key::account_by_key_api>();
+                        _remote_account_by_key_api = _remote_api->get_api_by_name("api")->as<
+                                account_by_key::api>();
                     } catch (const fc::exception &e) {
                         elog("Couldn't get account_by_key API");
                         throw (e);
@@ -1151,7 +1151,7 @@ namespace steemit {
 
                 string _wallet_filename;
                 wallet_data _wallet;
-                steemit::protocol::chain_id_type steem_chain_id;
+                golos::protocol::chain_id_type steem_chain_id;
 
                 map<public_key_type, string> _keys;
                 map<transaction_handle_type, signed_transaction> _builder_transactions;
@@ -1174,14 +1174,14 @@ namespace steemit {
             };
         }
     }
-} // steemit::wallet::detail
+} // golos::wallet::detail
 
 
 
-namespace steemit {
+namespace golos {
     namespace wallet {
 
-        wallet_api::wallet_api(const wallet_data &initial_data, const steemit::protocol::chain_id_type &_steem_chain_id,
+        wallet_api::wallet_api(const wallet_data &initial_data, const golos::protocol::chain_id_type &_steem_chain_id,
                                fc::api<remote_node_api> rapi) : my(
                 new detail::wallet_api_impl(*this, initial_data, _steem_chain_id, rapi)) {
         }
@@ -1220,7 +1220,7 @@ namespace steemit {
         try {
             my->use_remote_account_by_key_api();
         } catch (fc::exception &e) {
-            elog("Connected node needs to enable account_by_key_api");
+            elog("Connected node needs to enable api");
             return result;
         }
 
@@ -3062,4 +3062,4 @@ namespace steemit {
         return sign_transaction(tx, broadcast);
     }
 }
-} // steemit::wallet
+} // golos::wallet

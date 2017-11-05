@@ -1,24 +1,24 @@
 set(CURRENT_TARGET languages_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/languages/languages_plugin.hpp
+     include/golos/plugins/languages/plugin.hpp
      )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        languages_plugin.cpp
+     plugin.cpp
      )
 
-if (BUILD_SHARED_LIBRARIES)
+if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
                 ${CURRENT_TARGET_HEADERS}
                 ${CURRENT_TARGET_SOURCES}
                 )
-else ()
+else()
     add_library(golos_${CURRENT_TARGET} STATIC
                 ${CURRENT_TARGET_HEADERS}
                 ${CURRENT_TARGET_SOURCES}
                 )
-endif ()
+endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})

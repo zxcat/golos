@@ -62,7 +62,7 @@ access to its API to anyone:
     p2p-endpoint = 127.0.0.1:2001       # bind to localhost to prevent remote p2p nodes from connecting to us
     rpc-endpoint = 127.0.0.1:8090       # bind to localhost to secure RPC API access
     enable-plugin = witness account_history debug_node
-    public-api = database_api login_api debug_node_api
+    public-api = api login_api debug_node_api
 
 The `public-api` section lists API's accessible to the RPC endpoint.  Since (as explained above) the `debug_node_api`
 allows the database to be edited in ways that cause the node to report simulated chain state to clients and fail

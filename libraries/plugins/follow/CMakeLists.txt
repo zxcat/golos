@@ -1,28 +1,28 @@
 set(CURRENT_TARGET follow_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-        include/steemit/plugins/follow/follow_evaluators.hpp
-        include/steemit/plugins/follow/follow_objects.hpp
-        include/steemit/plugins/follow/follow_operations.hpp
-        include/steemit/plugins/follow/follow_plugin.hpp
-)
+     include/golos/plugins/follow/follow_evaluators.hpp
+     include/golos/plugins/follow/follow_objects.hpp
+     include/golos/plugins/follow/follow_operations.hpp
+     include/golos/plugins/follow/plugin.hpp
+     )
 
 list(APPEND CURRENT_TARGET_SOURCES
-        follow_evaluators.cpp
-        follow_operations.cpp
-        follow_plugin.cpp
-)
+     follow_evaluators.cpp
+     follow_operations.cpp
+     plugin.cpp
+     )
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-            ${CURRENT_TARGET_HEADERS}
-            ${CURRENT_TARGET_SOURCES}
-            )
+                ${CURRENT_TARGET_HEADERS}
+                ${CURRENT_TARGET_SOURCES}
+                )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})

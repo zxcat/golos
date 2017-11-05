@@ -1,5 +1,6 @@
-#include <steemit/plugins/private_message/private_message_evaluators.hpp>
-namespace steemit {
+#include <golos/plugins/private_message/private_message_evaluators.hpp>
+
+namespace golos {
     namespace plugins {
         namespace private_message {
             void private_message_evaluator::do_apply(const private_message_operation &pm) {
@@ -16,10 +17,8 @@ namespace steemit {
                 FC_ASSERT(pm.encrypted_message.size() >= 32);
 
                 if (!tracked_accounts.size() ||
-                    (to_itr != tracked_accounts.end() && pm.to >= to_itr->first &&
-                     pm.to <= to_itr->second) ||
-                    (from_itr != tracked_accounts.end() &&
-                     pm.from >= from_itr->first && pm.from <= from_itr->second)) {
+                    (to_itr != tracked_accounts.end() && pm.to >= to_itr->first && pm.to <= to_itr->second) ||
+                    (from_itr != tracked_accounts.end() && pm.from >= from_itr->first && pm.from <= from_itr->second)) {
                     d.create<message_object>([&](message_object &pmo) {
                         pmo.from = pm.from;
                         pmo.to = pm.to;
