@@ -4,6 +4,8 @@
 #include <golos/plugins/market_history/order_history_object.hpp>
 #include <golos/plugins/market_history/bucket_object.hpp>
 
+#include <fc/bloom_filter.hpp>
+
 namespace golos {
     namespace plugins {
         namespace market_history {

@@ -17,7 +17,6 @@ namespace golos {
 
             void api_plugin::plugin_shutdown() {
             }
-
         }
     }
 } // golos::plugins::api
