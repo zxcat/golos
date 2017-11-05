@@ -28,11 +28,11 @@ namespace golos {
                 std::vector<protocol::public_key_type> keys;
             };
 
-            class auth_util_api final {
+            class api final {
             public:
-                auth_util_api();
+                api();
 
-                ~auth_util_api() = default;
+                ~api() = default;
 
                 DECLARE_API((check_authority_signature))
 
@@ -40,17 +40,14 @@ namespace golos {
 
                 // private:
             protected:
-                class auth_util_api_impl;
+                class api_impl;
 
-                std::shared_ptr<auth_util_api_impl> my;
+                std::shared_ptr<api_impl> my;
             };
-
         }
     }
-} // golos::plugins::auth_util_api
+} // golos::plugins::api
 
 FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_args), (account_name)(level)(dig)(sigs))
 
 FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_return), (keys))
-
-FC_API(golos::plugins::auth_util_api::auth_util_api, (check_authority_signature))

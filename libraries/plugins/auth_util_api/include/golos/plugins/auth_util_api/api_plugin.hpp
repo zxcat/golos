@@ -1,13 +1,13 @@
 #pragma once
 
-#include <golos/plugins/auth_util_api/auth_util_api_plugin.hpp>
-#include <golos/plugins/auth_util_api/auth_util_api.hpp>
+#include <golos/plugins/auth_util_api/api_plugin.hpp>
+#include <golos/plugins/auth_util_api/api.hpp>
 
 #include <golos/plugins/json_rpc/plugin.hpp>
 #include <appbase/application.hpp>
 #include <string>
 
-#define STEEMIT_ACCOUNT_BY_KEY_API_PLUGIN_NAME "auth_util_api"
+#define STEEMIT_AUTH_UTIL_API_PLUGIN_NAME "auth_util_api"
 
 namespace golos {
     namespace plugins {
@@ -15,16 +15,18 @@ namespace golos {
 
             using namespace appbase;
 
-            class auth_util_api_plugin : public appbase::plugin<auth_util_api_plugin> {
+            class api;
+
+            class api_plugin : public appbase::plugin<api_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES((golos::plugins::json_rpc::plugin))
 
-                auth_util_api_plugin();
+                api_plugin();
 
-                virtual ~auth_util_api_plugin() = default;
+                virtual ~api_plugin() = default;
 
                 static const std::string &name() {
-                    static std::string name = STEEMIT_ACCOUNT_BY_KEY_API_PLUGIN_NAME;
+                    static std::string name = STEEMIT_AUTH_UTIL_API_PLUGIN_NAME;
                     return name;
                 }
 
@@ -36,7 +38,7 @@ namespace golos {
 
                 virtual void plugin_shutdown() override;
 
-                std::shared_ptr<class auth_util_api> api;
+                std::shared_ptr<api> api_ptr;
             };
 
         }

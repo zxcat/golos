@@ -5,8 +5,8 @@
 
 #include <golos/chain/database.hpp>
 
-#include <golos/plugins/auth_util_api/auth_util_api.hpp>
-#include <golos/plugins/auth_util_api/auth_util_api_plugin.hpp>
+#include <golos/plugins/auth_util_api/api.hpp>
+#include <golos/plugins/auth_util_api/api_plugin.hpp>
 
 #include <golos/plugins/chain/plugin.hpp>
 
@@ -18,9 +18,9 @@ namespace golos {
 
             using boost::container::flat_set;
 
-            class auth_util_api::auth_util_api_impl {
+            class api::api_impl {
             public:
-                auth_util_api_impl() : db_(appbase::app().get_plugin<plugins::chain::plugin>().db()) {
+                api_impl() : db_(appbase::app().get_plugin<plugins::chain::plugin>().db()) {
                 }
 
                 DECLARE_API((check_authority_signature))
@@ -36,7 +36,7 @@ namespace golos {
                 golos::chain::database &db_;
             };
 
-            DEFINE_API(auth_util_api::auth_util_api_impl, check_authority_signature) {
+            DEFINE_API(api::api_impl, check_authority_signature) {
                 golos::plugins::auth_util_api::check_authority_signature_return result;
                 auto db = &database();
                 const auto &acct = db->get<golos::chain::account_authority_object, golos::chain::by_account>(
@@ -70,19 +70,18 @@ namespace golos {
                 return result;
             }
 
-            auth_util_api::auth_util_api() {
-                my = std::make_shared<auth_util_api_impl>();
-                JSON_RPC_REGISTER_API(STEEMIT_ACCOUNT_BY_KEY_API_PLUGIN_NAME);
+            api::api() {
+                my = std::make_shared<api_impl>();
+                JSON_RPC_REGISTER_API(STEEMIT_AUTH_UTIL_API_PLUGIN_NAME);
             }
 
-            DEFINE_API(auth_util_api, check_authority_signature) {
+            DEFINE_API(api, check_authority_signature) {
                 return my->db_.with_read_lock([&]() {
                     check_authority_signature_return result;
                     result = my->check_authority_signature(args);
                     return result;
                 });
             }
-
         }
     }
 } // golos::plugin::auth_util

@@ -1,13 +1,13 @@
 set(CURRENT_TARGET auth_util_api)
 
 list(APPEND CURRENT_TARGET_HEADERS
-     include/golos/plugins/auth_util_api/auth_util_api.hpp
-     include/golos/plugins/auth_util_api/auth_util_api_plugin.hpp
+     include/golos/plugins/auth_util_api/api.hpp
+     include/golos/plugins/auth_util_api/api_plugin.hpp
      )
 
 list(APPEND CURRENT_TARGET_SOURCES
-     auth_util_api.cpp
-     auth_util_api_plugin.cpp
+     api.cpp
+     api_plugin.cpp
      )
 
 if(BUILD_SHARED_LIBRARIES)
