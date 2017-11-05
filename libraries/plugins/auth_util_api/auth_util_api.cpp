@@ -60,9 +60,8 @@ namespace golos {
                 flat_set<protocol::public_key_type> avail;
                 protocol::sign_state ss(signing_keys,
                                         [=](const std::string &account_name) -> const protocol::authority {
-                                            return protocol::authority(
-                                                    db->get<golos::chain::account_authority_object, golos::chain::by_account>(
-                                                            account_name).active);
+                                            return {db->get<golos::chain::account_authority_object,
+                                                    golos::chain::by_account>(account_name).active};
                                         }, avail);
 
                 bool has_authority = ss.check_authority(auth);
