@@ -10,7 +10,7 @@ namespace golos {
         namespace account_by_key {
             using namespace golos::chain;
 
-            struct plugin::plugin_impl final {
+            class plugin::plugin_impl final {
             public:
                 plugin_impl(plugin &plugin) : database_(appbase::app().get_plugin<chain::plugin>().db()), self(plugin) {
                 }
@@ -207,7 +207,7 @@ namespace golos {
             void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
                 try {
                     ilog("Initializing account_by_key plugin");
-                    chain::database &db = my->database();
+                    database &db = my->database();
                     db.pre_apply_operation.connect([&](const operation_notification &o) {
                         my->pre_operation(o);
                     });

@@ -12,11 +12,10 @@ namespace golos {
     namespace plugins {
         namespace chain {
 
-            using namespace steemit;
             using fc::flat_map;
             using protocol::block_id_type;
 
-            class plugin_impl {
+            class plugin::plugin_impl {
             public:
                 uint64_t shared_memory_size = 0;
                 boost::filesystem::path shared_memory_dir;
@@ -69,12 +68,12 @@ namespace golos {
             }
 
             void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
-                my->shared_memory_dir = app().data_dir() / "blockchain";
+                my->shared_memory_dir = appbase::app().data_dir() / "blockchain";
 
                 if (options.count("shared-file-dir")) {
                     auto sfd = options.at("shared-file-dir").as<boost::filesystem::path>();
                     if (sfd.is_relative()) {
-                        my->shared_memory_dir = app().data_dir() / sfd;
+                        my->shared_memory_dir = appbase::app().data_dir() / sfd;
                     } else {
                         my->shared_memory_dir = sfd;
                     }
@@ -107,7 +106,7 @@ namespace golos {
 
                 if (my->resync) {
                     wlog("resync requested: deleting block log and shared memory");
-                    my->db.wipe(app().data_dir() / "blockchain", my->shared_memory_dir, true);
+                    my->db.wipe(appbase::app().data_dir() / "blockchain", my->shared_memory_dir, true);
                 }
 
                 my->db.set_flush_interval(my->flush_interval);
@@ -116,21 +115,21 @@ namespace golos {
 
                 if (my->replay) {
                     ilog("Replaying blockchain on user request.");
-                    my->db.reindex(app().data_dir() / "blockchain", my->shared_memory_dir, my->shared_memory_size);
+                    my->db.reindex(appbase::app().data_dir() / "blockchain", my->shared_memory_dir, my->shared_memory_size);
                 } else {
                     try {
                         ilog("Opening shared memory from ${path}", ("path", my->shared_memory_dir.generic_string()));
-                        my->db.open(app().data_dir() / "blockchain", my->shared_memory_dir, 0, my->shared_memory_size,
+                        my->db.open(appbase::app().data_dir() / "blockchain", my->shared_memory_dir, 0, my->shared_memory_size,
                                     chainbase::database::read_write/*, my->validate_invariants*/ );
                     } catch (const fc::exception &e) {
                         wlog("Error opening database, attempting to replay blockchain. Error: ${e}", ("e", e));
 
                         try {
-                            my->db.reindex(app().data_dir() / "blockchain", my->shared_memory_dir,
+                            my->db.reindex(appbase::app().data_dir() / "blockchain", my->shared_memory_dir,
                                            my->shared_memory_size);
                         } catch (golos::chain::block_log &) {
                             wlog("Error opening block log. Having to resync from network...");
-                            my->db.open(app().data_dir() / "blockchain", my->shared_memory_dir, 0,
+                            my->db.open(appbase::app().data_dir() / "blockchain", my->shared_memory_dir, 0,
                                         my->shared_memory_size,
                                         chainbase::database::read_write/*, my->validate_invariants*/ );
                         }

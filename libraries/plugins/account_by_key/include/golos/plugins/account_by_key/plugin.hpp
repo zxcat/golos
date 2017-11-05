@@ -12,6 +12,7 @@ namespace golos {
 #define ACCOUNT_BY_KEY_PLUGIN_NAME "account_by_key"
 
             class plugin final : public appbase::plugin<plugin> {
+                class plugin_impl;
             public:
                 APPBASE_PLUGIN_REQUIRES((chain::plugin))
 
@@ -36,9 +37,6 @@ namespace golos {
                 void update_key_lookup(const golos::chain::account_authority_object &);
 
                 std::unique_ptr<plugin_impl> my;
-
-            protected:
-                struct plugin_impl;
             };
         }
     }

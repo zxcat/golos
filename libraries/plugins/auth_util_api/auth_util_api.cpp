@@ -8,7 +8,7 @@
 #include <golos/plugins/auth_util_api/auth_util_api.hpp>
 #include <golos/plugins/auth_util_api/auth_util_api_plugin.hpp>
 
-#include <golos/plugins/chain/chain_plugin.hpp>
+#include <golos/plugins/chain/plugin.hpp>
 
 #include <fc/container/flat.hpp>
 
@@ -20,7 +20,7 @@ namespace golos {
 
             class auth_util_api::auth_util_api_impl {
             public:
-                auth_util_api_impl() : db_(appbase::app().get_plugin<chain_interface::chain_plugin>().db()) {
+                auth_util_api_impl() : db_(appbase::app().get_plugin<plugins::chain::plugin>().db()) {
                 }
 
                 DECLARE_API((check_authority_signature))
@@ -39,7 +39,7 @@ namespace golos {
             DEFINE_API(auth_util_api::auth_util_api_impl, check_authority_signature) {
                 golos::plugins::auth_util_api::check_authority_signature_return result;
                 auto db = &database();
-                const auto &acct = db->get<chain_interface::account_authority_object, chain_interface::by_account>(
+                const auto &acct = db->get<golos::chain::account_authority_object, golos::chain::by_account>(
                         args.account_name);
                 protocol::authority auth;
                 if ((args.level == "posting") || (args.level == "p")) {
@@ -61,7 +61,7 @@ namespace golos {
                 protocol::sign_state ss(signing_keys,
                                         [=](const std::string &account_name) -> const protocol::authority {
                                             return protocol::authority(
-                                                    db->get<chain::account_authority_object, chain::by_account>(
+                                                    db->get<golos::chain::account_authority_object, golos::chain::by_account>(
                                                             account_name).active);
                                         }, avail);
 
