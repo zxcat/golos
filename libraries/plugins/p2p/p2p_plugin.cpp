@@ -29,6 +29,8 @@ namespace golos {
             using golos::protocol::signed_block_header;
             using golos::protocol::signed_block;
             using golos::protocol::block_id_type;
+            using golos::chain::database;
+            using golos::chain::chain_id_type;
 
             namespace detail {
 
@@ -70,7 +72,7 @@ namespace golos {
 
                     bool is_included_block(const block_id_type &block_id);
 
-                    chain::chain_id_type get_chain_id() const;
+                    chain_id_type get_chain_id() const;
 
                     // node_delegate interface
                     virtual bool has_item(const item_id &) override;
@@ -160,8 +162,8 @@ namespace golos {
                             // when the net code sees that, it will stop trying to push blocks from that chain, but
                             // leave that peer connected so that they can get sync blocks from us
                             bool result = chain.accept_block(blk_msg.block, sync_mode, (block_producer | force_validate)
-                                                                                       ? chain::database::skip_nothing
-                                                                                       : chain::database::skip_transaction_signatures);
+                                                                                       ? database::skip_nothing
+                                                                                       : database::skip_transaction_signatures);
 
                             if (!sync_mode) {
                                 fc::microseconds latency = fc::time_point::now() - blk_msg.block.timestamp;
@@ -280,7 +282,7 @@ namespace golos {
                     } FC_CAPTURE_AND_RETHROW((id))
                 }
 
-                chain::chain_id_type p2p_plugin_impl::get_chain_id() const {
+                chain_id_type p2p_plugin_impl::get_chain_id() const {
                     return STEEMIT_CHAIN_ID;
                 }
 

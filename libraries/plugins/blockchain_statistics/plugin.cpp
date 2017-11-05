@@ -5,12 +5,13 @@
 #include <golos/plugins/blockchain_statistics/plugin.hpp>
 #include <golos/protocol/block.hpp>
 #include <golos/version/hardfork.hpp>
+#include <golos/chain/database.hpp>
 #include <fc/io/json.hpp>
 
 namespace golos {
     namespace plugins {
         namespace blockchain_statistics {
-            using namespace golos::chain;
+            //using golos::chain::database;
             using namespace golos::protocol;
 
 
@@ -27,11 +28,11 @@ namespace golos {
 
                 void post_operation(const operation_notification &o);
 
-                auto database() -> chain::database & {
+                auto database() -> golos::chain::database & {
                     return database_;
                 }
 
-                chain::database &database_;
+                golos::chain::database &database_;
                 flat_set<uint32_t> _tracked_buckets = {60, 3600, 21600, 86400, 604800, 2592000};
                 flat_set<bucket_id_type> _current_buckets;
                 uint32_t _maximum_history_per_bucket_size = 100;
@@ -130,9 +131,9 @@ namespace golos {
 
             struct operation_process {
                 const bucket_object &_bucket;
-                chain::database &_db;
+                database &_db;
 
-                operation_process(chain::database &bsp, const bucket_object &b) : _bucket(b), _db(bsp) {
+                operation_process(database &bsp, const bucket_object &b) : _bucket(b), _db(bsp) {
                 }
 
                 typedef void result_type;

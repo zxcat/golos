@@ -6,9 +6,13 @@
 namespace golos {
     namespace plugins {
         namespace database_api {
+            using golos::protocol::asset;
+            using golos::protocol::price;
+            using golos::protocol::account_name_type;
+
 
             struct witness_api_object {
-                witness_api_object(const chain::witness_object &w) : id(w.id), owner(w.owner), created(w.created),
+                witness_api_object(const golos::chain::witness_object &w) : id(w.id), owner(w.owner), created(w.created),
                         url(to_string(w.url)), total_missed(w.total_missed), last_aslot(w.last_aslot),
                         last_confirmed_block_num(w.last_confirmed_block_num), pow_worker(w.pow_worker),
                         signing_key(w.signing_key), props(w.props), sbd_exchange_rate(w.sbd_exchange_rate),

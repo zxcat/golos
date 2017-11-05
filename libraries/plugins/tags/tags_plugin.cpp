@@ -12,7 +12,7 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include "steemit/plugins/tags/tags_plugin.hpp"
+#include "golos/plugins/tags/tags_plugin.hpp"
 
 namespace golos {
     namespace plugins {

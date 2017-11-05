@@ -4,11 +4,11 @@
 #include <golos/chain/objects/global_property_object.hpp>
 #include <golos/chain/objects/account_object.hpp>
 #include <golos/chain/objects/steem_objects.hpp>
-#include <plugins/database_api/include/steemit/plugins/database_api/api_objects/comment_api_object.hpp>
-#include "plugins/database_api/include/steemit/plugins/database_api/api_objects/account_api_object.hpp"
-#include "plugins/database_api/include/steemit/plugins/database_api/api_objects/tag_api_object.hpp"
-#include "plugins/database_api/include/steemit/plugins/database_api/api_objects/category_api_object.hpp"
-#include "plugins/database_api/include/steemit/plugins/database_api/api_objects/witness_api_object.hpp"
+#include <golos/plugins/database_api/api_objects/comment_api_object.hpp>
+#include <golos/plugins/database_api/api_objects/account_api_object.hpp>
+#include <golos/plugins/database_api/api_objects/tag_api_object.hpp>
+#include <golos/plugins/database_api/api_objects/category_api_object.hpp>
+#include <golos/plugins/database_api/api_objects/witness_api_object.hpp>
 #include "forward.hpp"
 
 namespace golos {
@@ -18,7 +18,7 @@ namespace golos {
             using std::vector;
             using namespace protocol;
             using namespace chain;
-            typedef chain::limit_order_object limit_order_api_obj;
+            typedef golos::chain::limit_order_object limit_order_api_obj;
 
             struct extended_limit_order : public limit_order_api_obj {
                 extended_limit_order() {
@@ -77,7 +77,7 @@ namespace golos {
             };
 
             struct discussion : public comment_api_object {
-                discussion(const chain::comment_object &o) : comment_api_object(o) {
+                discussion(const golos::chain::comment_object &o) : comment_api_object(o) {
                 }
 
                 discussion() {
@@ -105,7 +105,7 @@ namespace golos {
                 extended_account() {
                 }
 
-                extended_account(const account_object &a, const chain::database &db) : account_api_object(a, db) {
+                extended_account(const account_object &a, const golos::chain::database &db) : account_api_object(a, db) {
                 }
 
                 asset<0, 17, 0> vesting_balance; /// convert vesting_shares to vesting steem
@@ -182,7 +182,7 @@ FC_REFLECT((golos::plugins::database_api::discussion_index),
                    maturing)(best)(hot)(promoted)(cashout))
 FC_REFLECT((golos::plugins::database_api::category_index), (active)(recent)(best))
 FC_REFLECT((golos::plugins::database_api::tag_index), (trending))
-FC_REFLECT_DERIVED((golos::plugins::database_api::discussion), ((golos::plugins::database_api::comment_api_obj)),
+FC_REFLECT_DERIVED((golos::plugins::database_api::discussion), ((golos::plugins::database_api::comment_api_object)),
                    (url)(root_title)(pending_payout_value)(total_pending_payout_value)(active_votes)(replies)(
                            author_reputation)(promoted)(body_length)(reblogged_by)(first_reblogged_by)(
                            first_reblogged_on))

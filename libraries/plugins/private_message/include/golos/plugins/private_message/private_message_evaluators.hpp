@@ -9,12 +9,12 @@ namespace golos {
     namespace plugins {
         namespace private_message {
 
-            class private_message_evaluator : public chain::evaluator<private_message_evaluator, 0, 17, 0,
+            class private_message_evaluator : public golos::chain::evaluator<private_message_evaluator, 0, 17, 0,
                     private_message_plugin_operation> {
             public:
                 typedef private_message_operation operation_type;
 
-                private_message_evaluator(chain::database &db, private_message_plugin *plugin) : chain::evaluator<
+                private_message_evaluator(golos::chain::database &db, private_message_plugin *plugin) : golos::chain::evaluator<
                         private_message_evaluator, 0, 17, 0, private_message_plugin_operation>(db), _plugin(plugin) {
                 }
 

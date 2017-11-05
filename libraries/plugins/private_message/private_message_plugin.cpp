@@ -38,7 +38,7 @@ namespace golos {
                 ~private_message_plugin_impl() {
                 }
 
-                chain::database &database() {
+                golos::chain::database &database() {
                     return database_;
                 }
 
@@ -46,7 +46,7 @@ namespace golos {
                     return _tracked_accounts;
                 }
 
-                chain::database &database_;
+                golos::chain::database &database_;
                 std::shared_ptr<generic_custom_operation_interpreter<
                         private_message_plugin_operation>> _custom_operation_interpreter;
                 flat_map<string, string> _tracked_accounts;
@@ -72,7 +72,7 @@ namespace golos {
                 ilog("Intializing private message plugin");
                 my.reset(new private_message_plugin_impl());
                 my->plugin_initialize(*this);
-                chain::database &db = my->database();
+                golos::chain::database &db = my->database();
                 db.add_plugin_index<message_index>();
 
                 using pairstring= pair<string, string>;

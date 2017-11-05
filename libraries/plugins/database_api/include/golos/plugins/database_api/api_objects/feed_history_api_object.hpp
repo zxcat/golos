@@ -8,7 +8,7 @@ namespace golos {
         namespace database_api {
 
             struct feed_history_api_object {
-                feed_history_api_object(const chain::feed_history_object &f) : id(f.id),
+                feed_history_api_object(const golos::chain::feed_history_object &f) : id(f.id),
                         current_median_history(f.current_median_history),
                         price_history(f.price_history.begin(), f.price_history.end()) {
                 }
@@ -24,5 +24,5 @@ namespace golos {
     }
 }
 
-FC_REFLECT((golos::plugins::database_api::feed_history_api_obj), (id)(current_median_history)(price_history))
+FC_REFLECT((golos::plugins::database_api::feed_history_api_object), (id)(current_median_history)(price_history))
 #endif //GOLOS_FEED_HISTORY_API_OBJ_HPP

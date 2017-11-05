@@ -125,7 +125,7 @@ namespace golos {
             DEFINE_API_ARGS(get_dynamic_global_properties, msg_pack, dynamic_global_property_api_object)
             DEFINE_API_ARGS(get_chain_properties, msg_pack, chain_properties_17)
             DEFINE_API_ARGS(get_current_median_history_price, msg_pack, price_17)
-            DEFINE_API_ARGS(get_feed_history, msg_pack, feed_history_api_obj)
+            DEFINE_API_ARGS(get_feed_history, msg_pack, feed_history_api_object)
             DEFINE_API_ARGS(get_witness_schedule, msg_pack, witness_schedule_api_object)
             DEFINE_API_ARGS(get_hardfork_version, msg_pack, hardfork_version)
             DEFINE_API_ARGS(get_next_scheduled_hardfork, msg_pack, scheduled_hardfork)
@@ -645,8 +645,8 @@ namespace golos {
                                              const std::string &start_author, const std::string &start_permlink) const;
 
 
-                struct database_api_impl;
-                std::unique_ptr<database_api_impl> my;
+                struct api_impl;
+                std::unique_ptr<api_impl> my;
             };
         }
     }

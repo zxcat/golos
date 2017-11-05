@@ -9,7 +9,7 @@
 namespace golos {
     namespace plugins {
         namespace p2p {
-            namespace bpo = boost::program_options::;
+            namespace bpo = boost::program_options;
 
             namespace detail {
                 class p2p_plugin_impl;

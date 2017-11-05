@@ -83,12 +83,11 @@ namespace golos {
 
             namespace detail {
                 struct operation_visitor {
-                    operation_visitor(plugin::plugin_impl &self) : languages_plugin(self), _db(self.database()) {
+                    operation_visitor(golos::chain::database &_db) : _db(_db) {
 
                     };
                     typedef void result_type;
 
-                    plugin::plugin_impl &languages_plugin;
                     golos::chain::database &_db;
 
                     void remove_stats(const language_object &tag, const language_stats_object &stats) const {
@@ -207,8 +206,8 @@ namespace golos {
                                 stats.total_posts = 1;
                             });
                         }
-
-                        languages_plugin.self().cache_languages.emplace(language);
+                        ///TODO: CACHE push
+                        //languages_plugin.self().cache_languages.emplace(language);
                     }
 
                     std::string filter_tags(const comment_object &c) const {
@@ -385,7 +384,8 @@ namespace golos {
                             if (obj == nullptr) {
                                 _db.remove(tobj);
                             } else {
-                                languages_plugin.self().cache_languages.erase(get_language(*obj));
+                                //TODO:: clear cache
+                                //languages_plugin.self().cache_languages.erase(get_language(*obj));
                             }
                         }
                     }
@@ -411,7 +411,7 @@ namespace golos {
             void plugin::plugin_impl::on_operation(const operation_notification &note) {
                 try {
                     /// plugins shouldn't ever throw
-                    note.op.visit(detail::operation_visitor(self()));
+                    note.op.visit(detail::operation_visitor(database()));
                 } catch (const fc::exception &e) {
                     edump((e.to_detail_string()));
                 } catch (...) {

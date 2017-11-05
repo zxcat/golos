@@ -7,27 +7,28 @@
 namespace golos {
     namespace plugins {
         namespace follow {
-
-            struct follow_operation : chain::base_operation<0, 17, 0> {
+            using golos::chain::base_operation;
+            using golos::protocol::account_name_type;
+            struct follow_operation : base_operation<0, 17, 0> {
                 protocol::account_name_type follower;
                 protocol::account_name_type following;
                 std::set<std::string> what; /// blog, mute
 
                 void validate() const;
 
-                void get_required_posting_authorities(flat_set<protocol::account_name_type> &a) const {
+                void get_required_posting_authorities(flat_set<account_name_type> &a) const {
                     a.insert(follower);
                 }
             };
 
-            struct reblog_operation : chain::base_operation<0, 17, 0> {
+            struct reblog_operation : base_operation<0, 17, 0> {
                 protocol::account_name_type account;
                 protocol::account_name_type author;
                 std::string permlink;
 
                 void validate() const;
 
-                void get_required_posting_authorities(flat_set<protocol::account_name_type> &a) const {
+                void get_required_posting_authorities(flat_set<account_name_type> &a) const {
                     a.insert(account);
                 }
             };

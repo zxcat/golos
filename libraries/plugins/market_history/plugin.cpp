@@ -2,12 +2,15 @@
 #include <golos/chain/operation_notification.hpp>
 #include <golos/protocol/asset.hpp>
 #include <golos/plugins/chain/plugin.hpp>
+#include <golos/chain/database.hpp>
 #include <fc/io/json.hpp>
 
 namespace golos {
     namespace plugins {
         namespace market_history {
-
+            using namespace golos::protocol;
+            using golos::chain::operation_notification;
+            //using golos::chain::database;
 
             class plugin::plugin_impl {
             public:
@@ -387,7 +390,7 @@ namespace golos {
                 ~plugin_impl() {
                 }
 
-                auto database() -> chain::database & {
+                auto database() -> golos::chain::database & {
                     return database_;
                 }
 
@@ -405,7 +408,7 @@ namespace golos {
                     return _tracked_buckets;
                 }
 
-                chain::database &database_;
+                golos::chain::database &database_;
                 flat_set<uint32_t> _tracked_buckets = flat_set<uint32_t>  {15, 60, 300, 3600, 86400};
                 int32_t maximum_history_per_bucket_size = 1000;
             };

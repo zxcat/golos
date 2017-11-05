@@ -422,7 +422,7 @@ namespace golos {
                 }
             };
 
-            using namespace golos::chain;
+            using golos::chain::database;
             using namespace golos::protocol;
             using std::string;
 
@@ -434,7 +434,7 @@ namespace golos {
                 ~plugin_impl() {
                 }
 
-                chain::database &database() {
+                golos::chain::database &database() {
                     return _self;
                 }
 
@@ -458,7 +458,7 @@ namespace golos {
                     }
                 }
 
-                chain::database &_self;
+                golos::chain::database &_self;
                 flat_map<string, string> _tracked_accounts;
                 bool _filter_content = false;
             };

@@ -9,7 +9,7 @@ namespace golos {
 
 
             struct account_recovery_request_api_object {
-                account_recovery_request_api_object(const chain::account_recovery_request_object &o) : id(o.id),
+                account_recovery_request_api_object(const golos::chain::account_recovery_request_object &o) : id(o.id),
                         account_to_recover(o.account_to_recover), new_owner_authority(authority(o.new_owner_authority)),
                         expires(o.expires) {
                 }
@@ -27,7 +27,7 @@ namespace golos {
 }
 
 
-FC_REFLECT((golos::plugins::database_api::account_recovery_request_api_obj),
+FC_REFLECT((golos::plugins::database_api::account_recovery_request_api_object),
            (id)(account_to_recover)(new_owner_authority)(expires))
 
 

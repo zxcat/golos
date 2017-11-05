@@ -2,10 +2,10 @@
 
 
 #include <golos/chain/database.hpp>
-#include <boost/program_options/boost::program_options::variables_map.hpp>
+#include <boost/program_options/variables_map.hpp>
 #include <appbase/application.hpp>
 #include <golos/plugins/chain/plugin.hpp>
-#include <plugins/p2p/include/steemit/plugins/p2p/p2p_plugin.hpp>
+#include <golos/plugins/p2p/p2p_plugin.hpp>
 
 namespace golos {
     namespace plugins {
@@ -14,6 +14,7 @@ namespace golos {
             using std::string;
             using protocol::public_key_type;
             using golos::protocol::block_id_type;
+            using golos::chain::signed_block;
 
             namespace block_production_condition {
                 enum block_production_condition_enum {
@@ -58,10 +59,10 @@ namespace golos {
                 void plugin_shutdown() override;
 
             private:
-                void on_applied_block(const chain::signed_block &b);
+                void on_applied_block(const signed_block &b);
 
                 void start_mining(const fc::ecc::public_key &pub, const fc::ecc::private_key &pk, const string &name,
-                                  const golos::chain::signed_block &b);
+                                  const signed_block &b);
 
 
                 void schedule_production_loop();

@@ -6,9 +6,10 @@
 namespace golos {
     namespace plugins {
         namespace database_api {
-
+            using golos::protocol::asset;
+            using golos::protocol::share_type;
             struct category_api_object {
-                category_api_object(const chain::category_object &c) : id(c.id), name(to_string(c.name)),
+                category_api_object(const golos::chain::category_object &c) : id(c.id), name(to_string(c.name)),
                         abs_rshares(c.abs_rshares), total_payouts(c.total_payouts), discussions(c.discussions),
                         last_update(c.last_update) {
                 }
@@ -27,7 +28,7 @@ namespace golos {
     }
 }
 
-FC_REFLECT((golos::plugins::database_api::category_api_obj),
+FC_REFLECT((golos::plugins::database_api::category_api_object),
            (id)(name)(abs_rshares)(total_payouts)(discussions)(last_update))
 
 #endif //GOLOS_CATEGORY_API_OBJ_HPP

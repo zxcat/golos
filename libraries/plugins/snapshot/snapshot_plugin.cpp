@@ -10,6 +10,15 @@
 namespace golos {
     namespace plugins {
         namespace snapshot {
+            using golos::chain::operation_notification;
+            using golos::chain::account_object;
+            using golos::chain::account_authority_object;
+            using golos::chain::by_account_asset;
+            using golos::chain::account_balance_index;
+            using golos::chain::account_balance_object;
+            using golos::chain::account_statistics_index;
+            using golos::chain::account_statistics_object;
+            using golos::chain::by_name;
 
             struct snapshot_plugin::snapshot_plugin_impl {
             public:
@@ -21,11 +30,11 @@ namespace golos {
                     return database_;
                 }
 
-                void pre_operation(const chain::operation_notification &op_obj);
+                void pre_operation(const operation_notification &op_obj);
 
-                void post_operation(const chain::operation_notification &op_obj);
+                void post_operation(const operation_notification &op_obj);
 
-                void update_key_lookup(const chain::account_authority_object &a);
+                void update_key_lookup(const golos::chain::account_authority_object &a);
 
                 snapshot_plugin &self;
 
@@ -37,7 +46,7 @@ namespace golos {
                     return loaded_snapshots;
                 }
 
-                chain::database &database_;
+                golos::chain::database &database_;
 
                 void load_snapshots(const std::vector<std::string> &snapshots);
 
@@ -58,9 +67,9 @@ namespace golos {
 
             struct post_operation_visitor {
                 snapshot_plugin &_plugin;
-                chain::database &database_;
+                golos::chain::database &database_;
 
-                post_operation_visitor(snapshot_plugin &plugin, chain::database &database) : _plugin(plugin),
+                post_operation_visitor(snapshot_plugin &plugin, golos::chain::database &database) : _plugin(plugin),
                         database_(database) {
                 }
 
@@ -71,7 +80,7 @@ namespace golos {
                 }
 
                 template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-                void operator()(const chain::hardfork_operation<Major, Hardfork, Release> &op) const {
+                void operator()(const hardfork_operation<Major, Hardfork, Release> &op) const {
                     if (op.hardfork_id == STEEMIT_HARDFORK_0_17) {
 
 
@@ -83,7 +92,7 @@ namespace golos {
                                             "1f0617dfc2e7aa49b0d6c394b36087ead02bc7f781e7550dae13e8cb12f13436"))).as<
                                     snapshot_state>();
                             for (account_summary &account : snapshot.accounts) {
-                                database_.modify(*database_.find_account(account.name), [&](chain::account_object &a) {
+                                database_.modify(*database_.find_account(account.name), [&](account_object &a) {
                                     std::size_t position = a.json_metadata.find("created_at: 'GENESIS'");
                                     if (position != std::string::npos) {
                                         a.json_metadata.erase(a.json_metadata.find("created_at: 'GENESIS'"),
@@ -99,15 +108,15 @@ namespace golos {
                 }
             };
 
-            void snapshot_plugin::snapshot_plugin_impl::pre_operation(const chain::operation_notification &note) {
+            void snapshot_plugin::snapshot_plugin_impl::pre_operation(const operation_notification &note) {
                 note.op.visit(pre_operation_visitor(self));
             }
 
-            void snapshot_plugin::snapshot_plugin_impl::post_operation(const chain::operation_notification &note) {
+            void snapshot_plugin::snapshot_plugin_impl::post_operation(const operation_notification &note) {
                 note.op.visit(post_operation_visitor(self, database()));
             }
 
-            void snapshot_plugin::snapshot_plugin_impl::update_key_lookup(const chain::account_authority_object &a) {
+            void snapshot_plugin::snapshot_plugin_impl::update_key_lookup(const account_authority_object &a) {
                 try {
                     appbase::app().get_plugin<account_by_key::plugin>().update_key_lookup(a);
                 } catch (fc::assert_exception) {
@@ -116,7 +125,7 @@ namespace golos {
             }
 
             void snapshot_plugin::snapshot_plugin_impl::load_snapshots(const std::vector<std::string> &snapshots) {
-                chain::database &db = database();
+                golos::chain::database &db = database();
 
                 for (const vector<string>::value_type &iterator : snapshots) {
                     FC_ASSERT(fc::exists(iterator), "Snapshot file '${file}' was not found.", ("file", iterator));
@@ -129,8 +138,8 @@ namespace golos {
                     snapshot_state snapshot = fc::json::from_file(fc::path(iterator)).as<snapshot_state>();
                     for (account_summary &account : snapshot.accounts) {
                         if (db.find_account(account.name) == nullptr) {
-                            const chain::account_object &new_account = db.create<chain::account_object>(
-                                    [&](chain::account_object &a) {
+                            const auto &new_account = db.create<account_object>(
+                                    [&](account_object &a) {
                                         a.name = account.name;
                                         a.memo_key = account.keys.memo_key;
 
@@ -144,12 +153,11 @@ namespace golos {
                                         }
                                     });
 
-                            auto &index = db.get_index<chain::account_balance_index>().indices().get<
-                                    chain::by_account_asset>();
+                            auto &index = db.get_index<account_balance_index>().indices().get<by_account_asset>();
                             auto itr = index.find(boost::make_tuple(new_account.name, STEEM_SYMBOL_NAME));
                             if (itr == index.end()) {
-                                db.create<chain::account_balance_object>(
-                                        [new_account](chain::account_balance_object &b) {
+                                db.create<account_balance_object>(
+                                        [new_account](account_balance_object &b) {
                                             b.owner = new_account.name;
                                             b.asset_name = STEEM_SYMBOL_NAME;
                                             b.balance = 0;
@@ -158,25 +166,24 @@ namespace golos {
 
                             itr = index.find(boost::make_tuple(new_account.name, SBD_SYMBOL_NAME));
                             if (itr == index.end()) {
-                                db.create<chain::account_balance_object>(
-                                        [new_account](chain::account_balance_object &b) {
+                                db.create<account_balance_object>(
+                                        [new_account](account_balance_object &b) {
                                             b.owner = new_account.name;
                                             b.asset_name = SBD_SYMBOL_NAME;
                                             b.balance = 0;
                                         });
                             }
 
-                            auto &stats_index = db.get_index<chain::account_statistics_index>().indices().get<
-                                    chain::by_name>();
+                            auto &stats_index = db.get_index<account_statistics_index>().indices().get<by_name>();
                             auto stats_itr = stats_index.find(new_account.name);
                             if (stats_itr == stats_index.end()) {
-                                db.create<chain::account_statistics_object>([&](chain::account_statistics_object &s) {
+                                db.create<account_statistics_object>([&](account_statistics_object &s) {
                                     s.owner = new_account.name;
                                 });
                             }
 
-                            update_key_lookup(db.create<chain::account_authority_object>(
-                                    [&](chain::account_authority_object &auth) {
+                            update_key_lookup(db.create<account_authority_object>(
+                                    [&](account_authority_object &auth) {
                                         auth.account = account.name;
                                         auth.owner.weight_threshold = 1;
                                         auth.owner = account.keys.owner_key;

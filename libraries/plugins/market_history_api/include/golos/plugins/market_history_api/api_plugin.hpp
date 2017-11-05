@@ -14,7 +14,7 @@ namespace golos {
 
             using namespace appbase;
 
-            class api_plugin : public plugin<api_plugin> {
+            class api_plugin final: public plugin<api_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES((plugin) (json_rpc::plugin))
 
@@ -27,7 +27,7 @@ namespace golos {
                     return name;
                 }
 
-                virtual void set_program_options(boost::program_options::options_description &cli, boost::program_options::options_description &cfg) override;
+                void set_program_options(boost::program_options::options_description &cli, boost::program_options::options_description &cfg) override;
 
                 void plugin_initialize(const boost::program_options::variables_map &options) override;
 

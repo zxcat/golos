@@ -4,12 +4,13 @@
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/plugins/follow/follow_objects.hpp>
+#include <golos/chain/database.hpp>
 
 namespace golos {
     namespace plugins {
         namespace follow {
             using namespace follow;
-
+            using golos::chain::database;
             inline void set_what(vector<follow_type> &what, uint16_t bitmask) {
                 if (bitmask & 1 << blog) {
                     what.push_back(blog);
@@ -19,7 +20,7 @@ namespace golos {
                 }
             }
 
-            struct follow::api_impl final {
+            struct api::api_impl final {
                 api_impl() : db_(appbase::app().get_plugin<chain::plugin>().db()) {
                 }
 
@@ -51,7 +52,7 @@ namespace golos {
                 golos::chain::database &db_;
             };
 
-            get_followers_r follow::api_impl::get_followers(const get_followers_a &args) {
+            get_followers_r api::api_impl::get_followers(const get_followers_a &args) {
 
                 FC_ASSERT(args.limit <= 1000);
                 get_followers_r result;
@@ -74,7 +75,7 @@ namespace golos {
                 return result;
             }
 
-            get_following_r follow::api_impl::get_following(const get_following_a &args) {
+            get_following_r api::api_impl::get_following(const get_following_a &args) {
                 FC_ASSERT(args.limit <= 100);
                 get_following_r result;
                 const auto &idx = database().get_index<follow_index>().indices().get<by_follower_following>();
@@ -94,7 +95,7 @@ namespace golos {
                 return result;
             }
 
-            get_follow_count_r follow::api_impl::get_follow_count(const get_follow_count_a &args) {
+            get_follow_count_r api::api_impl::get_follow_count(const get_follow_count_a &args) {
                 get_follow_count_r result;
                 auto itr = database().find<follow_count_object, by_account>(args.account);
 
@@ -107,7 +108,7 @@ namespace golos {
                 return result;
             }
 
-            get_feed_entries_r follow::api_impl::get_feed_entries(const get_feed_entries_a &args) {
+            get_feed_entries_r api::api_impl::get_feed_entries(const get_feed_entries_a &args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 feed entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
@@ -141,7 +142,7 @@ namespace golos {
                 return result;
             }
 
-            get_feed_r follow::api_impl::get_feed(const get_feed_a &args) {
+            get_feed_r api::api_impl::get_feed(const get_feed_a &args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 feed entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
@@ -174,7 +175,7 @@ namespace golos {
                 return result;
             }
 
-            get_blog_entries_r follow::api_impl::get_blog_entries(const get_blog_entries_a &args) {
+            get_blog_entries_r api::api_impl::get_blog_entries(const get_blog_entries_a &args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 blog entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
@@ -203,7 +204,7 @@ namespace golos {
                 return result;
             }
 
-            get_blog_r follow::api_impl::get_blog(const get_blog_a &args) {
+            get_blog_r api::api_impl::get_blog(const get_blog_a &args) {
                 FC_ASSERT(args.limit <= 500, "Cannot retrieve more than 500 blog entries at a time.");
 
                 auto entry_id = args.start_entry_id == 0 ? args.start_entry_id : ~0;
@@ -231,7 +232,7 @@ namespace golos {
                 return result;
             }
 
-            get_account_reputations_r follow::api_impl::get_account_reputations(
+            get_account_reputations_r api::api_impl::get_account_reputations(
                     const get_account_reputations_a &args) {
                 FC_ASSERT(args.limit <= 1000, "Cannot retrieve more than 1000 account reputations at a time.");
 
@@ -258,7 +259,7 @@ namespace golos {
                 return result;
             }
 
-            get_reblogged_by_r follow::api_impl::get_reblogged_by(const get_reblogged_by_a &args) {
+            get_reblogged_by_r api::api_impl::get_reblogged_by(const get_reblogged_by_a &args) {
                 auto &db = database();
                 get_reblogged_by_r result;
                 const auto &post = db.get_comment(args.author, args.permlink);
@@ -271,7 +272,7 @@ namespace golos {
                 return result;
             }
 
-            get_blog_authors_r follow::api_impl::get_blog_authors(const get_blog_authors_a &args) {
+            get_blog_authors_r api::api_impl::get_blog_authors(const get_blog_authors_a &args) {
                 auto &db = database();
                 get_blog_authors_r result;
                 const auto &stats_idx = db.get_index<blog_author_stats_index, by_blogger_guest_count>();
@@ -284,136 +285,136 @@ namespace golos {
             }
 
 
-            follow::api() : my(new api_impl) {
+            api::api() : my(new api_impl) {
                 JSON_RPC_REGISTER_API(plugin_name);
             }
 
-            DEFINE_API(follow_api, get_followers) {
+            DEFINE_API(api, get_followers) {
                 auto tmp = args.args->at(0).as<get_followers_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_followers(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_following) {
+            DEFINE_API(api, get_following) {
                 auto tmp = args.args->at(0).as<get_following_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_following(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_follow_count) {
+            DEFINE_API(api, get_follow_count) {
                 auto tmp = args.args->at(0).as<get_follow_count_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_follow_count(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_feed_entries) {
+            DEFINE_API(api, get_feed_entries) {
                 auto tmp = args.args->at(0).as<get_feed_entries_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_feed_entries(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_feed) {
+            DEFINE_API(api, get_feed) {
                 auto tmp = args.args->at(0).as<get_feed_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_feed(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_blog_entries) {
+            DEFINE_API(api, get_blog_entries) {
                 auto tmp = args.args->at(0).as<get_blog_entries_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_blog_entries(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_blog) {
+            DEFINE_API(api, get_blog) {
                 auto tmp = args.args->at(0).as<get_blog_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_blog(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_account_reputations) {
+            DEFINE_API(api, get_account_reputations) {
                 auto tmp = args.args->at(0).as<get_account_reputations_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_account_reputations(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_reblogged_by) {
+            DEFINE_API(api, get_reblogged_by) {
                 auto tmp = args.args->at(0).as<get_reblogged_by_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_reblogged_by(tmp);
                 });
             }
 
-            DEFINE_API(follow_api, get_blog_authors) {
+            DEFINE_API(api, get_blog_authors) {
                 auto tmp = args.args->at(0).as<get_blog_authors_a>();
                 return my->database().with_read_lock([&]() {
                     return my->get_blog_authors(tmp);
                 });
             }
 
-            get_followers_r follow::get_followers_native(const get_followers_a &args) {
+            get_followers_r api::get_followers_native(const get_followers_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_followers(args);
                 });
             }
 
-            get_following_r follow::get_following_native(const get_following_a &args) {
+            get_following_r api::get_following_native(const get_following_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_following(args);
                 });
             }
 
-            get_follow_count_r follow::get_follow_count_native(const get_follow_count_a &args) {
+            get_follow_count_r api::get_follow_count_native(const get_follow_count_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_follow_count(args);
                 });
             }
 
-            get_feed_entries_r follow::get_feed_entries_native(const get_feed_entries_a &args) {
+            get_feed_entries_r api::get_feed_entries_native(const get_feed_entries_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_feed_entries(args);
                 });
             }
 
-            get_feed_r follow::get_feed_native(const get_feed_a &args) {
+            get_feed_r api::get_feed_native(const get_feed_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_feed(args);
                 });
             }
 
-            get_blog_entries_r follow::get_blog_entries_native(const get_blog_entries_a &args) {
+            get_blog_entries_r api::get_blog_entries_native(const get_blog_entries_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_blog_entries(args);
                 });
             }
 
-            get_blog_r follow::get_blog_native(const get_blog_a &args) {
+            get_blog_r api::get_blog_native(const get_blog_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_blog(args);
                 });
             }
 
-            get_account_reputations_r follow::get_account_reputations_native(
+            get_account_reputations_r api::get_account_reputations_native(
                     const get_account_reputations_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_account_reputations(args);
                 });
             }
 
-            get_reblogged_by_r follow::get_reblogged_by_native(const get_reblogged_by_a &args) {
+            get_reblogged_by_r api::get_reblogged_by_native(const get_reblogged_by_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_reblogged_by(args);
                 });
             }
 
-            get_blog_authors_r follow::get_blog_authors_native(const get_blog_authors_a &args) {
+            get_blog_authors_r api::get_blog_authors_native(const get_blog_authors_a &args) {
                 return my->database().with_read_lock([&]() {
                     return my->get_blog_authors(args);
                 });

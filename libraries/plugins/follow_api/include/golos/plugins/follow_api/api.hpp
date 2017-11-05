@@ -1,6 +1,6 @@
 #pragma once
 
-#include <plugins/database_api/include/steemit/plugins/database_api/api_objects/comment_api_object.hpp>
+#include <golos/plugins/database_api/api_objects/comment_api_object.hpp>
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/follow/follow_objects.hpp>
 

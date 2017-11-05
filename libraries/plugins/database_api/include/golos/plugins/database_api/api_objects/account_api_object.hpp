@@ -7,8 +7,15 @@
 namespace golos {
     namespace plugins {
         namespace database_api {
+
+            using golos::protocol::asset;
+            using golos::protocol::share_type;
+            using golos::chain::account_bandwidth_object;
+            using golos::chain::by_account;
+            using golos::chain::account_object;
+
             struct account_api_object {
-                account_api_object(const chain::account_object &a, const chain::database &db) : id(a.id), name(a.name),
+                account_api_object(const golos::chain::account_object &a, const golos::chain::database &db) : id(a.id), name(a.name),
                         memo_key(a.memo_key), json_metadata(to_string(a.json_metadata)), proxy(a.proxy),
                         last_account_update(a.last_account_update), created(a.created), mined(a.mined),
                         owner_challenged(a.owner_challenged), active_challenged(a.active_challenged),
@@ -127,7 +134,7 @@ namespace golos {
 
                 uint8_t savings_withdraw_requests;
 
-                share_type curation_rewards;
+                protocol::share_type curation_rewards;
                 share_type posting_rewards;
 
                 asset<0, 17, 0> vesting_shares;

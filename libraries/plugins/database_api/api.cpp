@@ -87,9 +87,9 @@ namespace golos {
 
             struct api::api_impl {
             public:
-                database_api_impl();
+                api_impl();
 
-                ~database_api_impl();
+                ~api_impl();
 
                 // Subscriptions
                 void set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter);
@@ -277,7 +277,7 @@ namespace golos {
                 }
 
                 // signal handlers
-                // void on_applied_block(const chain::signed_block &b);
+                void on_applied_block(const golos::protocol::signed_block &b);
 
                 mutable fc::bloom_filter _subscribe_filter;
                 std::function<void(const fc::variant &)> _subscribe_callback;
@@ -346,7 +346,7 @@ namespace golos {
                 });
             }
 
-            void api::api_impl::on_applied_block(const golos::chain::signed_block &b) {
+            void api::api_impl::on_applied_block(const golos::protocol::signed_block &b) {
                 try {
                     _block_applied_callback(fc::variant(signed_block_header(b)));
                 } catch (...) {
@@ -377,7 +377,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            api::api() : my(new database_api_impl()) {
+            api::api() : my(new api_impl()) {
                 JSON_RPC_REGISTER_API(plugin_name)
             }
 
@@ -395,7 +395,7 @@ namespace golos {
                 }
             }
 
-            api::api_impl::~database_api_impl() {
+            api::api_impl::~api_impl() {
                 elog("freeing database api ${x}", ("x", int64_t(this)));
             }
 
@@ -406,7 +406,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_block_header) {
+            DEFINE_API(api, get_block_header) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->get_block_header(args.args->at(0).as<uint32_t>());
@@ -421,7 +421,7 @@ namespace golos {
                 return {};
             }
 
-            DEFINE_API(database_api, get_block) {
+            DEFINE_API(api, get_block) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->get_block(args.args->at(0).as<uint32_t>());
@@ -432,7 +432,7 @@ namespace golos {
                 return database().fetch_block_by_number(block_num);
             }
 
-            DEFINE_API(database_api, get_ops_in_block) {
+            DEFINE_API(api, get_ops_in_block) {
                 CHECK_ARG_SIZE(2)
                 auto block_num = args.args->at(0).as<uint32_t>();
                 auto only_virtual = args.args->at(1).as<bool>();
@@ -464,7 +464,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_config) {
+            DEFINE_API(api, get_config) {
                 return my->database().with_read_lock([&]() {
                     return my->get_config();
                 });
@@ -474,25 +474,25 @@ namespace golos {
                 return golos::protocol::get_config();
             }
 
-            DEFINE_API(database_api, get_dynamic_global_properties) {
+            DEFINE_API(api, get_dynamic_global_properties) {
                 return my->database().with_read_lock([&]() {
                     return my->get_dynamic_global_properties();
                 });
             }
 
-            DEFINE_API(database_api, get_chain_properties) {
+            DEFINE_API(api, get_chain_properties) {
                 return my->database().with_read_lock([&]() {
                     return my->database().get_witness_schedule_object().median_props;
                 });
             }
 
-            DEFINE_API(database_api, get_feed_history) {
+            DEFINE_API(api, get_feed_history) {
                 return my->database().with_read_lock([&]() {
                     return feed_history_api_object(my->database().get_feed_history());
                 });
             }
 
-            DEFINE_API(database_api, get_current_median_history_price) {
+            DEFINE_API(api, get_current_median_history_price) {
                 return my->database().with_read_lock([&]() {
                     return my->database().get_feed_history().current_median_history;
                 });
@@ -502,19 +502,19 @@ namespace golos {
                 return database().get(dynamic_global_property_object::id_type());
             }
 
-            DEFINE_API(database_api, get_witness_schedule) {
+            DEFINE_API(api, get_witness_schedule) {
                 return my->database().with_read_lock([&]() {
                     return my->database().get(witness_schedule_object::id_type());
                 });
             }
 
-            DEFINE_API(database_api, get_hardfork_version) {
+            DEFINE_API(api, get_hardfork_version) {
                 return my->database().with_read_lock([&]() {
                     return my->database().get(hardfork_property_object::id_type()).current_hardfork_version;
                 });
             }
 
-            DEFINE_API(database_api, get_next_scheduled_hardfork) {
+            DEFINE_API(api, get_next_scheduled_hardfork) {
                 return my->database().with_read_lock([&]() {
                     scheduled_hardfork shf;
                     const auto &hpo = my->database().get(hardfork_property_object::id_type());
@@ -530,7 +530,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_accounts) {
+            DEFINE_API(api, get_accounts) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->get_accounts(args.args->at(0).as<vector<std::string> >());
@@ -567,7 +567,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, lookup_account_names) {
+            DEFINE_API(api, lookup_account_names) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->lookup_account_names(args.args->at(0).as<vector<std::string> >());
@@ -592,7 +592,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, lookup_accounts) {
+            DEFINE_API(api, lookup_accounts) {
                 CHECK_ARG_SIZE(2)
                 account_name_type lower_bound_name = args.args->at(0).as<account_name_type>();
                 uint32_t limit = args.args->at(1).as<uint32_t>();
@@ -615,7 +615,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_account_count) {
+            DEFINE_API(api, get_account_count) {
                 return my->database().with_read_lock([&]() {
                     return my->get_account_count();
                 });
@@ -625,7 +625,7 @@ namespace golos {
                 return database().get_index<account_index>().indices().size();
             }
 
-            DEFINE_API(database_api, get_owner_history) {
+            DEFINE_API(api, get_owner_history) {
                 CHECK_ARG_SIZE(1)
                 auto account = args.args->at(0).as<string>();
                 return my->database().with_read_lock([&]() {
@@ -643,7 +643,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_recovery_request) {
+            DEFINE_API(api, get_recovery_request) {
                 CHECK_ARG_SIZE(1)
                 auto account = args.args->at(0).as<account_name_type>();
                 return my->database().with_read_lock([&]() {
@@ -661,7 +661,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_escrow) {
+            DEFINE_API(api, get_escrow) {
                 CHECK_ARG_SIZE(2)
                 auto from = args.args->at(0).as<account_name_type>();
                 auto escrow_id = args.args->at(1).as<uint32_t>();
@@ -723,7 +723,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_withdraw_routes) {
+            DEFINE_API(api, get_withdraw_routes) {
                 FC_ASSERT(args.args->size() == 1 || args.args->size() == 2, "Expected 1-2 arguments, was ${n}",
                           ("n", args.args->size()));
                 auto account = args.args->at(0).as<string>();
@@ -733,7 +733,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_account_bandwidth) {
+            DEFINE_API(api, get_account_bandwidth) {
                 CHECK_ARG_SIZE(2)
                 auto account = args.args->at(0).as<string>();
                 auto type = args.args->at(1).as<bandwidth_type>();
@@ -753,7 +753,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_witnesses) {
+            DEFINE_API(api, get_witnesses) {
                 CHECK_ARG_SIZE(1)
                 auto witness_ids = args.args->at(0).as<vector<witness_object::id_type> >();
                 return my->database().with_read_lock([&]() {
@@ -820,7 +820,7 @@ namespace golos {
 
             }
 
-            DEFINE_API(database_api, get_witnesses_by_vote) {
+            DEFINE_API(api, get_witnesses_by_vote) {
                 CHECK_ARG_SIZE(2)
                 auto from = args.args->at(0).as<std::string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -830,7 +830,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, lookup_witness_accounts) {
+            DEFINE_API(api, lookup_witness_accounts) {
                 CHECK_ARG_SIZE(2)
                 auto lower_bound_name = args.args->at(0).as<std::string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -878,7 +878,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_account_balances) {
+            DEFINE_API(api, get_account_balances) {
                 CHECK_ARG_SIZE(2)
                 auto name = args.args->at(0).as<account_name_type>();
                 auto assets = args.args->at(1).as<flat_set<asset_name_type> >();
@@ -914,7 +914,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_assets) {
+            DEFINE_API(api, get_assets) {
                 CHECK_ARG_SIZE(1)
                 auto asset_symbols = args.args->at(0).as<vector<asset_name_type>>();
                 return my->get_assets(asset_symbols);
@@ -937,7 +937,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_assets_by_issuer) {
+            DEFINE_API(api, get_assets_by_issuer) {
                 CHECK_ARG_SIZE(1)
                 auto issuer = args.args->at(0).as<string>();
                 return my->get_assets_by_issuer(issuer);
@@ -954,7 +954,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_assets_dynamic_data) {
+            DEFINE_API(api, get_assets_dynamic_data) {
                 CHECK_ARG_SIZE(1)
                 auto asset_symbols = args.args->at(0).as<vector<asset_name_type>>();
                 return my->get_assets_dynamic_data(asset_symbols);
@@ -977,7 +977,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_bitassets_data) {
+            DEFINE_API(api, get_bitassets_data) {
                 CHECK_ARG_SIZE(1)
                 auto asset_symbols = args.args->at(0).as<vector<asset_name_type>>();
                 return my->get_bitassets_data(asset_symbols);
@@ -1026,7 +1026,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, lookup_asset_symbols) {
+            DEFINE_API(api, lookup_asset_symbols) {
                 CHECK_ARG_SIZE(1)
                 auto asset_symbols = args.args->at(0).as<vector<asset_name_type>>();
                 return my->lookup_asset_symbols(asset_symbols);
@@ -1052,7 +1052,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_transaction_hex) {
+            DEFINE_API(api, get_transaction_hex) {
                 CHECK_ARG_SIZE(1)
                 auto trx = args.args->at(0).as<signed_transaction>();
                 return my->database().with_read_lock([&]() {
@@ -1064,7 +1064,7 @@ namespace golos {
                 return fc::to_hex(fc::raw::pack(trx));
             }
 
-            DEFINE_API(database_api, get_required_signatures) {
+            DEFINE_API(api, get_required_signatures) {
                 CHECK_ARG_SIZE(2)
                 auto trx = args.args->at(0).as<signed_transaction>();
                 auto available_keys = args.args->at(1).as<flat_set<public_key_type>>();
@@ -1091,7 +1091,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_potential_signatures) {
+            DEFINE_API(api, get_potential_signatures) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->get_potential_signatures(args.args->at(0).as<signed_transaction>());
@@ -1129,7 +1129,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, verify_authority) {
+            DEFINE_API(api, verify_authority) {
                 CHECK_ARG_SIZE(1)
                 return my->database().with_read_lock([&]() {
                     return my->verify_authority(args.args->at(0).as<signed_transaction>());
@@ -1147,7 +1147,7 @@ namespace golos {
                 return true;
             }
 
-            DEFINE_API(database_api, verify_account_authority) {
+            DEFINE_API(api, verify_account_authority) {
                 CHECK_ARG_SIZE(2)
                 return my->database().with_read_lock([&]() {
                     return my->verify_account_authority(args.args->at(0).as<account_name_type>(),
@@ -1170,7 +1170,7 @@ namespace golos {
                 return verify_authority(trx);
             }
 
-            DEFINE_API(database_api, get_conversion_requests) {
+            DEFINE_API(api, get_conversion_requests) {
                 CHECK_ARG_SIZE(1)
                 auto account = args.args->at(0).as<std::string>();
                 return my->database().with_read_lock([&]() {
@@ -1198,7 +1198,7 @@ namespace golos {
                 return discussion();
             }
 
-            DEFINE_API(database_api, get_content) {
+            DEFINE_API(api, get_content) {
                 CHECK_ARG_SIZE(2)
                 auto author = args.args->at(0).as<account_name_type>();
                 auto permlink = args.args->at(1).as<string>();
@@ -1239,7 +1239,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_active_votes) {
+            DEFINE_API(api, get_active_votes) {
                 CHECK_ARG_SIZE(2)
                 auto author = args.args->at(0).as<string>();
                 auto permlink = args.args->at(1).as<string>();
@@ -1248,7 +1248,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_account_votes) {
+            DEFINE_API(api, get_account_votes) {
                 CHECK_ARG_SIZE(1)
                 account_name_type voter = args.args->at(0).as<account_name_type>();
                 return my->database().with_read_lock([&]() {
@@ -1385,7 +1385,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_content_replies) {
+            DEFINE_API(api, get_content_replies) {
                 CHECK_ARG_SIZE(2)
                 auto author = args.args->at(0).as<string>();
                 auto permlink = args.args->at(1).as<string>();
@@ -1434,7 +1434,7 @@ namespace golos {
              *  The first call should be (account_to_retrieve replies, "", limit)
              *  Subsequent calls should be (last_author, last_permlink, limit)
              */
-            DEFINE_API(database_api, get_replies_by_last_update) {
+            DEFINE_API(api, get_replies_by_last_update) {
                 CHECK_ARG_SIZE(3)
                 auto start_parent_author = args.args->at(0).as<account_name_type>();
                 auto start_permlink = args.args->at(1).as<string>();
@@ -1466,7 +1466,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_account_history) {
+            DEFINE_API(api, get_account_history) {
                 CHECK_ARG_SIZE(3)
                 auto account = args.args->at(0).as<std::string>();
                 auto from = args.args->at(1).as<uint64_t>();
@@ -1477,7 +1477,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_payout_extension_cost) {
+            DEFINE_API(api, get_payout_extension_cost) {
                 CHECK_ARG_SIZE(3)
                 auto author = args.args->at(0).as<string>();
                 auto permlink = args.args->at(1).as<string>();
@@ -1485,7 +1485,7 @@ namespace golos {
                 return my->database().get_payout_extension_cost(my->database().get_comment(author, permlink), time);
             }
 
-            DEFINE_API(database_api, get_payout_extension_time) {
+            DEFINE_API(api, get_payout_extension_time) {
                 CHECK_ARG_SIZE(3)
                 auto author = args.args->at(0).as<string>();
                 auto permlink = args.args->at(1).as<string>();
@@ -1513,7 +1513,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_tags_used_by_author) {
+            DEFINE_API(api, get_tags_used_by_author) {
                 CHECK_ARG_SIZE(1)
                 auto author = args.args->at(0).as<string>();
                 return my->database().with_read_lock([&]() {
@@ -1554,7 +1554,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_trending_tags) {
+            DEFINE_API(api, get_trending_tags) {
                 CHECK_ARG_SIZE(2)
                 auto after = args.args->at(0).as<string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -1681,7 +1681,7 @@ namespace golos {
                 return discussions;
             }
 
-            DEFINE_API(database_api, get_discussions_by_trending) {
+            DEFINE_API(api, get_discussions_by_trending) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1757,7 +1757,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_post_discussions_by_payout) {
+            DEFINE_API(api, get_post_discussions_by_payout) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1805,7 +1805,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_comment_discussions_by_payout) {
+            DEFINE_API(api, get_comment_discussions_by_payout) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1856,7 +1856,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_discussions_by_promoted) {
+            DEFINE_API(api, get_discussions_by_promoted) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1902,7 +1902,7 @@ namespace golos {
                 return return_result;
             }
 
-            DEFINE_API(database_api, get_discussions_by_created) {
+            DEFINE_API(api, get_discussions_by_created) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1949,7 +1949,7 @@ namespace golos {
 
             }
 
-            DEFINE_API(database_api, get_discussions_by_active) {
+            DEFINE_API(api, get_discussions_by_active) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -1999,7 +1999,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_discussions_by_cashout) {
+            DEFINE_API(api, get_discussions_by_cashout) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2007,7 +2007,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_discussions_by_payout) {
+            DEFINE_API(api, get_discussions_by_payout) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2082,7 +2082,7 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_discussions_by_votes) {
+            DEFINE_API(api, get_discussions_by_votes) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2132,7 +2132,7 @@ namespace golos {
 
             }
 
-            DEFINE_API(database_api, get_discussions_by_children) {
+            DEFINE_API(api, get_discussions_by_children) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2184,7 +2184,7 @@ namespace golos {
 
             }
 
-            DEFINE_API(database_api, get_discussions_by_hot) {
+            DEFINE_API(api, get_discussions_by_hot) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2281,7 +2281,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_discussions_by_feed) {
+            DEFINE_API(api, get_discussions_by_feed) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2366,7 +2366,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(database_api, get_discussions_by_blog) {
+            DEFINE_API(api, get_discussions_by_blog) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2390,7 +2390,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_discussions_by_comments) {
+            DEFINE_API(api, get_discussions_by_comments) {
                 CHECK_ARG_SIZE(1)
                 auto query = args.args->at(0).as<discussion_query>();
                 return my->database().with_read_lock([&]() {
@@ -2439,7 +2439,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_trending_categories) {
+            DEFINE_API(api, get_trending_categories) {
                 CHECK_ARG_SIZE(2)
                 auto after = args.args->at(0).as<string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -2469,7 +2469,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_best_categories) {
+            DEFINE_API(api, get_best_categories) {
                 CHECK_ARG_SIZE(2)
                 auto after = args.args->at(0).as<string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -2481,7 +2481,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_active_categories) {
+            DEFINE_API(api, get_active_categories) {
                 CHECK_ARG_SIZE(2)
                 auto after = args.args->at(0).as<string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -2493,7 +2493,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_recent_categories) {
+            DEFINE_API(api, get_recent_categories) {
                 CHECK_ARG_SIZE(2)
                 auto after = args.args->at(0).as<string>();
                 auto limit = args.args->at(1).as<uint32_t>();
@@ -2521,13 +2521,13 @@ namespace golos {
             }
 
 
-            DEFINE_API(database_api, get_miner_queue) {
+            DEFINE_API(api, get_miner_queue) {
                 return my->database().with_read_lock([&]() {
                     return my->get_miner_queue();
                 });
             }
 
-            DEFINE_API(database_api, get_active_witnesses) {
+            DEFINE_API(api, get_active_witnesses) {
                 return my->database().with_read_lock([&]() {
                     const auto &wso = my->database().get_witness_schedule_object();
                     size_t n = wso.current_shuffled_witnesses.size();
@@ -2540,7 +2540,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_discussions_by_author_before_date) {
+            DEFINE_API(api, get_discussions_by_author_before_date) {
                 CHECK_ARG_SIZE(4)
                 auto author = args.args->at(0).as<string>();
                 auto start_permlink = args.args->at(1).as<string>();
@@ -2587,7 +2587,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_savings_withdraw_from) {
+            DEFINE_API(api, get_savings_withdraw_from) {
                 CHECK_ARG_SIZE(1)
                 auto account = args.args->at(0).as<string>();
                 return my->database().with_read_lock([&]() {
@@ -2604,7 +2604,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_savings_withdraw_to) {
+            DEFINE_API(api, get_savings_withdraw_to) {
                 CHECK_ARG_SIZE(1)
                 auto account = args.args->at(0).as<string>();
                 return my->database().with_read_lock([&]() {
@@ -2621,7 +2621,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_vesting_delegations) {
+            DEFINE_API(api, get_vesting_delegations) {
                 CHECK_ARG_SIZE(3)
                 auto account = args.args->at(0).as<string>();
                 auto from = args.args->at(1).as<string>();
@@ -2643,7 +2643,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_expiring_vesting_delegations) {
+            DEFINE_API(api, get_expiring_vesting_delegations) {
                 CHECK_ARG_SIZE(3)
                 auto account = args.args->at(0).as<string>();
                 auto from = args.args->at(1).as<time_point_sec>();
@@ -2666,7 +2666,7 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(database_api, get_transaction) {
+            DEFINE_API(api, get_transaction) {
                 CHECK_ARG_SIZE(1)
                 auto id = args.args->at(0).as<transaction_id_type>();
                 return my->database().with_read_lock([&]() {
@@ -2726,7 +2726,7 @@ namespace golos {
                 return map_result;
             }
 
-            DEFINE_API(database_api, get_reward_fund) {
+            DEFINE_API(api, get_reward_fund) {
                 CHECK_ARG_SIZE(1)
                 string name = args.args->at(0).as<string>();
                 return my->database().with_read_lock([&]() {
@@ -2742,7 +2742,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            DEFINE_API(database_api, get_proposed_transactions) {
+            DEFINE_API(api, get_proposed_transactions) {
                 CHECK_ARG_SIZE(1)
                 auto name = args.args->at(0).as<account_name_type>();
                 return my->get_proposed_transactions(name);

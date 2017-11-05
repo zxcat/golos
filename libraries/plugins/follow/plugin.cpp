@@ -7,7 +7,6 @@
 #include <golos/chain/operation_notification.hpp>
 #include <golos/chain/objects/account_object.hpp>
 #include <golos/chain/objects/comment_object.hpp>
-#include <fc/smart_ref_impl.hpp>
 #include <memory>
 
 namespace golos {
@@ -17,7 +16,7 @@ namespace golos {
 
             struct pre_operation_visitor {
                 plugin &_plugin;
-                chain::database &db;
+                golos::chain::database &db;
 
                 pre_operation_visitor(plugin &plugin, golos::chain::database &db) : _plugin(plugin), db(db) {
                 }
@@ -90,9 +89,9 @@ namespace golos {
 
             struct post_operation_visitor {
                 plugin &_plugin;
-                chain::database &db;
+                database &db;
 
-                post_operation_visitor(plugin &plugin, chain::database &db) : _plugin(plugin), db(db) {
+                post_operation_visitor(plugin &plugin, database &db) : _plugin(plugin), db(db) {
                 }
 
                 typedef void result_type;
@@ -296,7 +295,7 @@ namespace golos {
                     }
                 }
 
-                chain::database &database_;
+                golos::chain::database &database_;
 
                 uint32_t max_feed_size_ = 500;
 
@@ -318,7 +317,7 @@ namespace golos {
                 try {
                     ilog("Intializing follow plugin");
                     my.reset(new follow_plugin_impl());
-                    chain::database &db = my->database();
+                    auto &db = my->database();
                     my->plugin_initialize(*this);
 
                     db.pre_apply_operation.connect([&](const operation_notification &o) {

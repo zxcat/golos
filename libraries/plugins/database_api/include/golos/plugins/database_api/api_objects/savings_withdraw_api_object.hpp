@@ -9,7 +9,7 @@ namespace golos {
 
 
             struct savings_withdraw_api_object {
-                savings_withdraw_api_object(const chain::savings_withdraw_object &o) : id(o.id), from(o.from), to(o.to),
+                savings_withdraw_api_object(const golos::chain::savings_withdraw_object &o) : id(o.id), from(o.from), to(o.to),
                         memo(to_string(o.memo)), request_id(o.request_id), amount(o.amount), complete(o.complete) {
                 }
 

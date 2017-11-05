@@ -26,6 +26,9 @@ void new_chain_banner(const golos::chain::database &db) {
 namespace golos {
     namespace plugins {
         namespace witness_plugin {
+            using golos::chain::witness_index;
+            using golos::chain::by_name;
+            using golos::chain::account_index;
 
             template<typename T>
             T dejsonify(const string &s) {
@@ -153,7 +156,7 @@ namespace golos {
                             if (db.head_block_num() == 0) {
                                 new_chain_banner(db);
                             }
-                            _production_skip_flags |= chain::database::skip_undo_history_check;
+                            _production_skip_flags |= golos::chain::database::skip_undo_history_check;
                         }
                         schedule_production_loop();
                     } else
@@ -209,7 +212,7 @@ namespace golos {
                 } catch (const fc::canceled_exception &) {
                     //We're trying to exit. Go ahead and let this one out.
                     throw;
-                } catch (const chain::exceptions::chain::unknown_hardfork<> &e) {
+                } catch (const golos::chain::exceptions::chain::unknown_hardfork<> &e) {
                     // Hit a hardfork that the current node know nothing about, stop production and inform user
                     elog("${e}\nNode may be out of date...", ("e", e.to_detail_string()));
                     throw;
@@ -258,7 +261,7 @@ namespace golos {
 
             block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block(
                     fc::mutable_variant_object &capture) {
-                chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
+                auto &db = appbase::app().get_plugin<chain::plugin>().db();
                 fc::time_point now_fine = fc::time_point::now();
                 fc::time_point_sec now = now_fine + fc::microseconds(500000);
 
@@ -295,7 +298,7 @@ namespace golos {
                     return block_production_condition::not_my_turn;
                 }
 
-                const auto &witness_by_name = db.get_index<chain::witness_index>().indices().get<chain::by_name>();
+                const auto &witness_by_name = db.get_index<witness_index>().indices().get<by_name>();
                 auto itr = witness_by_name.find(scheduled_witness);
 
                 fc::time_point_sec scheduled_time = db.get_slot_time(slot);
@@ -360,7 +363,8 @@ namespace golos {
                     if (!_mining_threads || _miners.size() == 0) {
                         return;
                     }
-                    chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
+
+                    auto &db = appbase::app().get_plugin<chain::plugin>().db();
 
                     const auto &dgp = db.get_dynamic_global_properties();
                     double hps = (_total_hashes * 1000000) / (fc::time_point::now() - _hash_start_time).count();
@@ -418,7 +422,7 @@ namespace golos {
                                               const std::string &miner, const golos::protocol::signed_block &b) {
                 static uint64_t seed = fc::time_point::now().time_since_epoch().count();
                 static uint64_t start = fc::city_hash64((const char *) &seed, sizeof(seed));
-                chain::database &db = appbase::app().get_plugin<chain::plugin>().db();
+                auto &db = appbase::app().get_plugin<chain::plugin>().db();
                 auto head_block_num = b.block_num();
                 auto head_block_time = b.timestamp;
                 auto block_id = b.id();
@@ -429,7 +433,7 @@ namespace golos {
                 uint32_t thread_num = 0;
                 uint32_t num_threads = _mining_threads;
                 uint32_t target = db.get_pow_summary_target();
-                const auto &acct_idx = db.get_index<chain::account_index>().indices().get<chain::by_name>();
+                const auto &acct_idx = db.get_index<account_index>().indices().get<by_name>();
                 auto acct_it = acct_idx.find(miner);
                 bool has_account = (acct_it != acct_idx.end());
                 bool has_hardfork_17 = db.has_hardfork(STEEMIT_HARDFORK_0_17__177);
