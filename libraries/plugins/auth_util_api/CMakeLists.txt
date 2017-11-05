@@ -28,14 +28,11 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 target_link_libraries(
         golos_${CURRENT_TARGET}
-
-        golos_auth_util_plugin
         golos::json_rpc_plugin
         fc
         golos::protocol
         golos::chain
         golos::chain_plugin
-        golos::auth_util_plugin
         appbase
 )
 
