@@ -1,12 +1,12 @@
 set(CURRENT_TARGET market_history)
 
 list(APPEND ${CURRENT_TARGET}_HEADERS
-        include/steemit/market_history/bucket_object.hpp
-        include/steemit/market_history/key_interface.hpp
-        include/steemit/market_history/market_history_api.hpp
-        include/steemit/market_history/market_history_object_types.hpp
-        include/steemit/market_history/market_history_plugin.hpp
-        include/steemit/market_history/order_history_object.hpp
+     include/golos/market_history/bucket_object.hpp
+     include/golos/market_history/key_interface.hpp
+     include/golos/market_history/market_history_api.hpp
+     include/golos/market_history/market_history_object_types.hpp
+     include/golos/market_history/market_history_plugin.hpp
+     include/golos/market_history/order_history_object.hpp
         )
 
 list(APPEND ${CURRENT_TARGET}_SOURCES
@@ -34,7 +34,7 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 
 target_link_libraries(golos_${CURRENT_TARGET} golos::chain golos::protocol golos::application)
 target_include_directories(golos_${CURRENT_TARGET}
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../version/include")
 
 install(TARGETS
         golos_${CURRENT_TARGET}

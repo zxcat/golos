@@ -1,10 +1,10 @@
-#include <steemit/application/api.hpp>
+#include <golos/application/api.hpp>
 
-#include <steemit/chain/database_exceptions.hpp>
+#include <golos/chain/database_exceptions.hpp>
 
 #include <fc/time.hpp>
 
-#include <steemit/network/exceptions.hpp>
+#include <golos/network/exceptions.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -20,7 +20,7 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
-namespace steemit {
+namespace golos {
     namespace application {
         using network::item_hash_t;
         using network::item_id;
@@ -192,7 +192,7 @@ namespace steemit {
 
                 application_impl(application *self)
                         : _self(self),
-                        //_pending_trx_db(std::make_shared<graphene::get_database::object_database>()),
+                        //_pending_trx_db(std::make_shared<golos::get_database::object_database>()),
                           _chain_db(std::make_shared<chain::database>()) {
                 }
 
@@ -263,7 +263,7 @@ namespace steemit {
                                         _chain_db->reindex(_data_dir /
                                                            "blockchain", _shared_dir, _shared_file_size);
                                     }
-                                    catch (chain::block_log_exception &) {
+                                    catch (chain::exceptions::chain::block_log<> &) {
                                         wlog("Error opening block log. Having to resync from network...");
                                         _chain_db->open(_data_dir /
                                                         "blockchain", _shared_dir, STEEMIT_INIT_SUPPLY, _shared_file_size, chainbase::database::read_write);
@@ -434,14 +434,14 @@ namespace steemit {
                                 }
 
                                 return result;
-                            } catch (const steemit::chain::unlinkable_block_exception &e) {
-                                // translate to a graphene::network exception
+                            } catch (const chain::exceptions::chain::unlinkable_block<> &e) {
+                                // translate to a golos::network exception
                                 fc_elog(fc::logger::get("sync"),
                                         "Error when pushing block, current head block is ${head}:\n${e}",
                                         ("e", e.to_detail_string())
                                                 ("head", _chain_db->head_block_num()));
                                 elog("Error when pushing block:\n${e}", ("e", e.to_detail_string()));
-                                FC_THROW_EXCEPTION(network::unlinkable_block_exception, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
+                                FC_THROW_EXCEPTION(network::exceptions::unlinkable_block<>, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
                             } catch (const fc::exception &e) {
                                 fc_elog(fc::logger::get("sync"),
                                         "Error when pushing block, current head block is ${head}:\n${e}",
@@ -516,7 +516,7 @@ namespace steemit {
                                 }
                             }
                             if (!found_a_block_in_synopsis)
-                                FC_THROW_EXCEPTION(network::peer_is_on_an_unreachable_fork, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
+                                FC_THROW_EXCEPTION(network::exceptions::peer_is_on_an_unreachable_fork<>, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
                         }
                         for (uint32_t num = block_header::num_from_id(last_known_block_id);
                              num <= _chain_db->head_block_num() &&
@@ -668,7 +668,7 @@ namespace steemit {
                                     boost::reverse(fork_history);
 
                                     if (last_non_fork_block ==
-                                        block_id_type()) { // if the fork goes all the way back to genesis (does graphene's fork get_database allow this?)
+                                        block_id_type()) { // if the fork goes all the way back to genesis (does golos's fork get_database allow this?)
                                         non_fork_high_block_num = 0;
                                     } else {
                                         non_fork_high_block_num = block_header::num_from_id(last_non_fork_block);
@@ -690,7 +690,7 @@ namespace steemit {
                                             "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})",
                                             ("low_block_num", low_block_num)
                                                     ("non_fork_high_block_num", non_fork_high_block_num));
-                                    FC_THROW_EXCEPTION(network::block_older_than_undo_history, "Peer is are on a fork I'm unable to switch to");
+                                    FC_THROW_EXCEPTION(network::exceptions::block_older_than_undo_history<>, "Peer is are on a fork I'm unable to switch to");
                                 }
                             }
                         } else {
@@ -784,7 +784,7 @@ namespace steemit {
                 }
 
                 virtual uint32_t estimate_last_known_fork_from_git_revision_timestamp(uint32_t unix_timestamp) const override {
-                    return 0; // there are no forks in graphene
+                    return 0; // there are no forks in golos
                 }
 
                 virtual void error_encountered(const std::string &message, const fc::oexception &error) override {
@@ -815,8 +815,8 @@ namespace steemit {
                 const bpo::variables_map *_options = nullptr;
                 api_access _apiaccess;
 
-                //std::shared_ptr<graphene::get_database::object_database>   _pending_trx_db;
-                std::shared_ptr<steemit::chain::database> _chain_db;
+                //std::shared_ptr<golos::get_database::object_database>   _pending_trx_db;
+                std::shared_ptr<golos::chain::database> _chain_db;
                 std::shared_ptr<network::node> _p2p_network;
                 std::shared_ptr<fc::http::websocket_server> _websocket_server;
                 std::shared_ptr<fc::http::websocket_tls_server> _websocket_tls_server;
@@ -886,7 +886,8 @@ namespace steemit {
                     ("public-api", bpo::value<vector<string>>()->composing()->default_value(default_apis, str_default_apis), "Set an API to be publicly available, may be specified multiple times")
                     ("enable-plugin", bpo::value<vector<string>>()->composing()->default_value(default_plugins, str_default_plugins), "Plugin(s) to enable, may be specified multiple times")
                     ("max-block-age", bpo::value<int32_t>()->default_value(200), "Maximum age of head block when broadcasting tx via API")
-                    ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks");
+                                        ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks")
+                    ("statsd_port", bpo::value<uint32_t>()->default_value(8125), "Statsd agregators port");
             command_line_options.add(configuration_file_options);
             command_line_options.add_options()
                     ("replay-blockchain", "Rebuild object graph by replaying all blocks")
@@ -933,7 +934,7 @@ namespace steemit {
             return my->_chain_db;
         }
 
-/*std::shared_ptr<graphene::get_database::object_database> application::pending_trx_database() const
+/*std::shared_ptr<golos::get_database::object_database> application::pending_trx_database() const
 {
    return my->_pending_trx_db;
 }*/
