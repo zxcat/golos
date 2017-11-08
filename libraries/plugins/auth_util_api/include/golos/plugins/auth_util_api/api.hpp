@@ -14,40 +14,40 @@
 #include <string>
 
 namespace golos {
-    namespace plugins {
-        namespace auth_util_api {
+namespace plugins {
+namespace auth_util_api {
+    using golos::plugins::json_rpc::msg_pack;
 
-            struct check_authority_signature_args {
-                std::string account_name;
-                std::string level;
-                fc::sha256 dig;
-                std::vector<protocol::signature_type> sigs;
-            };
+    struct check_authority_signature_a {
+        std::string account_name;
+        std::string level;
+        fc::sha256 dig;
+        std::vector<protocol::signature_type> sigs;
+    };
 
-            struct check_authority_signature_return {
-                std::vector<protocol::public_key_type> keys;
-            };
+    struct check_authority_signature_r {
+        std::vector<protocol::public_key_type> keys;
+    };
 
-            class api final {
-            public:
-                api();
+    DEFINE_API_ARGS ( check_authority_signature, msg_pack, check_authority_signature_r)
 
-                ~api() = default;
+    class api final {
+    public:
+        api();
 
-                DECLARE_API((check_authority_signature))
+        ~api() = default;
 
-                // check_authority_signature_result check_authority_signature( check_authority_signature_params args );
+        DECLARE_API((check_authority_signature))
 
-                // private:
-            protected:
-                class api_impl;
+    protected:
+        class api_impl;
 
-                std::shared_ptr<api_impl> my;
-            };
-        }
-    }
+        std::shared_ptr<api_impl> my;
+    };
+}
+}
 } // golos::plugins::api
 
-FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_args), (account_name)(level)(dig)(sigs))
+FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_a), (account_name)(level)(dig)(sigs))
 
-FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_return), (keys))
+FC_REFLECT((golos::plugins::auth_util_api::check_authority_signature_r), (keys))
