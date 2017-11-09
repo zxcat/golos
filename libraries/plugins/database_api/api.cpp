@@ -25,6 +25,20 @@ namespace golos {
     namespace plugins {
         namespace database_api {
 
+            template<class C, typename... Args>
+            boost::signals2::scoped_connection connect_signal(boost::signals2::signal<void(Args...)> &sig, C &c, void(C::* f)(Args...)) {
+                std::weak_ptr<C> weak_c = c.shared_from_this();
+                return sig.connect(
+                    [weak_c, f](Args... args) {
+                        std::shared_ptr<C> shared_c = weak_c.lock();
+                        if (!shared_c) {
+                            return;
+                        }
+                        ((*shared_c).*f)(args...);
+                    }
+                );
+            }
+
             std::string get_language(const comment_api_object &c) {
                 languages::comment_metadata meta;
                 std::string language("");
