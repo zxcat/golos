@@ -1,24 +1,26 @@
 set(CURRENT_TARGET block_info_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
-     include/golos/plugins/block_info/plugin.hpp
-     include/golos/plugins/block_info/block_info.hpp
-     )
+    include/golos/plugins/block_info/plugin.hpp
+    include/golos/plugins/block_info/api.hpp
+    include/golos/plugins/block_info/block_info.hpp
+)
 
 list(APPEND CURRENT_TARGET_SOURCES
-     plugin.cpp
-     )
+    api.cpp
+    plugin.cpp
+)
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
-                ${CURRENT_TARGET_HEADERS}
-                ${CURRENT_TARGET_SOURCES}
-                )
+        ${CURRENT_TARGET_HEADERS}
+        ${CURRENT_TARGET_SOURCES}
+    )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
-                ${CURRENT_TARGET_HEADERS}
-                ${CURRENT_TARGET_SOURCES}
-                )
+        ${CURRENT_TARGET_HEADERS}
+        ${CURRENT_TARGET_SOURCES}
+    )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
@@ -30,7 +32,8 @@ target_link_libraries(
         golos_chain
         golos_protocol
         appbase
-        golos::chain_plugin
+        golos_chain_plugin
+        golos_json_rpc_plugin
         fc
 )
 

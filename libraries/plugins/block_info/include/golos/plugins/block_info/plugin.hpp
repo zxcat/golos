@@ -13,9 +13,11 @@ namespace golos {
     }
 }
 
+
 namespace golos {
     namespace plugins {
         namespace block_info {
+            using golos::plugins::block_info_api::api;
             using boost::program_options::options_description;
 
             class plugin final : public appbase::plugin<plugin> {
@@ -47,6 +49,8 @@ namespace golos {
                 std::vector<block_info> _block_info;
 
                 boost::signals2::scoped_connection _applied_block_conn;
+
+                std::shared_ptr<api> api_ptr;
             };
         }
     }

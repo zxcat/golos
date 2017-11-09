@@ -1,11 +1,13 @@
 #include <golos/chain/database.hpp>
 
 #include <golos/plugins/block_info/block_info.hpp>
+#include <golos/plugins/block_info/api.hpp>
 #include <golos/plugins/block_info/plugin.hpp>
 
 namespace golos {
     namespace plugins {
         namespace block_info {
+            using golos::plugins::block_info_api;
             using namespace golos::chain;
 
             plugin::plugin() {
@@ -20,6 +22,8 @@ namespace golos {
                 _applied_block_conn = db.applied_block.connect([this](const protocol::signed_block &b) {
                     on_applied_block(b);
                 });
+
+                api_ptr = std::make_shared<api>(_block_info);
             }
 
             void plugin::plugin_startup() {
