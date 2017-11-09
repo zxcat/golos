@@ -2,12 +2,10 @@ set(CURRENT_TARGET block_info_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
     include/golos/plugins/block_info/plugin.hpp
-    include/golos/plugins/block_info/api.hpp
     include/golos/plugins/block_info/block_info.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
-    api.cpp
     plugin.cpp
 )
 
