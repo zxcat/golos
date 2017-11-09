@@ -20,10 +20,8 @@ namespace auth_util_api {
 
     class api::api_impl {
     public:
-        api_impl() : db_(appbase::app().get_plugin<plugins::chain::plugin>().db()) {
-        }
-
-        DECLARE_API((check_authority_signature))
+        api_impl() :
+                db_(appbase::app().get_plugin<plugins::chain::plugin>().db()) {}
 
         check_authority_signature_r check_authority_signature(const check_authority_signature_a & args);
 
