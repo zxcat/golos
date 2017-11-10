@@ -207,13 +207,28 @@ namespace golos {
              * read-only; all modifications to the database must be performed via transactions. Transactions are broadcast via
              * the @ref network_broadcast_api.
              */
-            class api final {
+            class plugin final : public appbase::plugin<plugin> {
             public:
-                constexpr static const char *plugin_name = "api";
+                constexpr static const char *plugin_name = "database_api";
 
-                api();
+                static const std::string &name() {
+                    static std::string name = plugin_name;
+                    return name;
+                }
 
-                ~api();
+                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin)(chain::plugin))
+
+                void set_program_options(boost::program_options::options_description &cli, boost::program_options::options_description &cfg) override{}
+
+                void plugin_initialize(const boost::program_options::variables_map &options) override{}
+
+                void plugin_startup() override{}
+
+                void plugin_shutdown() override{}
+
+                plugin();
+
+                ~plugin();
 
                 ///////////////////
                 // Subscriptions //
@@ -637,12 +652,17 @@ namespace golos {
             private:
 
                 template<typename DatabaseIndex, typename DiscussionIndex>
-                std::vector<discussion> feed(const std::set<string> &select_set, const discussion_query &query,
+                std::vector<discussion> feed(
+                        const std::set<string> &select_set, const discussion_query &query,
                                              const std::string &start_author, const std::string &start_permlink) const;
 
                 template<typename DatabaseIndex, typename DiscussionIndex>
-                std::vector<discussion> blog(const std::set<string> &select_set, const discussion_query &query,
-                                             const std::string &start_author, const std::string &start_permlink) const;
+                std::vector<discussion> blog(
+                        const std::set<string> &select_set,
+                        const discussion_query &query,
+                        const std::string &start_author,
+                        const std::string &start_permlink
+                ) const;
 
 
                 struct api_impl;

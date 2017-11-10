@@ -1,7 +1,7 @@
 #pragma once
 
 #include <golos/plugins/json_rpc/plugin.hpp>
-#include <golos/plugins/database_api/api_plugin.hpp>
+#include <golos/plugins/database_api/plugin.hpp>
 #include <memory>
 
 namespace golos {
@@ -12,7 +12,7 @@ namespace golos {
 
             class tolstoy_api_plugin final : public appbase::plugin<tolstoy_api_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin) (database_api::api_plugin))
+                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin) (database_api::plugin))
 
                 tolstoy_api_plugin();
 

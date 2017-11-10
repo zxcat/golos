@@ -4,8 +4,8 @@ list(APPEND ${CURRENT_TARGET}_HEADERS
      include/golos/plugins/database_api/applied_operation.hpp
      include/golos/plugins/database_api/discussion_query.hpp
      include/golos/plugins/database_api/state.hpp
-     include/golos/plugins/database_api/api.hpp
-     include/golos/plugins/database_api/api_plugin.hpp
+     include/golos/plugins/database_api/plugin.hpp
+
 
      include/golos/plugins/database_api/api_objects/comment_api_object.hpp
      include/golos/plugins/database_api/api_objects/category_api_object.hpp
@@ -24,9 +24,8 @@ list(APPEND ${CURRENT_TARGET}_HEADERS
 list(APPEND ${CURRENT_TARGET}_SOURCES
      discussion_query.cpp
      api.cpp
-     api_plugin.cpp
      applied_operation.cpp
-     )
+)
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED

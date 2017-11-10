@@ -71,8 +71,10 @@ namespace block_info {
 
         void plugin_shutdown() override;
 
-        DECLARE_API(    (get_block_info)        )
-        DECLARE_API(    (get_blocks_with_info)  )
+        DECLARE_API(
+                (get_block_info)
+                (get_blocks_with_info)
+        )
         void on_applied_block(const protocol::signed_block &b);
 
     private:
