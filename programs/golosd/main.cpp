@@ -43,7 +43,7 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
 
-namespace bpo = boost::program_options::;
+namespace bpo = boost::program_options;
 using golos::protocol::version;
 
 

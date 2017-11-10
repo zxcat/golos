@@ -646,7 +646,7 @@ namespace golos {
 
 
                 struct api_impl;
-                std::unique_ptr<api_impl> my;
+                std::shared_ptr<api_impl> my;
             };
         }
     }

@@ -12,7 +12,7 @@ namespace golos {
 
             class tolstoy_api_plugin final : public appbase::plugin<tolstoy_api_plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin) (database_api::database_api_plugin))
+                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin) (database_api::api_plugin))
 
                 tolstoy_api_plugin();
 

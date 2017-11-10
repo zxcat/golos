@@ -14,6 +14,7 @@
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
+#include <memory>
 #include <golos/plugins/json_rpc/plugin.hpp>
 
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
@@ -28,15 +29,13 @@ namespace golos {
             template<class C, typename... Args>
             boost::signals2::scoped_connection connect_signal(boost::signals2::signal<void(Args...)> &sig, C &c, void(C::* f)(Args...)) {
                 std::weak_ptr<C> weak_c = c.shared_from_this();
-                return sig.connect(
-                    [weak_c, f](Args... args) {
-                        std::shared_ptr<C> shared_c = weak_c.lock();
-                        if (!shared_c) {
-                            return;
-                        }
-                        ((*shared_c).*f)(args...);
+                return sig.connect([weak_c, f](Args... args) {
+                    std::shared_ptr<C> shared_c = weak_c.lock();
+                    if (!shared_c) {
+                        return;
                     }
-                );
+                    ((*shared_c).*f)(args...);
+                });
             }
 
             std::string get_language(const comment_api_object &c) {
@@ -99,7 +98,7 @@ namespace golos {
                 return false || condition(c);
             }
 
-            struct api::api_impl {
+            struct api::api_impl: public std::enable_shared_from_this<api_impl> {
             public:
                 api_impl();
 
@@ -354,9 +353,9 @@ namespace golos {
                 _pending_trx_callback = cb;
             }
 
-            void api::api_impl::set_block_applied_callback(std::function<void(const variant &block_id)> cb) {
-                database().with_read_lock([&]() {
-                    set_block_applied_callback(cb);
+            void api::set_block_applied_callback(std::function<void(const variant &block_id)> cb) {
+                my->database().with_read_lock([&]() {
+                    my->set_block_applied_callback(cb);
                 });
             }
 
@@ -368,11 +367,9 @@ namespace golos {
                 }
             }
 
-            void api::api_impl::set_block_applied_callback(
-                    std::function<void(const variant &block_header)> cb) {
+            void api::api_impl::set_block_applied_callback(std::function<void(const variant &block_header)> cb) {
                 _block_applied_callback = cb;
-                _block_applied_connection = connect_signal(database().applied_block, *this,
-                                                           &api::api_impl::on_applied_block);
+                _block_applied_connection = connect_signal(database().applied_block, *this, &api_impl::on_applied_block);
             }
 
             void api::cancel_all_subscriptions() {
