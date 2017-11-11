@@ -1,5 +1,5 @@
-#include <golos/plugins/chain_api/api_plugin.hpp>
-#include <golos/plugins/chain_api/api.hpp>
+#include <golos/plugins/market_history_api/api_plugin.hpp>
+
 
 namespace golos {
     namespace plugins {
