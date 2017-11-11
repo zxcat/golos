@@ -1,6 +1,5 @@
 #include <golos/plugins/database_api/plugin.hpp>
 
-#include <golos/plugins/follow_api/api.hpp>
 #include <golos/plugins/market_history/plugin.hpp>
 #include <golos/plugins/follow/plugin.hpp>
 #include <golos/plugins/languages/plugin.hpp>
@@ -302,7 +301,7 @@ namespace golos {
                     return _db;
                 }
 
-                std::shared_ptr<follow::api> _follow_api;
+                std::shared_ptr<follow::plugin> _follow_api;
 
                 boost::signals2::scoped_connection _block_applied_connection;
 
@@ -400,7 +399,7 @@ namespace golos {
 
                 try {
                     appbase::app().get_plugin<follow::plugin>();
-                    _follow_api = std::make_shared<follow::api>();
+                    _follow_api = std::make_shared<follow::plugin>();
                 } catch (fc::assert_exception) {
                     ilog("Follow Plugin not loaded");
                 }

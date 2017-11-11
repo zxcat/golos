@@ -6,6 +6,7 @@
 
 namespace golos {
     namespace chain {
+        using golos::protocol::account_name_type;
         /**
          *  @brief tracks the approval of a partially approved transaction
          *  @ingroup object

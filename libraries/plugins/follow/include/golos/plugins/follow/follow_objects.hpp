@@ -1,13 +1,22 @@
 #pragma once
 
-#include <golos/plugins/follow/plugin.hpp>
+#include <golos/chain/objects/comment_object.hpp>
+#include <golos/chain/objects/operation_history_object.hpp>
 #include <golos/chain/steem_object_types.hpp>
 
 namespace golos {
     namespace plugins {
         namespace follow {
-            using namespace golos::chain;
+            using protocol::account_name_type;
+            using protocol::share_type;
+            using chainbase::object;
+            using chainbase::object_id;
+            using chainbase::allocator ;
             using chainbase::shared_vector;
+            using golos::chain::comment_object;
+            using golos::chain::by_id;
+            using golos::chain::comment_vote_index;
+            using golos::chain::by_comment_voter;
 
 #ifndef FOLLOW_SPACE_ID
 #define FOLLOW_SPACE_ID 8
@@ -22,9 +31,6 @@ namespace golos {
                 blog_author_stats_object_type = (FOLLOW_SPACE_ID << 8) + 5
             };
 
-            enum follow_type {
-                undefined, blog, ignore
-            };
 
             class follow_object : public object<follow_object_type, follow_object> {
             public:
@@ -258,7 +264,7 @@ namespace golos {
     }
 } // golos::follow
 
-FC_REFLECT_ENUM(golos::plugins::follow::follow_type, (undefined)(blog)(ignore))
+
 
 FC_REFLECT((golos::plugins::follow::follow_object), (id)(follower)(following)(what))
 CHAINBASE_SET_INDEX_TYPE(golos::plugins::follow::follow_object, golos::plugins::follow::follow_index)

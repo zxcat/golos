@@ -31,7 +31,6 @@ target_link_libraries(
         golos::blockchain_statistics_plugin
         golos::database_api_plugin
         golos::follow_plugin
-        golos::follow_api_plugin
         golos::market_history_plugin
         golos::private_message_plugin
         golos::raw_block_plugin

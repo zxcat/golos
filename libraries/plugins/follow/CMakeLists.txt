@@ -1,11 +1,13 @@
 set(CURRENT_TARGET follow_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
+     include/golos/plugins/follow/follow_api_object.hpp
      include/golos/plugins/follow/follow_evaluators.hpp
      include/golos/plugins/follow/follow_objects.hpp
      include/golos/plugins/follow/follow_operations.hpp
+     include/golos/plugins/follow/follow_forward.hpp
      include/golos/plugins/follow/plugin.hpp
-     )
+)
 
 list(APPEND CURRENT_TARGET_SOURCES
      follow_evaluators.cpp

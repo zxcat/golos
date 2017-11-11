@@ -6,8 +6,18 @@ elseif(APPLE)
     list(APPEND PLATFORM_SPECIFIC_LIBS readline)
 endif()
 
-target_link_libraries(js_operation_serializer
-        PRIVATE golos::network golos_chain golos_protocol graphene_utilities golos_wallet fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS})
+target_link_libraries(
+        js_operation_serializer
+        PRIVATE
+        golos::network
+        golos_chain
+        golos_protocol
+        graphene_utilities
+        golos_wallet
+        fc
+        ${CMAKE_DL_LIBS}
+        ${PLATFORM_SPECIFIC_LIBS}
+)
 
 install(TARGETS
         js_operation_serializer

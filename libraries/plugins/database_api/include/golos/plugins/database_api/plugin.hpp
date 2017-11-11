@@ -5,23 +5,10 @@
 #include <memory>
 #include <vector>
 
-#include <golos/chain/database.hpp>
-#include <golos/chain/objects/proposal_object.hpp>
-#include <golos/chain/objects/steem_objects.hpp>
-#include <golos/chain/steem_object_types.hpp>
-#include <golos/chain/objects/history_object.hpp>
-
 #include <fc/optional.hpp>
 #include <fc/variant_object.hpp>
-#include <fc/network/ip.hpp>
-
-#include <boost/container/flat_set.hpp>
-
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
-#include <golos/plugins/market_history/bucket_object.hpp>
-#include <golos/plugins/follow_api/api.hpp>
-
 #include <golos/plugins/database_api/applied_operation.hpp>
 #include <golos/plugins/database_api/state.hpp>
 #include <golos/plugins/database_api/discussion_query.hpp>

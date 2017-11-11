@@ -27,12 +27,12 @@ namespace golos {
 
                     for (auto target : o.what) {
                         switch (follow_type_map[target]) {
-                            case blog:
-                                what |= 1 << blog;
+                            case follow_type::blog:
+                                what |= 1 << follow_type::blog;
                                 is_following = true;
                                 break;
-                            case ignore:
-                                what |= 1 << ignore;
+                            case follow_type::ignore:
+                                what |= 1 << follow_type::ignore;
                                 break;
                             default:
                                 //ilog( "Encountered unknown option ${o}", ("o", target) );
@@ -40,7 +40,7 @@ namespace golos {
                         }
                     }
 
-                    if (what & (1 << ignore))
+                    if (what & (1 << follow_type::ignore))
                         FC_ASSERT(!(what & (1 << blog)), "Cannot follow blog and ignore author at the same time");
 
                     bool was_followed = false;
@@ -52,7 +52,7 @@ namespace golos {
                             obj.what = what;
                         });
                     } else {
-                        was_followed = itr->what & 1 << blog;
+                        was_followed = itr->what & 1 << follow_type::blog;
 
                         get_database().modify(*itr, [&](follow_object &obj) {
                             obj.what = what;

@@ -7,7 +7,7 @@ namespace golos {
 
             using fc::variant;
 
-            struct tolstoy_api::tolstoy_api_impl {
+            struct tolstoy_api::tolstoy_api_impl final {
             public:
                 tolstoy_api_impl() : rpc_(appbase::app().get_plugin<json_rpc::plugin>()) {
                 }
@@ -29,17 +29,17 @@ namespace golos {
             }
 
             DEFINE_API(tolstoy_api, get_block_header) {
-
+                return pimpl->rpc().call(args);
             }
 
 
             DEFINE_API(tolstoy_api, get_block) {
-
+                return pimpl->rpc().call(args);
             }
 
 
             DEFINE_API(tolstoy_api, get_ops_in_block) {
-
+                return pimpl->rpc().call(args);
             }
 
 
@@ -52,7 +52,7 @@ namespace golos {
             //////////////////////////////////////////////////////////////////////
 
             DEFINE_API(tolstoy_api, get_config) {
-                //return pimpl->rpc().call(args);
+                return pimpl->rpc().call(args);
 
             }
 

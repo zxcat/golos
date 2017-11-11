@@ -51,7 +51,7 @@ target_link_libraries(
         golos::market_history_plugin
         golos::snapshot_plugin
         golos::languages_plugin
-        golos::follow_api_plugin
+        golos::follow_plugin
         golos::json_rpc_plugin
         graphene_utilities
         appbase
