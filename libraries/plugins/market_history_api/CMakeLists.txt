@@ -25,7 +25,13 @@ endif()
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})
 set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGET})
 
-target_link_libraries(golos_${CURRENT_TARGET} golos_chain_plugin golos_json_rpc_plugin)
+target_link_libraries(
+        golos_${CURRENT_TARGET}
+        golos_market_history_plugin
+        golos_chain_plugin
+        golos_json_rpc_plugin
+        golos_database_api_plugin
+)
 
 target_include_directories(golos_${CURRENT_TARGET}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../")

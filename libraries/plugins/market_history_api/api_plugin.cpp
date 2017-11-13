@@ -1,9 +1,9 @@
 #include <golos/plugins/market_history_api/api_plugin.hpp>
-
+#include <golos/plugins/market_history_api/api.hpp>
 
 namespace golos {
     namespace plugins {
-        namespace chain {
+        namespace market_history {
 
             api_plugin::api_plugin() {
             }
