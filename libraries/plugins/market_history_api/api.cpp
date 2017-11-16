@@ -857,6 +857,35 @@ namespace golos {
                 });
             }
 
+
+
+
+            DEFINE_API(api,get_call_orders_by_owner){
+                return pimpl->database().with_read_lock([&]() {
+                    //TODO big proble
+                    return pimpl->get_call_orders_by_owner(std::string(""));
+                });
+            }
+
+
+
+
+            DEFINE_API(api,get_limit_orders_by_owner){
+                return pimpl->database().with_read_lock([&]() {
+                    //TODO big proble
+                    return pimpl->get_limit_orders_by_owner(std::string(""));
+                });
+            }
+
+            DEFINE_API(api,get_settle_orders_by_owner){
+                return pimpl->database().with_read_lock([&]() {
+                    //TODO big proble
+                    return pimpl->get_settle_orders_by_owner(std::string(""));
+                });
+            }
+
+
+
         }
     }
 } //golos::plugins::chain

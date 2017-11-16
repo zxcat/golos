@@ -41,6 +41,7 @@
 #include <fc/log/file_appender.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
+#include <golos/plugins/market_history_api/api_plugin.hpp>
 
 namespace bpo = boost::program_options;
 using golos::protocol::version;
@@ -261,19 +262,18 @@ namespace golos {
             appbase::app().register_plugin<golos::plugins::webserver::webserver_plugin>();
 
             appbase::app().register_plugin< golos::plugins::follow::plugin >();
-/*
+
+            appbase::app().register_plugin< golos::plugins::market_history::plugin >();
+
             appbase::app().register_plugin< golos::plugins::account_by_key::plugin >();
 
             appbase::app().register_plugin< golos::plugins::account_history::plugin >();
-
-            appbase::app().register_plugin< golos::plugins::market_history::plugin >();
 
             appbase::app().register_plugin< golos::plugins::languages::plugin >();
 
             appbase::app().register_plugin< golos::plugins::tags::tags_plugin >();
 
             appbase::app().register_plugin<golos::plugins::witness_plugin::witness_plugin>();
-*/
 
 ///API
             appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
@@ -283,6 +283,8 @@ namespace golos {
             appbase::app().register_plugin<golos::plugins::test_api::test_api_plugin>();
 
             appbase::app().register_plugin<golos::plugins::tolstoy_api::tolstoy_api_plugin>();
+
+            appbase::app().register_plugin< golos::plugins::market_history::api_plugin >();
 
         }
     }

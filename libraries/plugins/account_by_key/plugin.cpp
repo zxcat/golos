@@ -4,11 +4,17 @@
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/chain/objects/account_object.hpp>
 #include <golos/chain/operation_notification.hpp>
+#include <golos/plugins/json_rpc/utility.hpp>
 
 namespace golos {
     namespace plugins {
         namespace account_by_key {
             using namespace golos::chain;
+            using json_rpc::msg_pack;
+
+            struct get_key_references_a {
+                std::vector<golos::protocol::public_key_type> keys;
+            };
 
             class plugin::plugin_impl final {
             public:
@@ -22,6 +28,31 @@ namespace golos {
 
                 golos::chain::database &database() {
                     return database_;
+                }
+
+                golos::chain::database &database() const {
+                    return database_;
+                }
+
+                get_key_references_return get_key_references(const get_key_references_a &args) const {
+                    get_key_references_return final_result;
+                    final_result.accounts.reserve(args.keys.size());
+
+                    const auto &key_idx = database().get_index<key_lookup_index>().indices().get<by_key>();
+
+                    for (auto &key : args.keys) {
+                        std::vector<golos::protocol::account_name_type> result;
+                        auto lookup_itr = key_idx.lower_bound(key);
+
+                        while (lookup_itr != key_idx.end() && lookup_itr->key == key) {
+                            result.push_back(lookup_itr->account);
+                            ++lookup_itr;
+                        }
+
+                        final_result.accounts.emplace_back(std::move(result));
+                    }
+
+                    return final_result;
                 }
 
                 void pre_operation(const operation_notification &op_obj);
@@ -198,6 +229,7 @@ namespace golos {
 
 
             plugin::plugin() : my(new plugin_impl(*this)) {
+                JSON_RPC_REGISTER_API(ACCOUNT_BY_KEY_PLUGIN_NAME);
             }
 
             void plugin::set_program_options(boost::program_options::options_description &cli,
@@ -270,6 +302,19 @@ namespace golos {
 
                 my->cached_keys.clear();
             }
+
+            get_key_references_return plugin::get_key_references(const msg_pack &args) {
+                return my->database().with_read_lock([&]() {
+                    return my->get_key_references(args.args->at(0).as<get_key_references_a>());
+                });
+            }
+
+            plugin::~plugin() {
+
+            }
         }
+
     } // golos::account_by_key
 }
+
+FC_REFLECT((golos::plugins::account_by_key::get_key_references_a), (keys))

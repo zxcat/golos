@@ -29,6 +29,7 @@ target_link_libraries(
         golos::chain
         golos::chain_plugin
         golos::protocol
+        golos::json_rpc_plugin
         appbase
 )
 target_include_directories(golos_${CURRENT_TARGET} PUBLIC "include")

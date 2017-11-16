@@ -21,10 +21,10 @@ target_link_libraries(
         graphene_utilities
         golos::chain_plugin
         golos::network_broadcast_api_plugin
+        golos::account_by_key_plugin
         golos::tags_plugin
         golos::languages_plugin
         golos::witness_plugin
-        golos::account_by_key_plugin
         golos::account_history_plugin
         golos::account_statistics_plugin
         golos::block_info_plugin
