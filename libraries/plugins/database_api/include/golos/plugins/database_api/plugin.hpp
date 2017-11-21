@@ -203,11 +203,14 @@ namespace golos {
                     return name;
                 }
 
-                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin)(chain::plugin))
+                APPBASE_PLUGIN_REQUIRES(
+                        (json_rpc::plugin)
+                        (chain::plugin)
+                )
 
                 void set_program_options(boost::program_options::options_description &cli, boost::program_options::options_description &cfg) override{}
 
-                void plugin_initialize(const boost::program_options::variables_map &options) override{}
+                void plugin_initialize(const boost::program_options::variables_map &options) override;
 
                 void plugin_startup() override{}
 
@@ -655,9 +658,19 @@ namespace golos {
                 struct api_impl;
                 std::shared_ptr<api_impl> my;
             };
+
+
+            inline void register_database_api(){
+                appbase::app().register_plugin<plugin>();
+            }
         }
     }
 }
+
+
+
+
+
 
 
 FC_REFLECT((golos::plugins::database_api::scheduled_hardfork), (hf_version)(live_time));

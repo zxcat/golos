@@ -340,7 +340,7 @@ namespace golos {
             };
 
             plugin::plugin() {
-                JSON_RPC_REGISTER_API(plugin_name);
+
             }
 
             void plugin::set_program_options(boost::program_options::options_description &cli,
@@ -354,6 +354,7 @@ namespace golos {
                 try {
                     ilog("Intializing follow plugin");
                     pimpl.reset(new impl());
+                    JSON_RPC_REGISTER_API(plugin_name);
                     auto &db = pimpl->database();
                     pimpl->plugin_initialize(*this);
 

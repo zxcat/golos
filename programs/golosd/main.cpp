@@ -6,7 +6,6 @@
 #include <golos/utilities/key_conversion.hpp>
 #include <fc/git_revision.hpp>
 
-///PLUGIN
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/plugins/p2p/p2p_plugin.hpp>
 #include <golos/plugins/webserver/webserver_plugin.hpp>
@@ -18,12 +17,11 @@
 #include <golos/plugins/witness/witness.hpp>
 #include <golos/plugins/follow/plugin.hpp>
 #include <golos/plugins/market_history/plugin.hpp>
-///PLUGIN
-///API
 #include <golos/plugins/database_api/plugin.hpp>
 #include <golos/plugins/test_api/test_api_plugin.hpp>
 #include <golos/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
-///API
+#include <golos/plugins/market_history_api/api_plugin.hpp>
+
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -41,7 +39,7 @@
 #include <fc/log/file_appender.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
-#include <golos/plugins/market_history_api/api_plugin.hpp>
+
 
 namespace bpo = boost::program_options;
 using golos::protocol::version;
@@ -84,10 +82,10 @@ namespace golos {
 
 }
 
-int main( int argc, char** argv ) {
-    try {
+void logo(){
+
 #ifdef BUILD_GOLOS_TESTNET
-        std::cerr << "------------------------------------------------------\n\n";
+    std::cerr << "------------------------------------------------------\n\n";
         std::cerr << "            STARTING TEST NETWORK\n\n";
         std::cerr << "------------------------------------------------------\n";
         auto initminer_private_key = golos::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
@@ -97,14 +95,19 @@ int main( int argc, char** argv ) {
         std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
         std::cerr << "------------------------------------------------------\n";
 #else
-        std::cerr << "------------------------------------------------------\n\n";
-        std::cerr << "            STARTING GOLOS NETWORK\n\n";
-        std::cerr << "------------------------------------------------------\n";
-        std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
-        std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-        std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
-        std::cerr << "------------------------------------------------------\n";
+    std::cerr << "------------------------------------------------------\n\n";
+    std::cerr << "            STARTING GOLOS NETWORK\n\n";
+    std::cerr << "------------------------------------------------------\n";
+    std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
+    std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
+    std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+    std::cerr << "------------------------------------------------------\n";
 #endif
+
+}
+
+int main( int argc, char** argv ) {
+    try {
 
         // Setup logging config
         boost::program_options::options_description options;
@@ -115,22 +118,25 @@ int main( int argc, char** argv ) {
         golos::plugins::register_plugins();
         appbase::app().set_version_string( version_string() );
 
-        if( !appbase::app().initialize<
+        bool initialized = appbase::app().initialize<
                 golos::plugins::chain::plugin,
                 golos::plugins::p2p::p2p_plugin,
-                golos::plugins::webserver::webserver_plugin >
-                ( argc, argv )
-        )
+                golos::plugins::webserver::webserver_plugin
+        >
+                ( argc, argv );
 
+        logo();
+
+        if( !initialized )
             return 0;
 
+        auto& args = appbase::app().get_args();
+
         try {
-            fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( appbase::app().get_args(), appbase::app().data_dir() );
-            if( logging_config ) {
-                fc::configure_logging(*logging_config);
-            }
-        }
-        catch( const fc::exception& ) {
+            fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( args, appbase::app().data_dir() );
+            if( logging_config )
+                fc::configure_logging( *logging_config );
+        } catch( const fc::exception& ) {
             wlog( "Error parsing logging config" );
         }
 
@@ -142,6 +148,9 @@ int main( int argc, char** argv ) {
     catch ( const boost::exception& e ) {
         std::cerr << boost::diagnostic_information(e) << "\n";
     }
+    catch ( const fc::exception& e ) {
+        std::cerr << e.to_detail_string() << "\n";
+    }
     catch ( const std::exception& e ) {
         std::cerr << e.what() << "\n";
     }
@@ -151,6 +160,9 @@ int main( int argc, char** argv ) {
 
     return -1;
 }
+
+
+
 namespace golos {
     namespace utilities{
         using std::string;
@@ -254,36 +266,20 @@ namespace golos {
         void register_plugins() {
 ///PLUGIN
             appbase::app().register_plugin< golos::plugins::chain::plugin >();
-
             appbase::app().register_plugin<golos::plugins::p2p::p2p_plugin>();
-
-            appbase::app().register_plugin<golos::plugins::json_rpc::plugin>();
-
             appbase::app().register_plugin<golos::plugins::webserver::webserver_plugin>();
-
             appbase::app().register_plugin< golos::plugins::follow::plugin >();
-
             appbase::app().register_plugin< golos::plugins::market_history::plugin >();
-
             appbase::app().register_plugin< golos::plugins::account_by_key::plugin >();
-
             appbase::app().register_plugin< golos::plugins::account_history::plugin >();
-
             appbase::app().register_plugin< golos::plugins::languages::plugin >();
-
             appbase::app().register_plugin< golos::plugins::tags::tags_plugin >();
-
             appbase::app().register_plugin<golos::plugins::witness_plugin::witness_plugin>();
-
 ///API
             appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
-
-            appbase::app().register_plugin< golos::plugins::database_api::plugin>();
-
+            golos::plugins::database_api::register_database_api();
             appbase::app().register_plugin<golos::plugins::test_api::test_api_plugin>();
-
             appbase::app().register_plugin<golos::plugins::tolstoy_api::tolstoy_api_plugin>();
-
             appbase::app().register_plugin< golos::plugins::market_history::api_plugin >();
 
         }

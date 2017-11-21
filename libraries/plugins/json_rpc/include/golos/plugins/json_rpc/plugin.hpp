@@ -121,7 +121,7 @@ namespace golos {
                 class register_api_method_visitor {
                 public:
                     register_api_method_visitor(const std::string &api_name) : _api_name(api_name),
-                            _json_rpc_plugin(appbase::app().get_plugin<plugin>()) {
+                            _json_rpc_plugin(appbase::app().get_plugin< json_rpc::plugin >()) {
                     }
 
                     template<typename Plugin, typename Method, typename Args, typename Ret>

@@ -36,7 +36,7 @@ namespace golos {
             public:
                 constexpr static const char *plugin_name = "account_history";
 
-                APPBASE_PLUGIN_REQUIRES((golos::plugins::chain::plugin))
+                APPBASE_PLUGIN_REQUIRES((chain::plugin))
 
                 static const std::string &name() {
                     static std::string name = plugin_name;

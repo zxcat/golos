@@ -387,8 +387,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            plugin::plugin() : my(new api_impl()) {
-                JSON_RPC_REGISTER_API(plugin_name)
+            plugin::plugin()  {
             }
 
             plugin::~plugin() {
@@ -2756,6 +2755,11 @@ namespace golos {
                 CHECK_ARG_SIZE(1)
                 auto name = args.args->at(0).as<account_name_type>();
                 return my->get_proposed_transactions(name);
+            }
+
+            void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+                my.reset(new api_impl());
+                JSON_RPC_REGISTER_API(plugin_name)
             }
 
             /** TODO: add secondary index that will accelerate this process */
