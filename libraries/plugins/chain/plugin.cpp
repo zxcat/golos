@@ -32,7 +32,7 @@ namespace golos {
                 golos::chain::database db;
             };
 
-            plugin::plugin() : my(new plugin_impl()) {
+            plugin::plugin() {
             }
 
             plugin::~plugin() {
@@ -68,6 +68,7 @@ namespace golos {
             }
 
             void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+                my.reset(new plugin_impl());
                 my->shared_memory_dir = appbase::app().data_dir() / "blockchain";
 
                 if (options.count("shared-file-dir")) {

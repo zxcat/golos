@@ -228,8 +228,8 @@ namespace golos {
             }
 
 
-            plugin::plugin() : my(new plugin_impl(*this)) {
-                JSON_RPC_REGISTER_API(ACCOUNT_BY_KEY_PLUGIN_NAME);
+            plugin::plugin()  {
+
             }
 
             void plugin::set_program_options(boost::program_options::options_description &cli,
@@ -237,6 +237,8 @@ namespace golos {
             }
 
             void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+                my.reset(new plugin_impl(*this));
+                JSON_RPC_REGISTER_API(ACCOUNT_BY_KEY_PLUGIN_NAME);
                 try {
                     ilog("Initializing account_by_key plugin");
                     database &db = my->database();

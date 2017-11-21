@@ -33,6 +33,7 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 target_link_libraries(
         golos_${CURRENT_TARGET}
         golos::chain
+        golos::json_rpc_plugin
         golos::chain_plugin
         golos::protocol
         golos::database_api_plugin

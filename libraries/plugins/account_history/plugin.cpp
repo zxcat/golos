@@ -464,8 +464,8 @@ namespace golos {
             };
 
 
-            plugin::plugin() : my(new plugin_impl) {
-                ilog("Loading account history plugin");
+            plugin::plugin() {
+
             }
 
 
@@ -483,7 +483,8 @@ namespace golos {
             }
 
             void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
-                //ilog("Intializing account history plugin" );
+                ilog("Intializing account history plugin" );
+                my.reset(new plugin_impl);
                 my->database().pre_apply_operation.connect([&](const operation_notification &note) {
                     my->on_operation(note);
                 });

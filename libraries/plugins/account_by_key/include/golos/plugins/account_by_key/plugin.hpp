@@ -23,7 +23,10 @@ namespace golos {
             private:
                 class plugin_impl;
             public:
-                APPBASE_PLUGIN_REQUIRES((chain::plugin)(json_rpc::plugin))
+                APPBASE_PLUGIN_REQUIRES(
+                        (chain::plugin)
+                        (json_rpc::plugin)
+                )
 
                 static const std::string &name() {
                     static std::string name = ACCOUNT_BY_KEY_PLUGIN_NAME;
