@@ -32,12 +32,27 @@ namespace golos {
                 golos::chain::database &database() {
                     return _db;
                 }
+                get_tags_r get_tags() ;
 
                 void on_operation(const operation_notification &note);
 
                 golos::chain::database &_db;
             };
 
+            get_tags_r tags_plugin::tags_plugin_impl::get_tags() {
+                get_tags_r result;
+                result.tags = std::vector<tag_stats_object>();
+                return result;
+            }
+
+            DEFINE_API ( tags_plugin, get_tags ) {
+                auto &db = my->database();
+                return db.with_read_lock([&]() {
+                    get_tags_r result;
+                    result = my->get_tags();
+                    return result;
+                });
+            }
 
             struct operation_visitor {
                 operation_visitor(database &db) : _db(db) {
@@ -490,6 +505,8 @@ namespace golos {
                 my->database().add_plugin_index<tag_stats_index>();
                 my->database().add_plugin_index<peer_stats_index>();
                 my->database().add_plugin_index<author_tag_stats_index>();
+
+                JSON_RPC_REGISTER_API ( name() ) ;
             }
 
             void tags_plugin::plugin_startup() {

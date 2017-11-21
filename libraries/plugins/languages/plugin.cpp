@@ -73,7 +73,7 @@ namespace languages {
         void on_operation(const operation_notification &note);
         
         // API
-        std::set<std::string> get_languages() ;
+        get_languages_r get_languages() ;
         
         set<string> cache_languages;
     private:
@@ -81,15 +81,17 @@ namespace languages {
         golos::chain::database &db_;
     };
 
-    std::set<std::string> plugin::impl::get_languages() {
-        return cache_languages;
+    get_languages_r plugin::impl::get_languages() {
+        get_languages_r result;
+        result.languages = cache_languages;
+        return result;
     }
 
     DEFINE_API ( plugin, get_languages ) {
         auto &db = my->database();
         return db.with_read_lock([&]() {
             get_languages_r result;
-            result.languages = my->get_languages();
+            result = my->get_languages();
             return result;
         });
     }
