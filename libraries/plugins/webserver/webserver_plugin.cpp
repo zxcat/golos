@@ -91,9 +91,7 @@ namespace golos {
                         std::vector<fc::ip::endpoint> endpoints = fc::resolve(hostname, port);
 
                         if (endpoints.empty())
-                            FC_THROW_EXCEPTION(fc::unknown_host_exception,
-                                               "The host name can not be resolved: ${hostname}",
-                                               ("hostname", hostname));
+                            FC_THROW_EXCEPTION(fc::unknown_host_exception, "The host name can not be resolved: ${hostname}", ("hostname", hostname));
 
                         return endpoints;
                     } catch (const boost::bad_lexical_cast &) {
@@ -104,6 +102,7 @@ namespace golos {
 
             struct webserver_plugin::webserver_plugin_impl final {
             public:
+                boost::thread_group& thread_pool = appbase::app().scheduler();
                 webserver_plugin_impl(thread_pool_size_t thread_pool_size) : thread_pool_work(this->thread_pool_ios) {
                     for (uint32_t i = 0; i < thread_pool_size; ++i) {
                         thread_pool.create_thread(boost::bind(&asio::io_service::run, &thread_pool_ios));
@@ -127,8 +126,6 @@ namespace golos {
                 asio::io_service ws_ios;
                 optional<tcp::endpoint> ws_endpoint;
                 websocket_server_type ws_server;
-
-                boost::thread_group thread_pool;
                 asio::io_service thread_pool_ios;
                 asio::io_service::work thread_pool_work;
 
@@ -146,12 +143,10 @@ namespace golos {
                             ws_server.init_asio(&ws_ios);
                             ws_server.set_reuse_addr(true);
 
-                            ws_server.set_message_handler(
-                                    boost::bind(&webserver_plugin_impl::handle_ws_message, this, &ws_server, _1, _2));
+                            ws_server.set_message_handler(boost::bind(&webserver_plugin_impl::handle_ws_message, this, &ws_server, _1, _2));
 
                             if (http_endpoint && http_endpoint == ws_endpoint) {
-                                ws_server.set_http_handler(
-                                        boost::bind(&webserver_plugin_impl::handle_http_message, this, &ws_server, _1));
+                                ws_server.set_http_handler(boost::bind(&webserver_plugin_impl::handle_http_message, this, &ws_server, _1));
                                 ilog("start listending for http requests");
                             }
 
