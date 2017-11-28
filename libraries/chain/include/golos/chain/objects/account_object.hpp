@@ -440,11 +440,7 @@ namespace golos {
 
         struct by_name;
         struct by_proxy;
-        struct by_last_post;
         struct by_next_vesting_withdrawal;
-        struct by_smp_balance;
-        struct by_post_count;
-        struct by_vote_count;
 
         typedef multi_index_container<
                 account_statistics_object,
@@ -478,41 +474,12 @@ namespace golos {
                                         member<account_object, time_point_sec, &account_object::next_vesting_withdrawal>,
                                         member<account_object, account_object::id_type, &account_object::id>
                                 > /// composite key by_next_vesting_withdrawal
-                        >,
-                        ordered_unique<tag<by_last_post>,
-                                composite_key<account_object,
-                                        member<account_object, time_point_sec, &account_object::last_post>,
-                                        member<account_object, account_object::id_type, &account_object::id>
-                                >,
-                                composite_key_compare<std::greater<time_point_sec>, std::less<account_object::id_type>>
-                        >,
-                        ordered_unique<tag<by_smp_balance>,
-                                composite_key<account_object,
-                                        member<account_object, protocol::asset<0, 17, 0>, &account_object::vesting_shares>,
-                                        member<account_object, account_object::id_type, &account_object::id>
-                                >,
-                                composite_key_compare<std::greater<protocol::asset<0, 17, 0>>, std::less<account_object::id_type>>
-                        >,
-                        ordered_unique<tag<by_post_count>,
-                                composite_key<account_object,
-                                        member<account_object, uint32_t, &account_object::post_count>,
-                                        member<account_object, account_object::id_type, &account_object::id>
-                                >,
-                                composite_key_compare<std::greater<uint32_t>, std::less<account_object::id_type>>
-                        >,
-                        ordered_unique<tag<by_vote_count>,
-                                composite_key<account_object,
-                                        member<account_object, uint32_t, &account_object::lifetime_vote_count>,
-                                        member<account_object, account_object::id_type, &account_object::id>
-                                >,
-                                composite_key_compare<std::greater<uint32_t>, std::less<account_object::id_type>>
                         >
                 >,
                 allocator<account_object>
         > account_index;
 
         struct by_account;
-        struct by_last_valid;
 
         typedef multi_index_container<
                 owner_authority_history_object,
