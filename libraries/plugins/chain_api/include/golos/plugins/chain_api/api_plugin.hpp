@@ -14,7 +14,7 @@ namespace golos {
 
             using namespace appbase;
 
-            class api_plugin : public plugin<api_plugin> {
+            class api_plugin final : public appbase::plugin<api_plugin> {
             public:
                 APPBASE_PLUGIN_REQUIRES((plugin) (json_rpc::plugin))
 
