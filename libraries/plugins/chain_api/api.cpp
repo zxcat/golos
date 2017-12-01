@@ -9,19 +9,22 @@ namespace golos {
                 api_impl() : _chain(appbase::app().get_plugin<plugin>()) {
                 }
 
-                DECLARE_API((push_block)(push_transaction))
+                DECLARE_API(
+                        (push_block)
+                        (push_transaction)
+                )
 
             private:
                 plugin &_chain;
             };
 
-            DEFINE_API(chain_api_impl, push_block) {
+            DEFINE_API(api::api_impl, push_block) {
                 push_block_return result;
 
                 result.success = false;
 
                 try {
-                    _chain.accept_block(args.block, args.currently_syncing, chain::database::skip_nothing);
+                    _chain.accept_block(args.block, args.currently_syncing, golos::chain::database::skip_nothing);
                     result.success = true;
                 } catch (const fc::exception &e) {
                     result.error = e.to_detail_string();
@@ -34,7 +37,7 @@ namespace golos {
                 return result;
             }
 
-            DEFINE_API(chain_api_impl, push_transaction) {
+            DEFINE_API(api::api_impl, push_transaction) {
                 push_transaction_return result;
 
                 result.success = false;
@@ -60,11 +63,11 @@ namespace golos {
             api::~api() {
             }
 
-            DEFINE_API(chain_api, push_block) {
+            DEFINE_API(api, push_block) {
                 return my->push_block(args);
             }
 
-            DEFINE_API(chain_api, push_transaction) {
+            DEFINE_API(api, push_transaction) {
                 return my->push_transaction(args);
             }
 

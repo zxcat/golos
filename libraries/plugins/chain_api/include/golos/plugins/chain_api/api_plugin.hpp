@@ -20,7 +20,7 @@ namespace golos {
 
                 api_plugin();
 
-                virtual ~api_plugin();
+                ~api_plugin();
 
                 static const std::string &name() {
                     static std::string name = STEEMIT_CHAIN_API_PLUGIN_NAME;
