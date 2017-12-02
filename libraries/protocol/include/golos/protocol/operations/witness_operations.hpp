@@ -30,8 +30,8 @@ namespace golos {
             account_name_type owner;
             std::string url;
             public_key_type block_signing_key;
-            chain_properties<Major, Hardfork, Release> props;
-            asset<Major, Hardfork, Release> fee; ///< the fee paid to register a new witness, should be 10x current block production pay
+            chain_properties <Major, Hardfork, Release> props;
+            asset <Major, Hardfork, Release> fee; ///< the fee paid to register a new witness, should be 10x current block production pay
 
             void validate() const;
 
@@ -60,8 +60,7 @@ namespace golos {
         };
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        struct account_witness_proxy_operation
-                : public base_operation<Major, Hardfork, Release> {
+        struct account_witness_proxy_operation : public base_operation<Major, Hardfork, Release> {
             account_name_type account;
             account_name_type proxy;
 

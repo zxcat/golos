@@ -55,6 +55,10 @@ namespace golos {
     }
 
     namespace protocol {
+        enum class reward_curve {
+            quadratic, quadratic_curation, log10, log2, linear, square_root
+        };
+
         enum asset_issuer_permission_flags {
             charge_market_fee = 0x01, /**< an issuer-specified percentage of all market trades in this asset is paid to the issuer */
             white_list = 0x02, /**< accounts must be whitelisted in order to hold this asset */
@@ -67,18 +71,16 @@ namespace golos {
             committee_fed_asset = 0x100 /**< allow the asset to be fed by the committee */
         };
         const static uint32_t asset_issuer_permission_mask =
-                charge_market_fee | white_list | override_authority |
-                transfer_restricted | disable_force_settle | global_settle |
-                disable_confidential
-                | witness_fed_asset | committee_fed_asset;
+                charge_market_fee | white_list | override_authority | transfer_restricted | disable_force_settle |
+                global_settle | disable_confidential | witness_fed_asset | committee_fed_asset;
         const static uint32_t uia_asset_issuer_permission_mask =
-                charge_market_fee | white_list | override_authority |
-                transfer_restricted | disable_confidential;
+                charge_market_fee | white_list | override_authority | transfer_restricted | disable_confidential;
 
         typedef fc::ecc::private_key private_key_type;
         typedef fc::sha256 chain_id_type;
         typedef fc::fixed_string<fc::uint128_t> account_name_type;
         typedef fc::fixed_string<fc::uint128_t> asset_name_type;
+        typedef fc::fixed_string<fc::uint128_t> reward_fund_name_type;
 
         struct string_less {
             bool operator()(const std::string &a, const std::string &b) const {
@@ -87,8 +89,8 @@ namespace golos {
 
             template<typename Storage>
             bool operator()(const fc::fixed_string<Storage> &a, const fc::fixed_string<Storage> &b) const {
-                const char *ap = (const char *)&a;
-                const char *ab = (const char *)&b;
+                const char *ap = (const char *) &a;
+                const char *ab = (const char *) &b;
                 int count = sizeof(a) - 1;
                 while (*ap == *ab && count > 0) {
                     ++ap;
@@ -231,6 +233,8 @@ namespace fc {
 
     void from_variant(const fc::variant &var, golos::protocol::extended_private_key_type &vo);
 }
+
+FC_REFLECT_ENUM(golos::protocol::curve_id, (quadratic)(log10)(log2)(square_root)(linear))
 
 FC_REFLECT((golos::protocol::public_key_type), (key_data))
 FC_REFLECT((golos::protocol::public_key_type::binary_key), (data)(check))

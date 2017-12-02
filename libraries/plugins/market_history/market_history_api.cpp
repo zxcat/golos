@@ -235,20 +235,16 @@ namespace golos {
                 }
             }
 
-            void market_history_api_impl::set_block_applied_callback(
-                    std::function<void(const variant &block_header)> cb) {
+            void market_history_api_impl::set_block_applied_callback(std::function<void(const variant &block_header)> cb) {
                 _block_applied_callback = cb;
-                _block_applied_connection = golos::application::connect_signal(app.chain_database()->applied_block,
-                                                                                 *this,
-                                                                                 &market_history_api_impl::on_applied_block);
+                _block_applied_connection = golos::application::connect_signal(app.chain_database()->applied_block, *this, &market_history_api_impl::on_applied_block);
             }
 
             void market_history_api_impl::cancel_all_subscriptions() {
                 set_subscribe_callback(std::function<void(const fc::variant &)>(), true);
             }
 
-            void market_history_api_impl::subscribe_to_market(std::function<void(const variant &)> callback, std::string a,
-                                                              std::string b) {
+            void market_history_api_impl::subscribe_to_market(std::function<void(const variant &)> callback, std::string a, std::string b) {
                 if (a > b) {
                     std::swap(a, b);
                 }
