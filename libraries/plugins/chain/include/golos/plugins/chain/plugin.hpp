@@ -43,7 +43,7 @@ namespace golos {
 
             class plugin final : public appbase::plugin<plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES()
+                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin))
 
                 plugin();
 
