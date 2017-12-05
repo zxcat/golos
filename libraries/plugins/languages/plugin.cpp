@@ -102,11 +102,13 @@ namespace languages {
 
     namespace detail {
         struct operation_visitor {
-            operation_visitor(golos::chain::database &db_) : db_(db_) {
+            operation_visitor(golos::chain::database &db_, set<std::string> &cache_languages_) : db_(db_),
+                cache_languages_(cache_languages_) {
 
             };
             typedef void result_type;
 
+            set<std::string> &cache_languages_;
             golos::chain::database &db_;
 
             void remove_stats(const language_object &tag, const language_stats_object &stats) const {
@@ -226,7 +228,7 @@ namespace languages {
                     });
                 }
                 ///TODO: CACHE push
-                //languages_plugin.self().cache_languages.emplace(language);
+                cache_languages_.emplace(language);
             }
 
             std::string filter_tags(const comment_object &c) const {
@@ -404,7 +406,7 @@ namespace languages {
                         db_.remove(tobj);
                     } else {
                         //TODO:: clear cache
-                        //languages_plugin.self().cache_languages.erase(get_language(*obj));
+                        cache_languages_.erase(get_language(*obj));
                     }
                 }
             }
@@ -430,7 +432,7 @@ namespace languages {
     void plugin::impl::on_operation(const operation_notification &note) {
         try {
             /// plugins shouldn't ever throw
-            note.op.visit(detail::operation_visitor(database()));
+            note.op.visit(detail::operation_visitor(database(), cache_languages));
         } catch (const fc::exception &e) {
             edump((e.to_detail_string()));
         } catch (...) {
@@ -505,3 +507,4 @@ namespace languages {
 }
 } /// golos::tags
 }
+
