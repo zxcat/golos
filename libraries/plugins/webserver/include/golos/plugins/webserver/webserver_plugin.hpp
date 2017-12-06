@@ -16,6 +16,22 @@ namespace golos {
 
             using namespace appbase;
 
+            struct connection_context {
+                connection_context (
+                        const uint64_t per_s,
+                        const std::vector<std::string>& white_lst,
+                        const std::vector<std::string>& black_lst)
+                        : packets_per_second(per_s),
+                          white_list(white_lst.begin(), white_lst.end()),
+                          black_list(black_lst.begin(), black_lst.end()) {
+                };
+
+                const uint64_t packets_per_second;
+                const std::unordered_set<std::string> white_list;
+                const std::unordered_set<std::string> black_list;
+            };
+            typedef std::shared_ptr<connection_context> connection_context_ptr;
+
             /**
               * This plugin starts an HTTP/ws webserver and dispatches queries to
               * registered handles based on payload. The payload must be conform

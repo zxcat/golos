@@ -2,6 +2,8 @@
 
 #include <golos/plugins/chain/plugin.hpp>
 
+#include <golos/plugins/webserver/leaky_bucket.hpp>
+
 #include <fc/network/ip.hpp>
 #include <fc/log/logger_config.hpp>
 #include <fc/io/json.hpp>
@@ -104,7 +106,10 @@ namespace golos {
 
             struct webserver_plugin::webserver_plugin_impl final {
             public:
-                webserver_plugin_impl(thread_pool_size_t thread_pool_size) : thread_pool_work(this->thread_pool_ios) {
+                webserver_plugin_impl(thread_pool_size_t thread_pool_size, connection_context_ptr ctx_ptr)
+                        : thread_pool_work(this->thread_pool_ios)
+                        , context_ptr(ctx_ptr)
+                {
                     for (uint32_t i = 0; i < thread_pool_size; ++i) {
                         thread_pool.create_thread(boost::bind(&asio::io_service::run, &thread_pool_ios));
                     }
@@ -117,6 +122,13 @@ namespace golos {
                 void handle_ws_message(websocket_server_type *, connection_hdl, websocket_server_type::message_ptr);
 
                 void handle_http_message(websocket_server_type *, connection_hdl);
+
+                void handle_open_connection(websocket_server_type *server, connection_hdl hdl);
+
+                void handle_close_connection(websocket_server_type *server, connection_hdl hdl);
+
+                connection_context_ptr context_ptr;
+                std::map<websocket_server_type::connection_ptr, leaky_bucket_ptr> leaky_bucket_map;
 
                 shared_ptr<std::thread> http_thread;
                 asio::io_service http_ios;
@@ -149,6 +161,12 @@ namespace golos {
                             ws_server.set_message_handler(
                                     boost::bind(&webserver_plugin_impl::handle_ws_message, this, &ws_server, _1, _2));
 
+                            ws_server.set_open_handler(
+                                    boost::bind(&webserver_plugin_impl::handle_open_connection, this, &ws_server, _1));
+
+                            ws_server.set_close_handler(
+                                    boost::bind(&webserver_plugin_impl::handle_close_connection, this, &ws_server, _1));
+
                             if (http_endpoint && http_endpoint == ws_endpoint) {
                                 ws_server.set_http_handler(
                                         boost::bind(&webserver_plugin_impl::handle_http_message, this, &ws_server, _1));
@@ -178,6 +196,12 @@ namespace golos {
 
                             http_server.set_http_handler(
                                     boost::bind(&webserver_plugin_impl::handle_http_message, this, &http_server, _1));
+
+                            http_server.set_open_handler(
+                                    boost::bind(&webserver_plugin_impl::handle_open_connection, this, &http_server, _1));
+
+                            http_server.set_close_handler(
+                                    boost::bind(&webserver_plugin_impl::handle_close_connection, this, &http_server, _1));
 
                             ilog("start listening for http requests");
                             http_server.listen(*http_endpoint);
@@ -222,6 +246,14 @@ namespace golos {
                                                                             websocket_server_type::message_ptr msg) {
                 auto con = server->get_con_from_hdl(hdl);
 
+                auto leaky_iter = leaky_bucket_map.find(con);
+                if (leaky_iter == leaky_bucket_map.end()) {
+                    leaky_bucket_ptr lbucket = leaky_iter->second;
+                    if (lbucket != NULL && !lbucket->increment()) {
+                        return;
+                    }
+                }
+
                 thread_pool_ios.post([con, msg, this]() {
                     try {
                         if (msg->get_opcode() == websocketpp::frame::opcode::text) {
@@ -238,6 +270,17 @@ namespace golos {
             void webserver_plugin::webserver_plugin_impl::handle_http_message(websocket_server_type *server,
                                                                               connection_hdl hdl) {
                 auto con = server->get_con_from_hdl(hdl);
+
+                // Try to find leaky bucket. If cannot - assuming connection is in white list.
+                auto leaky_iter = leaky_bucket_map.find(con);
+                if (leaky_iter != leaky_bucket_map.end()) {
+                    leaky_bucket_ptr lbucket = leaky_iter->second;
+                    // If bucket returns false - its overflown
+                    if (lbucket != NULL && !lbucket->increment()) {
+                        return;
+                    }
+                }
+
                 con->defer_http_response();
 
                 thread_pool_ios.post([con, this]() {
@@ -254,6 +297,28 @@ namespace golos {
 
                     con->send_http_response();
                 });
+            }
+
+            void webserver_plugin::webserver_plugin_impl::handle_open_connection(
+                    websocket_server_type *server, connection_hdl hdl) {
+
+                websocket_server_type::connection_ptr con = server->get_con_from_hdl(hdl);
+
+                // Check if connection is in white or black list
+                if (context_ptr->black_list.count(con->get_origin()) > 0) {
+                    con->close(websocketpp::close::status::abnormal_close, "IP address is in black list.");
+                    return;
+                }
+                // No need of leaky bucket if address is in white list
+                if (context_ptr->white_list.count(con->get_origin()) == 0) {
+                    leaky_bucket_map[con] = leaky_bucket_ptr(new leaky_bucket(context_ptr->packets_per_second));
+                }
+            }
+
+            void webserver_plugin::webserver_plugin_impl::handle_close_connection(
+                    websocket_server_type *server, connection_hdl hdl) {
+                auto con = server->get_con_from_hdl(hdl);
+                leaky_bucket_map.erase(con);
             }
 
             webserver_plugin::webserver_plugin() {
@@ -274,10 +339,27 @@ namespace golos {
             }
 
             void webserver_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+
+                // Initialize leaky bucket
+                uint64_t per_second;
+                std::vector<std::string> white_lst;
+                std::vector<std::string> black_lst;
+
+                if (options.count("per-second")) {
+                    per_second = options.at("per-second").as<uint64_t>();
+                }
+                if (options.count("white-list")) {
+                    white_lst = options.at("white_list").as<std::vector<std::string>>();
+                }
+                if (options.count("black-list")) {
+                    black_lst = options.at("black_list").as<std::vector<std::string>>();
+                }
+                connection_context_ptr conn_ctx(new connection_context(per_second, white_lst, black_lst));
+
                 auto thread_pool_size = options.at("webserver-thread-pool-size").as<thread_pool_size_t>();
                 FC_ASSERT(thread_pool_size > 0, "webserver-thread-pool-size must be greater than 0");
                 ilog("configured with ${tps} thread pool size", ("tps", thread_pool_size));
-                my.reset(new webserver_plugin_impl(thread_pool_size));
+                my.reset(new webserver_plugin_impl(thread_pool_size, conn_ctx));
 
                 if (options.count("webserver-http-endpoint")) {
                     auto http_endpoint = options.at("webserver-http-endpoint").as<string>();
