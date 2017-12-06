@@ -27,12 +27,6 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::asset() : asset_interface<Major,
-                Hardfork, Release, asset_symbol_type, share_type>(0, STEEM_SYMBOL) {
-
-        }
-
-        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::asset(share_type a,
                                                                                           asset_symbol_type id)
                 : asset_interface<Major, Hardfork, Release, asset_symbol_type, share_type>(a, id) {
@@ -40,10 +34,9 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::asset(share_type a,
-                                                                                          asset_name_type name)
-                : asset_interface<Major, Hardfork, Release, asset_symbol_type, share_type>(a, STEEM_SYMBOL) {
-            string s = fc::trim(name);
+        asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::asset(share_type a, asset_name_type name)
+                : asset_interface<Major, Hardfork, Release, asset_symbol_type, share_type>(a, asset_symbol_type()) {
+            std::string s = fc::trim(name);
 
             this->symbol = uint64_t(3);
             char *sy = (char *) &this->symbol;
@@ -106,9 +99,9 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        string asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::to_string() const {
+        std::string asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::to_string() const {
             int64_t prec = precision();
-            string result = fc::to_string(this->amount.value / prec);
+            std::string result = fc::to_string(this->amount.value / prec);
             if (prec > 1) {
                 auto fract = this->amount.value % prec;
                 // prec is a power of ten, so for example when working with
@@ -121,10 +114,9 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        asset<Major, Hardfork, Release> asset<Major, Hardfork, Release,
-                type_traits::static_range<Hardfork <= 16>>::from_string(const string &from) {
+        asset<Major, Hardfork, Release> asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>>::from_string(const std::string &from) {
             try {
-                string s = fc::trim(from);
+                std::string s = fc::trim(from);
                 auto space_pos = s.find(' ');
                 auto dot_pos = s.find('.');
 
@@ -166,15 +158,9 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::asset() : asset_interface<Major,
-                Hardfork, Release, asset_name_type, share_type>(0, STEEM_SYMBOL_NAME), decimals(3) {
-
-        }
-
-        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::asset(share_type a,
                                                                                           asset_symbol_type name)
-                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, STEEM_SYMBOL_NAME),
+                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, asset_name_type()),
                 decimals(3) {
             auto ta = (const char *) &name;
             FC_ASSERT(ta[7] == 0);
@@ -211,16 +197,22 @@ namespace golos {
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         asset_symbol_type asset<Major, Hardfork, Release,
                 type_traits::static_range<Hardfork >= 17>>::symbol_type_value() const {
-            asset_symbol_type result;
-
             FC_ASSERT(this->decimals < 15, "Precision should be less than 15");
 
-            memcpy(&result, &this->decimals, sizeof(this->decimals));
+            asset_symbol_type result = uint64_t(this->decimals);
+            char *sy = (char *) &result;
+            std::string symbol_string = fc::trim(this->symbol);
+            std::size_t symbol_size = symbol_string.size();
 
-            if (this->symbol.size() > 0) {
+            if (symbol_size > 0) {
                 FC_ASSERT(this->symbol.size() <= 6,
                           "Asset symbol type can only present symbols with length less or equal than 6");
-                memcpy(&result + 1, this->symbol.operator std::string().c_str(), this->symbol.size());
+
+                FC_ASSERT(std::find_if(symbol_string.begin(), symbol_string.end(), [&](const char &c) -> bool {
+                    return std::isdigit(c);
+                }) == symbol_string.end());
+
+                std::memcpy(sy + 1, symbol_string.c_str(), symbol_size);
             }
 
             return result;
@@ -241,9 +233,9 @@ namespace golos {
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        string asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::to_string() const {
+        std::string asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::to_string() const {
             int64_t prec = precision();
-            string result = fc::to_string(this->amount.value / prec);
+            std::string result = fc::to_string(this->amount.value / prec);
             if (prec > 1) {
                 auto fract = this->amount.value % prec;
                 // prec is a power of ten, so for example when working with
@@ -257,13 +249,13 @@ namespace golos {
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         asset<Major, Hardfork, Release> asset<Major, Hardfork, Release,
-                type_traits::static_range<Hardfork >= 17>>::from_string(const string &from) {
+                type_traits::static_range<Hardfork >= 17>>::from_string(const std::string &from) {
             try {
-                string s = fc::trim(from);
+                std::string s = fc::trim(from);
                 auto space_pos = s.find(' ');
                 auto dot_pos = s.find('.');
 
-                asset result;
+                asset<Major, Hardfork, Release> result;
 
                 if (space_pos == std::string::npos && dot_pos == std::string::npos &&
                     std::find_if(from.begin(), from.end(), [&](const std::string::value_type &c) -> bool {
@@ -273,8 +265,8 @@ namespace golos {
                 } else if (dot_pos != std::string::npos) {
                     FC_ASSERT(space_pos > dot_pos);
 
-                    auto intpart = s.substr(0, dot_pos);
-                    auto fractpart = "1" + s.substr(dot_pos + 1, space_pos - dot_pos - 1);
+                    std::string intpart = s.substr(0, dot_pos);
+                    std::string fractpart = "1" + s.substr(dot_pos + 1, space_pos - dot_pos - 1);
                     result.decimals = static_cast<uint8_t>(fractpart.size() - 1);
 
                     result.amount = fc::to_int64(intpart);
@@ -287,9 +279,9 @@ namespace golos {
                     result.decimals = 0;
                 }
 
-                auto symbol = s.substr(space_pos + 1);
+                std::string symbol = s.substr(space_pos + 1);
 
-                if (symbol.size() > 0) {
+                if (!symbol.empty()) {
                     result.symbol = symbol;
                 }
 
@@ -340,7 +332,8 @@ namespace golos {
                 }
 
                 return ~(asset<Major, Hardfork, Release>(cp.numerator().convert_to<int64_t>(), debt.symbol_name()) /
-                         asset<Major, Hardfork, Release>(cp.denominator().convert_to<int64_t>(), collateral.symbol_name()));
+                         asset<Major, Hardfork, Release>(cp.denominator().convert_to<int64_t>(),
+                                                         collateral.symbol_name()));
             } FC_CAPTURE_AND_RETHROW((debt)(collateral)(collateral_ratio))
         }
 

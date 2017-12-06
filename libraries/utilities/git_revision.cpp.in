@@ -13,4 +13,4 @@ namespace graphene {
         const char *const git_revision_description = GRAPHENE_GIT_REVISION_DESCRIPTION;
 
     }
-} // end namespace graphene::utilities
+} // end namespace golos::utilities

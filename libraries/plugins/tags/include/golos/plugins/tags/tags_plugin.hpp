@@ -533,7 +533,7 @@ namespace golos {
              * Used to parse the metadata from the comment json_meta field.
              */
             struct comment_metadata {
-                set<string> tags;
+                std::set<std::string> tags;
             };
 
             struct get_tags_r {

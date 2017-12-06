@@ -63,7 +63,7 @@ namespace golos {
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         struct base_operation : public static_version<Major, Hardfork, Release> {
-            void get_required_authorities(vector<authority> &) const {
+            void get_required_authorities(std::vector<authority> &) const {
             }
 
             void get_required_active_authorities(flat_set<account_name_type> &) const {
@@ -83,7 +83,7 @@ namespace golos {
             }
 
             static uint64_t calculate_data_fee(uint64_t bytes, uint64_t price_per_kbyte) {
-            auto result = (fc::uint128(bytes) * price_per_kbyte) / 1024;
+            auto result = (fc::uint128_t(bytes) * price_per_kbyte) / 1024;
             FC_ASSERT(result <= STEEMIT_MAX_SHARE_SUPPLY);
             return result.to_uint64();
         }

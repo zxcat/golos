@@ -26,14 +26,14 @@ namespace golos {
 
             struct push_block_r {
                 bool success;
-                optional <string> error;
+                optional <std::string> error;
             };
 
             typedef golos::chain::signed_transaction push_transaction_a;
 
             struct push_transaction_r {
                 bool success;
-                optional <string> error;
+                optional <std::string> error;
             };
 
             DEFINE_API_ARGS ( push_block, msg_pack, push_block_r) 

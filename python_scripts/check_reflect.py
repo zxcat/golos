@@ -56,7 +56,7 @@ for k, v in name2members_doxygen.items():
 # with open("stuff/member_enumerator.out", "r") as f:
 #    name2members_fc = json.load(f)
 
-# scan for FC_REFLECT( graphene::... in all cpp,hpp files under libraries/ programs/ tests/
+# scan for FC_REFLECT( golos::... in all cpp,hpp files under libraries/ programs/ tests/
 
 re_reflect = re.compile(r"""
 FC_REFLECT\s*[(]

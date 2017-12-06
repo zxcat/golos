@@ -518,7 +518,7 @@ namespace languages {
      * Used to parse the metadata from the comment json_meta field.
      */
     struct comment_metadata {
-        string language;
+        std::string language;
     };
 
     struct get_languages_r {

@@ -29,15 +29,14 @@ namespace golos {
 
                 auto &asset_indx = this->db.template get_index<asset_index>().indices().template get<by_asset_name>();
                 auto asset_symbol_itr = asset_indx.find(op.asset_name);
-                FC_ASSERT(asset_symbol_itr == asset_indx.end());
-
+                FC_ASSERT(asset_symbol_itr == asset_indx.end(), "Asset with name ${s} already exists", ("s", op.asset_name));
 
                 std::string asset_name_string = op.asset_name;
 
                 auto dotpos = asset_name_string.rfind('.');
                 if (dotpos != std::string::npos) {
                     auto prefix = asset_name_string.substr(0, dotpos);
-                    auto asset_symbol_sub_itr = asset_indx.find(op.asset_name);
+                    auto asset_symbol_sub_itr = asset_indx.find(prefix);
                     FC_ASSERT(asset_symbol_sub_itr != asset_indx.end(),
                               "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
                               ("s", op.asset_name)("p", prefix));
@@ -73,6 +72,8 @@ namespace golos {
             } FC_CAPTURE_AND_RETHROW((op))
 
             try {
+                this->db.adjust_balance(this->db.get_account(op.issuer), -this->db.get_name_cost(op.asset_name));
+
                 this->db.template create<asset_dynamic_data_object>([&](asset_dynamic_data_object &a) {
                     a.asset_name = op.asset_name;
                     a.current_supply = 0;
@@ -183,14 +184,14 @@ namespace golos {
                             const asset_object &backing_backing = this->db.template get_asset(
                                     this->db.get_asset_bitasset_data(backing.asset_name).options.short_backing_asset);
                             FC_ASSERT(backing_backing.asset_name == STEEM_SYMBOL_NAME,
-                                      "May not create a blockchain-controlled market asset which is not backed by CORE.");
+                                      "May not create a blockchain-controlled market asset which is not backed by Golos.");
                         } else
                             FC_ASSERT(backing.asset_name == STEEM_SYMBOL_NAME,
-                                      "May not create a blockchain-controlled market asset which is not backed by CORE.");
+                                      "May not create a blockchain-controlled market asset which is not backed by Golos.");
                     }
                 }
 
-                if ((this->db.get_asset_dynamic_data(a.asset_name).current_supply != 0)) {
+                if (this->db.get_asset_dynamic_data(a.asset_name).current_supply != 0) {
                     // new issuer_permissions must be subset of old issuer permissions
                     FC_ASSERT(!(o.new_options.issuer_permissions & ~a.options.issuer_permissions),
                               "Cannot reinstate previously revoked issuer permissions on an asset.");
@@ -492,7 +493,7 @@ namespace golos {
                 // Store medians for this asset
                 database &d = this->db;
                 this->db.modify(bad, [&o, &d](asset_bitasset_data_object &a) {
-                    a.feeds[o.publisher] = make_pair(d.head_block_time(), o.feed);
+                    a.feeds[o.publisher] = std::make_pair(d.head_block_time(), o.feed);
                     a.update_median_feeds(d.head_block_time());
                 });
 

@@ -9,7 +9,7 @@ namespace golos {
         namespace private_message {
 
             template<typename T>
-            T dejsonify(const string &s) {
+            T dejsonify(const std::string &s) {
                 return fc::json::from_string(s).as<T>();
             }
 
@@ -42,14 +42,14 @@ namespace golos {
                     return database_;
                 }
 
-                flat_map<string, string> tracked_accounts() const {
+                flat_map<std::string, std::string> tracked_accounts() const {
                     return _tracked_accounts;
                 }
 
                 golos::chain::database &database_;
                 std::shared_ptr<generic_custom_operation_interpreter<
                         private_message_plugin_operation>> _custom_operation_interpreter;
-                flat_map<string, string> _tracked_accounts;
+                flat_map<std::string, std::string> _tracked_accounts;
             };
 
 
@@ -75,14 +75,14 @@ namespace golos {
                 golos::chain::database &db = my->database();
                 db.add_plugin_index<message_index>();
 
-                using pairstring= pair<string, string>;
+                using pairstring= std::pair<std::string, std::string>;
                 LOAD_VALUE_SET(options, "pm-accounts", my->_tracked_accounts, pairstring);
             }
 
             void private_message_plugin::plugin_startup() {
             }
 
-            flat_map<string, string> private_message_plugin::tracked_accounts() const {
+            flat_map<std::string, std::string> private_message_plugin::tracked_accounts() const {
                 return my->tracked_accounts();
             }
 

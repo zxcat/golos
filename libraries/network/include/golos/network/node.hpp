@@ -326,7 +326,7 @@ namespace golos {
         typedef std::shared_ptr<simulated_network> simulated_network_ptr;
 
     }
-} // graphene::network
+} // golos::network
 
 FC_REFLECT((golos::network::message_propagation_data), (received_time)(validated_time)(originating_peer));
 FC_REFLECT((golos::network::peer_status), (version)(host)(info));

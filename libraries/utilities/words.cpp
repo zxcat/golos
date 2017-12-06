@@ -49784,4 +49784,4 @@ namespace graphene {
         }
 
     }
-} // graphene::words
+} // golos::words

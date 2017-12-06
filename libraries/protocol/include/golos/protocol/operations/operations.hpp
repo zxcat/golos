@@ -1,5 +1,7 @@
 #pragma once
 
+
+#include <golos/protocol/operations/account_operations.hpp>
 #include <golos/protocol/operations/asset_operations.hpp>
 #include <golos/protocol/operations/comment_operations.hpp>
 #include <golos/protocol/operations/custom_operations.hpp>
@@ -10,7 +12,6 @@
 #include <golos/protocol/operations/steem_virtual_operations.hpp>
 #include <golos/protocol/operations/asset_virtual_operations.hpp>
 #include <golos/protocol/operations/witness_virtual_operations.hpp>
-#include <golos/protocol/operations/account_operations.hpp>
 #include <golos/protocol/operations/transfer_operations.hpp>
 #include <golos/protocol/operations/proposal_operations.hpp>
 #include <golos/protocol/operations/witness_operations.hpp>
@@ -189,10 +190,10 @@ namespace golos {
                 > operation;
 
         /*void operation_get_required_authorities( const operation& op,
-                                                 flat_set<string>& active,
-                                                 flat_set<string>& owner,
-                                                 flat_set<string>& posting,
-                                                 vector<authority>&  other );
+                                                 flat_set<std::string>& active,
+                                                 flat_set<std::string>& owner,
+                                                 flat_set<std::string>& posting,
+                                                 std::vector<authority>&  other );
 
         void operation_validate( const operation& op );*/
 
@@ -225,7 +226,7 @@ namespace golos {
 
         void operation_get_required_authorities(const operation &op, flat_set<account_name_type> &active,
                                                 flat_set<account_name_type> &owner,
-                                                flat_set<account_name_type> &posting, vector<authority> &other);
+                                                flat_set<account_name_type> &posting, std::vector<authority> &other);
 
     }
 }

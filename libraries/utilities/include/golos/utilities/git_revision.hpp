@@ -33,4 +33,4 @@ namespace graphene {
         extern const char *const git_revision_description;
 
     }
-} // end namespace graphene::utilities
+} // end namespace golos::utilities

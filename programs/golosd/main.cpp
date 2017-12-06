@@ -47,9 +47,9 @@ using golos::protocol::version;
 
 std::string& version_string() {
     static std::string v_str =
-            "steem_blockchain_version: " + fc::string( STEEMIT_BLOCKCHAIN_VERSION ) + "\n" +
-            "steem_git_revision:       " + fc::string( fc::git_revision_sha )       + "\n" +
-            "fc_git_revision:          " + fc::string( fc::git_revision_sha )       + "\n";
+            "steem_blockchain_version: " + std::string( STEEMIT_BLOCKCHAIN_VERSION ) + "\n" +
+            "steem_git_revision:       " + std::string( fc::git_revision_sha )       + "\n" +
+            "fc_git_revision:          " + std::string( fc::git_revision_sha )       + "\n";
     return v_str;
 }
 
@@ -92,7 +92,7 @@ void logo(){
         std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
         std::cerr << "initminer private key: " << initminer_private_key << "\n";
         std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-        std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+        std::cerr << "blockchain version: " << std::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
         std::cerr << "------------------------------------------------------\n";
 #else
     std::cerr << "------------------------------------------------------\n\n";
@@ -100,7 +100,7 @@ void logo(){
     std::cerr << "------------------------------------------------------\n";
     std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
     std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-    std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+    std::cerr << "blockchain version: " << std::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
     std::cerr << "------------------------------------------------------\n";
 #endif
 

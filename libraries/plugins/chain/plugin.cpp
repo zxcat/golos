@@ -147,9 +147,9 @@ namespace chain {
                                      boost::program_options::options_description &cfg) {
         cfg.add_options()("shared-file-dir", boost::program_options::value<boost::filesystem::path>()->default_value("blockchain"),
                           "the location of the chain shared memory files (absolute path or relative to application data dir)")(
-                "shared-file-size", boost::program_options::value<string>()->default_value("54G"),
+                "shared-file-size", boost::program_options::value<std::string>()->default_value("54G"),
                 "Size of the shared memory file. Default: 54G")("checkpoint,c",
-                                                                boost::program_options::value<vector<string>>()->composing(),
+                                                                boost::program_options::value<std::vector<std::string>>()->composing(),
                                                                 "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")(
                 "flush-state-interval", boost::program_options::value<uint32_t>(),
                 "flush shared memory changes to disk every N blocks");
@@ -178,7 +178,7 @@ namespace chain {
             }
         }
 
-        my->shared_memory_size = fc::parse_size(options.at("shared-file-size").as<string>());
+        my->shared_memory_size = fc::parse_size(options.at("shared-file-size").as<std::string>());
 
         my->replay = options.at("replay-blockchain").as<bool>();
         my->resync = options.at("resync-blockchain").as<bool>();
@@ -191,7 +191,7 @@ namespace chain {
         }
 
         if (options.count("checkpoint")) {
-            auto cps = options.at("checkpoint").as<vector<string>>();
+            auto cps = options.at("checkpoint").as<std::vector<std::string>>();
             my->loaded_checkpoints.reserve(cps.size());
             for (const auto &cp : cps) {
                 auto item = fc::json::from_string(cp).as<std::pair<uint32_t, protocol::block_id_type>>();

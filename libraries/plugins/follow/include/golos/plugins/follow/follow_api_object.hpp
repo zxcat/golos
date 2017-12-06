@@ -11,7 +11,7 @@ namespace golos {
 
             struct feed_entry {
                 account_name_type author;
-                string permlink;
+                std::string permlink;
                 std::vector<account_name_type> reblog_by;
                 time_point_sec reblog_on;
                 uint32_t entry_id = 0;
@@ -34,7 +34,7 @@ namespace golos {
 
             struct comment_blog_entry {
                 database_api::comment_api_object comment;
-                string blog;
+                std::string blog;
                 time_point_sec reblog_on;
                 uint32_t entry_id = 0;
             };
@@ -95,7 +95,7 @@ namespace golos {
             typedef get_feed_entries_a get_feed_a;
 
             struct get_feed_r {
-                vector<comment_feed_entry> feed;
+                std::vector<comment_feed_entry> feed;
             };
 
             typedef get_feed_entries_a get_blog_entries_a;
@@ -121,7 +121,7 @@ namespace golos {
 
             struct get_reblogged_by_a {
                 account_name_type author;
-                string permlink;
+                std::string permlink;
             };
 
             struct get_reblogged_by_r {

@@ -62,4 +62,4 @@ namespace golos {
             const proposal_object *_proposal = nullptr;
         };
     }
-} // graphene::chain
+} // golos::chain

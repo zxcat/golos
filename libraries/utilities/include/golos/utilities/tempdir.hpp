@@ -33,4 +33,4 @@ namespace graphene {
         fc::path temp_directory_path();
 
     }
-} // graphene::utilities
+} // golos::utilities

@@ -6,7 +6,7 @@ endfunction()
 if(MSVC)
     set(hardfork_hpp_file "${CMAKE_CURRENT_SOURCE_DIR}/include/golos/${CURRENT_TARGET}/hardfork.hpp")
 else(MSVC)
-        set(hardfork_hpp_file "${CMAKE_CURRENT_BINARY_DIR}/include/golos/${CURRENT_TARGET}/hardfork.hpp")
+    set(hardfork_hpp_file "${CMAKE_CURRENT_BINARY_DIR}/include/golos/${CURRENT_TARGET}/hardfork.hpp")
 endif(MSVC)
 
 file(WRITE ${hardfork_hpp_file} "")

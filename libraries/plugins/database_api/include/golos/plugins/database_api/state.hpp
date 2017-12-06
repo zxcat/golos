@@ -110,26 +110,26 @@ namespace golos {
 
                 asset<0, 17, 0> vesting_balance; /// convert vesting_shares to vesting steem
                 share_type reputation = 0;
-                map<uint64_t, applied_operation> transfer_history; /// transfer to/from vesting
-                map<uint64_t, applied_operation> market_history; /// limit order / cancel / fill
-                map<uint64_t, applied_operation> post_history;
-                map<uint64_t, applied_operation> vote_history;
-                map<uint64_t, applied_operation> other_history;
-                set<string> witness_votes;
-                vector<pair<string, uint32_t>> tags_usage;
-                vector<pair<account_name_type, uint32_t>> guest_bloggers;
+                std::map<uint64_t, applied_operation> transfer_history; /// transfer to/from vesting
+                std::map<uint64_t, applied_operation> market_history; /// limit order / cancel / fill
+                std::map<uint64_t, applied_operation> post_history;
+                std::map<uint64_t, applied_operation> vote_history;
+                std::map<uint64_t, applied_operation> other_history;
+                std::set<string> witness_votes;
+                std::vector<std::pair<std::string, uint32_t>> tags_usage;
+                std::vector<std::pair<account_name_type, uint32_t>> guest_bloggers;
 
-                optional<map<uint32_t, extended_limit_order>> open_orders;
-                optional<vector<account_balance_object>> balances;
-                optional<vector<call_order_object>> call_orders;
-                optional<vector<force_settlement_object>> settle_orders;
-                optional<vector<asset_symbol_type>> assets;
-                optional<vector<string>> comments; /// permlinks for this user
-                optional<vector<string>> blog; /// blog posts for this user
-                optional<vector<string>> feed; /// feed posts for this user
-                optional<vector<string>> recent_replies; /// blog posts for this user
-                map<string, vector<string>> blog_category; /// blog posts for this user
-                optional<vector<string>> recommended; /// posts recommened for this user
+                optional<std::map<uint32_t, extended_limit_order>> open_orders;
+                optional<std::vector<account_balance_object>> balances;
+                optional<std::vector<call_order_object>> call_orders;
+                optional<std::vector<force_settlement_object>> settle_orders;
+                optional<std::vector<asset_symbol_type>> assets;
+                optional<std::vector<std::string>> comments; /// permlinks for this user
+                optional<std::vector<std::string>> blog; /// blog posts for this user
+                optional<std::vector<std::string>> feed; /// feed posts for this user
+                optional<std::vector<std::string>> recent_replies; /// blog posts for this user
+                std::map<std::string, std::vector<std::string>> blog_category; /// blog posts for this user
+                optional<std::vector<std::string>> recommended; /// posts recommened for this user
             };
 
 

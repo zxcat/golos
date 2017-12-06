@@ -96,7 +96,7 @@ namespace golos {
                 authority active;
                 authority posting;
                 public_key_type memo_key;
-                string json_metadata;
+                std::string json_metadata;
                 account_name_type proxy;
 
                 time_point_sec last_owner_update;
@@ -146,7 +146,7 @@ namespace golos {
                 share_type to_withdraw;
                 uint16_t withdraw_routes;
 
-                vector<share_type> proxied_vsf_votes;
+                std::vector<share_type> proxied_vsf_votes;
 
                 uint16_t witnesses_voted_for;
 

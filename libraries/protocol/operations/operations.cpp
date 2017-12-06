@@ -75,12 +75,12 @@ namespace fc {
     }
 
     void from_variant(const fc::variant &var, golos::protocol::operation &vo) {
-        std::map<string, uint32_t> name_map;
+        std::map<std::string, uint32_t> name_map;
         for (unsigned int i = 0; i < golos::protocol::operation::count(); ++i) {
             golos::protocol::operation tmp;
             tmp.set_which(i);
-            string n;
-            tmp.visit(get_operation_name(n));
+            std::string n;
+            tmp.visit(get_operation_name<get_operation_name_policy>(n));
             name_map[n] = i;
         }
 
@@ -91,27 +91,35 @@ namespace fc {
         if (ar[0].is_uint64()) {
             vo.set_which(ar[0].as_uint64());
         } else {
-            std::string operation_name;
 
-            if (golos::version::state::instance().current_version.hardfork() <= 16) {
-                operation_name = (boost::format(ar[0].as_string().append("_operation<%1%, %2%, %3%>")) % 0 % 16 %
-                                  0).str();
-            } else {
-                std::stringstream major_stream;
-                major_stream << std::dec << std::to_string(golos::version::state::instance().current_version.major());
+            std::string operation_name = ar[0].as_string().append("_operation");
+            std::map<std::string, uint32_t>::const_iterator itr = name_map.find(operation_name);
 
-                std::stringstream hardfork_stream;
-                hardfork_stream << std::dec << std::to_string(golos::version::state::instance().current_version.hardfork());
+            if (itr == name_map.end()) {
+                if (golos::version::state::instance().current_version.hardfork() <= 16) {
+                    operation_name = (boost::format(ar[0].as_string().append("_operation<%1%, %2%, %3%>")) % 0 % 16 %
+                                      0).str();
+                } else {
+                    std::stringstream major_stream;
+                    major_stream << std::dec
+                                 << std::to_string(golos::version::state::instance().current_version.major());
 
-                std::stringstream release_stream;
-                release_stream << std::dec << std::to_string(golos::version::state::instance().current_version.release());
+                    std::stringstream hardfork_stream;
+                    hardfork_stream << std::dec
+                                    << std::to_string(golos::version::state::instance().current_version.hardfork());
 
-                operation_name = (boost::format(ar[0].as_string().append("_operation<%1%, %2%, %3%>")) %
-                                  major_stream.str() % hardfork_stream.str() % release_stream.str()).str();
+                    std::stringstream release_stream;
+                    release_stream << std::dec
+                                   << std::to_string(golos::version::state::instance().current_version.release());
+
+                    operation_name = (boost::format(ar[0].as_string().append("_operation<%1%, %2%, %3%>")) %
+                                      major_stream.str() % hardfork_stream.str() % release_stream.str()).str();
+                }
+
+                std::map<std::string, uint32_t>::const_iterator itr = name_map.find(operation_name);
+                FC_ASSERT(itr != name_map.end(), "Invalid operation name: ${n}", ("n", operation_name));
+
             }
-
-            std::map<string, uint32_t>::const_iterator itr = name_map.find(operation_name);
-            FC_ASSERT(itr != name_map.end(), "Invalid operation name: ${n}", ("n", operation_name));
             vo.set_which(name_map[operation_name]);
         }
 

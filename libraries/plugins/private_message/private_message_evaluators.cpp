@@ -6,7 +6,7 @@ namespace golos {
             void private_message_evaluator::do_apply(const private_message_operation &pm) {
                 database &d = get_database();
 
-                const flat_map<string, string> &tracked_accounts = _plugin->tracked_accounts();
+                const flat_map<std::string, std::string> &tracked_accounts = _plugin->tracked_accounts();
 
                 auto to_itr = tracked_accounts.lower_bound(pm.to);
                 auto from_itr = tracked_accounts.lower_bound(pm.from);

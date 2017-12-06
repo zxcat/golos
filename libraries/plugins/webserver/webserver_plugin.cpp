@@ -216,7 +216,6 @@ namespace golos {
                                                                             connection_hdl hdl,
                                                                             websocket_server_type::message_ptr msg) {
                 auto con = server->get_con_from_hdl(hdl);
-
                 thread_pool_ios.post([con, msg, this]() {
                     try {
                         if (msg->get_opcode() == websocketpp::frame::opcode::text) {
@@ -230,8 +229,7 @@ namespace golos {
                 });
             }
 
-            void webserver_plugin::webserver_plugin_impl::handle_http_message(websocket_server_type *server,
-                                                                              connection_hdl hdl) {
+            void webserver_plugin::webserver_plugin_impl::handle_http_message(websocket_server_type *server, connection_hdl hdl) {
                 auto con = server->get_con_from_hdl(hdl);
                 con->defer_http_response();
 

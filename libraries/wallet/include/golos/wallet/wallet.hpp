@@ -1,13 +1,24 @@
 #pragma once
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 #include <golos/wallet/remote_node_api.hpp>
 
+=======
+#include <golos/application/api.hpp>
+#include <golos/private_message/private_message_plugin.hpp>
+#include <golos/follow/follow_api.hpp>
+#include <golos/market_history/market_history_api.hpp>
+
+#include <golos/application/api_objects/steem_api_objects.hpp>
+
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 #include <golos/utilities/key_conversion.hpp>
 
 #include <fc/real128.hpp>
 #include <fc/crypto/base58.hpp>
 #include <fc/api.hpp>
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 namespace golos {
     namespace wallet {
 
@@ -18,17 +29,29 @@ namespace golos {
 
         using namespace golos::chain::utilities;
         using namespace golos::protocol;
+=======
+using namespace golos::application;
+using namespace golos::chain;
+using namespace graphene::utilities;
+using namespace std;
+
+namespace golos {
+    namespace wallet {
+
+        using golos::application::discussion;
+        using namespace golos::private_message;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
         typedef uint16_t transaction_handle_type;
 
         struct memo_data {
 
-            static optional<memo_data> from_string(string str) {
+            static optional<memo_data> from_string(std::string str) {
                 try {
                     if (str.size() > sizeof(memo_data) && str[0] == '#') {
                         auto data = fc::from_base58(str.substr(1));
                         auto m = fc::raw::unpack<memo_data>(data);
-                        FC_ASSERT(string(m) == str);
+                        FC_ASSERT(std::string(m) == str);
                         return m;
                     }
                 } catch (...) {
@@ -40,9 +63,9 @@ namespace golos {
             public_key_type to;
             uint64_t nonce = 0;
             uint32_t check = 0;
-            vector<char> encrypted;
+            std::vector<char> encrypted;
 
-            operator string() const {
+            operator std::string() const {
                 auto data = fc::raw::pack(*this);
                 auto base58 = fc::to_base58(data);
                 return '#' + base58;
@@ -51,19 +74,43 @@ namespace golos {
 
 
         struct brain_key_info {
-            string brain_priv_key;
+            std::string brain_priv_key;
             public_key_type pub_key;
-            string wif_priv_key;
+            std::string wif_priv_key;
         };
 
         struct wallet_data {
-            vector<char> cipher_keys; /** encrypted keys */
+            std::vector<char> cipher_keys; /** encrypted keys */
 
-            string ws_server = "ws://localhost:8090";
-            string ws_user;
-            string ws_password;
+            std::string ws_server = "ws://localhost:8090";
+            std::string ws_user;
+            std::string ws_password;
         };
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
+=======
+        struct approval_delta {
+            std::vector<std::string> active_approvals_to_add;
+            std::vector<std::string> active_approvals_to_remove;
+            std::vector<std::string> owner_approvals_to_add;
+            std::vector<std::string> owner_approvals_to_remove;
+            std::vector<std::string> posting_approvals_to_add;
+            std::vector<std::string> posting_approvals_to_remove;
+            std::vector<std::string> key_approvals_to_add;
+            std::vector<std::string> key_approvals_to_remove;
+        };
+
+        struct signed_block_with_info : public signed_block {
+            signed_block_with_info(const signed_block &block);
+
+            signed_block_with_info(const signed_block_with_info &block) = default;
+
+            block_id_type block_id;
+            public_key_type signing_key;
+            std::vector<transaction_id_type> transaction_ids;
+        };
+
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
         enum authority_type {
             owner, active, posting
         };
@@ -83,7 +130,7 @@ namespace golos {
 
             virtual ~wallet_api();
 
-            bool copy_wallet_file(string destination_filename);
+            bool copy_wallet_file(std::string destination_filename);
 
 
             /** Returns a list of all commands supported by the wallet API.
@@ -91,9 +138,9 @@ namespace golos {
              * This lists each command, along with its arguments and return types.
              * For more detailed help on a single command, use \c get_help()
              *
-             * @returns a multi-line string suitable for displaying on a terminal
+             * @returns a multi-line std::string suitable for displaying on a terminal
              */
-            string help() const;
+            std::string help() const;
 
             /**
              * Returns info about the current state of the blockchain
@@ -118,8 +165,12 @@ namespace golos {
              * @param block_num Block height of specified block
              * @param only_virtual Whether to only return virtual operations
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 
             // std::vector<golos::plugins::api::applied_operation> get_ops_in_block( uint32_t block_num, bool only_virtual = true );
+=======
+            std::vector<applied_operation> get_ops_in_block(uint32_t block_num, bool only_virtual = true);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Return the current price feed history
              *
@@ -130,13 +181,13 @@ namespace golos {
             /**
              * Returns the list of witnesses producing blocks in the current round (21 Blocks)
              */
-            vector<account_name_type> get_active_witnesses() const;
+            std::vector<account_name_type> get_active_witnesses() const;
 
             /**
 <<<<<<< HEAD
              * Returns the queue of pow miners waiting to produce blocks.
              */
-            vector<account_name_type> get_miner_queue() const;
+            std::vector<account_name_type> get_miner_queue() const;
 
             =======
             *
@@ -155,19 +206,37 @@ namespace golos {
              * @param account Account to query routes
              * @param type Withdraw type type [incoming, outgoing, all]
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             // TODO
             // vector< api::withdraw_vesting_route_api_object > get_withdraw_routes( string account, condenser_api::withdraw_route_type type = condenser_api::all )const;
+=======
+            std::vector<withdraw_route> get_withdraw_routes(std::string account, withdraw_route_type type = all) const;
+
+            /**
+            *  Returns the amount of accounts registered in blockchain
+            */
+            std::string get_account_count() const;
+
+            /**
+            *  Gets the steem price per mvests
+            */
+            std::string get_steem_per_mvests() const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              *  Gets the account information for all accounts for which this wallet has a private key
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             // vector<golos::plugins::api::account_api_object > list_my_accounts();
+=======
+            std::vector<account_api_obj> list_my_accounts() const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Lists all accounts registered in the blockchain.
              * This returns a list of all account names and their account ids, sorted by account name.
              *
              * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all accounts,
-             * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+             * start by setting \c lowerbound to the empty std::string \c "", and then each iteration, pass
              * the last account name returned as the \c lowerbound for the next \c list_accounts() call.
              *
              * @param lowerbound the name of the first account to return.  If the named account does not exist,
@@ -175,10 +244,14 @@ namespace golos {
              * @param limit the maximum number of accounts to return (max: 1000)
              * @returns a list of accounts mapping account names to account ids
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD set<string>
 
             list_accounts(const string &lowerbound, uint32_t limit);
+=======
+            std::set<std::string> list_accounts(const std::string &lowerbound, uint32_t limit);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** List the balances of an account.
              * Each account can have multiple balances, one for each type of asset owned by that
@@ -187,18 +260,18 @@ namespace golos {
              * @param account_name the name or id of the account whose balances you want
              * @returns a list of the given account's balances
              */
-            vector<asset<0, 17, 0>> list_account_balances(const account_name_type &account_name);
+            std::vector<asset<0, 17, 0>> list_account_balances(const account_name_type &account_name);
 
             /** Lists all assets registered on the blockchain.
              *
-             * To list all assets, pass the empty string \c "" for the lowerbound to start
+             * To list all assets, pass the empty std::string \c "" for the lowerbound to start
              * at the beginning of the list, and iterate as necessary.
              *
              * @param lowerbound  the symbol of the first asset to include in the list.
              * @param limit the maximum number of assets to return (max: 100)
              * @returns the list of asset objects, ordered by symbol
              */
-            vector<asset_object> list_assets(const string &lowerbound, uint32_t limit) const;
+            std::vector<asset_object> list_assets(const std::string &lowerbound, uint32_t limit) const;
 
             =======
 
@@ -228,7 +301,32 @@ namespace golos {
              * @param account_name the name of the account to provide information about
              * @returns the public account data stored in the blockchain
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             api::account_api_object get_account(string account_name) const;
+=======
+            account_api_obj get_account(std::string account_name) const;
+
+            /** Returns information about the given asset.
+             * @param asset_symbol the symbol of the asset in the request
+             * @returns the information about the asset stored in the block chain
+             */
+            asset_object get_asset(std::string asset_symbol) const;
+
+            /** Returns information about the given proposed_transaction.
+             * @param account_name the proposal author name
+             * @param id the proposal identification number unique for the account given
+             * @returns the information about the asset stored in the block chain
+             */
+            proposal_object get_proposal(std::string account_name, integral_id_type id) const;
+
+            /** Returns the BitAsset-specific data for a given asset.
+             * Market-issued assets's behavior are determined both by their "BitAsset Data" and
+             * their basic asset data, as returned by \c get_asset().
+             * @param asset_symbol the symbol of the BitAsset in the request
+             * @returns the BitAsset-specific data for this asset
+             */
+            asset_bitasset_data_object get_bitasset_data(std::string asset_symbol) const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Returns the current wallet filename.
              *
@@ -237,19 +335,19 @@ namespace golos {
              * @see set_wallet_filename()
              * @return the wallet filename
              */
-            string get_wallet_filename() const;
+            std::string get_wallet_filename() const;
 
             /**
              * Get the WIF private key corresponding to a public key.  The
              * private key must already be in the wallet.
              */
-            string get_private_key(public_key_type pubkey) const;
+            std::string get_private_key(public_key_type pubkey) const;
 
             /**
              *  @param role - active | owner | posting | memo
              */
-            pair<public_key_type, string> get_private_key_from_password(string account, string role,
-                                                                        string password) const;
+            std::pair<public_key_type, std::string> get_private_key_from_password(std::string account, std::string role,
+                                                                        std::string password) const;
 
 
             /**
@@ -285,7 +383,7 @@ namespace golos {
              * @param password the password previously set with \c set_password()
              * @ingroup Wallet Management
              */
-            void unlock(string password);
+            void unlock(std::string password);
 
             /** Sets a new password on the wallet.
              *
@@ -293,7 +391,7 @@ namespace golos {
              * execute this command.
              * @ingroup Wallet Management
              */
-            void set_password(string password);
+            void set_password(std::string password);
 
             /** Dumps all private keys owned by the wallet.
              *
@@ -301,13 +399,17 @@ namespace golos {
              * using \c import_key()
              * @returns a map containing the private keys, indexed by their public key
              */
-            map<public_key_type, string> list_keys();
+            std::map<public_key_type, std::string> list_keys();
 
             /** Returns detailed help on a single API command.
              * @param method the name of the API command you want help with
-             * @returns a multi-line string suitable for displaying on a terminal
+             * @returns a multi-line std::string suitable for displaying on a terminal
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             string gethelp(const string &method) const;
+=======
+            std::string get_help(const std::string &method) const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Loads a specified Graphene wallet.
              *
@@ -322,7 +424,7 @@ namespace golos {
              *                        existing wallet file
              * @returns true if the specified wallet is loaded
              */
-            bool load_wallet_file(string wallet_filename = "");
+            bool load_wallet_file(std::string wallet_filename = "");
 
             /** Saves the current wallet to the given filename.
              *
@@ -334,7 +436,7 @@ namespace golos {
              *                        or overwrite.  If \c wallet_filename is empty,
              *                        save to the current filename.
              */
-            void save_wallet_file(string wallet_filename = "");
+            void save_wallet_file(std::string wallet_filename = "");
 
             /** Sets the wallet filename used for future writes.
              *
@@ -343,12 +445,12 @@ namespace golos {
              *
              * @param wallet_filename the new filename to use for future saves
              */
-            void set_wallet_filename(string wallet_filename);
+            void set_wallet_filename(std::string wallet_filename);
 
             /** Suggests a safe brain key to use for creating your account.
              * \c create_account_with_brain_key() requires you to specify a 'brain key',
              * a long passphrase that provides enough entropy to generate cyrptographic
-             * keys.  This function will suggest a suitably random string that should
+             * keys.  This function will suggest a suitably random std::string that should
              * be easy to write down (and, with effort, memorize).
              * @returns a suggested brain_key
              */
@@ -360,10 +462,10 @@ namespace golos {
              *
              * @param tx the transaction to serialize
              * @returns the binary form of the transaction.  It will not be hex encoded,
-             *          this returns a raw string that may have null characters embedded
+             *          this returns a raw std::string that may have null characters embedded
              *          in it
              */
-            string serialize_transaction(signed_transaction tx) const;
+            std::string serialize_transaction(signed_transaction tx) const;
 
             /** Imports a WIF Private Key into the wallet to be used to sign transactions by an account.
              *
@@ -371,7 +473,7 @@ namespace golos {
              *
              * @param wif_key the WIF Private Key to import
              */
-            bool import_key(string wif_key);
+            bool import_key(std::string wif_key);
 
             /** Transforms a brain key to reduce the chance of errors when re-entering the key from memory.
              *
@@ -381,7 +483,7 @@ namespace golos {
              * @param s the brain key as supplied by the user
              * @returns the brain key in its normalized form
              */
-            string normalize_brain_key(string s) const;
+            std::string normalize_brain_key(std::string s) const;
 
             /**
              *  This method will genrate new owner, active, and memo keys for the new account which
@@ -394,7 +496,7 @@ namespace golos {
              *  @param json_meta JSON Metadata associated with the new account
              *  @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction create_account(string creator, string new_account_name, string json_meta,
+            annotated_signed_transaction create_account(std::string creator, std::string new_account_name, std::string json_meta,
                                                         bool broadcast);
 
             /**
@@ -412,7 +514,7 @@ namespace golos {
              * @param memo public memo key of the new account
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction create_account_with_keys(string creator, string newname, string json_meta,
+            annotated_signed_transaction create_account_with_keys(std::string creator, std::string newname, std::string json_meta,
                                                                   public_key_type owner, public_key_type active,
                                                                   public_key_type posting, public_key_type memo,
                                                                   bool broadcast) const;
@@ -432,6 +534,7 @@ namespace golos {
              *  @param json_meta JSON Metadata associated with the new account
              *  @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             create_account_delegated(string
@@ -448,6 +551,11 @@ namespace golos {
             string json_meta,
             bool broadcast
             );
+=======
+            annotated_signed_transaction create_account_delegated(std::string creator, asset<0, 17, 0> steem_fee,
+                                                                  asset<0, 17, 0> delegated_vests, std::string new_account_name,
+                                                                  std::string json_meta, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * This method is used by faucets to create new accounts for other users which must
@@ -468,6 +576,7 @@ namespace golos {
              * @param memo public memo key of the new account
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             create_account_with_keys_delegated(string
@@ -488,6 +597,14 @@ namespace golos {
             public_key_type memo,
             bool broadcast
             ) const;
+=======
+            annotated_signed_transaction create_account_with_keys_delegated(std::string creator, asset<0, 17, 0> steem_fee,
+                                                                            asset<0, 17, 0> delegated_vests, std::string newname,
+                                                                            std::string json_meta, public_key_type owner,
+                                                                            public_key_type active,
+                                                                            public_key_type posting,
+                                                                            public_key_type memo, bool broadcast) const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * This method updates the keys of an existing account.
@@ -500,7 +617,7 @@ namespace golos {
              * @param memo New public memo key for the account
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction update_account(string accountname, string json_meta, public_key_type owner,
+            annotated_signed_transaction update_account(std::string accountname, std::string json_meta, public_key_type owner,
                                                         public_key_type active, public_key_type posting,
                                                         public_key_type memo, bool broadcast) const;
 
@@ -516,7 +633,7 @@ namespace golos {
              * @param weight The weight the key should have in the authority. A weight of 0 indicates the removal of the key.
              * @param broadcast true if you wish to broadcast the transaction.
              */
-            annotated_signed_transaction update_account_auth_key(string account_name, authority_type type,
+            annotated_signed_transaction update_account_auth_key(std::string account_name, authority_type type,
                                                                  public_key_type key, weight_type weight,
                                                                  bool broadcast);
 
@@ -532,8 +649,8 @@ namespace golos {
              * @param weight The weight the account should have in the authority. A weight of 0 indicates the removal of the account.
              * @param broadcast true if you wish to broadcast the transaction.
              */
-            annotated_signed_transaction update_account_auth_account(string account_name, authority_type type,
-                                                                     string auth_account, weight_type weight,
+            annotated_signed_transaction update_account_auth_account(std::string account_name, authority_type type,
+                                                                     std::string auth_account, weight_type weight,
                                                                      bool broadcast);
 
             /**
@@ -548,7 +665,7 @@ namespace golos {
              * @param threshold The weight threshold required for the authority to be met
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction update_account_auth_threshold(string account_name, authority_type type,
+            annotated_signed_transaction update_account_auth_threshold(std::string account_name, authority_type type,
                                                                        uint32_t threshold, bool broadcast);
 
             /**
@@ -558,7 +675,7 @@ namespace golos {
              * @param json_meta The new JSON metadata for the account. This overrides existing metadata
              * @param broadcast ture if you wish to broadcast the transaction
              */
-            annotated_signed_transaction update_account_meta(string account_name, string json_meta, bool broadcast);
+            annotated_signed_transaction update_account_meta(std::string account_name, std::string json_meta, bool broadcast);
 
             /**
              * This method updates the memo key of an account
@@ -567,7 +684,7 @@ namespace golos {
              * @param key The new memo public key
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction update_account_memo_key(string account_name, public_key_type key,
+            annotated_signed_transaction update_account_memo_key(std::string account_name, public_key_type key,
                                                                  bool broadcast);
 
             <<<<<<< HEAD
@@ -583,6 +700,7 @@ namespace golos {
              * @param vesting_shares The amount of VESTS to delegate
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             delegate_vesting_shares(string
@@ -597,6 +715,9 @@ namespace golos {
                                                                  asset vesting_shares, bool broadcast);
 
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+            annotated_signed_transaction delegate_vesting_shares(std::string delegator, std::string delegatee, asset<0, 17, 0> vesting_shares, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              *  This method is used to convert a JSON transaction to its transaction ID.
@@ -610,7 +731,7 @@ namespace golos {
              * sorted by name.  This lists witnesses whether they are currently voted in or not.
              *
              * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all witnesss,
-             * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+             * start by setting \c lowerbound to the empty std::string \c "", and then each iteration, pass
              * the last witness name returned as the \c lowerbound for the next \c list_witnesss() call.
              *
              * @param lowerbound the name of the first witness to return.  If the named witness does not exist,
@@ -618,13 +739,21 @@ namespace golos {
              * @param limit the maximum number of witnesss to return (max: 1000)
              * @returns a list of witnesss mapping witness names to witness ids
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             vector<account_name_type> list_witnesses(const string &lowerbound, uint32_t limit);
+=======
+            std::set<account_name_type> list_witnesses(const std::string &lowerbound, uint32_t limit);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Returns information about the given witness.
              * @param owner_account the name or id of the witness account owner, or the id of the witness
              * @returns the information about the witness stored in the block chain
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             optional<api::witness_api_object> get_witness(string owner_account);
+=======
+            optional<witness_api_obj> get_witness(std::string owner_account);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Returns conversion requests by an account
              *
@@ -632,6 +761,7 @@ namespace golos {
              *
              * @returns All pending conversion requests by account
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD vector<convert_request_object>
             get_conversion_requests(string
@@ -641,18 +771,21 @@ namespace golos {
             vector <api::convert_request_api_object> get_conversion_requests(string owner);
 
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+            std::vector<convert_request_object> get_conversion_requests(std::string owner);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
 
             /**
              * Update a witness object owned by the given account.
              *
              * @param witness_name The name of the witness account.
-             * @param url A URL containing some information about the witness.  The empty string makes it remain the same.
-             * @param block_signing_key The new block signing public key.  The empty string disables block production.
+             * @param url A URL containing some information about the witness.  The empty std::string makes it remain the same.
+             * @param block_signing_key The new block signing public key.  The empty std::string disables block production.
              * @param props The chain properties the witness is voting on.
              * @param broadcast true if you wish to broadcast the transaction.
              */
-            annotated_signed_transaction update_witness(string witness_name, string url,
+            annotated_signed_transaction update_witness(std::string witness_name, std::string url,
                                                         public_key_type block_signing_key,
 
             <<<<<<<
@@ -678,10 +811,10 @@ namespace golos {
              * This setting can be changed at any time.
              *
              * @param account_to_modify the name or id of the account to update
-             * @param proxy the name of account that should proxy to, or empty string to have no proxy
+             * @param proxy the name of account that should proxy to, or empty std::string to have no proxy
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction set_voting_proxy(string account_to_modify, string proxy,
+            annotated_signed_transaction set_voting_proxy(std::string account_to_modify, std::string proxy,
                                                           bool broadcast = false);
 
             /**
@@ -695,7 +828,7 @@ namespace golos {
              * @param approve true if the account is voting for the account to be able to be a block produce
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction vote_for_witness(string account_to_vote_with, string witness_to_vote_for,
+            annotated_signed_transaction vote_for_witness(std::string account_to_vote_with, std::string witness_to_vote_for,
                                                           bool approve = true, bool broadcast = false);
 
             /**
@@ -707,6 +840,7 @@ namespace golos {
              * @param memo A memo for the transactionm, encrypted with the to account's public memo key
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             transfer(string
@@ -721,6 +855,10 @@ namespace golos {
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
             bool broadcast = false
             );
+=======
+            annotated_signed_transaction transfer(std::string from, std::string to, asset<0, 17, 0> amount, std::string memo,
+                                                  bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Transfer funds from one account to another using escrow. steemit and SBD can be transferred.
@@ -737,6 +875,7 @@ namespace golos {
              * @param json_meta JSON encoded meta data
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             annotated_signed_transaction escrow_transfer(string from, string to, string agent, uint32_t escrow_id,
 
             <<<<<<<
@@ -754,6 +893,13 @@ namespace golos {
             string json_meta,
             bool broadcast = false
             );
+=======
+            annotated_signed_transaction escrow_transfer(std::string from, std::string to, std::string agent, uint32_t escrow_id,
+                                                         asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, asset<0, 17, 0> fee,
+                                                         time_point_sec ratification_deadline,
+                                                         time_point_sec escrow_expiration, std::string json_meta,
+                                                         bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Approve a proposed escrow transfer. Funds cannot be released until after approval. This is in lieu of requiring
@@ -767,7 +913,7 @@ namespace golos {
              * @param approve true to approve the escrow transfer, otherwise cancels it and refunds 'from'
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction escrow_approve(string from, string to, string agent, string who,
+            annotated_signed_transaction escrow_approve(std::string from, std::string to, std::string agent, std::string who,
                                                         uint32_t escrow_id, bool approve, bool broadcast = false);
 
             /**
@@ -780,7 +926,7 @@ namespace golos {
              * @param escrow_id A unique id for the escrow transfer
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction escrow_dispute(string from, string to, string agent, string who,
+            annotated_signed_transaction escrow_dispute(std::string from, std::string to, std::string agent, std::string who,
                                                         uint32_t escrow_id, bool broadcast = false);
 
             /**
@@ -796,6 +942,7 @@ namespace golos {
              * @param steemit_amount The amount of steemit that will be released
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             annotated_signed_transaction escrow_release(string from, string to, string agent, string who,
 
             <<<<<<<
@@ -814,6 +961,10 @@ namespace golos {
             bool broadcast = false
             );
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+            annotated_signed_transaction escrow_release(std::string from, std::string to, std::string agent, std::string who,
+                                                        std::string receiver, uint32_t escrow_id, asset<0, 17, 0> sbd_amount, asset<0, 17, 0> steem_amount, bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Transfer steemit into a vesting fund represented by vesting shares (VESTS). VESTS are required to vesting
@@ -825,6 +976,7 @@ namespace golos {
              * @param amount The amount of steemit to vest i.e. "100.00 steemit"
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             transfer_to_vesting(string
@@ -838,10 +990,15 @@ namespace golos {
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
             bool broadcast = false
             );
+=======
+            annotated_signed_transaction transfer_to_vesting(std::string from, std::string to, asset<0, 17, 0> amount,
+                                                             bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              *  Transfers into savings happen immediately, transfers from savings take 72 hours
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             transfer_to_savings(string
@@ -856,10 +1013,15 @@ namespace golos {
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
             bool broadcast = false
             );
+=======
+            annotated_signed_transaction transfer_to_savings(std::string from, std::string to, asset<0, 17, 0> amount, std::string memo,
+                                                             bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * @param request_id - an unique ID assigned by from account, the id is used to cancel the operation and can be reused after the transfer completes
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             annotated_signed_transaction transfer_from_savings(string from, uint32_t request_id, string to,
 
             <<<<<<<
@@ -874,12 +1036,16 @@ namespace golos {
             bool broadcast = false
             );
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+            annotated_signed_transaction transfer_from_savings(std::string from, uint32_t request_id, std::string to,
+                                                               asset<0, 17, 0> amount, std::string memo, bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              *  @param request_id the id used in transfer_from_savings
              *  @param from the account that initiated the transfer
              */
-            annotated_signed_transaction cancel_transfer_from_savings(string from, uint32_t request_id,
+            annotated_signed_transaction cancel_transfer_from_savings(std::string from, uint32_t request_id,
                                                                       bool broadcast = false);
 
 
@@ -891,8 +1057,12 @@ namespace golos {
              *    withdrawn and deposited back as steemit. i.e. "10.000000 VESTS"
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             annotated_signed_transaction withdraw_vesting(string from, asset<0, 17, 0> vesting_shares,
                                                           bool broadcast = false);
+=======
+            annotated_signed_transaction withdraw_vesting(std::string from, asset<0, 17, 0> vesting_shares, bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Set up a vesting withdraw route. When vesting shares are withdrawn, they will be routed to these accounts
@@ -906,7 +1076,7 @@ namespace golos {
              *    them as steemit.
              * @param broadcast true if you wish to broadcast the transaction.
              */
-            annotated_signed_transaction set_withdraw_vesting_route(string from, string to, uint16_t percent,
+            annotated_signed_transaction set_withdraw_vesting_route(std::string from, std::string to, uint16_t percent,
                                                                     bool auto_vest, bool broadcast = false);
 
             /**
@@ -917,7 +1087,7 @@ namespace golos {
              *  @param amount The amount of SBD to convert
              *  @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction convert_sbd(string from, asset<0, 17, 0> amount, bool broadcast = false);
+            annotated_signed_transaction convert_sbd(std::string from, asset<0, 17, 0> amount, bool broadcast = false);
 
             /**
              * A witness can public a price feed for the steemit:SBD market. The median price feed is used
@@ -927,7 +1097,7 @@ namespace golos {
              * @param exchange_rate The desired exchange rate
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction publish_feed(string witness, price<0, 17, 0> exchange_rate, bool broadcast);
+            annotated_signed_transaction publish_feed(std::string witness, price<0, 17, 0> exchange_rate, bool broadcast);
 
             /** Signs a transaction.
              *
@@ -955,11 +1125,19 @@ namespace golos {
              *                       (e.g., "global_parameters_update_operation")
              * @return a default-constructed operation of the given type
              */
-            operation get_prototype_operation(string operation_type);
+            operation get_prototype_operation(std::string operation_type);
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
+=======
+            void network_add_nodes(const std::vector<std::string> &nodes);
+
+            std::vector<variant> network_get_connected_peers();
+
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
             /**
              * Gets the current order book for steemit:SBD
              *
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
              * @param limit Maximum number of orders to return for bids and asks. Max is 1000.
              */
             <<<<<<<
@@ -973,6 +1151,19 @@ namespace golos {
             vector <call_order_object> get_call_orders_by_owner(string account_name);
 
             vector <force_settlement_object> get_settle_orders_by_owner(string account_name);
+=======
+             * @param base Base symbol std::string
+             * @param quote Quote symbol std::string
+             * @param limit Maximum number of orders to return for bids and asks. Max is 1000.
+             */
+            market_history::order_book get_order_book(const std::string &base, const std::string &quote, unsigned limit = 50);
+
+            std::vector<extended_limit_order> get_limit_orders_by_owner(std::string account_name);
+
+            std::vector<call_order_object> get_call_orders_by_owner(std::string account_name);
+
+            std::vector<force_settlement_object> get_settle_orders_by_owner(std::string account_name);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Returns the collateral_bid object for the given MPA
              *
@@ -981,8 +1172,13 @@ namespace golos {
              * @param start the sequence number where to start looping back throw the history
              * @returns a list of \c collateral_bid_objects
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             vector <collateral_bid_object> get_collateral_bids(string asset, uint32_t limit = 100,
                                                                uint32_t start = 0) const;
+=======
+            std::vector<collateral_bid_object> get_collateral_bids(std::string asset, uint32_t limit = 100,
+                                                              uint32_t start = 0) const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Creates or updates a bid on an MPA after global settlement.
              *
@@ -1001,8 +1197,8 @@ namespace golos {
              * @returns the signed transaction creating/updating the bid
              */
 
-            signed_transaction bid_collateral(string bidder_name, string debt_amount, string debt_symbol,
-                                              string additional_collateral, bool broadcast = false);
+            signed_transaction bid_collateral(std::string bidder_name, std::string debt_amount, std::string debt_symbol,
+                                              std::string additional_collateral, bool broadcast = false);
 
             =======
             // TODO
@@ -1022,6 +1218,7 @@ namespace golos {
              *  @param expiration the time the order should expire if it has not been filled
              *  @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             create_order(string
@@ -1039,6 +1236,11 @@ namespace golos {
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
             bool broadcast
             );
+=======
+            annotated_signed_transaction create_order(std::string owner, uint32_t order_id, asset<0, 17, 0> amount_to_sell,
+                                                      asset<0, 17, 0> min_to_receive, bool fill_or_kill, uint32_t expiration,
+                                                      bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Cancel an order created with create_order
@@ -1047,6 +1249,7 @@ namespace golos {
              * @param orderid The unique identifier assigned to the order by its creator
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             <<<<<<<
             HEAD annotated_signed_transaction
             cancel_order(string
@@ -1054,6 +1257,9 @@ namespace golos {
             protocol::integral_id_type order_id,
             bool broadcast
             );
+=======
+            annotated_signed_transaction cancel_order(std::string owner, protocol::integral_id_type order_id, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Place a limit order attempting to sell one asset for another.
              *
@@ -1093,9 +1299,13 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction selling the funds
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction sell_asset(string seller_account, asset<0, 17, 0> amount_to_sell,
                                           asset<0, 17, 0> amount_to_receive, uint32_t timeout_sec,
                                           protocol::integral_id_type order_id, bool fill_or_kill, bool broadcast);
+=======
+            signed_transaction sell_asset(std::string seller_account, asset<0, 17, 0> amount_to_sell, asset<0, 17, 0> amount_to_receive, uint32_t timeout_sec, protocol::integral_id_type order_id, bool fill_or_kill, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Place a limit order attempting to sell one asset for another.
              *
@@ -1113,8 +1323,12 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network.
              * @returns The signed transaction selling the funds.
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction sell(string seller_account, string base, string quote, double rate, double amount,
                                     protocol::integral_id_type order_id, bool broadcast);
+=======
+            signed_transaction sell(std::string seller_account, asset<0, 17, 0> base, asset<0, 17, 0> quote, protocol::integral_id_type order_id, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Place a limit order attempting to buy one asset with another.
              *
@@ -1125,14 +1339,18 @@ namespace golos {
              *
              * @param buyer_account The account buying the asset for another asset.
              * @param base The name or id of the asset to buy.
-             * @param quote The name or id of the assest being offered as payment.
+             * @param quote The name or id of the asset being offered as payment.
              * @param rate The rate in base:quote at which you want to buy.
              * @param amount the amount of base you want to buy.
              * @param broadcast true to broadcast the transaction on the network.
              * @returns The signed transaction selling the funds.
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction buy(string buyer_account, string base, string quote, double rate, double amount,
                                    protocol::integral_id_type order_id, bool broadcast);
+=======
+            signed_transaction buy(std::string buyer_account, asset<0, 17, 0> base, asset<0, 17, 0> quote, protocol::integral_id_type order_id, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Borrow an asset or update the debt/collateral ratio for the loan.
              *
@@ -1146,8 +1364,13 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction borrowing the asset
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction borrow_asset(string borrower_name, asset<0, 17, 0> amount_to_borrow,
                                             asset<0, 17, 0> amount_of_collateral, bool broadcast);
+=======
+            signed_transaction borrow_asset(std::string borrower_name, asset<0, 17, 0> amount_to_borrow, asset<0, 17, 0> amount_of_collateral,
+                                            bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Creates a new user-issued or market-issued asset.
              *
@@ -1171,8 +1394,12 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction creating a new asset
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction create_asset(string issuer, string symbol, uint8_t precision,
                                             asset_options<0, 17, 0> common,
+=======
+            signed_transaction create_asset(std::string issuer, std::string symbol, uint8_t precision, asset_options<0, 17, 0> common,
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
                                             fc::optional<bitasset_options> bitasset_opts, bool broadcast = false);
 
             /** Issue new shares of an asset.
@@ -1183,8 +1410,12 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction issuing the new shares
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction issue_asset(string to_account, asset<0, 17, 0> amount, string memo,
                                            bool broadcast = false);
+=======
+            signed_transaction issue_asset(std::string to_account, asset<0, 17, 0> amount, std::string memo, bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Update the core options on an asset.
              * There are a number of options which all assets in the network use. These options are
@@ -1202,8 +1433,13 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction updating the asset
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction update_asset(string symbol, optional<string> new_issuer,
                                             asset_options<0, 17, 0> new_options, bool broadcast = false);
+=======
+            signed_transaction update_asset(std::string symbol, optional<std::string> new_issuer, asset_options<0, 17, 0> new_options,
+                                            bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /** Update the options specific to a BitAsset.
              *
@@ -1218,7 +1454,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction updating the bitasset
              */
-            signed_transaction update_bitasset(string symbol, bitasset_options new_options, bool broadcast = false);
+            signed_transaction update_bitasset(std::string symbol, bitasset_options new_options, bool broadcast = false);
 
             /** Update the set of feed-producing accounts for a BitAsset.
              *
@@ -1230,7 +1466,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction updating the bitasset's feed producers
              */
-            signed_transaction update_asset_feed_producers(string symbol, flat_set<string> new_feed_producers,
+            signed_transaction update_asset_feed_producers(std::string symbol, flat_set<std::string> new_feed_producers,
                                                            bool broadcast = false);
 
             /** Publishes a price feed for the named asset.
@@ -1253,7 +1489,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction updating the price feed for the given asset
              */
-            signed_transaction publish_asset_feed(string publishing_account, string symbol, price_feed<0, 17, 0> feed,
+            signed_transaction publish_asset_feed(std::string publishing_account, std::string symbol, price_feed<0, 17, 0> feed,
                                                   bool broadcast = false);
 
             /** Pay into the fee pool for the given asset.
@@ -1270,7 +1506,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction funding the fee pool
              */
-            signed_transaction fund_asset_fee_pool(string from, string symbol, string amount, bool broadcast = false);
+            signed_transaction fund_asset_fee_pool(std::string from, std::string symbol, std::string amount, bool broadcast = false);
 
             /** Burns the given user-issued asset.
              *
@@ -1282,7 +1518,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction burning the asset
              */
-            signed_transaction reserve_asset(string from, string amount, string symbol, bool broadcast = false);
+            signed_transaction reserve_asset(std::string from, std::string amount, std::string symbol, bool broadcast = false);
 
             /** Forces a global settling of the given asset (black swan or prediction markets).
              *
@@ -1301,7 +1537,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction settling the named asset
              */
-            signed_transaction global_settle_asset(string symbol, price<0, 17, 0> settle_price, bool broadcast = false);
+            signed_transaction global_settle_asset(std::string symbol, price<0, 17, 0> settle_price, bool broadcast = false);
 
             /** Schedules a market-issued asset for automatic settlement.
              *
@@ -1318,7 +1554,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction settling the named asset
              */
-            signed_transaction settle_asset(string account_to_settle, string amount_to_settle, string symbol,
+            signed_transaction settle_asset(std::string account_to_settle, std::string amount_to_settle, std::string symbol,
                                             bool broadcast = false);
 
             /** Whitelist and blacklist accounts, primarily for transacting in whitelisted assets.
@@ -1341,6 +1577,7 @@ namespace golos {
              * @param broadcast true to broadcast the transaction on the network
              * @returns the signed transaction changing the whitelisting status
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             signed_transaction whitelist_account(string authorizing_account, string account_to_list,
                                                  account_whitelist_operation<0, 17,
                                                          0>::account_listing new_listing_status,
@@ -1351,6 +1588,9 @@ namespace golos {
             annotated_signed_transaction cancel_order(string owner, uint32_t orderid, bool broadcast);
 
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+            signed_transaction whitelist_account(std::string authorizing_account, std::string account_to_list, account_whitelist_operation<0, 17, 0>::account_listing new_listing_status, bool broadcast = false);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              *  Post or update a comment.
@@ -1364,8 +1604,8 @@ namespace golos {
              *  @param json the json metadata of the comment
              *  @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction post_comment(string author, string permlink, string parent_author,
-                                                      string parent_permlink, string title, string body, string json,
+            annotated_signed_transaction post_comment(std::string author, std::string permlink, std::string parent_author,
+                                                      std::string parent_permlink, std::string title, std::string body, std::string json,
                                                       bool broadcast);
 
             <<<<<<<
@@ -1380,6 +1620,7 @@ namespace golos {
              * @param extension_cost SBD amount payer will spend on payout window extension
              * @param broadcast true if you wish to broadcast the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
                     annotated_signed_transaction
             extend_payout_by_cost(string
             payer,
@@ -1388,6 +1629,10 @@ namespace golos {
             asset<0, 17, 0> extension_cost,
             bool broadcast
             );
+=======
+            annotated_signed_transaction extend_payout_by_cost(std::string payer, std::string author, std::string permlink,
+                                                               asset<0, 17, 0> extension_cost, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Extend the comment payout window by passing the required SBD to spend
@@ -1398,7 +1643,7 @@ namespace golos {
              * @param extension_time the payout window final time point
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction extend_payout_by_time(string payer, string author, string permlink,
+            annotated_signed_transaction extend_payout_by_time(std::string payer, std::string author, std::string permlink,
                                                                fc::time_point_sec extension_time, bool broadcast);
 
             /**
@@ -1409,7 +1654,7 @@ namespace golos {
              * @param body message content
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction send_private_message(string from, string to, string subject, string body,
+            annotated_signed_transaction send_private_message(std::string from, std::string to, std::string subject, std::string body,
                                                               bool broadcast);
 
             /**
@@ -1419,7 +1664,11 @@ namespace golos {
              * @param limit amount of messages to retrieve
              * @return message api objects vector
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             vector <extended_message_object> get_inbox(string account, fc::time_point newest, uint32_t limit);
+=======
+            std::vector<extended_message_object> get_inbox(std::string account, fc::time_point newest, uint32_t limit);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Retrieves the private message outbox for the account mentioned
@@ -1428,7 +1677,11 @@ namespace golos {
              * @param limit amount of messages to retrieve
              * @return message api objects vector
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             vector <extended_message_object> get_outbox(string account, fc::time_point newest, uint32_t limit);
+=======
+            std::vector<extended_message_object> get_outbox(std::string account, fc::time_point newest, uint32_t limit);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             =======
             >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
@@ -1442,7 +1695,7 @@ namespace golos {
              * @param weight The weight [-100,100] of the vote
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction vote(string voter, string author, string permlink, int16_t weight,
+            annotated_signed_transaction vote(std::string voter, std::string author, std::string permlink, int16_t weight,
                                               bool broadcast);
 
             /**
@@ -1458,7 +1711,7 @@ namespace golos {
              * @param challenged The account being challenged
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction challenge(string challenger, string challenged, bool broadcast);
+            annotated_signed_transaction challenge(std::string challenger, std::string challenged, bool broadcast);
 
             /**
              * Create an account recovery request as a recover account. The syntax for this command contains a serialized authority object
@@ -1471,7 +1724,7 @@ namespace golos {
              * @param new_authority The new owner authority for the recovered account. This should be given to you by the holder of the compromised or lost account.
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction request_account_recovery(string recovery_account, string account_to_recover,
+            annotated_signed_transaction request_account_recovery(std::string recovery_account, std::string account_to_recover,
                                                                   authority new_authority, bool broadcast);
 
             /**
@@ -1485,7 +1738,7 @@ namespace golos {
              * @param new_authority The new authority that your recovery account used in the account recover request.
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction recover_account(string account_to_recover, authority recent_authority,
+            annotated_signed_transaction recover_account(std::string account_to_recover, authority recent_authority,
                                                          authority new_authority, bool broadcast);
 
             /**
@@ -1495,10 +1748,14 @@ namespace golos {
              * @param new_recovery_account The name of the recovery account you wish to have
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction change_recovery_account(string owner, string new_recovery_account,
+            annotated_signed_transaction change_recovery_account(std::string owner, std::string new_recovery_account,
                                                                  bool broadcast);
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             vector <api::owner_authority_history_api_object> get_owner_history(string account) const;
+=======
+            std::vector<owner_authority_history_api_obj> get_owner_history(std::string account) const;
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
             /**
              * Prove an account's active authority, fulfilling a challenge, restoring posting rights, and making
@@ -1507,7 +1764,7 @@ namespace golos {
              * @param challenged The account that was challenged and is proving its authority.
              * @param broadcast true if you wish to broadcast the transaction
              */
-            annotated_signed_transaction prove(string challenged, bool broadcast);
+            annotated_signed_transaction prove(std::string challenged, bool broadcast);
 
             /**
              *  Account operations have sequence numbers from 0 to N where N is the most recent operation. This method
@@ -1517,7 +1774,11 @@ namespace golos {
              *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
              *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             // map< uint32_t, account_history::api_operation_object > get_account_history( string account, uint32_t from, uint32_t limit );
+=======
+            std::map<uint32_t, applied_operation> get_account_history(std::string account, uint32_t from, uint32_t limit);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
 
             /**
@@ -1525,10 +1786,14 @@ namespace golos {
              *
              *  @param what - a set of things to follow: posts, comments, votes, ignore
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
             annotated_signed_transaction follow(string follower, string following, set <string> what, bool broadcast);
+=======
+            annotated_signed_transaction follow(std::string follower, std::string following, std::set<std::string> what, bool broadcast);
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
 
-            std::map<string, std::function<string(fc::variant, const fc::variants &)>> get_result_formatters() const;
+            std::map<std::string, std::function<std::string(fc::variant, const fc::variants &)>> get_result_formatters() const;
 
             fc::signal<void(bool)> lock_changed;
             std::shared_ptr<detail::wallet_api_impl> my;
@@ -1543,14 +1808,14 @@ namespace golos {
             /**
              *  Returns the encrypted memo if memo starts with '#' otherwise returns memo
              */
-            string get_encrypted_memo(string from, string to, string memo);
+            std::string get_encrypted_memo(std::string from, std::string to, std::string memo);
 
             /**
              * Returns the decrypted memo if possible given wallet's known private keys
              */
-            string decrypt_memo(string memo);
+            std::string decrypt_memo(std::string memo);
 
-            annotated_signed_transaction decline_voting_rights(string account, bool decline, bool broadcast);
+            annotated_signed_transaction decline_voting_rights(std::string account, bool decline, bool broadcast);
 
             <<<<<<<
             HEAD
@@ -1562,10 +1827,15 @@ namespace golos {
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
                     signed_transaction
 
             approve_proposal(const string &owner, integral_id_type proposal_id, const approval_delta &delta,
                              bool broadcast /* = false */
+=======
+            signed_transaction approve_proposal(const std::string &owner, integral_id_type proposal_id,
+                                                const approval_delta &delta, bool broadcast /* = false */
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
             );
 
             /**
@@ -1603,7 +1873,7 @@ namespace golos {
                                                                                        fc::minutes(1),
                                                            uint32_t review_period_seconds = 0, bool broadcast = true);
 
-            signed_transaction propose_builder_transaction2(transaction_handle_type handle, string account_name_or_id,
+            signed_transaction propose_builder_transaction2(transaction_handle_type handle, std::string account_name_or_id,
                                                             time_point_sec expiration = time_point::now() +
                                                                                         fc::minutes(1),
                                                             uint32_t review_period_seconds = 0, bool broadcast = true);
@@ -1620,13 +1890,16 @@ namespace golos {
 
         struct plain_keys {
             fc::sha512 checksum;
-            map<public_key_type, string> keys;
+            std::map<public_key_type, std::string> keys;
         };
 
     }
 }
 
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 <<<<<<< HEAD
+=======
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 FC_REFLECT((golos::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
 
 FC_REFLECT((golos::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_key))
@@ -1635,6 +1908,7 @@ FC_REFLECT_DERIVED((golos::wallet::signed_block_with_info), ((golos::chain::sign
                    (block_id)(signing_key)(transaction_ids))
 
 FC_REFLECT((golos::wallet::plain_keys), (checksum)(keys))
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 =======
 
 FC_REFLECT((golos::wallet::wallet_data), (cipher_keys)(ws_server)(ws_user)(ws_password))
@@ -1645,6 +1919,11 @@ FC_REFLECT((golos::wallet::brain_key_info), (brain_priv_key)(wif_priv_key)(pub_k
 FC_REFLECT((golos::wallet::plain_keys), ((checksum)(keys)))
 
 <<<<<<< HEAD
+=======
+
+FC_REFLECT_ENUM(golos::wallet::authority_type, (owner)(active)(posting))
+
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 FC_REFLECT((golos::wallet::approval_delta),
            (active_approvals_to_add)(active_approvals_to_remove)(owner_approvals_to_add)(owner_approvals_to_remove)(
                    posting_approvals_to_add)(posting_approvals_to_remove)(key_approvals_to_add)(
@@ -1696,6 +1975,7 @@ FC_API(golos::wallet::wallet_api,
                (begin_builder_transaction)(add_operation_to_builder_transaction)(
                replace_operation_in_builder_transaction)(preview_builder_transaction)(sign_builder_transaction)(
                propose_builder_transaction)(propose_builder_transaction2)(remove_builder_transaction))
+<<<<<<< HEAD:libraries/wallet/include/golos/wallet/wallet.hpp
 =======
 FC_REFLECT_ENUM((golos::wallet::authority_type), ((owner)(active)(posting)))
 
@@ -1784,5 +2064,7 @@ FC_API(golos::wallet::wallet_api,
 // (get_transaction)
 )
 >>>>>>> 09d6d4f2b7da92297d03565e85ea82bf8075ae73
+=======
+>>>>>>> golos-v0.17.0:libraries/wallet/include/golos/wallet/wallet.hpp
 
 FC_REFLECT((golos::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))

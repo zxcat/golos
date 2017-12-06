@@ -256,7 +256,7 @@ namespace golos {
                 }
             };
 
-            inline void set_what(vector<follow_type> &what, uint16_t bitmask) {
+            inline void set_what(std::vector<follow_type> &what, uint16_t bitmask) {
                 if (bitmask & 1 << blog) {
                     what.push_back(blog);
                 }

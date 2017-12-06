@@ -30,18 +30,20 @@ namespace golos {
 
             /// The memo is plain-text, any encryption on the memo is up to
             /// a higher level protocol.
-            string memo;
+            std::string memo;
 
             void validate() const;
 
             void get_required_active_authorities(flat_set <account_name_type> &a) const {
-                if (amount.symbol_type_value() != VESTS_SYMBOL) {
+                if (amount.symbol_name().size() <= 6 && amount.symbol_type_value() != VESTS_SYMBOL) {
+                    a.insert(from);
+                } else {
                     a.insert(from);
                 }
             }
 
             void get_required_owner_authorities(flat_set <account_name_type> &a) const {
-                if (amount.symbol_type_value() == VESTS_SYMBOL) {
+                if (amount.symbol_name().size() <= 6 && amount.symbol_type_value() == VESTS_SYMBOL) {
                     a.insert(from);
                 }
             }
@@ -71,7 +73,7 @@ namespace golos {
             account_name_type from;
             account_name_type to;
             asset <Major, Hardfork, Release> amount;
-            string memo;
+            std::string memo;
 
             void get_required_active_authorities(flat_set <account_name_type> &a) const {
                 a.insert(from);
@@ -86,7 +88,7 @@ namespace golos {
             integral_id_type request_id = 0;
             account_name_type to;
             asset <Major, Hardfork, Release> amount;
-            string memo;
+            std::string memo;
 
             void get_required_active_authorities(flat_set <account_name_type> &a) const {
                 a.insert(from);
@@ -127,7 +129,7 @@ namespace golos {
             asset <Major, Hardfork, Release> amount;
 
             /// User provided data encrypted to the memo key of the "to" account
-            string memo;
+            std::string memo;
             extensions_type extensions;
 
             void validate() const;

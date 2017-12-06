@@ -42,7 +42,7 @@ namespace golos {
 
                 boost::program_options::variables_map options;
 
-                const boost::bimap<string, string> &get_loaded_snapshots() const {
+                const boost::bimap<std::string, std::string> &get_loaded_snapshots() const {
                     return loaded_snapshots;
                 }
 
@@ -127,7 +127,7 @@ namespace golos {
             void snapshot_plugin::snapshot_plugin_impl::load_snapshots(const std::vector<std::string> &snapshots) {
                 golos::chain::database &db = database();
 
-                for (const vector<string>::value_type &iterator : snapshots) {
+                for (const std::vector<std::string>::value_type &iterator : snapshots) {
                     FC_ASSERT(fc::exists(iterator), "Snapshot file '${file}' was not found.", ("file", iterator));
 
                     ilog("Loading snapshot from ${s}", ("s", iterator));
@@ -214,14 +214,14 @@ namespace golos {
             void snapshot_plugin::set_program_options(boost::program_options::options_description &command_line_options,
                                                       boost::program_options::options_description &config_file_options) {
                 command_line_options.add_options()("snapshot-file",
-                                                   boost::program_options::value<string>()->composing()->multitoken(),
+                                                   boost::program_options::value<std::string>()->composing()->multitoken(),
                                                    "Snapshot files to load");
                 config_file_options.add(command_line_options);
             }
 
             void snapshot_plugin::plugin_startup() {
                 if (impl->options.count("snapshot-file")) {
-                    impl->load_snapshots(impl->options["snapshot-file"].as<vector<string>>());
+                    impl->load_snapshots(impl->options["snapshot-file"].as<std::vector<std::string>>());
                 } else {
 #ifndef STEEMIT_BUILD_TESTNET
                     impl->load_snapshots({"snapshot5392323.json"});
@@ -229,7 +229,7 @@ namespace golos {
                 }
             }
 
-            const boost::bimap<string, string> &snapshot_plugin::get_loaded_snapshots() const {
+            const boost::bimap<std::string, std::string> &snapshot_plugin::get_loaded_snapshots() const {
                 return impl->get_loaded_snapshots();
             }
 

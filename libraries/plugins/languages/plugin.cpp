@@ -75,7 +75,7 @@ namespace languages {
         // API
         get_languages_r get_languages() ;
         
-        set<string> cache_languages;
+        std::set<std::string> cache_languages;
     private:
 
         golos::chain::database &db_;
@@ -102,13 +102,13 @@ namespace languages {
 
     namespace detail {
         struct operation_visitor {
-            operation_visitor(golos::chain::database &db_, set<std::string> &cache_languages_) : db_(db_),
+            operation_visitor(golos::chain::database &db_, std::set<std::string> &cache_languages_) : db_(db_),
                 cache_languages_(cache_languages_) {
 
             };
             typedef void result_type;
 
-            set<std::string> &cache_languages_;
+            std::set<std::string> &cache_languages_;
             golos::chain::database &db_;
 
             void remove_stats(const language_object &tag, const language_stats_object &stats) const {
@@ -149,7 +149,7 @@ namespace languages {
                 }
             }
 
-            const language_stats_object &get_stats(const string &tag) const {
+            const language_stats_object &get_stats(const std::string &tag) const {
                 const auto &stats_idx = db_.get_index<language_stats_index>().indices().get<by_tag>();
                 auto itr = stats_idx.find(tag);
                 if (itr != stats_idx.end()) {
@@ -186,7 +186,7 @@ namespace languages {
                 }
             }
 
-            void create_tag(const string &language, const comment_object &comment, double hot,
+            void create_tag(const std::string &language, const comment_object &comment, double hot,
                             double trending) const {
                 comment_object::id_type parent;
                 account_object::id_type author = db_.get_account(comment.author).id;
@@ -353,7 +353,7 @@ namespace languages {
             template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
             void operator()(const transfer_operation<Major, Hardfork, Release> &op) const {
                 if (op.to == STEEMIT_NULL_ACCOUNT && op.amount.symbol_name() == SBD_SYMBOL_NAME) {
-                    vector<string> part;
+                    std::vector<std::string> part;
                     part.reserve(4);
                     auto path = op.memo;
                     boost::split(part, path, boost::is_any_of("/"));

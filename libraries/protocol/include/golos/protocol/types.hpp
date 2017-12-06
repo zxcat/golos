@@ -3,7 +3,6 @@
 #include <golos/protocol/config.hpp>
 
 #include <fc/fixed_string.hpp>
-
 #include <fc/container/flat_fwd.hpp>
 #include <fc/io/varint.hpp>
 #include <fc/io/enum_type.hpp>
@@ -17,7 +16,7 @@
 #include <fc/container/flat.hpp>
 #include <fc/string.hpp>
 #include <fc/io/raw.hpp>
-#include <fc/uint128.hpp>
+#include <fc/uint128_t.hpp>
 #include <fc/static_variant.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
@@ -31,20 +30,6 @@
 namespace golos {
 
     using fc::uint128_t;
-
-    using std::map;
-    using std::vector;
-    using std::unordered_map;
-    using std::string;
-    using std::deque;
-    using std::shared_ptr;
-    using std::weak_ptr;
-    using std::unique_ptr;
-    using std::set;
-    using std::pair;
-    using std::enable_shared_from_this;
-    using std::tie;
-    using std::make_pair;
 
     using fc::smart_ref;
     using fc::variant_object;
@@ -92,15 +77,16 @@ namespace golos {
 
         typedef fc::ecc::private_key private_key_type;
         typedef fc::sha256 chain_id_type;
-        typedef fc::fixed_string<> account_name_type;
-        typedef fc::fixed_string<> asset_name_type;
+        typedef fc::fixed_string<fc::uint128_t> account_name_type;
+        typedef fc::fixed_string<fc::uint128_t> asset_name_type;
 
         struct string_less {
             bool operator()(const std::string &a, const std::string &b) const {
                 return a < b;
             }
 
-            bool operator()(const fc::fixed_string<> &a, const fc::fixed_string<> &b) const {
+            template<typename Storage>
+            bool operator()(const fc::fixed_string<Storage> &a, const fc::fixed_string<Storage> &b) const {
                 const char *ap = (const char *)&a;
                 const char *ab = (const char *)&b;
                 int count = sizeof(a) - 1;
@@ -112,11 +98,13 @@ namespace golos {
                 return *ap < *ab;
             }
 
-            bool operator()(const fc::fixed_string<> &a, const std::string &b) const {
+            template<typename Storage>
+            bool operator()(const fc::fixed_string<Storage> &a, const std::string &b) const {
                 return std::string(a) < b;
             }
 
-            bool operator()(const std::string &a, const fc::fixed_string<> &b) const {
+            template<typename Storage>
+            bool operator()(const std::string &a, const fc::fixed_string<Storage> &b) const {
                 return a < std::string(b);
             }
         };
