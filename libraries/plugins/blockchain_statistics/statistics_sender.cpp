@@ -13,7 +13,7 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "include/statistics_sender.hpp"
+#include "golos/plugins/blockchain_statistics/statistics_sender.hpp"
 
 stat_client::stat_client(uint32_t default_port) : default_port(default_port) {
 }
