@@ -67,18 +67,17 @@ namespace golos {
             committee_fed_asset = 0x100 /**< allow the asset to be fed by the committee */
         };
         const static uint32_t asset_issuer_permission_mask =
-                charge_market_fee | white_list | override_authority |
-                transfer_restricted | disable_force_settle | global_settle |
-                disable_confidential
-                | witness_fed_asset | committee_fed_asset;
+                charge_market_fee | white_list | override_authority | transfer_restricted | disable_force_settle |
+                global_settle | disable_confidential | witness_fed_asset | committee_fed_asset;
         const static uint32_t uia_asset_issuer_permission_mask =
-                charge_market_fee | white_list | override_authority |
-                transfer_restricted | disable_confidential;
+                charge_market_fee | white_list | override_authority | transfer_restricted | disable_confidential;
 
         typedef fc::ecc::private_key private_key_type;
         typedef fc::sha256 chain_id_type;
         typedef fc::fixed_string<fc::uint128_t> account_name_type;
         typedef fc::fixed_string<fc::uint128_t> asset_name_type;
+
+        typedef std::map<std::pair<asset_name_type, asset_name_type>, std::vector<fc::variant> > market_queue_type;
 
         struct string_less {
             bool operator()(const std::string &a, const std::string &b) const {
@@ -87,8 +86,8 @@ namespace golos {
 
             template<typename Storage>
             bool operator()(const fc::fixed_string<Storage> &a, const fc::fixed_string<Storage> &b) const {
-                const char *ap = (const char *)&a;
-                const char *ab = (const char *)&b;
+                const char *ap = (const char *) &a;
+                const char *ab = (const char *) &b;
                 int count = sizeof(a) - 1;
                 while (*ap == *ab && count > 0) {
                     ++ap;

@@ -14,8 +14,7 @@ namespace golos {
 
             class market_history_api_impl : public std::enable_shared_from_this<market_history_api_impl> {
             public:
-                market_history_api_impl(golos::application::application &_app) : app(_app) {
-                }
+                market_history_api_impl(golos::application::application &_app);
 
                 struct operation_process_fill_order_visitor {
                     std::vector<optional<asset_object>> &assets;
@@ -98,42 +97,94 @@ namespace golos {
                 void unsubscribe_from_market(std::string a, std::string b);
 
                 template<typename T>
-                void subscribe_to_item(const T &i) const {
+                void subscribe_to_item( const T& i )const
+                {
                     auto vec = fc::raw::pack(i);
-                    if (!_subscribe_callback) {
+                    if( !_subscribe_callback )
                         return;
-                    }
 
-                    if (!is_subscribed_to_item(i)) {
+                    if( !is_subscribed_to_item(i) )
+                    {
                         idump((i));
-                        _subscribe_filter.insert(vec.data(), vec.size());//(vecconst char*)&i, sizeof(i) );
+                        _subscribe_filter.insert( vec.data(), vec.size() );//(vecconst char*)&i, sizeof(i) );
                     }
                 }
 
                 template<typename T>
-                bool is_subscribed_to_item(const T &i) const {
-                    if (!_subscribe_callback) {
+                bool is_subscribed_to_item( const T& i )const
+                {
+                    if( !_subscribe_callback )
                         return false;
-                    }
 
-                    return _subscribe_filter.contains(i);
+                    return _subscribe_filter.contains( i );
                 }
+
+                bool is_impacted_account( const flat_set<account_name_type>& accounts)
+                {
+                    if( !_subscribed_accounts.size() || !accounts.size() )
+                        return false;
+
+                    return std::any_of(accounts.begin(), accounts.end(), [this](const account_name_type& account) {
+                        return _subscribed_accounts.find(account) != _subscribed_accounts.end();
+                    });
+                }
+
+                template<typename T>
+                void enqueue_if_subscribed_to_market(const T& obj, market_queue_type& queue, bool full_object=true)
+                {
+                    auto market = order.get_market();
+
+                    auto sub = _market_subscriptions.find( market );
+                    if( sub != _market_subscriptions.end() ) {
+                        queue[market].emplace_back( full_object ? obj.to_variant() : fc::variant(obj.id) );
+                    }
+                }
+
+                void broadcast_updates(const std::vector<variant>& updates);
+                void broadcast_market_updates(const protocol::market_queue_type& queue);
+                void handle_object_changed(bool force_notify, bool full_object, const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts, std::function<const object*(object_id_type id)> find_object);
+
+                /** called every time a block is applied to report the objects that were changed */
+                void on_objects_new(const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts);
+                void on_objects_changed(const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts);
+                void on_objects_removed(const std::vector<object_id_type>& ids, const std::vector<const object*>& objs, const flat_set<account_name_type>& impacted_accounts);
 
                 // signal handlers
                 void on_applied_block(const chain::signed_block &b);
 
                 mutable fc::bloom_filter _subscribe_filter;
+                std::set<account_name_type> _subscribed_accounts;
                 std::function<void(const fc::variant &)> _subscribe_callback;
                 std::function<void(const fc::variant &)> _pending_trx_callback;
                 std::function<void(const fc::variant &)> _block_applied_callback;
 
+                boost::signals2::scoped_connection                                                                                           _new_connection;
+                boost::signals2::scoped_connection                                                                                           _change_connection;
+                boost::signals2::scoped_connection                                                                                           _removed_connection;
+                boost::signals2::scoped_connection                                                                                           _pending_trx_connection;
                 boost::signals2::scoped_connection _block_applied_connection;
 
-                std::map<std::pair<asset_name_type, asset_name_type>,
-                        std::function<void(const variant &)>> _market_subscriptions;
+                std::map<std::pair<asset_name_type, asset_name_type>, std::function<void(const variant &)>> _market_subscriptions;
 
                 golos::application::application &app;
             };
+
+            market_history_api_impl::market_history_api_impl(golos::application::application &_app), app(_app) {
+                _new_connection = app.chain_database().new_objects.connect([this](const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts) {
+                    on_objects_new(ids, impacted_accounts);
+                });
+                _change_connection = app.chain_database().changed_objects.connect([this](const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts) {
+                    on_objects_changed(ids, impacted_accounts);
+                });
+                _removed_connection = app.chain_database().removed_objects.connect([this](const std::vector<object_id_type>& ids, const std::vector<const object*>& objs, const flat_set<account_name_type>& impacted_accounts) {
+                    on_objects_removed(ids, objs, impacted_accounts);
+                });
+                _applied_block_connection = app.chain_database().applied_block.connect([this](const signed_block&){ on_applied_block(); });
+
+                _pending_trx_connection = app.chain_database().on_pending_transaction.connect([this](const signed_transaction& trx ){
+                    if( _pending_trx_callback ) _pending_trx_callback( fc::variant(trx) );
+                });
+            }
 
             template<>
             market_trade market_history_api_impl::operation_process_fill_order_visitor::operator()<0, 16, 0>(const fill_order_operation<0, 16, 0> &o) const {
@@ -232,8 +283,7 @@ namespace golos {
             //                                                                  //
             //////////////////////////////////////////////////////////////////////
 
-            void market_history_api_impl::set_subscribe_callback(std::function<void(const variant &)> cb,
-                                                                 bool clear_filter) {
+            void market_history_api_impl::set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter) {
                 _subscribe_callback = cb;
                 if (clear_filter || !cb) {
                     static fc::bloom_parameters param;
@@ -285,6 +335,157 @@ namespace golos {
                 FC_ASSERT(a != b);
                 _market_subscriptions.erase(std::make_pair(a, b));
             }
+
+void market_history_api_impl::broadcast_updates(const std::vector<variant>& updates) {
+    if (updates.size() && _subscribe_callback) {
+        auto capture_this = shared_from_this();
+        fc::async([capture_this,updates]() {
+            if (capture_this->_subscribe_callback)
+                capture_this->_subscribe_callback(fc::variant(updates));
+        });
+    }
+}
+
+void market_history_api_impl::broadcast_market_updates(const market_queue_type& queue) {
+    if (queue.size()) {
+        auto capture_this = shared_from_this();
+        fc::async([capture_this, this, queue]() {
+            for (const auto& item : queue) {
+                auto sub = _market_subscriptions.find(item.first);
+                if (sub != _market_subscriptions.end())
+                    sub->second(fc::variant(item.second));
+            }
+        });
+    }
+}
+
+void market_history_api_impl::on_objects_removed( const std::vector<object_id_type>& ids, const std::vector<const object*>& objs, const flat_set<account_name_type>& impacted_accounts) {
+    handle_object_changed(_notify_remove_create, false, ids, impacted_accounts,
+                          [objs](object_id_type id) -> const object* {
+                              auto it = std::find_if(objs.begin(), objs.end(),
+                                      [id](const object* o) {return o != nullptr && o->id == id;});
+
+                              if (it != objs.end())
+                                  return *it;
+
+                              return nullptr;
+                          }
+    );
+}
+
+void market_history_api_impl::on_objects_new(const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts) {
+    handle_object_changed(_notify_remove_create, true, ids, impacted_accounts,
+                          std::bind(&object_database::find_object, &app.chain_database(), std::placeholders::_1)
+    );
+}
+
+void market_history_api_impl::on_objects_changed(const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts) {
+    handle_object_changed(false, true, ids, impacted_accounts,
+                          std::bind(&object_database::find_object, &app.chain_database(), std::placeholders::_1)
+    );
+}
+
+void market_history_api_impl::handle_object_changed(bool force_notify, bool full_object, const std::vector<object_id_type>& ids, const flat_set<account_name_type>& impacted_accounts, std::function<const object*(object_id_type id)> find_object) {
+if (_subscribe_callback) {
+std::vector<variant> updates;
+
+for(auto id : ids)
+{
+if( force_notify || is_subscribed_to_item(id) || is_impacted_account(impacted_accounts) )
+{
+if( full_object )
+{
+auto obj = find_object(id);
+if( obj )
+{
+updates.emplace_back( obj->to_variant() );
+}
+}
+else
+{
+updates.emplace_back( id );
+}
+}
+}
+
+broadcast_updates(updates);
+}
+
+if( _market_subscriptions.size() )
+{
+market_queue_type broadcast_queue;
+
+for(auto id : ids)
+{
+if( id.is<call_order_object>() )
+{
+enqueue_if_subscribed_to_market<call_order_object>( find_object(id), broadcast_queue, full_object );
+}
+else if( id.is<limit_order_object>() )
+{
+enqueue_if_subscribed_to_market<limit_order_object>( find_object(id), broadcast_queue, full_object );
+}
+}
+
+broadcast_market_updates(broadcast_queue);
+}
+}
+
+/** note: this method cannot yield because it is called in the middle of
+ * apply a block.
+ */
+void market_history_api_impl::on_applied_block()
+{
+    if (_block_applied_callback)
+    {
+        auto capture_this = shared_from_this();
+        block_id_type block_id = app.chain_database().head_block_id();
+        fc::async([this,capture_this,block_id](){
+            _block_applied_callback(fc::variant(block_id));
+        });
+    }
+
+    if(_market_subscriptions.size() == 0)
+        return;
+
+    const auto& ops = app.chain_database().get_applied_operations();
+    map< std::pair<asset_id_type,asset_id_type>, std::vector<pair<operation, operation_result>> > subscribed_markets_ops;
+    for(const optional< operation_history_object >& o_op : ops)
+    {
+        if( !o_op.valid() )
+            continue;
+        const operation_history_object& op = *o_op;
+
+        std::pair<asset_id_type,asset_id_type> market;
+        switch(op.op.which())
+        {
+            /*  This is sent via the object_changed callback
+            case operation::tag<limit_order_create_operation>::value:
+               market = op.op.get<limit_order_create_operation>().get_market();
+               break;
+            */
+            case operation::tag<fill_order_operation>::value:
+                market = op.op.get<fill_order_operation>().get_market();
+                break;
+                /*
+             case operation::tag<limit_order_cancel_operation>::value:
+             */
+            default: break;
+        }
+        if(_market_subscriptions.count(market))
+            subscribed_markets_ops[market].push_back(std::make_pair(op.op, op.result));
+    }
+    /// we need to ensure the database_api is not deleted for the life of the async operation
+    auto capture_this = shared_from_this();
+    fc::async([this,capture_this,subscribed_markets_ops](){
+        for(auto item : subscribed_markets_ops)
+        {
+            auto itr = _market_subscriptions.find(item.first);
+            if(itr != _market_subscriptions.end())
+                itr->second(fc::variant(item.second));
+        }
+    });
+}
 
             std::vector<optional<asset_object>> market_history_api_impl::lookup_asset_symbols(const std::vector<asset_name_type> &asset_symbols) const {
                 const auto &assets_by_symbol = app.chain_database()->get_index<asset_index>().indices().get<by_asset_name>();
