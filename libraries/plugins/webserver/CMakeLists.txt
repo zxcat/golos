@@ -8,6 +8,14 @@ list(APPEND CURRENT_TARGET_SOURCES
      webserver_plugin.cpp
      )
 
+list(APPEND CURRENT_TARGET_HEADERS
+    include/golos/plugins/webserver/leaky_bucket.hpp
+    )
+
+list(APPEND CURRENT_TARGET_SOURCES
+    leaky_bucket.cpp
+    )
+
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
                 ${CURRENT_TARGET_HEADERS}

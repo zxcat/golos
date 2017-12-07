@@ -24,8 +24,9 @@ namespace golos {
                 using millisecond = std::chrono::milliseconds;
                 using second = std::chrono::milliseconds;
 
-                leaky_bucket(const uint64_t per_s = 0)
-                        : per_second(per_s) {
+                leaky_bucket(const uint64_t lim = 0, const uint64_t period = 1)
+                        : limit(lim)
+                         ,time_period(period) {
                 };
 
                 leaky_bucket() = delete;
@@ -42,7 +43,8 @@ namespace golos {
 
                 // Time stamps of bucket increments
                 std::list<clock::time_point> increment_stamps;
-                const uint64_t per_second;
+                const uint64_t limit;
+                const uint64_t time_period;
             };
 
             typedef std::shared_ptr<leaky_bucket> leaky_bucket_ptr;

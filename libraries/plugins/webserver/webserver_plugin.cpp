@@ -34,6 +34,7 @@ namespace golos {
             namespace asio = boost::asio;
 
             using std::map;
+            using std::unordered_map;
             using std::string;
             using boost::optional;
             using boost::asio::ip::tcp;
@@ -128,7 +129,7 @@ namespace golos {
                 void handle_close_connection(websocket_server_type *server, connection_hdl hdl);
 
                 connection_context_ptr context_ptr;
-                std::map<websocket_server_type::connection_ptr, leaky_bucket_ptr> leaky_bucket_map;
+                std::unordered_map<websocket_server_type::connection_ptr, leaky_bucket_ptr> leaky_buckets;
 
                 shared_ptr<std::thread> http_thread;
                 asio::io_service http_ios;
@@ -246,10 +247,10 @@ namespace golos {
                                                                             websocket_server_type::message_ptr msg) {
                 auto con = server->get_con_from_hdl(hdl);
 
-                auto leaky_iter = leaky_bucket_map.find(con);
-                if (leaky_iter == leaky_bucket_map.end()) {
+                auto leaky_iter = leaky_buckets.find(con);
+                if (leaky_iter != leaky_buckets.end()) {
                     leaky_bucket_ptr lbucket = leaky_iter->second;
-                    if (lbucket != NULL && !lbucket->increment()) {
+                    if (lbucket && !lbucket->increment()) {
                         return;
                     }
                 }
@@ -272,11 +273,11 @@ namespace golos {
                 auto con = server->get_con_from_hdl(hdl);
 
                 // Try to find leaky bucket. If cannot - assuming connection is in white list.
-                auto leaky_iter = leaky_bucket_map.find(con);
-                if (leaky_iter != leaky_bucket_map.end()) {
+                auto leaky_iter = leaky_buckets.find(con);
+                if (leaky_iter != leaky_buckets.end()) {
                     leaky_bucket_ptr lbucket = leaky_iter->second;
-                    // If bucket returns false - its overflown
-                    if (lbucket != NULL && !lbucket->increment()) {
+                    // If bucket returns false - its overflown, abort message handling
+                    if (lbucket && !lbucket->increment()) {
                         return;
                     }
                 }
@@ -304,21 +305,23 @@ namespace golos {
 
                 websocket_server_type::connection_ptr con = server->get_con_from_hdl(hdl);
 
-                // Check if connection is in white or black list
+                // TODO test if get_origin returns what we want
+                // Close connection if its in black list
                 if (context_ptr->black_list.count(con->get_origin()) > 0) {
+                    // TODO test if closing connection here works properly
                     con->close(websocketpp::close::status::abnormal_close, "IP address is in black list.");
                     return;
                 }
-                // No need of leaky bucket if address is in white list
-                if (context_ptr->white_list.count(con->get_origin()) == 0) {
-                    leaky_bucket_map[con] = leaky_bucket_ptr(new leaky_bucket(context_ptr->packets_per_second));
+                // No need of leaky bucket if address is in white list, or its not properly initialized from program options
+                if (context_ptr->white_list.count(con->get_origin()) == 0 && context_ptr->is_leaky_bucket_initialized()) {
+                    leaky_buckets[con] = std::make_shared<leaky_bucket>(leaky_bucket(context_ptr->limit, context_ptr->time_period));
                 }
             }
 
             void webserver_plugin::webserver_plugin_impl::handle_close_connection(
                     websocket_server_type *server, connection_hdl hdl) {
                 auto con = server->get_con_from_hdl(hdl);
-                leaky_bucket_map.erase(con);
+                leaky_buckets.erase(con);
             }
 
             webserver_plugin::webserver_plugin() {
@@ -341,12 +344,16 @@ namespace golos {
             void webserver_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
 
                 // Initialize leaky bucket
-                uint64_t per_second;
+                uint64_t limit = 0;
+                uint64_t period = 0;
                 std::vector<std::string> white_lst;
                 std::vector<std::string> black_lst;
 
-                if (options.count("per-second")) {
-                    per_second = options.at("per-second").as<uint64_t>();
+                if (options.count("packet-limit")) {
+                    limit = options.at("packet-limit").as<uint64_t>();
+                }
+                if (options.count("packet-time-period")) {
+                    period = options.at("packet-time-period").as<uint64_t>();
                 }
                 if (options.count("white-list")) {
                     white_lst = options.at("white_list").as<std::vector<std::string>>();
@@ -354,7 +361,7 @@ namespace golos {
                 if (options.count("black-list")) {
                     black_lst = options.at("black_list").as<std::vector<std::string>>();
                 }
-                connection_context_ptr conn_ctx(new connection_context(per_second, white_lst, black_lst));
+                connection_context_ptr conn_ctx(new connection_context(limit, period, white_lst, black_lst));
 
                 auto thread_pool_size = options.at("webserver-thread-pool-size").as<thread_pool_size_t>();
                 FC_ASSERT(thread_pool_size > 0, "webserver-thread-pool-size must be greater than 0");

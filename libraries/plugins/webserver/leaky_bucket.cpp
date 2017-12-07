@@ -5,7 +5,7 @@ namespace plugins {
 namespace webserver {
 
     bool leaky_bucket::increment() {
-        if (per_second == 0)
+        if (limit == 0 || time_period == 0)
             return true;
 
         clock::time_point current_time = clock::now();
@@ -17,11 +17,11 @@ namespace webserver {
 
         // Leave only the increments for the last time period
         while (!increment_stamps.empty() &&
-               duration_cast<seconds>(current_time - increment_stamps.front()) > seconds(1)) {
+               duration_cast<seconds>(current_time - increment_stamps.front()) > seconds(time_period)) {
             increment_stamps.pop_front();
         }
 
-        if (increment_stamps.size() >= per_second) {
+        if (increment_stamps.size() >= limit) {
             return false;
         }
         else {

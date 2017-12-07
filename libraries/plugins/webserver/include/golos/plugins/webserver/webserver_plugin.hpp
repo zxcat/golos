@@ -18,15 +18,31 @@ namespace golos {
 
             struct connection_context {
                 connection_context (
-                        const uint64_t per_s,
+                        const uint64_t lim,
+                        const uint64_t period,
                         const std::vector<std::string>& white_lst,
                         const std::vector<std::string>& black_lst)
-                        : packets_per_second(per_s),
+                        : limit(lim),
+                          time_period(period),
                           white_list(white_lst.begin(), white_lst.end()),
                           black_list(black_lst.begin(), black_lst.end()) {
                 };
+                connection_context() = delete;
+                ~connection_context() = default;
 
-                const uint64_t packets_per_second;
+                connection_context(const connection_context &) = delete;
+                connection_context &operator=(const connection_context &)= delete;
+                connection_context(connection_context &&) = delete;
+                connection_context &operator=(connection_context &&)= delete;
+
+                bool is_leaky_bucket_initialized() const {
+                    return time_period > 0 && limit > 0;
+                }
+
+                // Leaky bucket members
+                const uint64_t time_period;
+                const uint64_t limit;
+                // Connection restricting members
                 const std::unordered_set<std::string> white_list;
                 const std::unordered_set<std::string> black_list;
             };
