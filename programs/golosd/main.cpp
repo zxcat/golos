@@ -268,19 +268,19 @@ namespace golos {
             appbase::app().register_plugin< golos::plugins::chain::plugin                                       >();
             appbase::app().register_plugin< golos::plugins::p2p::p2p_plugin                                     >();
             appbase::app().register_plugin< golos::plugins::webserver::webserver_plugin                         >();
-            appbase::app().register_plugin< golos::plugins::follow::plugin                                      >();
-            appbase::app().register_plugin< golos::plugins::market_history::plugin                              >();
-            appbase::app().register_plugin< golos::plugins::account_by_key::plugin                              >();
-            appbase::app().register_plugin< golos::plugins::account_history::plugin                             >();
-            appbase::app().register_plugin< golos::plugins::languages::plugin                                   >();
-            appbase::app().register_plugin< golos::plugins::tags::tags_plugin                                   >();
-            appbase::app().register_plugin< golos::plugins::witness_plugin::witness_plugin                      >();
+            // appbase::app().register_plugin< golos::plugins::follow::plugin                                      >();
+            // appbase::app().register_plugin< golos::plugins::market_history::plugin                              >();
+            // appbase::app().register_plugin< golos::plugins::account_by_key::plugin                              >();
+            // appbase::app().register_plugin< golos::plugins::account_history::plugin                             >();
+            // appbase::app().register_plugin< golos::plugins::languages::plugin                                   >();
+            // appbase::app().register_plugin< golos::plugins::tags::tags_plugin                                   >();
+            // appbase::app().register_plugin< golos::plugins::witness_plugin::witness_plugin                      >();
 ///API
-            appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+            // appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
             golos::plugins::database_api::register_database_api();
             appbase::app().register_plugin< golos::plugins::test_api::test_api_plugin                           >();
-            appbase::app().register_plugin< golos::plugins::tolstoy_api::tolstoy_api_plugin                     >();
-            appbase::app().register_plugin< golos::plugins::market_history::api_plugin                          >();
+            // appbase::app().register_plugin< golos::plugins::tolstoy_api::tolstoy_api_plugin                     >();
+            // appbase::app().register_plugin< golos::plugins::market_history::api_plugin                          >();
 
         }
     }
