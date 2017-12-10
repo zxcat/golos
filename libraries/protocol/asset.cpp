@@ -160,8 +160,7 @@ namespace golos {
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::asset(share_type a,
                                                                                           asset_symbol_type name)
-                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, asset_name_type()),
-                decimals(3) {
+                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, asset_name_type(), 3) {
             auto ta = (const char *) &name;
             FC_ASSERT(ta[7] == 0);
             this->symbol = &ta[1];
@@ -175,7 +174,7 @@ namespace golos {
         asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>>::asset(share_type a,
                                                                                           asset_name_type name,
                                                                                           uint8_t d)
-                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, name), decimals(d) {
+                : asset_interface<Major, Hardfork, Release, asset_name_type, share_type>(a, name, d) {
 
         }
 

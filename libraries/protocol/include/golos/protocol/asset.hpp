@@ -27,9 +27,13 @@ namespace golos {
         struct asset_precision_storage_interface : public asset_precision_methods_interface<Major, Hardfork, Release> {
             typedef DecimalsType decimals_container_type;
 
-            virtual decimals_container_type get_decimals() const = 0 override;
+            asset_precision_storage_interface(DecimalsType input_value) : decimals(input_value) {
 
-            virtual void set_decimals(decimals_container_type d) = 0 override;
+            }
+
+            virtual decimals_container_type get_decimals() const override = 0;
+
+            virtual void set_decimals(decimals_container_type d) override = 0;
 
             DecimalsType decimals;
         };
@@ -73,7 +77,7 @@ namespace golos {
 
             }
 
-            asset_interface(amount_container_type a, asset_container_type s) : amount(a), symbol(s) {
+            asset_interface(amount_container_type a, asset_container_type s, uint8_t d) : asset_precision_storage_interface<Major, Hardfork, Release, uint8_t>(d), amount(a), symbol(s) {
 
             }
 
@@ -81,9 +85,9 @@ namespace golos {
 
             }
 
-            virtual decimals_container_type get_decimals() const override = 0;
+            virtual uint8_t get_decimals() const override = 0;
 
-            virtual void set_decimals(decimals_container_type d) override = 0;
+            virtual void set_decimals(uint8_t d) override = 0;
 
             amount_container_type amount;
             asset_container_type symbol;
@@ -576,13 +580,13 @@ namespace fc {
 FC_REFLECT((golos::protocol::asset_precision_methods_interface<0, 16, 0>),)
 FC_REFLECT((golos::protocol::asset_precision_methods_interface<0, 17, 0>),)
 
-FC_REFLECT_DERIVED((golos::protocol::asset_precision_storage_interface<0, 17, 0>), ((golos::protocol::asset_precision_methods_interface<0, 17, 0>)), (decimals))
+FC_REFLECT_DERIVED((golos::protocol::asset_precision_storage_interface<0, 17, 0, uint8_t>), ((golos::protocol::asset_precision_methods_interface<0, 17, 0>)), (decimals))
 
 FC_REFLECT((golos::protocol::asset_interface<0, 16, 0, golos::protocol::asset_symbol_type,
         golos::protocol::share_type>), (amount)(symbol))
 
 FC_REFLECT_DERIVED((golos::protocol::asset_interface<0, 17, 0, golos::protocol::asset_name_type,
-        golos::protocol::share_type>), ((golos::protocol::asset_precision_storage_interface<0, 17, 0>)), (amount)(symbol))
+        golos::protocol::share_type>), ((golos::protocol::asset_precision_storage_interface<0, 17, 0, uint8_t>)), (amount)(symbol))
 
 FC_REFLECT_DERIVED((golos::protocol::asset<0, 16, 0>),
                    ((golos::protocol::asset_interface<0, 16, 0, golos::protocol::asset_symbol_type,
