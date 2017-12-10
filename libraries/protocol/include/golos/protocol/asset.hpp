@@ -16,8 +16,31 @@ namespace golos {
 
         bool operator==(const asset_name_type &b, const asset_symbol_type &a);
 
-        template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename StorageType, typename AmountType>
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+        struct asset_precision_methods_interface {
+            virtual uint8_t get_decimals() const = 0;
+
+            virtual void set_decimals(uint8_t d) = 0;
+        };
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename DecimalsType>
+        struct asset_precision_storage_interface : public asset_precision_methods_interface<Major, Hardfork, Release> {
+            typedef DecimalsType decimals_container_type;
+
+            virtual decimals_container_type get_decimals() const = 0 override;
+
+            virtual void set_decimals(decimals_container_type d) = 0 override;
+
+            DecimalsType decimals;
+        };
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename StorageType, typename AmountType, typename = type_traits::static_range<true>>
         struct asset_interface : public static_version<Major, Hardfork, Release> {
+
+        };
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename StorageType, typename AmountType>
+        struct asset_interface<Major, Hardfork, Release, StorageType, AmountType, type_traits::static_range<Hardfork <= 16>> : public asset_precision_methods_interface<Major, Hardfork, Release> {
             typedef StorageType asset_container_type;
             typedef AmountType amount_container_type;
 
@@ -33,13 +56,39 @@ namespace golos {
 
             }
 
-            virtual uint8_t get_decimals() const = 0;
+            virtual uint8_t get_decimals() const override = 0;
 
-            virtual void set_decimals(uint8_t d) = 0;
+            virtual void set_decimals(uint8_t d) override = 0;
 
             amount_container_type amount;
             asset_container_type symbol;
         };
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename StorageType, typename AmountType>
+        struct asset_interface<Major, Hardfork, Release, StorageType, AmountType, type_traits::static_range<Hardfork >= 17>> : public asset_precision_storage_interface<Major, Hardfork, Release, uint8_t> {
+            typedef StorageType asset_container_type;
+            typedef AmountType amount_container_type;
+
+            asset_interface() {
+
+            }
+
+            asset_interface(amount_container_type a, asset_container_type s) : amount(a), symbol(s) {
+
+            }
+
+            virtual ~asset_interface() {
+
+            }
+
+            virtual decimals_container_type get_decimals() const override = 0;
+
+            virtual void set_decimals(decimals_container_type d) override = 0;
+
+            amount_container_type amount;
+            asset_container_type symbol;
+        };
+
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release, typename = type_traits::static_range<true>>
         struct asset : public asset_interface<Major, Hardfork, Release, type_traits::void_t, type_traits::void_t> {
@@ -181,8 +230,6 @@ namespace golos {
             virtual uint8_t get_decimals() const override;
 
             virtual void set_decimals(uint8_t d) override;
-
-            uint8_t decimals;
 
             double to_real() const;
 
@@ -526,18 +573,23 @@ namespace fc {
     }
 }
 
+FC_REFLECT((golos::protocol::asset_precision_methods_interface<0, 16, 0>),)
+FC_REFLECT((golos::protocol::asset_precision_methods_interface<0, 17, 0>),)
+
+FC_REFLECT_DERIVED((golos::protocol::asset_precision_storage_interface<0, 17, 0>), ((golos::protocol::asset_precision_methods_interface<0, 17, 0>)), (decimals))
+
 FC_REFLECT((golos::protocol::asset_interface<0, 16, 0, golos::protocol::asset_symbol_type,
         golos::protocol::share_type>), (amount)(symbol))
 
-FC_REFLECT((golos::protocol::asset_interface<0, 17, 0, golos::protocol::asset_name_type,
-        golos::protocol::share_type>), (amount)(symbol))
+FC_REFLECT_DERIVED((golos::protocol::asset_interface<0, 17, 0, golos::protocol::asset_name_type,
+        golos::protocol::share_type>), ((golos::protocol::asset_precision_storage_interface<0, 17, 0>)), (amount)(symbol))
 
 FC_REFLECT_DERIVED((golos::protocol::asset<0, 16, 0>),
                    ((golos::protocol::asset_interface<0, 16, 0, golos::protocol::asset_symbol_type,
                            golos::protocol::share_type>)),)
 FC_REFLECT_DERIVED((golos::protocol::asset<0, 17, 0>),
                    ((golos::protocol::asset_interface<0, 17, 0, golos::protocol::asset_name_type,
-                           golos::protocol::share_type>)), (decimals))
+                           golos::protocol::share_type>)), )
 
 FC_REFLECT((golos::protocol::price<0, 16, 0>), (base)(quote))
 FC_REFLECT((golos::protocol::price<0, 17, 0>), (base)(quote))
