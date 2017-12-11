@@ -81,6 +81,10 @@ namespace golos {
             asset_symbol_container_interface(AmountType a, SymbolType symbol) : asset_precision_methods_interface<Major, Hardfork, Release, DecimalsType, AmountType>(a), symbol(symbol) {
             }
 
+            virtual DecimalsType get_decimals() const override = 0;
+
+            virtual void set_decimals(DecimalsType d) override = 0;
+
             symbol_container_type symbol;
         };
 
@@ -96,6 +100,10 @@ namespace golos {
                                                                                                              input_value),
                     symbol(symbol) {
             }
+
+            virtual DecimalsType get_decimals() const override = 0;
+
+            virtual void set_decimals(DecimalsType d) override = 0;
 
             symbol_container_type symbol;
         };
