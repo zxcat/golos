@@ -61,8 +61,8 @@ namespace golos {
                 return amount_to_sell / min_to_receive;
             }
 
-            std::pair<typename asset<Major, Hardfork, Release>::asset_container_type,
-                    typename asset<Major, Hardfork, Release>::asset_container_type> get_market() const {
+            std::pair<typename asset<Major, Hardfork, Release>::symbol_container_type,
+                    typename asset<Major, Hardfork, Release>::symbol_container_type> get_market() const {
                 return amount_to_sell.symbol < min_to_receive.symbol ? std::make_pair(amount_to_sell.symbol,
                                                                                       min_to_receive.symbol)
                                                                      : std::make_pair(min_to_receive.symbol,
@@ -94,8 +94,8 @@ namespace golos {
                 return exchange_rate;
             }
 
-            std::pair<typename asset<Major, Hardfork, Release>::asset_container_type,
-                    typename asset<Major, Hardfork, Release>::asset_container_type> get_market() const {
+            std::pair<typename asset<Major, Hardfork, Release>::symbol_container_type,
+                    typename asset<Major, Hardfork, Release>::symbol_container_type> get_market() const {
                 return exchange_rate.base.symbol < exchange_rate.quote.symbol ? std::make_pair(
                         exchange_rate.base.symbol, exchange_rate.quote.symbol) : std::make_pair(
                         exchange_rate.quote.symbol, exchange_rate.base.symbol);

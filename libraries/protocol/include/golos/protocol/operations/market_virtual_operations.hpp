@@ -32,8 +32,8 @@ namespace golos {
             asset <Major, Hardfork, Release> receives;
             asset <Major, Hardfork, Release> fee; // paid by receiving account
 
-            std::pair<typename asset<Major, Hardfork, Release>::asset_container_type,
-                    typename asset<Major, Hardfork, Release>::asset_container_type> get_market() const {
+            std::pair<typename asset<Major, Hardfork, Release>::symbol_container_type,
+                    typename asset<Major, Hardfork, Release>::symbol_container_type> get_market() const {
                 return pays.symbol < receives.symbol ? std::make_pair(pays.symbol, receives.symbol) : std::make_pair(
                         receives.symbol, pays.symbol);
             }
@@ -65,8 +65,8 @@ namespace golos {
             asset <Major, Hardfork, Release> receives;
             asset <Major, Hardfork, Release> fee; // paid by receiving account
 
-            std::pair<typename asset<Major, Hardfork, Release>::asset_container_type,
-                    typename asset<Major, Hardfork, Release>::asset_container_type> get_market() const {
+            std::pair<typename asset<Major, Hardfork, Release>::symbol_container_type,
+                    typename asset<Major, Hardfork, Release>::symbol_container_type> get_market() const {
                 return pays.symbol < receives.symbol ? std::make_pair(pays.symbol, receives.symbol) : std::make_pair(
                         receives.symbol, pays.symbol);
             }
@@ -98,8 +98,8 @@ namespace golos {
             asset <Major, Hardfork, Release> receives;
             asset <Major, Hardfork, Release> fee; // paid by receiving account
 
-            std::pair<typename asset<Major, Hardfork, Release>::asset_container_type,
-                    typename asset<Major, Hardfork, Release>::asset_container_type> get_market() const {
+            std::pair<typename asset<Major, Hardfork, Release>::symbol_container_type,
+                    typename asset<Major, Hardfork, Release>::symbol_container_type> get_market() const {
                 return pays.symbol < receives.symbol ? std::make_pair(pays.symbol, receives.symbol) : std::make_pair(
                         receives.symbol, pays.symbol);
             }
