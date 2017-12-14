@@ -283,8 +283,6 @@ namespace golos {
             }
 
             fc::variant plugin::call(const msg_pack &msg) {
-
-                // TODO :: ADD map[method] = plugin rindex hack
                 auto new_msg = msg;
                 auto parent_plugin = my->get_methods_parent_plugin( msg.method );
 
