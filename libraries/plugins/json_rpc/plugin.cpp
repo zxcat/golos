@@ -46,7 +46,7 @@ namespace golos {
                                     const api_method &api/*, const api_method_signature& sig*/ ) {
                     _registered_apis[api_name][method_name] = api;
                     // _method_sigs[ api_name ][ method_name ] = sig;
-
+                    add_method_reindex(api_name, method_name);
                     std::stringstream canonical_name;
                     canonical_name << api_name << '.' << method_name;
                     _methods.push_back(canonical_name.str());
@@ -196,10 +196,34 @@ namespace golos {
 
                 }
 
+                void add_method_reindex (const std::string & plugin_name, const std::string & method_name) {
+                    auto method_itr = _method_reindex.find( method_name );
+
+                    if ( method_itr == _method_reindex.end() ) {
+                        _method_reindex[method_name] = plugin_name;
+                    }
+                    // We don't need to do anything. As we've already added par
+                }
+
+                std::string get_methods_parent_plugin (const std::string & method_name) {
+                    auto method_itr = _method_reindex.find( method_name );
+
+                    FC_ASSERT(method_itr != _method_reindex.end(), "Could not find method ${method_name}", ("method_name", method_name));
+
+                    return _method_reindex[method_name];                        
+                }
 
                 map<string, api_description> _registered_apis;
                 vector<string> _methods;
                 map<string, map<string, api_method_signature> > _method_sigs;
+            private:
+                // This is a reindex which allows to get parent plugin by method
+                // unordered_map[method] -> plugin
+                // For example:
+                // Let's get a tolstoy_api get_dynamic_global_properties method
+                // So, when we trying to call it, we actually have to call database_api get_dynamic_global_properties
+                // That's why we need to store method's parent. 
+                std::unordered_map < std::string, std::string> _method_reindex;
             };
 
             plugin::plugin() : my(new plugin_impl()) {
@@ -259,10 +283,17 @@ namespace golos {
             }
 
             fc::variant plugin::call(const msg_pack &msg) {
+
+                // TODO :: ADD map[method] = plugin rindex hack
+                auto new_msg = msg;
+                auto parent_plugin = my->get_methods_parent_plugin( msg.method );
+
+                new_msg.plugin = parent_plugin;
+
                 api_method *call = nullptr;
-                call = my->find_api_method(msg.plugin, msg.method);
+                call = my->find_api_method(new_msg.plugin, new_msg.method);
                 fc::variant tmp;
-                tmp = (*call)(msg);
+                tmp = (*call)(new_msg);
                 return tmp;
             }
 
