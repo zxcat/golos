@@ -85,7 +85,7 @@ namespace golos {
 
 
     }
-} // graphene::network
+} // golos::network
 
 FC_REFLECT((golos::network::message_header), (size)(msg_type))
 FC_REFLECT_DERIVED((golos::network::message), ((golos::network::message_header)), (data))

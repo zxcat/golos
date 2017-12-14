@@ -32,12 +32,27 @@ namespace golos {
                 golos::chain::database &database() {
                     return _db;
                 }
+                get_tags_r get_tags() ;
 
                 void on_operation(const operation_notification &note);
 
                 golos::chain::database &_db;
             };
 
+            get_tags_r tags_plugin::tags_plugin_impl::get_tags() {
+                get_tags_r result;
+                result.tags = std::vector<tag_stats_object>();
+                return result;
+            }
+
+            DEFINE_API ( tags_plugin, get_tags ) {
+                auto &db = my->database();
+                return db.with_read_lock([&]() {
+                    get_tags_r result;
+                    result = my->get_tags();
+                    return result;
+                });
+            }
 
             struct operation_visitor {
                 operation_visitor(database &db) : _db(db) {
@@ -83,7 +98,7 @@ namespace golos {
                     }
                 }
 
-                const tag_stats_object &get_stats(const string &tag) const {
+                const tag_stats_object &get_stats(const std::string &tag) const {
                     const auto &stats_idx = _db.get_index<tag_stats_index>().indices().get<by_tag>();
                     auto itr = stats_idx.find(tag);
                     if (itr != stats_idx.end()) {
@@ -106,7 +121,7 @@ namespace golos {
                         }
                     }
 
-                    set<string> lower_tags;
+                    std::set<std::string> lower_tags;
                     if (!c.category.empty()) {
                         meta.tags.insert(fc::to_lower(to_string(c.category)));
                     }
@@ -126,7 +141,7 @@ namespace golos {
 
                     /// the universal tag applies to everything safe for work or nsfw with a non-negative payout
                     if (c.net_rshares >= 0) {
-                        lower_tags.insert(string()); /// add it to the universal tag
+                        lower_tags.insert(std::string()); /// add it to the universal tag
                     }
 
                     meta.tags = std::move(lower_tags);
@@ -160,7 +175,7 @@ namespace golos {
                     }
                 }
 
-                void create_tag(const string &tag, const comment_object &comment, double hot, double trending) const {
+                void create_tag(const std::string &tag, const comment_object &comment, double hot, double trending) const {
 
 
                     comment_object::id_type parent;
@@ -245,8 +260,8 @@ namespace golos {
                             auto meta = filter_tags(c);
                             auto citr = comment_idx.lower_bound(c.id);
 
-                            map<string, const tag_object *> existing_tags;
-                            vector<const tag_object *> remove_queue;
+                            std::map<std::string, const tag_object *> existing_tags;
+                            std::vector<const tag_object *> remove_queue;
                             while (citr != comment_idx.end() && citr->comment == c.id) {
                                 const tag_object *tag = &*citr;
                                 ++citr;
@@ -347,7 +362,7 @@ namespace golos {
                 template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
                 void operator()(const transfer_operation<Major, Hardfork, Release> &op) const {
                     if (op.to == STEEMIT_NULL_ACCOUNT && op.amount.symbol_name() == SBD_SYMBOL_NAME) {
-                        vector<string> part;
+                        std::vector<std::string> part;
                         part.reserve(4);
                         auto path = op.memo;
                         boost::split(part, path, boost::is_any_of("/"));
@@ -490,6 +505,8 @@ namespace golos {
                 my->database().add_plugin_index<tag_stats_index>();
                 my->database().add_plugin_index<peer_stats_index>();
                 my->database().add_plugin_index<author_tag_stats_index>();
+
+                JSON_RPC_REGISTER_API ( name() ) ;
             }
 
             void tags_plugin::plugin_startup() {

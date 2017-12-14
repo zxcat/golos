@@ -18,10 +18,10 @@
 #include <iostream>
 #include <stdexcept>
 
-using namespace steemit;
+using namespace golos;
 using namespace golos::chain;
 using namespace golos::protocol;
-using fc::string;
+using std::string;
 
 typedef asset<0, 17, 0> latest_asset;
 typedef price<0, 17, 0> latest_price;
@@ -440,7 +440,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(alice_private_key, db.get_chain_id());
             db.push_transaction(tx, 0);
 
-            const comment_object &alice_comment = db.get_comment("alice", string("lorem"));
+            const comment_object &alice_comment = db.get_comment("alice", std::string("lorem"));
 
             BOOST_REQUIRE(alice_comment.author == op.author);
             BOOST_REQUIRE(to_string(alice_comment.permlink) == op.permlink);
@@ -485,7 +485,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(bob_private_key, db.get_chain_id());
             db.push_transaction(tx, 0);
 
-            const comment_object &bob_comment = db.get_comment("bob", string("ipsum"));
+            const comment_object &bob_comment = db.get_comment("bob", std::string("ipsum"));
 
             BOOST_REQUIRE(bob_comment.author == op.author);
             BOOST_REQUIRE(to_string(bob_comment.permlink) == op.permlink);
@@ -512,7 +512,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(sam_private_key, db.get_chain_id());
             db.push_transaction(tx, 0);
 
-            const comment_object &sam_comment = db.get_comment("sam", string("dolor"));
+            const comment_object &sam_comment = db.get_comment("sam", std::string("dolor"));
 
             BOOST_REQUIRE(sam_comment.author == op.author);
             BOOST_REQUIRE(to_string(sam_comment.permlink) == op.permlink);
@@ -529,9 +529,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             generate_blocks(60 * 5 / STEEMIT_BLOCK_INTERVAL + 1);
 
             BOOST_TEST_MESSAGE("--- Test modifying a comment");
-            const auto &mod_sam_comment = db.get_comment("sam", string("dolor"));
-            const auto &mod_bob_comment = db.get_comment("bob", string("ipsum"));
-            const auto &mod_alice_comment = db.get_comment("alice", string("lorem"));
+            const auto &mod_sam_comment = db.get_comment("sam", std::string("dolor"));
+            const auto &mod_bob_comment = db.get_comment("bob", std::string("ipsum"));
+            const auto &mod_alice_comment = db.get_comment("alice", std::string("lorem"));
             fc::time_point_sec created = mod_sam_comment.created;
 
             db.modify(mod_sam_comment, [&](comment_object &com) {
@@ -690,7 +690,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
                 db.push_transaction(tx, 0);
 
-                auto &alice_comment = db.get_comment("alice", string("foo"));
+                auto &alice_comment = db.get_comment("alice", std::string("foo"));
                 auto itr = vote_idx.find(std::make_tuple(alice_comment.id, alice.id));
                 int64_t max_vote_denom = (db.get_dynamic_global_properties().vote_regeneration_per_day *
                                           STEEMIT_VOTE_REGENERATION_SECONDS) / (60 * 60 * 24);
@@ -735,7 +735,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.sign(alice_private_key, db.get_chain_id());
                 db.push_transaction(tx, 0);
 
-                const auto &bob_comment = db.get_comment("bob", string("foo"));
+                const auto &bob_comment = db.get_comment("bob", std::string("foo"));
                 itr = vote_idx.find(std::make_tuple(bob_comment.id, alice.id));
 
                 BOOST_REQUIRE(db.get_account("alice").voting_power == old_voting_power -
@@ -753,14 +753,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
                 BOOST_TEST_MESSAGE("--- Test payout time extension on vote");
 
-                uint128_t old_cashout_time = db.get_comment("alice", string("foo")).cashout_time.sec_since_epoch();
+                uint128_t old_cashout_time = db.get_comment("alice", std::string("foo")).cashout_time.sec_since_epoch();
                 old_voting_power = db.get_account("bob").voting_power;
-                auto old_abs_rshares = db.get_comment("alice", string("foo")).abs_rshares.value;
+                auto old_abs_rshares = db.get_comment("alice", std::string("foo")).abs_rshares.value;
 
                 generate_blocks(db.head_block_time() + fc::seconds((STEEMIT_CASHOUT_WINDOW_SECONDS / 2)), true);
 
                 const auto &new_bob = db.get_account("bob");
-                const auto &new_alice_comment = db.get_comment("alice", string("foo"));
+                const auto &new_alice_comment = db.get_comment("alice", std::string("foo"));
 
                 op.weight = STEEMIT_100_PERCENT;
                 op.voter = "bob";
@@ -794,7 +794,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 BOOST_TEST_MESSAGE("--- Test negative vote");
 
                 const auto &new_sam = db.get_account("sam");
-                const auto &new_bob_comment = db.get_comment("bob", string("foo"));
+                const auto &new_bob_comment = db.get_comment("bob", std::string("foo"));
 
                 old_cashout_time = new_bob_comment.cashout_time.sec_since_epoch();
                 old_abs_rshares = new_bob_comment.abs_rshares.value;
@@ -849,7 +849,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.sign(sam_private_key, db.get_chain_id());
                 db.push_transaction(tx, 0);
 
-                auto old_rshares2 = db.get_comment("alice", string("foo")).children_rshares2;
+                auto old_rshares2 = db.get_comment("alice", std::string("foo")).children_rshares2;
 
                 op.weight = STEEMIT_100_PERCENT;
                 op.voter = "alice";
@@ -864,9 +864,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 auto new_rshares = ((fc::uint128_t(db.get_account("alice").vesting_shares.amount.value) * used_power) /
                                     STEEMIT_100_PERCENT).to_uint64();
 
-                BOOST_REQUIRE(db.get_comment("alice", string("foo")).children_rshares2 ==
-                              db.get_comment("sam", string("foo")).children_rshares2 + old_rshares2);
-                BOOST_REQUIRE(db.get_comment("alice", string("foo")).cashout_time.sec_since_epoch() ==
+                BOOST_REQUIRE(db.get_comment("alice", std::string("foo")).children_rshares2 ==
+                              db.get_comment("sam", std::string("foo")).children_rshares2 + old_rshares2);
+                BOOST_REQUIRE(db.get_comment("alice", std::string("foo")).cashout_time.sec_since_epoch() ==
                               ((old_cashout_time * old_abs_rshares + new_cashout_time * new_rshares) /
                                (old_abs_rshares + new_rshares)).to_uint64());
 
@@ -2093,8 +2093,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
         flat_set<account_name_type> acc_auths;
         flat_set<account_name_type> acc_expected;
-        vector<authority> auths;
-        vector<authority> expected;
+        std::vector<authority> auths;
+        std::vector<authority> expected;
 
         acc_expected.insert("alice");
         op.get_required_owner_authorities(acc_auths);
@@ -2514,7 +2514,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == op.owner);
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == op.amount_to_sell.amount);
+            BOOST_REQUIRE(limit_order->for_sale == op.amount_to_sell);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(op.amount_to_sell / op.min_to_receive));
             BOOST_REQUIRE(limit_order->get_market() ==
                           std::make_pair(asset_name_type(SBD_SYMBOL_NAME), asset_name_type(STEEM_SYMBOL_NAME)));
@@ -2535,7 +2535,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == op.owner);
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == 10000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 10000);
             BOOST_REQUIRE(limit_order->sell_price ==
                           latest_price(latest_asset::from_string("10.000 TESTS"), op.min_to_receive));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2581,7 +2581,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "alice");
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == 5000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 5000);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("10.000 TESTS"),
                                                                      latest_asset::from_string("15.000 TBD")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2591,14 +2591,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(alice.sbd_balance.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
             BOOST_REQUIRE(bob.balance.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
             BOOST_REQUIRE(bob.sbd_balance.amount.value == latest_asset::from_string("992.500 TBD").amount.value);
-            BOOST_REQUIRE(fill_order_op.open_owner == "alice");
-            BOOST_REQUIRE(fill_order_op.open_order_id == 1);
             BOOST_REQUIRE(
-                    fill_order_op.open_pays.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
-            BOOST_REQUIRE(fill_order_op.current_owner == "bob");
-            BOOST_REQUIRE(fill_order_op.current_order_id == 1);
+                    fill_order_op.receives.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
+            BOOST_REQUIRE(fill_order_op.owner == "bob");
+            BOOST_REQUIRE(fill_order_op.order_id == 1);
             BOOST_REQUIRE(
-                    fill_order_op.current_pays.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
+                    fill_order_op.pays.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test filling an existing order fully, but the new order partially");
@@ -2615,7 +2613,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "bob");
             BOOST_REQUIRE(limit_order->order_id == 1);
-            BOOST_REQUIRE(limit_order->for_sale.value == 7500);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 7500);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("15.000 TBD"),
                                                                      latest_asset::from_string("10.000 TESTS")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2674,7 +2672,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order_idx.find(std::make_tuple("alice", 4)) == limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "bob");
             BOOST_REQUIRE(limit_order->order_id == 4);
-            BOOST_REQUIRE(limit_order->for_sale.value == 1000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 1000);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("12.000 TBD"),
                                                                      latest_asset::from_string("10.000 TESTS")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2724,7 +2722,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order_idx.find(std::make_tuple("bob", 5)) == limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "alice");
             BOOST_REQUIRE(limit_order->order_id == 5);
-            BOOST_REQUIRE(limit_order->for_sale.value == 9091);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 9091);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("20.000 TESTS"),
                                                                      latest_asset::from_string("22.000 TBD")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2865,7 +2863,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == op.owner);
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == op.amount_to_sell.amount);
+            BOOST_REQUIRE(limit_order->for_sale == op.amount_to_sell);
             BOOST_REQUIRE(limit_order->sell_price == op.exchange_rate);
             BOOST_REQUIRE(limit_order->get_market() ==
                           std::make_pair(asset_name_type(SBD_SYMBOL_NAME), asset_name_type(STEEM_SYMBOL_NAME)));
@@ -2886,7 +2884,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == op.owner);
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == 10000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 10000);
             BOOST_REQUIRE(limit_order->sell_price == op.exchange_rate);
             BOOST_REQUIRE(limit_order->get_market() ==
                           std::make_pair(asset_name_type(SBD_SYMBOL_NAME), asset_name_type(STEEM_SYMBOL_NAME)));
@@ -2932,7 +2930,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "alice");
             BOOST_REQUIRE(limit_order->order_id == op.order_id);
-            BOOST_REQUIRE(limit_order->for_sale == 5000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 5000);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("2.000 TESTS"),
                                                                      latest_asset::from_string("3.000 TBD")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -2942,14 +2940,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(alice.sbd_balance.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
             BOOST_REQUIRE(bob.balance.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
             BOOST_REQUIRE(bob.sbd_balance.amount.value == latest_asset::from_string("992.500 TBD").amount.value);
-            BOOST_REQUIRE(fill_order_op.open_owner == "alice");
-            BOOST_REQUIRE(fill_order_op.open_order_id == 1);
             BOOST_REQUIRE(
-                    fill_order_op.open_pays.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
-            BOOST_REQUIRE(fill_order_op.current_owner == "bob");
-            BOOST_REQUIRE(fill_order_op.current_order_id == 1);
+                    fill_order_op.receives.amount.value == latest_asset::from_string("5.000 TESTS").amount.value);
+            BOOST_REQUIRE(fill_order_op.owner == "bob");
+            BOOST_REQUIRE(fill_order_op.order_id == 1);
             BOOST_REQUIRE(
-                    fill_order_op.current_pays.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
+                    fill_order_op.pays.amount.value == latest_asset::from_string("7.500 TBD").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test filling an existing order fully, but the new order partially");
@@ -2967,7 +2963,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order != limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "bob");
             BOOST_REQUIRE(limit_order->order_id == 1);
-            BOOST_REQUIRE(limit_order->for_sale.value == 7500);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 7500);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("3.000 TBD"),
                                                                      latest_asset::from_string("2.000 TESTS")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -3029,7 +3025,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order_idx.find(std::make_tuple("alice", 4)) == limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "bob");
             BOOST_REQUIRE(limit_order->order_id == 4);
-            BOOST_REQUIRE(limit_order->for_sale.value == 1000);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 1000);
             BOOST_REQUIRE(limit_order->sell_price == op.exchange_rate);
             BOOST_REQUIRE(limit_order->get_market() ==
                           std::make_pair(asset_name_type(SBD_SYMBOL_NAME), asset_name_type(STEEM_SYMBOL_NAME)));
@@ -3080,7 +3076,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_REQUIRE(limit_order_idx.find(std::make_tuple("bob", 5)) == limit_order_idx.end());
             BOOST_REQUIRE(limit_order->seller == "alice");
             BOOST_REQUIRE(limit_order->order_id == 5);
-            BOOST_REQUIRE(limit_order->for_sale.value == 9091);
+            BOOST_REQUIRE(limit_order->for_sale.amount == 9091);
             BOOST_REQUIRE(limit_order->sell_price == latest_price(latest_asset::from_string("1.000 TESTS"),
                                                                      latest_asset::from_string("1.100 TBD")));
             BOOST_REQUIRE(limit_order->get_market() ==
@@ -5840,7 +5836,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             STEEMIT_REQUIRE_THROW(db.push_transaction(tx, 0), fc::exception);
 
             db.get<comment_vote_object, by_comment_voter>(
-                    boost::make_tuple(db.get_comment("alice", string("test")).id, db.get_account("alice").id));
+                    boost::make_tuple(db.get_comment("alice", std::string("test")).id, db.get_account("alice").id));
 
             vote.weight = 0;
             tx.clear();
@@ -6045,10 +6041,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             db.push_transaction(tx, 0);
 
 
-            generate_blocks(db.get_comment("alice", string("test")).cashout_time);
+            generate_blocks(db.get_comment("alice", std::string("test")).cashout_time);
 
 
-            idump((db.get_comment("alice", string("test")))(db.get_account("alice"))(db.get_account("bob")));
+            idump((db.get_comment("alice", std::string("test")))(db.get_account("alice"))(db.get_account("bob")));
 
         } FC_LOG_AND_RETHROW()
     }
@@ -6364,7 +6360,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             const auto &vote_idx = db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
 
-            auto &alice_comment = db.get_comment("alice", string("foo"));
+            auto &alice_comment = db.get_comment("alice", std::string("foo"));
             auto itr = vote_idx.find(std::make_tuple(alice_comment.id, bob_acc.id));
             int64_t max_vote_denom =
                     (db.get_dynamic_global_properties().vote_regeneration_per_day * STEEMIT_VOTE_REGENERATION_SECONDS) /

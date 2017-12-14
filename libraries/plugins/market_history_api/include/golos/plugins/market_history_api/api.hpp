@@ -23,8 +23,8 @@ namespace golos {
             using database_api::extended_limit_order;
 
             struct market_ticker {
-                string base;
-                string quote;
+                std::string base;
+                std::string quote;
                 double latest;
                 double lowest_ask;
                 double highest_bid;
@@ -34,8 +34,8 @@ namespace golos {
             };
 
             struct market_volume {
-                string base;
-                string quote;
+                std::string base;
+                std::string quote;
                 double base_volume;
                 double quote_volume;
             };
@@ -47,8 +47,8 @@ namespace golos {
             };
 
             struct order_book {
-                string base;
-                string quote;
+                std::string base;
+                std::string quote;
                 std::vector<order> bids;
                 std::vector<order> asks;
             };
@@ -68,22 +68,22 @@ namespace golos {
 
 
 
-            DEFINE_API_ARGS(get_limit_orders_by_owner,  msg_pack, vector<extended_limit_order>   );
-            DEFINE_API_ARGS(get_call_orders_by_owner,   msg_pack, vector<call_order_object>      );
-            DEFINE_API_ARGS(get_settle_orders_by_owner, msg_pack, vector<force_settlement_object>);
+            DEFINE_API_ARGS(get_limit_orders_by_owner,  msg_pack, std::vector<extended_limit_order>   );
+            DEFINE_API_ARGS(get_call_orders_by_owner,   msg_pack, std::vector<call_order_object>      );
+            DEFINE_API_ARGS(get_settle_orders_by_owner, msg_pack, std::vector<force_settlement_object>);
             DEFINE_API_ARGS(get_ticker,                 msg_pack, market_ticker                  );
             DEFINE_API_ARGS(get_volume,                 msg_pack, market_volume                  );
             DEFINE_API_ARGS(get_order_book,             msg_pack, order_book                     );
-            DEFINE_API_ARGS(get_trade_history,          msg_pack, vector<market_trade>           );
-            DEFINE_API_ARGS(get_fill_order_history,     msg_pack, vector<order_history_object>   );
-            DEFINE_API_ARGS(get_market_history,         msg_pack, vector<bucket_object>          );
+            DEFINE_API_ARGS(get_trade_history,          msg_pack, std::vector<market_trade>           );
+            DEFINE_API_ARGS(get_fill_order_history,     msg_pack, std::vector<order_history_object>   );
+            DEFINE_API_ARGS(get_market_history,         msg_pack, std::vector<bucket_object>          );
             DEFINE_API_ARGS(get_market_history_buckets, msg_pack, flat_set<uint32_t>             );
-            DEFINE_API_ARGS(get_limit_orders,           msg_pack, vector<limit_order_object>     );
-            DEFINE_API_ARGS(get_call_orders,            msg_pack, vector<call_order_object>      );
-            DEFINE_API_ARGS(get_settle_orders,          msg_pack, vector<force_settlement_object>);
-            DEFINE_API_ARGS(get_collateral_bids,        msg_pack, vector<collateral_bid_object>  );
-            DEFINE_API_ARGS(get_margin_positions,       msg_pack, vector<call_order_object>      );
-            DEFINE_API_ARGS(get_liquidity_queue,        msg_pack, vector<liquidity_balance>      );
+            DEFINE_API_ARGS(get_limit_orders,           msg_pack, std::vector<limit_order_object>     );
+            DEFINE_API_ARGS(get_call_orders,            msg_pack, std::vector<call_order_object>      );
+            DEFINE_API_ARGS(get_settle_orders,          msg_pack, std::vector<force_settlement_object>);
+            DEFINE_API_ARGS(get_collateral_bids,        msg_pack, std::vector<collateral_bid_object>  );
+            DEFINE_API_ARGS(get_margin_positions,       msg_pack, std::vector<call_order_object>      );
+            DEFINE_API_ARGS(get_liquidity_queue,        msg_pack, std::vector<liquidity_balance>      );
 
             class api final {
             public:
@@ -117,14 +117,14 @@ namespace golos {
                  * Callback will be passed a variant containing a vector<pair<operation, operation_result>>. The vector will
                  * contain, in order, the operations which changed the market, and their results.
              */
-                void subscribe_to_market(std::function<void( const variant &)> callback, const string &a, const string &b);
+                void subscribe_to_market(std::function<void( const variant &)> callback, const std::string &a, const std::string &b);
 
                 /**
                  * @brief Unsubscribe from updates to a given market
                  * @param a First asset ID
                  * @param b Second asset ID
                  */
-                void unsubscribe_from_market(const string &a, const string &b);
+                void unsubscribe_from_market(const std::string &a, const std::string &b);
 
                 DECLARE_API(
 

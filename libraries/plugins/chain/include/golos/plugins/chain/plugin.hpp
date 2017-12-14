@@ -7,16 +7,50 @@
 #include <golos/chain/database.hpp>
 #include <golos/protocol/block.hpp>
 
+#include <golos/plugins/json_rpc/utility.hpp>
+#include <golos/plugins/json_rpc/plugin.hpp>
+// for api
+#include <fc/optional.hpp>
+
 namespace golos {
     namespace plugins {
         namespace chain {
+
+            using golos::plugins::json_rpc::msg_pack;
+
+            struct push_block_a {
+                golos::chain::signed_block block;
+                bool currently_syncing = false;
+            };
+
+
+            struct push_block_r {
+                bool success;
+                optional <std::string> error;
+            };
+
+            typedef golos::chain::signed_transaction push_transaction_a;
+
+            struct push_transaction_r {
+                bool success;
+                optional <std::string> error;
+            };
+
+            DEFINE_API_ARGS ( push_block, msg_pack, push_block_r) 
+            //
+            DEFINE_API_ARGS ( push_transaction, msg_pack, push_transaction_r)
+            //
+
             class plugin final : public appbase::plugin<plugin> {
             public:
-                APPBASE_PLUGIN_REQUIRES()
+                APPBASE_PLUGIN_REQUIRES((json_rpc::plugin))
 
                 plugin();
 
                 ~plugin();
+
+                DECLARE_API((push_block)(push_transaction))
+
 
                 constexpr const static char *plugin_name = "chain";
 
@@ -88,4 +122,8 @@ namespace golos {
             };
         }
     }
-} // steem::plugins::chain
+} // golos::plugins::chain
+
+FC_REFLECT((golos::plugins::chain::push_block_a), (block)(currently_syncing) )
+FC_REFLECT((golos::plugins::chain::push_block_r), (success)(error) )
+FC_REFLECT((golos::plugins::chain::push_transaction_r), (success)(error) )

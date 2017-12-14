@@ -38,7 +38,7 @@ namespace golos {
                 add_authorities(auths...);
             }
 
-            vector <public_key_type> get_keys() const;
+            std::vector <public_key_type> get_keys() const;
 
             bool is_impossible() const;
 
@@ -96,7 +96,7 @@ namespace golos {
  * - All letters are lowercase
  * - Length is between (inclusive) STEEMIT_MIN_ACCOUNT_NAME_LENGTH and STEEMIT_MAX_ACCOUNT_NAME_LENGTH
  */
-        bool is_valid_account_name(const string &name);
+        bool is_valid_account_name(const std::string &name);
 
         bool operator==(const authority &a, const authority &b);
 

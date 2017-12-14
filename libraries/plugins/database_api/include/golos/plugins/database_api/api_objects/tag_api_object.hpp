@@ -15,7 +15,7 @@ namespace golos {
                 tag_api_object() {
                 }
 
-                string name;
+                std::string name;
                 fc::uint128_t total_children_rshares2;
                 asset<0, 17, 0> total_payouts;
                 int32_t net_votes = 0;

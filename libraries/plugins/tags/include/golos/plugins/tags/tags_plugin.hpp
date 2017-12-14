@@ -5,6 +5,9 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <appbase/application.hpp>
 
+#include <golos/plugins/json_rpc/utility.hpp>
+#include <golos/plugins/json_rpc/plugin.hpp>
+
 namespace golos {
     namespace plugins {
 
@@ -530,8 +533,16 @@ namespace golos {
              * Used to parse the metadata from the comment json_meta field.
              */
             struct comment_metadata {
-                set<string> tags;
+                std::set<std::string> tags;
             };
+
+            struct get_tags_r {
+                std::vector<tag_stats_object> tags;
+            };
+
+            using golos::plugins::json_rpc::msg_pack;
+
+            DEFINE_API_ARGS ( get_tags, msg_pack, get_tags_r )
 
             /**
              *  This plugin will scan all changes to posts and/or their meta data and
@@ -564,6 +575,10 @@ namespace golos {
 
                 void plugin_shutdown() override {
                 }
+                
+                DECLARE_API (
+                    (get_tags)
+                )
 
                 struct tags_plugin_impl;
                 std::unique_ptr<tags_plugin_impl> my;
@@ -574,7 +589,7 @@ namespace golos {
     }
 } //golos::tag
 
-
+FC_REFLECT( (golos::plugins::tags::get_tags_r), (tags))
 
 FC_REFLECT((golos::plugins::tags::tag_object),
            (id)(name)(created)(active)(cashout)(net_rshares)(net_votes)(hot)(trending)(promoted_balance)(children)(

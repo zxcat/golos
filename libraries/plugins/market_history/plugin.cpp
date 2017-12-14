@@ -34,7 +34,7 @@ namespace golos {
                     }
 
                     template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-                    void operator()(const fill_order_operation <Major, Hardfork, Release> &o) const {
+                    void operator()(const fill_order_operation<Major, Hardfork, Release> &o) const {
                         //ilog( "processing ${o}", ("o",o) );
                         const auto &buckets = _plugin.get_tracked_buckets();
                         auto &db = _plugin.database();
@@ -44,8 +44,8 @@ namespace golos {
                         auto time = db.head_block_time();
 
                         history_key hkey;
-                        hkey.base = o.current_pays.symbol_name();
-                        hkey.quote = o.open_pays.symbol_name();
+                        hkey.base = o.pays.symbol_name();
+                        hkey.quote = o.receives.symbol_name();
                         if (hkey.base > hkey.quote) {
                             std::swap(hkey.base, hkey.quote);
                         }
@@ -85,8 +85,8 @@ namespace golos {
                             auto cutoff = (fc::time_point() + fc::seconds(bucket * max_history));
 
                             bucket_key key;
-                            key.base = o.current_pays.symbol_name();
-                            key.quote = o.open_pays.symbol_name();
+                            key.base = o.pays.symbol_name();
+                            key.quote = o.receives.symbol_name();
 
 
                             /** for every matched order there are two fill order operations created, one for
@@ -98,7 +98,7 @@ namespace golos {
                                 continue;
                             }
 
-                            price <Major, Hardfork, Release> v_trade_price = (o.current_pays / o.open_pays);
+                            price<Major, Hardfork, Release> v_trade_price = (o.pays / o.receives);
 
                             price<0, 17, 0> trade_price(asset<0, 17, 0>(v_trade_price.base.template amount,
                                                                         v_trade_price.base.template symbol_name()),
@@ -163,7 +163,7 @@ namespace golos {
                     }
 
                     template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-                    void operator()(const fill_call_order_operation <Major, Hardfork, Release> &o) const {
+                    void operator()(const fill_call_order_operation<Major, Hardfork, Release> &o) const {
                         //ilog( "processing ${o}", ("o",o) );
                         const auto &buckets = _plugin.get_tracked_buckets();
                         auto &db = _plugin.database();
@@ -275,7 +275,7 @@ namespace golos {
                     }
 
                     template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-                    void operator()(const fill_settlement_order_operation <Major, Hardfork, Release> &o) const {
+                    void operator()(const fill_settlement_order_operation<Major, Hardfork, Release> &o) const {
                         //ilog( "processing ${o}", ("o",o) );
                         const auto &buckets = _plugin.get_tracked_buckets();
                         auto &db = _plugin.database();
@@ -435,7 +435,7 @@ namespace golos {
             void plugin::set_program_options(boost::program_options::options_description &cli,
                                                             boost::program_options::options_description &cfg) {
                 cli.add_options()("market-history-bucket-size",
-                                  boost::program_options::value<string>()->default_value("[15,60,300,3600,86400]"),
+                                  boost::program_options::value<std::string>()->default_value("[15,60,300,3600,86400]"),
                                   "Track market history by grouping orders into buckets of equal size measured in seconds specified as a JSON array of numbers")(
                         "market-history-buckets-per-size",
                         boost::program_options::value<uint32_t>()->default_value(5760),
@@ -457,7 +457,7 @@ namespace golos {
                     db.add_plugin_index<order_history_index>();
 
                     if (options.count("bucket-size")) {
-                        std::string buckets = options["bucket-size"].as<string>();
+                        std::string buckets = options["bucket-size"].as<std::string>();
                         impl->_tracked_buckets = fc::json::from_string(buckets).as<flat_set<uint32_t>>();
                     }
                     if (options.count("history-per-size")) {

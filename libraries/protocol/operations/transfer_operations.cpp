@@ -6,14 +6,14 @@
 namespace golos {
     namespace protocol {
         /// TODO: after the hardfork, we can rename this method validate_permlink because it is strictily less restrictive than before
-        ///  Issue #56 contains the justificiation for allowing any UTF-8 string to serve as a permlink, content will be grouped by tags
+        ///  Issue #56 contains the justificiation for allowing any UTF-8 std::string to serve as a permlink, content will be grouped by tags
         ///  going forward.
-        inline void validate_permlink(const string &permlink) {
+        inline void validate_permlink(const std::string &permlink) {
             FC_ASSERT(permlink.size() < STEEMIT_MAX_PERMLINK_LENGTH, "permlink is too long");
             FC_ASSERT(fc::is_utf8(permlink), "permlink not formatted in UTF8");
         }
 
-        inline void validate_account_name(const string &name) {
+        inline void validate_account_name(const std::string &name) {
             FC_ASSERT(is_valid_account_name(name), "Account name ${n} is invalid", ("n", name));
         }
 
@@ -22,7 +22,12 @@ namespace golos {
             try {
                 validate_account_name(from);
                 validate_account_name(to);
-                FC_ASSERT(amount.symbol_type_value() != VESTS_SYMBOL, "transferring of Golos Power (STMP) is not allowed.");
+
+                if (amount.symbol_name().size() <= 6) {
+                    FC_ASSERT(amount.symbol_type_value() != VESTS_SYMBOL,
+                              "transferring of Golos Power is not allowed.");
+                }
+
                 FC_ASSERT(amount.amount > 0, "Cannot transfer a negative amount (aka: stealing)");
                 FC_ASSERT(memo.size() < STEEMIT_MAX_MEMO_SIZE, "Memo is too large");
                 FC_ASSERT(fc::is_utf8(memo), "Memo is not UTF8");

@@ -10,13 +10,13 @@ namespace golos {
         void reset_virtual_schedule_time(database &db) {
             const witness_schedule_object &wso = db.get_witness_schedule_object();
             db.modify(wso, [&](witness_schedule_object &o) {
-                o.current_virtual_time = fc::uint128(); // reset it 0
+                o.current_virtual_time = fc::uint128_t(); // reset it 0
             });
 
             const auto &idx = db.get_index<witness_index>().indices();
             for (const auto &witness : idx) {
                 db.modify(witness, [&](witness_object &wobj) {
-                    wobj.virtual_position = fc::uint128();
+                    wobj.virtual_position = fc::uint128_t();
                     wobj.virtual_last_update = wso.current_virtual_time;
                     wobj.virtual_scheduled_time = VIRTUAL_SCHEDULE_LAP_LENGTH2 /
                                                   (wobj.votes.value + 1);
@@ -28,7 +28,7 @@ namespace golos {
             const witness_schedule_object &wso = db.get_witness_schedule_object();
 
             /// fetch all witness objects
-            vector<const witness_object *> active;
+            std::vector<const witness_object *> active;
             active.reserve(wso.num_scheduled_witnesses);
             for (int i = 0; i < wso.num_scheduled_witnesses; i++) {
                 active.push_back(&db.get_witness(wso.current_shuffled_witnesses[i]));
@@ -70,7 +70,7 @@ namespace golos {
 
         void update_witness_schedule4(database &db) {
             const witness_schedule_object &wso = db.get_witness_schedule_object();
-            vector<account_name_type> active_witnesses;
+            std::vector<account_name_type> active_witnesses;
             active_witnesses.reserve(STEEMIT_MAX_WITNESSES);
 
             /// Add the highest voted witnesses
@@ -126,10 +126,10 @@ namespace golos {
             auto num_miners = selected_miners.size();
 
             /// Add the running witnesses in the lead
-            fc::uint128 new_virtual_time = wso.current_virtual_time;
+            fc::uint128_t new_virtual_time = wso.current_virtual_time;
             const auto &schedule_idx = db.get_index<witness_index>().indices().get<by_schedule_time>();
             auto sitr = schedule_idx.begin();
-            vector<decltype(sitr)> processed_witnesses;
+            std::vector<decltype(sitr)> processed_witnesses;
             for (auto witness_count =
                     selected_voted.size() + selected_miners.size();
                  sitr != schedule_idx.end() &&
@@ -156,23 +156,22 @@ namespace golos {
 
             /// Update virtual schedule of processed witnesses
             bool reset_virtual_time = false;
-            for (auto itr = processed_witnesses.begin();
-                 itr != processed_witnesses.end(); ++itr) {
+            for (auto &processed_witnesse : processed_witnesses) {
                 auto new_virtual_scheduled_time = new_virtual_time +
                                                   VIRTUAL_SCHEDULE_LAP_LENGTH2 /
-                                                  ((*itr)->votes.value + 1);
+                                                  (processed_witnesse->votes.value + 1);
                 if (new_virtual_scheduled_time < new_virtual_time) {
                     reset_virtual_time = true; /// overflow
                     break;
                 }
-                db.modify(*(*itr), [&](witness_object &wo) {
-                    wo.virtual_position = fc::uint128();
+                db.modify(*processed_witnesse, [&](witness_object &wo) {
+                    wo.virtual_position = fc::uint128_t();
                     wo.virtual_last_update = new_virtual_time;
                     wo.virtual_scheduled_time = new_virtual_scheduled_time;
                 });
             }
             if (reset_virtual_time) {
-                new_virtual_time = fc::uint128();
+                new_virtual_time = fc::uint128_t();
                 reset_virtual_schedule_time(db);
             }
 
@@ -313,10 +312,10 @@ namespace golos {
                 const witness_schedule_object &wso = db.get_witness_schedule_object();
 
 
-                vector<account_name_type> active_witnesses;
+                std::vector<account_name_type> active_witnesses;
                 active_witnesses.reserve(STEEMIT_MAX_WITNESSES);
 
-                fc::uint128 new_virtual_time;
+                fc::uint128_t new_virtual_time;
 
                 /// only use vote based scheduling after the first 1M STEEM is created or if there is no POW queued
                 if (props.num_pow_witnesses == 0 ||
@@ -332,7 +331,7 @@ namespace golos {
 
                         /// don't consider the top 19 for the purpose of virtual time scheduling
                         db.modify(*itr, [&](witness_object &wo) {
-                            wo.virtual_scheduled_time = fc::uint128::max_value();
+                            wo.virtual_scheduled_time = fc::uint128_t::max_value();
                         });
                     }
 
@@ -347,14 +346,14 @@ namespace golos {
                     if (sitr != schedule_idx.end()) {
                         active_witnesses.push_back(sitr->owner);
                         db.modify(*sitr, [&](witness_object &wo) {
-                            wo.virtual_position = fc::uint128();
+                            wo.virtual_position = fc::uint128_t();
                             new_virtual_time = wo.virtual_scheduled_time; /// everyone advances to this time
 
                             /// extra cautious sanity check... we should never end up here if witnesses are
                             /// properly voted on. TODO: remove this line if it is not triggered and therefore
                             /// the code path is unreachable.
-                            if (new_virtual_time == fc::uint128::max_value()) {
-                                new_virtual_time = fc::uint128();
+                            if (new_virtual_time == fc::uint128_t::max_value()) {
+                                new_virtual_time = fc::uint128_t();
                             }
 
                             /// this witness will produce again here
@@ -405,7 +404,7 @@ namespace golos {
                        _wso.current_shuffled_witnesses.clear();
                        _wso.current_shuffled_witnesses.reserve( active_witnesses.size() );
 
-                       for( const string& w : active_witnesses )
+                       for( const std::string& w : active_witnesses )
                           _wso.current_shuffled_witnesses.push_back( w );
                           */
                     // active witnesses has exactly STEEMIT_MAX_WITNESSES elements, asserted above
@@ -418,7 +417,8 @@ namespace golos {
                         _wso.current_shuffled_witnesses[i] = account_name_type();
                     }
 
-                    _wso.num_scheduled_witnesses = std::max<uint8_t>(active_witnesses.size(), 1);
+                    _wso.num_scheduled_witnesses = std::max<uint8_t>(
+                            static_cast<const uint8_t &>(active_witnesses.size()), 1);
 
                     //idump( (_wso.current_shuffled_witnesses)(active_witnesses.size()) );
 
@@ -429,8 +429,7 @@ namespace golos {
                          i < _wso.num_scheduled_witnesses; ++i) {
                         /// High performance random generator
                         /// http://xorshift.di.unimi.it/
-                        uint64_t k =
-                                now_hi + uint64_t(i) * 2685821657736338717ULL;
+                        uint64_t k = now_hi + uint64_t(i) * 2685821657736338717ULL;
                         k ^= (k >> 12);
                         k ^= (k << 25);
                         k ^= (k >> 27);
@@ -442,9 +441,7 @@ namespace golos {
                                 _wso.current_shuffled_witnesses[j]);
                     }
 
-                    if (props.num_pow_witnesses == 0 ||
-                        db.head_block_num() >
-                        STEEMIT_START_MINER_VOTING_BLOCK) {
+                    if (props.num_pow_witnesses == 0 || db.head_block_num() > STEEMIT_START_MINER_VOTING_BLOCK) {
                         _wso.current_virtual_time = new_virtual_time;
                     }
 

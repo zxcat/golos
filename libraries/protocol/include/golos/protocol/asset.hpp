@@ -49,11 +49,9 @@ namespace golos {
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         struct asset<Major, Hardfork, Release, type_traits::static_range<Hardfork <= 16>> : public asset_interface<
                 Major, Hardfork, Release, asset_symbol_type, share_type> {
-            asset();
+            asset(share_type a = 0, asset_symbol_type id = STEEM_SYMBOL);
 
-            asset(share_type a, asset_symbol_type id = STEEM_SYMBOL);
-
-            asset(share_type a, asset_name_type name);
+            asset(share_type a, asset_name_type name = STEEM_SYMBOL_NAME);
 
             virtual ~asset() override {
 
@@ -71,9 +69,9 @@ namespace golos {
 
             int64_t precision() const;
 
-            static asset<Major, Hardfork, Release> from_string(const string &from);
+            static asset<Major, Hardfork, Release> from_string(const std::string &from);
 
-            string to_string() const;
+            std::string to_string() const;
 
             template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
             asset<Major, Hardfork, Release> &operator+=(
@@ -104,7 +102,7 @@ namespace golos {
             template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
             friend bool operator<(const asset<Major, Hardfork, Release> &a,
                                   const asset<ArgumentMajor, ArgumentHardfork, ArgumentRelease> &b) {
-                FC_ASSERT(a.symbol == b.symbol);
+                FC_ASSERT(a.symbol == b.symbol, "Cannot compare assets with different symbols", ("a.symbol", a.symbol)("b.symbol", b.symbol));
                 return a.amount < b.amount;
             }
 
@@ -136,7 +134,7 @@ namespace golos {
             friend asset<Major, Hardfork, Release> operator-(const asset<Major, Hardfork, Release> &a,
                                                              const asset<ArgumentMajor, ArgumentHardfork,
                                                                      ArgumentRelease> &b) {
-                FC_ASSERT(a.symbol == b.symbol && a.get_decimals() == b.get_decimals());
+                FC_ASSERT(a.symbol == b.symbol);
                 asset<Major, Hardfork, Release> amount(a.amount - b.amount, a.symbol);
                 amount.set_decimals(a.get_decimals());
                 return amount;
@@ -146,8 +144,19 @@ namespace golos {
             friend asset<Major, Hardfork, Release> operator+(const asset<Major, Hardfork, Release> &a,
                                                              const asset<ArgumentMajor, ArgumentHardfork,
                                                                      ArgumentRelease> &b) {
-                FC_ASSERT(a.symbol == b.symbol && a.get_decimals() == b.get_decimals());
+                FC_ASSERT(a.symbol == b.symbol);
                 asset<Major, Hardfork, Release> amount(a.amount + b.amount, a.symbol);
+                amount.set_decimals(a.get_decimals());
+                return amount;
+            }
+
+            template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
+            friend asset<Major, Hardfork, Release> operator*(const asset<Major, Hardfork, Release> &a,
+                                                             const asset<ArgumentMajor, ArgumentHardfork,
+                                                                     ArgumentRelease> &b) {
+                FC_ASSERT(a.symbol == b.symbol);
+                FC_ASSERT(a.get_decimals() == b.get_decimals());
+                asset<Major, Hardfork, Release> amount(a.amount * b.amount, a.symbol);
                 amount.set_decimals(a.get_decimals());
                 return amount;
             }
@@ -161,11 +170,9 @@ namespace golos {
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         struct asset<Major, Hardfork, Release, type_traits::static_range<Hardfork >= 17>> : public asset_interface<
                 Major, Hardfork, Release, asset_name_type, share_type> {
-            asset();
-
             asset(share_type a, asset_symbol_type name);
 
-            asset(share_type a, asset_name_type name = STEEM_SYMBOL_NAME, uint8_t d = 3);
+            asset(share_type a = 0, asset_name_type name = STEEM_SYMBOL_NAME, uint8_t d = 3);
 
             virtual ~asset() override {
 
@@ -185,9 +192,9 @@ namespace golos {
 
             int64_t precision() const;
 
-            static asset<Major, Hardfork, Release> from_string(const string &from);
+            static asset<Major, Hardfork, Release> from_string(const std::string &from);
 
-            string to_string() const;
+            std::string to_string() const;
 
             template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
             asset<Major, Hardfork, Release> &operator+=(
@@ -218,7 +225,7 @@ namespace golos {
             template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
             friend bool operator<(const asset<Major, Hardfork, Release> &a,
                                   const asset<ArgumentMajor, ArgumentHardfork, ArgumentRelease> &b) {
-                FC_ASSERT(a.symbol == b.symbol);
+                FC_ASSERT(a.symbol == b.symbol, "Cannot compare assets with different symbols", ("a.symbol", a.symbol)("b.symbol", b.symbol));
                 return a.amount < b.amount;
             }
 
@@ -264,6 +271,17 @@ namespace golos {
                 FC_ASSERT(a.symbol == b.symbol);
                 FC_ASSERT(a.get_decimals() == b.get_decimals());
                 asset<Major, Hardfork, Release> amount(a.amount + b.amount, a.symbol);
+                amount.set_decimals(a.get_decimals());
+                return amount;
+            }
+
+            template<uint8_t ArgumentMajor, uint8_t ArgumentHardfork, uint16_t ArgumentRelease>
+            friend asset<Major, Hardfork, Release> operator*(const asset<Major, Hardfork, Release> &a,
+                                                             const asset<ArgumentMajor, ArgumentHardfork,
+                                                                     ArgumentRelease> &b) {
+                FC_ASSERT(a.symbol == b.symbol);
+                FC_ASSERT(a.get_decimals() == b.get_decimals());
+                asset<Major, Hardfork, Release> amount(a.amount * b.amount, a.symbol);
                 amount.set_decimals(a.get_decimals());
                 return amount;
             }
@@ -345,12 +363,19 @@ namespace golos {
                 FC_ASSERT(b.base.amount.value > 0);
                 uint128_t result = (uint128_t(a.amount.value) * b.quote.amount.value) / b.base.amount.value;
                 FC_ASSERT(result.hi == 0);
-                return asset<Major, Hardfork, Release>(result.to_uint64(), b.quote.symbol);
+
+                asset<Major, Hardfork, Release> result_asset(result.to_uint64(), b.quote.symbol_name());
+                result_asset.set_decimals(b.quote.get_decimals());
+
+                return result_asset;
             } else if (a.symbol == b.quote.symbol) {
                 FC_ASSERT(b.quote.amount.value > 0);
                 uint128_t result = (uint128_t(a.amount.value) * b.base.amount.value) / b.quote.amount.value;
                 FC_ASSERT(result.hi == 0);
-                return asset<Major, Hardfork, Release>(result.to_uint64(), b.base.symbol);
+                asset<Major, Hardfork, Release> result_asset(result.to_uint64(), b.base.symbol_name());
+                result_asset.set_decimals(b.base.get_decimals());
+
+                return result_asset;
             }
             FC_THROW_EXCEPTION(fc::assert_exception, "invalid asset * price", ("asset", a)("price", b));
         }
@@ -366,7 +391,7 @@ namespace golos {
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         inline price<Major, Hardfork, Release> operator~(const price<Major, Hardfork, Release> &p) {
-            return {p.quote, p.base};
+            return price<Major, Hardfork, Release>(p.quote, p.base);
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>

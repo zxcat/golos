@@ -18,7 +18,7 @@ namespace golos {
                 }
 
                 category_object::id_type id;
-                string name;
+                std::string name;
                 share_type abs_rshares;
                 asset<0, 17, 0> total_payouts;
                 uint32_t discussions;

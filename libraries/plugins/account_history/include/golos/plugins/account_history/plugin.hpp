@@ -57,7 +57,7 @@ namespace golos {
                 void plugin_shutdown() override {
                 }
 
-                flat_map<string, string> tracked_accounts() const; /// map start_range to end_range
+                flat_map<std::string, std::string> tracked_accounts() const; /// map start_range to end_range
             private:
                 struct plugin_impl;
 

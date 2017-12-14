@@ -94,9 +94,7 @@ namespace golos {
                         std::vector<fc::ip::endpoint> endpoints = fc::resolve(hostname, port);
 
                         if (endpoints.empty())
-                            FC_THROW_EXCEPTION(fc::unknown_host_exception,
-                                               "The host name can not be resolved: ${hostname}",
-                                               ("hostname", hostname));
+                            FC_THROW_EXCEPTION(fc::unknown_host_exception, "The host name can not be resolved: ${hostname}", ("hostname", hostname));
 
                         return endpoints;
                     } catch (const boost::bad_lexical_cast &) {
@@ -107,10 +105,8 @@ namespace golos {
 
             struct webserver_plugin::webserver_plugin_impl final {
             public:
-                webserver_plugin_impl(thread_pool_size_t thread_pool_size, connection_context_ptr ctx_ptr)
-                        : thread_pool_work(this->thread_pool_ios)
-                        , context_ptr(ctx_ptr)
-                {
+                boost::thread_group& thread_pool = appbase::app().scheduler();
+                webserver_plugin_impl(thread_pool_size_t thread_pool_size) : thread_pool_work(this->thread_pool_ios) {
                     for (uint32_t i = 0; i < thread_pool_size; ++i) {
                         thread_pool.create_thread(boost::bind(&asio::io_service::run, &thread_pool_ios));
                     }
@@ -141,7 +137,6 @@ namespace golos {
                 optional<tcp::endpoint> ws_endpoint;
                 websocket_server_type ws_server;
 
-                boost::thread_group thread_pool;
                 asio::io_service thread_pool_ios;
                 asio::io_service::work thread_pool_work;
 

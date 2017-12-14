@@ -2,6 +2,7 @@ set(CURRENT_TARGET blockchain_statistics_plugin)
 
 list(APPEND CURRENT_TARGET_HEADERS
      include/golos/plugins/blockchain_statistics/plugin.hpp
+     include/golos/plugins/blockchain_statistics/statistics_sender.hpp
      )
 
 list(APPEND CURRENT_TARGET_SOURCES

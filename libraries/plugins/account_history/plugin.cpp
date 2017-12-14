@@ -130,8 +130,7 @@ namespace golos {
 
                 template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
                 void operator()(const fill_order_operation<Major, Hardfork, Release> &op) {
-                    _impacted.insert(op.current_owner);
-                    _impacted.insert(op.open_owner);
+                    _impacted.insert(op.owner);
                 }
 
                 template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
@@ -295,7 +294,7 @@ namespace golos {
             }
 
             template<typename T>
-            T dejsonify(const string &s) {
+            T dejsonify(const std::string &s) {
                 return fc::json::from_string(s).as<T>();
             }
 
@@ -309,7 +308,7 @@ namespace golos {
             struct operation_visitor {
 
                 operation_visitor(database &db, const operation_notification &note, const operation_object *&n,
-                                  string i) : _db(db), _note(note), new_obj(n), item(i) {
+                                  std::string i) : _db(db), _note(note), new_obj(n), item(i) {
                 };
 
                 typedef void result_type;
@@ -317,7 +316,7 @@ namespace golos {
                 database &_db;
                 const operation_notification &_note;
                 const operation_object *&new_obj;
-                string item;
+                std::string item;
 
                 /// ignore these ops
                 /*
@@ -358,8 +357,11 @@ namespace golos {
             };
 
             struct operation_visitor_filter : operation_visitor {
-                operation_visitor_filter(database &db, const operation_notification &note, const operation_object *&n,
-                                         string i) : operation_visitor(db, note, n, i) {
+                operation_visitor_filter(
+                        database &db,
+                        const operation_notification &note,
+                        const operation_object *&n,
+                        std::string i) : operation_visitor(db, note, n, i) {
                 }
 
                 template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
@@ -489,7 +491,7 @@ namespace golos {
                     my->on_operation(note);
                 });
 
-                using pairstring = pair<string, string>;
+                using pairstring = std::pair<string, string>;
                 LOAD_VALUE_SET(options, "track-account-range", my->_tracked_accounts, pairstring);
                 if (options.count("filter-posting-ops")) {
                     my->_filter_content = true;

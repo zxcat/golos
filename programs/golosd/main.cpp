@@ -47,9 +47,9 @@ using golos::protocol::version;
 
 std::string& version_string() {
     static std::string v_str =
-            "steem_blockchain_version: " + fc::string( STEEMIT_BLOCKCHAIN_VERSION ) + "\n" +
-            "steem_git_revision:       " + fc::string( fc::git_revision_sha )       + "\n" +
-            "fc_git_revision:          " + fc::string( fc::git_revision_sha )       + "\n";
+            "steem_blockchain_version: " + std::string( STEEMIT_BLOCKCHAIN_VERSION ) + "\n" +
+            "steem_git_revision:       " + std::string( fc::git_revision_sha )       + "\n" +
+            "fc_git_revision:          " + std::string( fc::git_revision_sha )       + "\n";
     return v_str;
 }
 
@@ -85,14 +85,14 @@ namespace golos {
 void logo(){
 
 #ifdef BUILD_GOLOS_TESTNET
-    std::cerr << "------------------------------------------------------\n\n";
+        std::cerr << "------------------------------------------------------\n\n";
         std::cerr << "            STARTING TEST NETWORK\n\n";
         std::cerr << "------------------------------------------------------\n";
         auto initminer_private_key = golos::utilities::key_to_wif( STEEMIT_INIT_PRIVATE_KEY );
         std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
         std::cerr << "initminer private key: " << initminer_private_key << "\n";
         std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-        std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+        std::cerr << "blockchain version: " << std::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
         std::cerr << "------------------------------------------------------\n";
 #else
     std::cerr << "------------------------------------------------------\n\n";
@@ -100,7 +100,7 @@ void logo(){
     std::cerr << "------------------------------------------------------\n";
     std::cerr << "initminer public key: " << STEEMIT_INIT_PUBLIC_KEY_STR << "\n";
     std::cerr << "chain id: " << std::string( STEEMIT_CHAIN_ID ) << "\n";
-    std::cerr << "blockchain version: " << fc::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
+    std::cerr << "blockchain version: " << std::string( STEEMIT_BLOCKCHAIN_VERSION ) << "\n";
     std::cerr << "------------------------------------------------------\n";
 #endif
 
@@ -132,17 +132,17 @@ int main( int argc, char** argv ) {
 
         auto& args = appbase::app().get_args();
 
-        try {
-            fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( args, appbase::app().data_dir() );
-            if( logging_config )
-                fc::configure_logging( *logging_config );
-        } catch( const fc::exception& ) {
-            wlog( "Error parsing logging config" );
-        }
+        // try {
+        //     fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( args, appbase::app().data_dir() );
+        //     if( logging_config )
+        //         fc::configure_logging( *logging_config );
+        // } catch( const fc::exception& ) {
+        //     wlog( "Error parsing logging config" );
+        // }
 
         appbase::app().startup();
         appbase::app().exec();
-        std::cout << "exited cleanly\n";
+        ilog("exited cleanly");
         return 0;
     }
     catch ( const boost::exception& e ) {
@@ -265,22 +265,22 @@ namespace golos {
     namespace plugins {
         void register_plugins() {
 ///PLUGIN
-            appbase::app().register_plugin< golos::plugins::chain::plugin >();
-            appbase::app().register_plugin<golos::plugins::p2p::p2p_plugin>();
-            appbase::app().register_plugin<golos::plugins::webserver::webserver_plugin>();
-            appbase::app().register_plugin< golos::plugins::follow::plugin >();
-            appbase::app().register_plugin< golos::plugins::market_history::plugin >();
-            appbase::app().register_plugin< golos::plugins::account_by_key::plugin >();
-            appbase::app().register_plugin< golos::plugins::account_history::plugin >();
-            appbase::app().register_plugin< golos::plugins::languages::plugin >();
-            appbase::app().register_plugin< golos::plugins::tags::tags_plugin >();
-            appbase::app().register_plugin<golos::plugins::witness_plugin::witness_plugin>();
+            appbase::app().register_plugin< golos::plugins::chain::plugin                                       >();
+            appbase::app().register_plugin< golos::plugins::p2p::p2p_plugin                                     >();
+            appbase::app().register_plugin< golos::plugins::webserver::webserver_plugin                         >();
+            // appbase::app().register_plugin< golos::plugins::follow::plugin                                      >();
+            // appbase::app().register_plugin< golos::plugins::market_history::plugin                              >();
+            // appbase::app().register_plugin< golos::plugins::account_by_key::plugin                              >();
+            // appbase::app().register_plugin< golos::plugins::account_history::plugin                             >();
+            // appbase::app().register_plugin< golos::plugins::languages::plugin                                   >();
+            // appbase::app().register_plugin< golos::plugins::tags::tags_plugin                                   >();
+            // appbase::app().register_plugin< golos::plugins::witness_plugin::witness_plugin                      >();
 ///API
-            appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+            // appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
             golos::plugins::database_api::register_database_api();
-            appbase::app().register_plugin<golos::plugins::test_api::test_api_plugin>();
-            appbase::app().register_plugin<golos::plugins::tolstoy_api::tolstoy_api_plugin>();
-            appbase::app().register_plugin< golos::plugins::market_history::api_plugin >();
+            appbase::app().register_plugin< golos::plugins::test_api::test_api_plugin                           >();
+            // appbase::app().register_plugin< golos::plugins::tolstoy_api::tolstoy_api_plugin                     >();
+            // appbase::app().register_plugin< golos::plugins::market_history::api_plugin                          >();
 
         }
     }

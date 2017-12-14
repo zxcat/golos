@@ -134,7 +134,7 @@ namespace golos {
 
                 boost::signals2::scoped_connection _block_applied_connection;
 
-                map<pair<asset_name_type, asset_name_type>, std::function<void(const variant &)>> _market_subscriptions;
+                std::map<std::pair<asset_name_type, asset_name_type>, std::function<void(const variant &)>> _market_subscriptions;
 
                 golos::chain::database& database() {
                     return database_;
@@ -170,12 +170,12 @@ namespace golos {
                 market_trade operator()(const fill_order_operation<0, 16, 0> &o) const {
                     market_trade trade;
 
-                    if (assets[0]->asset_name == o.open_pays.symbol_name()) {
-                        trade.amount = price_to_real(o.current_pays.amount, assets[1]->precision);
-                        trade.value = price_to_real(o.open_pays.amount, assets[0]->precision);
+                    if (assets[0]->asset_name == o.receives.symbol_name()) {
+                        trade.amount = price_to_real(o.pays.amount, assets[1]->precision);
+                        trade.value = price_to_real(o.receives.amount, assets[0]->precision);
                     } else {
-                        trade.amount = price_to_real(o.open_pays.amount, assets[1]->precision);
-                        trade.value = price_to_real(o.current_pays.amount, assets[0]->precision);
+                        trade.amount = price_to_real(o.receives.amount, assets[1]->precision);
+                        trade.value = price_to_real(o.pays.amount, assets[0]->precision);
                     }
 
                     return trade;
@@ -184,12 +184,12 @@ namespace golos {
                 market_trade operator()(const fill_order_operation<0, 17, 0> &o) const {
                     market_trade trade;
 
-                    if (assets[0]->asset_name == o.open_pays.symbol_name()) {
-                        trade.amount = price_to_real(o.current_pays.amount, assets[1]->precision);
-                        trade.value = price_to_real(o.open_pays.amount, assets[0]->precision);
+                    if (assets[0]->asset_name == o.receives.symbol_name()) {
+                        trade.amount = price_to_real(o.pays.amount, assets[1]->precision);
+                        trade.value = price_to_real(o.receives.amount, assets[0]->precision);
                     } else {
-                        trade.amount = price_to_real(o.open_pays.amount, assets[1]->precision);
-                        trade.value = price_to_real(o.current_pays.amount, assets[0]->precision);
+                        trade.amount = price_to_real(o.receives.amount, assets[1]->precision);
+                        trade.value = price_to_real(o.pays.amount, assets[0]->precision);
                     }
 
                     return trade;
@@ -424,42 +424,23 @@ namespace golos {
                 FC_ASSERT(assets[0], "Invalid base asset symbol: ${s}", ("s", base));
                 FC_ASSERT(assets[1], "Invalid quote asset symbol: ${s}", ("s", quote));
 
+                std::vector<limit_order_object> orders = get_limit_orders(assets[0]->asset_name, assets[1]->asset_name, limit);
+
                 asset_name_type base_id = assets[0]->asset_name;
-                auto orders = get_limit_orders(assets[0]->asset_name, assets[1]->asset_name, limit);
+                asset_name_type quote_id = assets[1]->asset_name;
 
-
-                std::function<double(const asset<0, 17, 0> &, int)> asset_to_real = [&](const asset<0, 17, 0> &a, int p) -> double {
-                    return double(a.amount.value) / std::pow(10, p);
-                };
-
-                std::function<double( const price<0, 17, 0>&)> price_to_real = [&](const price<0, 17, 0> &p) -> double {
-                    if (p.base.symbol == base_id) {
-                        return asset_to_real(p.base, assets[0]->precision) /
-                               asset_to_real(p.quote, assets[1]->precision);
-                    }
-
-                    return asset_to_real(p.quote, assets[0]->precision) / asset_to_real(p.base, assets[1]->precision);
-
-                };
-
-                for (const auto &o : orders) {
+                for (const limit_order_object &o : orders) {
                     if (o.sell_price.base.symbol == base_id) {
                         order ord;
-                        ord.price = price_to_real(o.sell_price);
-                        ord.quote = asset_to_real(
-                                share_type((o.for_sale.value * o.sell_price.quote.amount.value) /
-                                           o.sell_price.base.amount.value),
-                                assets[1]->precision);
-                        ord.base = asset_to_real(o.for_sale, assets[0]->precision);
+                        ord.price = o.sell_price.to_real();
+                        ord.quote = (o.for_sale * (o.sell_price.quote / o.sell_price.base)).to_real();
+                        ord.base = o.for_sale.to_real();
                         result.bids.push_back(ord);
                     } else {
                         order ord;
-                        ord.price = price_to_real(o.sell_price);
-                        ord.quote = asset_to_real(o.for_sale, assets[1]->precision);
-                        ord.base = asset_to_real(
-                                share_type((o.for_sale.value * o.sell_price.quote.amount.value) /
-                                           o.sell_price.base.amount.value),
-                                assets[0]->precision);
+                        ord.price = o.sell_price.to_real();
+                        ord.quote = o.for_sale.to_real();
+                        ord.base = (o.for_sale * (o.sell_price.quote / o.sell_price.base)).to_real();
                         result.asks.push_back(ord);
                     }
                 }

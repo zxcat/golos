@@ -26,13 +26,13 @@ namespace fc {
     }
 
     void from_variant(const fc::variant &var, golos::plugins::follow::follow_plugin_operation &vo) {
-        static std::map<string, uint32_t> to_tag = []() {
-            std::map<string, uint32_t> name_map;
+        static std::map<std::string, uint32_t> to_tag = []() {
+            std::map<std::string, uint32_t> name_map;
             for (int i = 0; i < golos::plugins::follow::follow_plugin_operation::count(); ++i) {
                 golos::plugins::follow::follow_plugin_operation tmp;
                 tmp.set_which(i);
-                string n;
-                tmp.visit(get_operation_name(n));
+                std::string n;
+                tmp.visit(get_operation_name<get_operation_name_policy>(n));
                 name_map[n] = i;
             }
             return name_map;
@@ -45,7 +45,7 @@ namespace fc {
         if (ar[0].is_uint64()) {
             vo.set_which(ar[0].as_uint64());
         } else {
-            std::string operation_name = ar[0].as_string();
+            std::string operation_name = ar[0].as_string().append("_operation");
             auto itr = to_tag.find(operation_name);
             FC_ASSERT(itr != to_tag.end(), "Invalid operation name: ${n}", ("n", ar[0]));
             vo.set_which(to_tag[operation_name]);

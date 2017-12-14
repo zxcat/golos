@@ -188,7 +188,7 @@ namespace golos {
 
                 std::vector<tag_api_object> get_trending_tags(std::string after, uint32_t limit) const;
 
-                std::vector<pair<std::string, uint32_t>> get_tags_used_by_author(const std::string &author) const;
+                std::vector<std::pair<std::string, uint32_t>> get_tags_used_by_author(const std::string &author) const;
 
                 std::map<uint32_t, applied_operation> get_account_history(std::string account, uint64_t from,
                                                                           uint32_t limit) const;
@@ -305,7 +305,7 @@ namespace golos {
 
                 boost::signals2::scoped_connection _block_applied_connection;
 
-                map<pair<asset_symbol_type, asset_symbol_type>,
+                std::map<std::pair<asset_symbol_type, asset_symbol_type>,
                         std::function<void(const variant &)>> _market_subscriptions;
             private:
 
@@ -1284,7 +1284,7 @@ namespace golos {
                 });
             }
 
-            boost::multiprecision::uint256_t to256(const fc::uint128 &t) {
+            boost::multiprecision::uint256_t to256(const fc::uint128_t &t) {
                 boost::multiprecision::uint256_t result(t.high_bits());
                 result <<= 65;
                 result += t.low_bits();
@@ -1503,14 +1503,14 @@ namespace golos {
             }
 
 
-            std::vector<pair<std::string, uint32_t>> plugin::api_impl::get_tags_used_by_author(
+            std::vector<std::pair<std::string, uint32_t>> plugin::api_impl::get_tags_used_by_author(
                     const std::string &author) const {
                 const auto *acnt = database().find_account(author);
                 FC_ASSERT(acnt != nullptr);
                 const auto &tidx = database().get_index<tags::author_tag_stats_index>().indices().get<
                         tags::by_author_posts_tag>();
                 auto itr = tidx.lower_bound(boost::make_tuple(acnt->id, 0));
-                std::vector<pair<std::string, uint32_t>> result;
+                std::vector<std::pair<std::string, uint32_t>> result;
                 while (itr != tidx.end() && itr->author == acnt->id && result.size() < 1000) {
                     if (!fc::is_utf8(itr->tag)) {
                         result.emplace_back(std::make_pair(fc::prune_invalid_utf8(itr->tag), itr->total_posts));

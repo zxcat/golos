@@ -31,6 +31,7 @@
 #include <golos/chain/evaluators/market_evaluator.hpp>
 #include <golos/chain/evaluators/asset_evaluator.hpp>
 #include <golos/chain/evaluators/custom_evaluator.hpp>
+#include <golos/chain/evaluators/comment_evaluator.hpp>
 #include <golos/chain/evaluators/transfer_evaluator.hpp>
 #include <golos/chain/evaluators/proposal_evaluator.hpp>
 #include <golos/chain/evaluators/escrow_evaluator.hpp>
@@ -296,7 +297,7 @@ namespace golos {
                 }
 
                 // Finally we query the fork DB.
-                shared_ptr<fork_item> fitem = _fork_db.fetch_block_on_main_branch_by_number(block_num);
+                std::shared_ptr<fork_item> fitem = _fork_db.fetch_block_on_main_branch_by_number(block_num);
                 if (fitem) {
                     return fitem->id;
                 }
@@ -355,9 +356,9 @@ namespace golos {
             } FC_CAPTURE_AND_RETHROW()
         }
 
-        vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of_fork) const {
+        std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of_fork) const {
             try {
-                pair<fork_database::branch_type, fork_database::branch_type> branches = _fork_db.fetch_branch_from(
+                std::pair<fork_database::branch_type, fork_database::branch_type> branches = _fork_db.fetch_branch_from(
                         head_block_id(), head_of_fork);
                 if (!((branches.first.back()->previous_id() == branches.second.back()->previous_id()))) {
                     edump((head_of_fork)(head_block_id())(branches.first.size())(branches.second.size()));
@@ -460,13 +461,15 @@ namespace golos {
             return find<comment_object, by_permlink>(boost::make_tuple(author, permlink));
         }
 
-        const comment_object &database::get_comment(const account_name_type &author, const string &permlink) const {
+        const comment_object &database::get_comment(const account_name_type &author,
+                                                    const std::string &permlink) const {
             try {
                 return get<comment_object, by_permlink>(boost::make_tuple(author, permlink));
             } FC_CAPTURE_AND_RETHROW((author)(permlink))
         }
 
-        const comment_object *database::find_comment(const account_name_type &author, const string &permlink) const {
+        const comment_object *database::find_comment(const account_name_type &author,
+                                                     const std::string &permlink) const {
             return find<comment_object, by_permlink>(boost::make_tuple(author, permlink));
         }
 
@@ -611,11 +614,11 @@ namespace golos {
                         b.last_bandwidth_update = now;
                     });
 
-                    fc::uint128 account_vshares(a.vesting_shares.amount.value);
-                    fc::uint128 total_vshares(props.total_vesting_shares.amount.value);
+                    fc::uint128_t account_vshares(a.vesting_shares.amount.value);
+                    fc::uint128_t total_vshares(props.total_vesting_shares.amount.value);
 
-                    fc::uint128 account_average_bandwidth(band->average_bandwidth.value);
-                    fc::uint128 max_virtual_bandwidth(props.max_virtual_bandwidth);
+                    fc::uint128_t account_average_bandwidth(band->average_bandwidth.value);
+                    fc::uint128_t max_virtual_bandwidth(props.max_virtual_bandwidth);
 
                     FC_ASSERT((account_vshares * max_virtual_bandwidth) > (account_average_bandwidth * total_vshares),
                               "Account exceeded maximum allowed bandwidth per vesting share.",
@@ -649,7 +652,7 @@ namespace golos {
                     new_bandwidth = 0;
                 } else {
                     new_bandwidth = (((STEEMIT_BANDWIDTH_AVERAGE_WINDOW_SECONDS - delta_time) *
-                                      fc::uint128(band->average_bandwidth.value)) /
+                                      fc::uint128_t(band->average_bandwidth.value)) /
                                      STEEMIT_BANDWIDTH_AVERAGE_WINDOW_SECONDS).to_uint64();
                 }
 
@@ -661,10 +664,10 @@ namespace golos {
                     b.last_bandwidth_update = head_block_time();
                 });
 
-                fc::uint128 account_vshares(a.effective_vesting_shares().amount.value);
-                fc::uint128 total_vshares(props.total_vesting_shares.amount.value);
-                fc::uint128 account_average_bandwidth(band->average_bandwidth.value);
-                fc::uint128 max_virtual_bandwidth(props.max_virtual_bandwidth);
+                fc::uint128_t account_vshares(a.effective_vesting_shares().amount.value);
+                fc::uint128_t total_vshares(props.total_vesting_shares.amount.value);
+                fc::uint128_t account_average_bandwidth(band->average_bandwidth.value);
+                fc::uint128_t max_virtual_bandwidth(props.max_virtual_bandwidth);
 
                 has_bandwidth = (account_vshares * max_virtual_bandwidth) > (account_average_bandwidth * total_vshares);
 
@@ -725,7 +728,7 @@ namespace golos {
         void database::_maybe_warn_multiple_production(uint32_t height) const {
             auto blocks = _fork_db.fetch_block_by_number(height);
             if (blocks.size() > 1) {
-                vector<std::pair<account_name_type, fc::time_point_sec>> witness_time_pairs;
+                std::vector<std::pair<account_name_type, fc::time_point_sec>> witness_time_pairs;
                 for (const auto &b : blocks) {
                     witness_time_pairs.push_back(std::make_pair(b->data.witness, b->data.timestamp));
                 }
@@ -742,7 +745,7 @@ namespace golos {
                 //uint32_t skip_undo_db = skip & skip_undo_block;
 
                 if (!(skip & skip_fork_db)) {
-                    shared_ptr<fork_item> new_head = _fork_db.push_block(new_block);
+                    std::shared_ptr<fork_item> new_head = _fork_db.push_block(new_block);
                     _maybe_warn_multiple_production(new_head->num);
                     //If the head block from the longest chain does not build off of the current head, we need to switch forks.
                     if (new_head->data.previous != head_block_id()) {
@@ -882,7 +885,7 @@ namespace golos {
             uint32_t skip = get_node_properties().skip_flags;
             uint32_t slot_num = get_slot_at_time(when);
             FC_ASSERT(slot_num > 0);
-            string scheduled_witness = get_scheduled_witness(slot_num);
+            std::string scheduled_witness = get_scheduled_witness(slot_num);
             FC_ASSERT(scheduled_witness == witness_owner);
 
             const auto &witness_obj = get_witness(witness_owner);
@@ -1078,7 +1081,7 @@ namespace golos {
 
         fc::time_point_sec database::get_slot_time(uint32_t slot_num) const {
             if (slot_num == 0) {
-                return fc::time_point_sec();
+                return {};
             }
 
             auto interval = STEEMIT_BLOCK_INTERVAL;
@@ -1263,7 +1266,7 @@ namespace golos {
                 /** witnesses with a low number of votes could overflow the time field and end up with a scheduled time in the past */
                 if (has_hardfork(STEEMIT_HARDFORK_0_4)) {
                     if (w.virtual_scheduled_time < wso.current_virtual_time) {
-                        w.virtual_scheduled_time = fc::uint128::max_value();
+                        w.virtual_scheduled_time = fc::uint128_t::max_value();
                     }
                 }
             });
@@ -1284,7 +1287,8 @@ namespace golos {
 
                 remove(current);
 
-                push_virtual_operation(expire_witness_vote_operation<0, 17 ,0>(current.account, current.witness, current.created));
+                push_virtual_operation(
+                        expire_witness_vote_operation<0, 17, 0>(current.account, current.witness, current.created));
             }
         }
 
@@ -1733,8 +1737,8 @@ namespace golos {
 
             ctx.current_steem_price = get_feed_history().current_median_history;
 
-            vector<reward_fund_context> funds;
-            vector<share_type> steem_awarded;
+            std::vector<reward_fund_context> funds;
+            std::vector<share_type> steem_awarded;
             const auto &reward_idx = get_index<reward_fund_index, by_id>();
 
             for (const auto &itr : reward_idx) {
@@ -1887,6 +1891,9 @@ namespace golos {
                 auto content_reward = get_content_reward();
                 auto curate_reward = get_curation_reward();
                 auto witness_pay = get_producer_reward();
+
+                pay_witness();
+
                 auto vesting_reward = content_reward + curate_reward + witness_pay;
 
                 content_reward = content_reward + curate_reward;
@@ -1971,14 +1978,12 @@ namespace golos {
             return reward;
         }
 
-        asset<0, 17, 0> database::get_producer_reward() {
+        asset<0, 17, 0> database::get_producer_reward() const {
             const auto &props = get_dynamic_global_properties();
             static_assert(STEEMIT_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval");
             asset<0, 17, 0> percent(
                     protocol::calc_percent_reward_per_block<STEEMIT_PRODUCER_APR_PERCENT>(props.virtual_supply.amount),
                     STEEM_SYMBOL_NAME);
-
-            const auto &witness_account = get_account(props.current_witness);
 
             asset<0, 17, 0> pay;
 
@@ -1988,17 +1993,21 @@ namespace golos {
                 pay = std::max(percent, STEEMIT_MIN_PRODUCER_REWARD_PRE_HF16);
             }
 
-            /// pay witness in vesting shares
+            return pay;
+
+        }
+
+        void database::pay_witness() {
+            const auto &props = get_dynamic_global_properties();
+            const auto &witness_account = get_account(props.current_witness);
+
             if (props.head_block_number >= STEEMIT_START_MINER_VOTING_BLOCK ||
                 (witness_account.vesting_shares.amount.value == 0)) {
                 // const auto& witness_obj = get_witness( props.current_witness );
-                create_vesting(witness_account, pay);
+                create_vesting(witness_account, get_producer_reward());
             } else {
-                adjust_balance(witness_account, pay);
+                adjust_balance(witness_account, get_producer_reward());
             }
-
-            return pay;
-
         }
 
         asset<0, 17, 0> database::get_pow_reward() const {
@@ -2032,23 +2041,28 @@ namespace golos {
             FC_ASSERT((input_time - fc::time_point::now()).to_seconds() < STEEMIT_CASHOUT_WINDOW_SECONDS,
                       "Extension time should be less or equal than a week");
 
-            return {(input_time - fc::time_point::now()).to_seconds() * STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY /
-                    (input_comment.net_rshares * 60 * 60 * 24), SBD_SYMBOL_NAME};
+            return asset<0, 17, 0>((input_time - fc::time_point::now()).to_seconds() *
+                                   STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY.amount.value /
+                                   (60 * 60 * 24), SBD_SYMBOL_NAME);
         }
 
         time_point_sec database::get_payout_extension_time(const comment_object &input_comment,
                                                            const asset<0, 17, 0> &input_cost) const {
             FC_ASSERT(input_cost.symbol == SBD_SYMBOL_NAME, "Extension payment should be in SBD");
-            FC_ASSERT(input_cost.amount / STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY > 0,
+            FC_ASSERT(input_cost.amount / STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY.amount > 0,
                       "Extension payment should cover more than a day");
             return fc::time_point::now() + fc::seconds(
-                    ((input_cost.amount.value * 60 * 60 * 24 * input_comment.net_rshares.value) /
-                     STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY));
+                    ((input_cost.amount.value * 60 * 60 * 24) /
+                     STEEMIT_PAYOUT_EXTENSION_COST_PER_DAY.amount.value));
         }
 
         asset<0, 17, 0> database::get_name_cost(const fc::fixed_string<> &name) const {
-            return {30 / std::pow((name.size() - STEEMIT_MIN_ASSET_SYMBOL_LENGTH - 1), (STEEMIT_MIN_ASSET_SYMBOL_LENGTH - 1)) + STEEMIT_MIN_ASSET_SYMBOL_LENGTH, STEEM_SYMBOL_NAME};
+            return name.size() >= STEEMIT_MIN_ASSET_SYMBOL_LENGTH && name.size() < STEEMIT_MAX_ASSET_SYMBOL_LENGTH / 2
+                   ? asset<0, 17, 0>(get_producer_reward().amount * STEEMIT_BLOCKS_PER_DAY * 90 /
+                                     std::pow(name.size() - STEEMIT_MIN_ASSET_SYMBOL_LENGTH + 1, 3), STEEM_SYMBOL_NAME)
+                   : asset<0, 17, 0>(0, STEEM_SYMBOL_NAME);
         }
+
 
         void database::pay_liquidity_reward() {
 #ifdef STEEMIT_BUILD_TESTNET
@@ -2463,7 +2477,7 @@ namespace golos {
         schema_list.back()->get_name( ds.custom_operation_types.back().type );
         }
 
-        graphene::get_database::add_dependent_schemas( schema_list );
+        golos::get_database::add_dependent_schemas( schema_list );
         std::sort( schema_list.begin(), schema_list.end(),
         []( const std::shared_ptr< abstract_schema >& a,
           const std::shared_ptr< abstract_schema >& b )
@@ -2606,7 +2620,7 @@ namespace golos {
                 create<dynamic_global_property_object>([&](dynamic_global_property_object &p) {
                     p.current_witness = STEEMIT_INIT_MINER_NAME;
                     p.time = STEEMIT_GENESIS_TIME;
-                    p.recent_slots_filled = fc::uint128::max_value();
+                    p.recent_slots_filled = fc::uint128_t::max_value();
                     p.participation_count = 128;
                     p.current_supply = asset<0, 17, 0>(init_supply, STEEM_SYMBOL_NAME);
                     p.virtual_supply = p.current_supply;
@@ -2642,17 +2656,18 @@ namespace golos {
 
         void database::notify_changed_objects() {
             try {
-                /*vector< golos::chainbase::generic_id > ids;
+
+                /*std::vector< golos::chainbase::generic_id > ids;
         get_changed_ids( ids );
         STEEMIT_TRY_NOTIFY( changed_objects, ids )*/
                 /*
         if( _undo_db.enabled() )
         {
          const auto& head_undo = _undo_db.head();
-         vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
+         std::vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
          for( const auto& item : head_undo.old_values ) changed_ids.push_back(item.first);
          for( const auto& item : head_undo.new_ids ) changed_ids.push_back(item);
-         vector<const object*> removed;
+         std::vector<const object*> removed;
          removed.reserve( head_undo.removed.size() );
          for( const auto& item : head_undo.removed )
          {
@@ -2816,13 +2831,13 @@ namespace golos {
                 create_block_summary(next_block);
 
                 if (has_hardfork(STEEMIT_HARDFORK_0_17__111)) {
-                    clear_expired_transactions();
+                    clear_expired_witness_votes();
                 }
 
                 clear_expired_proposals();
                 clear_expired_orders();
                 clear_expired_delegations();
-                clear_expired_witness_votes();
+                clear_expired_transactions();
                 update_expired_feeds();
                 update_witness_schedule(*this);
 
@@ -2904,16 +2919,18 @@ namespace golos {
 
                 auto now = head_block_time();
                 const witness_schedule_object &wso = get_witness_schedule_object();
-                vector<price<0, 17, 0>> feeds;
+                std::vector<price<0, 17, 0>> feeds;
                 feeds.reserve(wso.num_scheduled_witnesses);
                 for (int i = 0; i < wso.num_scheduled_witnesses; i++) {
                     const auto &wit = get_witness(wso.current_shuffled_witnesses[i]);
                     if (has_hardfork(STEEMIT_HARDFORK_0_17__220)) {
-                        if (now < wit.last_sbd_exchange_update + STEEMIT_MAX_FEED_AGE && !wit.sbd_exchange_rate.is_null()) {
+                        if (now < wit.last_sbd_exchange_update + STEEMIT_MAX_FEED_AGE &&
+                            !wit.sbd_exchange_rate.is_null()) {
                             feeds.push_back(wit.sbd_exchange_rate);
                         }
                     } else {
-                        if (wit.last_sbd_exchange_update < now + STEEMIT_MAX_FEED_AGE && !wit.sbd_exchange_rate.is_null()) {
+                        if (wit.last_sbd_exchange_update < now + STEEMIT_MAX_FEED_AGE &&
+                            !wit.sbd_exchange_rate.is_null()) {
                             feeds.push_back(wit.sbd_exchange_rate);
                         }
                     }
@@ -2994,13 +3011,13 @@ namespace golos {
                           "Duplicate transaction check failed", ("trx_ix", trx_id));
 
                 if (!(skip & (skip_transaction_signatures | skip_authority_check))) {
-                    auto get_active = [&](const string &name) {
+                    auto get_active = [&](const std::string &name) {
                         return authority(get<account_authority_object, by_account>(name).active);
                     };
-                    auto get_owner = [&](const string &name) {
+                    auto get_owner = [&](const std::string &name) {
                         return authority(get<account_authority_object, by_account>(name).owner);
                     };
-                    auto get_posting = [&](const string &name) {
+                    auto get_posting = [&](const std::string &name) {
                         return authority(get<account_authority_object, by_account>(name).posting);
                     };
 
@@ -3013,7 +3030,7 @@ namespace golos {
                     }
                 }
                 flat_set<account_name_type> required;
-                vector<authority> other;
+                std::vector<authority> other;
                 trx.get_required_authorities(required, required, required, other);
 
                 auto trx_size = fc::raw::pack_size(trx);
@@ -3107,7 +3124,7 @@ namespace golos {
                     uint32_t slot_num = get_slot_at_time(next_block.timestamp);
                     FC_ASSERT(slot_num > 0);
 
-                    string scheduled_witness = get_scheduled_witness(slot_num);
+                    std::string scheduled_witness = get_scheduled_witness(slot_num);
 
                     FC_ASSERT(witness.owner == scheduled_witness, "Witness produced block at wrong time",
                               ("block witness", next_block.witness)("scheduled", scheduled_witness)("slot_num",
@@ -3219,11 +3236,12 @@ namespace golos {
         void database::update_virtual_supply() {
             try {
                 modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &dgp) {
-                    dgp.virtual_supply = dgp.current_supply +
-                                         (get_feed_history().current_median_history.is_null() ? asset<0, 17, 0>(0,
-                                                                                                                STEEM_SYMBOL_NAME)
-                                                                                              : dgp.current_sbd_supply *
-                                                                                                get_feed_history().current_median_history);
+                    if (get_feed_history().current_median_history.is_null()) {
+                        dgp.virtual_supply = dgp.current_supply;
+                    } else {
+                        dgp.virtual_supply =
+                                dgp.current_supply + dgp.current_sbd_supply * get_feed_history().current_median_history;
+                    }
 
                     auto median_price = get_feed_history().current_median_history;
 
@@ -3275,7 +3293,7 @@ namespace golos {
                 } else {
                     const witness_schedule_object &wso = get_witness_schedule_object();
 
-                    vector<const witness_object *> wit_objs;
+                    std::vector<const witness_object *> wit_objs;
                     wit_objs.reserve(wso.num_scheduled_witnesses);
                     for (int i = 0; i < wso.num_scheduled_witnesses; i++) {
                         wit_objs.push_back(&get_witness(wso.current_shuffled_witnesses[i]));
@@ -3317,7 +3335,7 @@ namespace golos {
 
                     if (log_head_num < dpo.last_irreversible_block_num) {
                         while (log_head_num < dpo.last_irreversible_block_num) {
-                            shared_ptr<fork_item> block = _fork_db.fetch_block_on_main_branch_by_number(
+                            std::shared_ptr<fork_item> block = _fork_db.fetch_block_on_main_branch_by_number(
                                     log_head_num + 1);
                             FC_ASSERT(block,
                                       "Current fork in the fork database does not contain the last_irreversible_block");
@@ -3338,7 +3356,7 @@ namespace golos {
             auto order_id = new_order_object.id;
 
             if (has_hardfork(STEEMIT_HARDFORK_0_17__115)) {
-                const asset_object &sell_asset = get_asset(new_order_object.amount_for_sale().symbol);
+                const asset_object &sell_asset = get_asset(new_order_object.for_sale.symbol_name());
                 const asset_object &receive_asset = get_asset(new_order_object.amount_to_receive().symbol);
 
                 // Possible optimization: We only need to check calls if both are true:
@@ -3436,12 +3454,12 @@ namespace golos {
                             const price<0, 17, 0> &match_price) {
             assert(new_order.sell_price.quote.symbol == old_order.sell_price.base.symbol);
             assert(new_order.sell_price.base.symbol == old_order.sell_price.quote.symbol);
-            assert(new_order.for_sale > 0 && old_order.for_sale > 0);
+            assert(new_order.for_sale.amount > 0 && old_order.for_sale.amount > 0);
             assert(match_price.quote.symbol == new_order.sell_price.base.symbol);
             assert(match_price.base.symbol == old_order.sell_price.base.symbol);
 
-            auto new_order_for_sale = new_order.amount_for_sale();
-            auto old_order_for_sale = old_order.amount_for_sale();
+            auto new_order_for_sale = new_order.for_sale;
+            auto old_order_for_sale = old_order.for_sale;
 
             asset<0, 17, 0> new_order_pays, new_order_receives, old_order_pays, old_order_receives;
 
@@ -3460,7 +3478,7 @@ namespace golos {
             old_order_pays = new_order_receives;
             new_order_pays = old_order_receives;
 
-            assert(new_order_pays == new_order.amount_for_sale() || old_order_pays == old_order.amount_for_sale());
+            assert(new_order_pays == new_order.for_sale || old_order_pays == old_order.for_sale);
 
             if (old_order_receives.symbol == STEEM_SYMBOL_NAME || old_order_receives.symbol == SBD_SYMBOL_NAME) {
                 fc::microseconds age = head_block_time() - old_order.created;
@@ -3479,13 +3497,10 @@ namespace golos {
                 }
             }
 
-            push_virtual_operation(fill_order_operation<0, 17, 0>(new_order.seller, new_order.order_id, new_order_pays,
-                                                                  old_order.seller, old_order.order_id,
-                                                                  old_order_pays));
-
             int result = 0;
             result |= fill_order(new_order, new_order_pays, new_order_receives);
             result |= fill_order(old_order, old_order_pays, old_order_receives) << 1;
+
             assert(result != 0);
             return result;
         }
@@ -3530,7 +3545,7 @@ namespace golos {
         bool database::fill_order(const limit_order_object &order, const asset<0, 17, 0> &pays,
                                   const asset<0, 17, 0> &receives) {
             try {
-                FC_ASSERT(order.amount_for_sale().symbol == pays.symbol);
+                FC_ASSERT(order.for_sale.symbol == pays.symbol);
                 FC_ASSERT(pays.symbol != receives.symbol);
 
                 const account_object &seller = get_account(order.seller);
@@ -3539,13 +3554,15 @@ namespace golos {
                 auto issuer_fees = pay_market_fees(recv_asset, receives);
                 pay_order(seller, receives - issuer_fees, pays);
 
-                if (pays == order.amount_for_sale()) {
+                push_virtual_operation(fill_order_operation<0, 17, 0>(order.seller, order.order_id, pays, receives, issuer_fees));
+
+                if (pays == order.for_sale) {
                     remove(order);
                     return true;
                 } else {
 
                     modify(order, [&](limit_order_object &b) {
-                        b.for_sale -= pays.amount;
+                        b.for_sale -= pays;
                     });
                     /**
                      *  There are times when the AMOUNT_FOR_SALE * SALE_PRICE == 0 which means that we
@@ -3705,7 +3722,7 @@ namespace golos {
                     if (limit_itr != limit_end) {
                         assert(limit_itr != limit_price_index.end());
                         match_price = limit_itr->sell_price;
-                        usd_for_sale = limit_itr->amount_for_sale();
+                        usd_for_sale = limit_itr->for_sale;
                     } else {
                         return margin_called;
                     }
@@ -3763,11 +3780,6 @@ namespace golos {
 
                     auto old_limit_itr = filled_limit ? limit_itr++ : limit_itr;
                     fill_order(*old_limit_itr, order_pays, order_receives);
-                    push_virtual_operation(fill_order_operation<0, 17, 0>(limit_itr->seller, limit_itr->order_id,
-                                                                          limit_itr->amount_for_sale(),
-                                                                          old_limit_itr->seller,
-                                                                          old_limit_itr->order_id,
-                                                                          old_limit_itr->amount_for_sale()));
                 } // whlie call_itr != call_end
 
                 return margin_called;
@@ -3849,7 +3861,7 @@ namespace golos {
                 return trade_asset.amount(0);
             }
 
-            fc::uint128 a(trade_amount.amount.value);
+            fc::uint128_t a(trade_amount.amount.value);
             a *= trade_asset.options.market_fee_percent;
             a /= STEEMIT_100_PERCENT;
             asset<0, 17, 0> percent_fee = trade_asset.amount(a.to_uint64());
@@ -3879,7 +3891,7 @@ namespace golos {
 
         void database::cancel_order(const limit_order_object &order, bool create_virtual_op) {
             if (has_hardfork(STEEMIT_HARDFORK_0_17__115)) {
-                auto refunded = order.amount_for_sale();
+                auto refunded = order.for_sale;
 
                 modify(get_account_statistics(order.seller), [&](account_statistics_object &obj) {
                     if (refunded.symbol == STEEM_SYMBOL_NAME) {
@@ -3898,7 +3910,7 @@ namespace golos {
 
                 remove(order);
             } else {
-                adjust_balance(get_account(order.seller), order.amount_for_sale());
+                adjust_balance(get_account(order.seller), order.for_sale);
                 remove(order);
             }
         }
@@ -4203,7 +4215,7 @@ namespace golos {
             }
         }
 
-        string database::to_pretty_string(const asset<0, 17, 0> &a) const {
+        std::string database::to_pretty_string(const asset<0, 17, 0> &a) const {
             return get_asset(a.symbol).amount_to_pretty_string(a.amount);
         }
 
@@ -4452,20 +4464,21 @@ namespace golos {
                       "Blockchain version is older than last applied hardfork");
             FC_ASSERT(STEEMIT_BLOCKCHAIN_HARDFORK_VERSION == _hardfork_versions[STEEMIT_NUM_HARDFORKS]);
 
-            golos::version::state::instance().current_version = protocol::hardfork_version(0,
-                                                                                             hardforks.last_hardfork);
+
+            golos::version::state::instance().current_version = protocol::hardfork_version(0, hardforks.last_hardfork);
+
         }
 
         void database::reset_virtual_schedule_time() {
             const witness_schedule_object &wso = get_witness_schedule_object();
             modify(wso, [&](witness_schedule_object &o) {
-                o.current_virtual_time = fc::uint128(); // reset it 0
+                o.current_virtual_time = fc::uint128_t(); // reset it 0
             });
 
             const auto &idx = get_index<witness_index>().indices();
             for (const auto &witness : idx) {
                 modify(witness, [&](witness_object &wobj) {
-                    wobj.virtual_position = fc::uint128();
+                    wobj.virtual_position = fc::uint128_t();
                     wobj.virtual_last_update = wso.current_virtual_time;
                     wobj.virtual_scheduled_time = VIRTUAL_SCHEDULE_LAP_LENGTH2 / (wobj.votes.value + 1);
                 });
@@ -4532,8 +4545,8 @@ namespace golos {
 #ifdef STEEMIT_BUILD_TESTNET
                     {
                         custom_operation test_op;
-                        string op_msg = "Testnet: Hardfork applied";
-                        test_op.data = vector<char>(op_msg.begin(), op_msg.end());
+                        std::string op_msg = "Testnet: Hardfork applied";
+                        test_op.data = std::vector<char>(op_msg.begin(), op_msg.end());
                         test_op.required_auths.insert(STEEMIT_INIT_MINER_NAME);
                         operation op = test_op;   // we need the operation object to live to the end of this scope
                         operation_notification note(op);
@@ -4710,9 +4723,9 @@ namespace golos {
                      */
                     const auto &comment_idx = get_index<comment_index, by_cashout_time>();
                     const auto &by_root_idx = get_index<comment_index, by_root>();
-                    vector<const comment_object *> root_posts;
+                    std::vector<const comment_object *> root_posts;
                     root_posts.reserve(60000);
-                    vector<const comment_object *> replies;
+                    std::vector<const comment_object *> replies;
                     replies.reserve(100000);
 
                     for (auto itr = comment_idx.begin();
@@ -4738,24 +4751,6 @@ namespace golos {
                                                       c.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
                             c.children_rshares2 = 0;
                         });
-                    }
-
-                    for (const std::string &acc : hardfork17::get_compromised_accounts()) {
-                        const account_object *account = find_account(acc);
-                        if (account == nullptr) {
-                            continue;
-                        }
-
-                        update_owner_authority(*account, authority(1, public_key_type(
-                                "GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1));
-
-                        modify(get<account_authority_object, by_account>(account->name),
-                               [&](account_authority_object &auth) {
-                                   auth.active = authority(1, public_key_type(
-                                           "GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1);
-                                   auth.posting = authority(1, public_key_type(
-                                           "GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1);
-                               });
                     }
                 }
                     break;
@@ -4833,9 +4828,9 @@ namespace golos {
 
                 for (const auto &itr : limit_order_idx) {
                     if (itr.sell_price.base.symbol == STEEM_SYMBOL_NAME) {
-                        total_supply += asset<0, 17, 0>(itr.for_sale, STEEM_SYMBOL_NAME);
+                        total_supply += itr.for_sale;
                     } else if (itr.sell_price.base.symbol == SBD_SYMBOL_NAME) {
-                        total_sbd += asset<0, 17, 0>(itr.for_sale, SBD_SYMBOL_NAME);
+                        total_sbd += itr.for_sale;
                     }
                 }
 

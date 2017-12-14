@@ -73,4 +73,4 @@ namespace golos {
         typedef std::shared_ptr<stcp_socket> stcp_socket_ptr;
 
     }
-} // graphene::network
+} // golos::network

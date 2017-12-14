@@ -5,278 +5,297 @@
 #include <golos/chain/evaluators/market_evaluator.hpp>
 
 #include <golos/chain/database.hpp>
-#include <golos/version/hardfork.hpp>
+#include <golos/version/version.hpp>
 
 #include <golos/protocol/exceptions.hpp>
 #include <golos/protocol/operations/market_operations.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc/uint128_t.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 namespace golos {
     namespace chain {
         /// TODO: after the hardfork, we can rename this method validate_permlink because it is strictily less restrictive than before
-        ///  Issue #56 contains the justificiation for allowing any UTF-8 string to serve as a permlink, content will be grouped by tags
+        ///  Issue #56 contains the justificiation for allowing any UTF-8 std::string to serve as a permlink, content will be grouped by tags
         ///  going forwarthis->db.template 
-        inline void validate_permlink(const string &permlink) {
+        inline void validate_permlink(const std::string &permlink) {
             FC_ASSERT(permlink.size() < STEEMIT_MAX_PERMLINK_LENGTH, "permlink is too long");
             FC_ASSERT(fc::is_utf8(permlink), "permlink not formatted in UTF8");
         }
 
-        inline void validate_account_name(const string &name) {
+        inline void validate_account_name(const std::string &name) {
             FC_ASSERT(is_valid_account_name(name), "Account name ${n} is invalid", ("n", name));
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
         void convert_evaluator<Major, Hardfork, Release>::do_apply(const operation_type &o) {
 
-            const auto &owner = this->db.template get_account(o.owner);
-            FC_ASSERT(this->db.template get_balance(owner, o.amount.symbol_name()) >=
-                      typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount.amount,
-                                                                                o.amount.symbol_name()),
+            const auto &owner = this->db.get_account(o.owner);
+            asset<0, 17, 0> delta(o.amount.amount, o.amount.symbol_name());
+
+            FC_ASSERT(this->db.get_balance(owner, o.amount.symbol_name()) >= delta,
                       "Account ${n} does not have sufficient balance for conversion. Balance: ${b}. Required: ${r}",
-                      ("n", o.owner)("b", this->db.template get_balance(owner, o.amount.symbol_name()))("r", o.amount));
+                      ("n", o.owner)("b", this->db.get_balance(owner, o.amount.symbol_name()))("r", o.amount));
 
-            this->db.template adjust_balance(owner,
-                                             -typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount.amount,
-                                                                                                        o.amount.symbol_name()));
 
-            const auto &fhistory = this->db.template get_feed_history();
+            this->db.adjust_balance(owner, -delta);
+
+            const auto &fhistory = this->db.get_feed_history();
             FC_ASSERT(!fhistory.current_median_history.is_null(), "Cannot convert SBD because there is no price feed.");
 
             auto steem_conversion_delay = STEEMIT_CONVERSION_DELAY_PRE_HF16;
-            if (this->db.template has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
+            if (this->db.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
                 steem_conversion_delay = STEEMIT_CONVERSION_DELAY;
             }
 
             this->db.template create<convert_request_object>([&](convert_request_object &obj) {
                 obj.owner = o.owner;
                 obj.request_id = o.request_id;
-                obj.amount = typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount.amount,
-                                                                                       o.amount.symbol_name());
-                obj.conversion_date = this->db.template head_block_time() + steem_conversion_delay;
+                obj.amount = delta;
+                obj.conversion_date = this->db.head_block_time() + steem_conversion_delay;
             });
 
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        void limit_order_create_evaluator<Major, Hardfork, Release>::do_apply(const operation_type &o) {
-            if (this->db.template has_hardfork(STEEMIT_HARDFORK_0_17__115)) {
-                try {
-                    FC_ASSERT(o.expiration >= this->db.template head_block_time());
+        void limit_order_create_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork <= 16>>::do_apply(const operation_type &o) {
+            FC_ASSERT((o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME &&
+                       o.min_to_receive.symbol_name() == SBD_SYMBOL_NAME) ||
+                      (o.amount_to_sell.symbol_name() == SBD_SYMBOL_NAME &&
+                       o.min_to_receive.symbol_name() == STEEM_SYMBOL_NAME),
+                      "Limit order must be for the STEEM:SBD market");
 
-                    seller = this->db.template find_account(o.owner);
-                    sell_asset = this->db.template find_asset(o.amount_to_sell.symbol_name());
-                    receive_asset = this->db.template find_asset(o.min_to_receive.symbol_name());
+            FC_ASSERT(o.expiration > this->db.head_block_time(), "Limit order has to expire after head block time.");
 
-                    if (!sell_asset->options.whitelist_markets.empty()) {
-                        FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
-                                  sell_asset->options.whitelist_markets.end());
+            const auto &owner = this->db.get_account(o.owner);
+
+            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+
+            FC_ASSERT(this->db.get_balance(owner, o.amount_to_sell.symbol_name()) >= delta,
+                      "Account does not have sufficient funds for limit order.");
+
+            this->db.adjust_balance(owner, -delta);
+
+            const auto &order = this->db.template create<limit_order_object>([&](limit_order_object &obj) {
+                obj.created = this->db.head_block_time();
+                obj.seller = o.owner;
+                obj.order_id = o.order_id;
+                obj.for_sale = protocol::asset<0, 17, 0>(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
+                obj.sell_price = protocol::price<0, 17, 0>(
+                        protocol::asset<0, 17, 0>(o.get_price().base.amount,
+                                                  o.get_price().base.symbol_name(),
+                                                  o.get_price().base.get_decimals()),
+                        protocol::asset<0, 17, 0>(o.get_price().quote.amount,
+                                                  o.get_price().quote.symbol_name(),
+                                                  o.get_price().quote.get_decimals()));
+                obj.expiration = o.expiration;
+            });
+
+            bool filled = this->db.apply_order(order);
+
+            if (o.fill_or_kill) {
+                FC_ASSERT(filled, "Cancelling order because it was not filled. ");
+            }
+        }
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+        void limit_order_create_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork >= 17>>::do_apply(const operation_type &o) {
+            try {
+                FC_ASSERT(o.expiration >= this->db.head_block_time());
+
+                seller = this->db.find_account(o.owner);
+                sell_asset = this->db.find_asset(o.amount_to_sell.symbol_name());
+                receive_asset = this->db.find_asset(o.min_to_receive.symbol_name());
+
+                if (!sell_asset->options.whitelist_markets.empty()) {
+                    FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
+                              sell_asset->options.whitelist_markets.end());
+                }
+                if (!sell_asset->options.blacklist_markets.empty()) {
+                    FC_ASSERT(sell_asset->options.blacklist_markets.find(receive_asset->asset_name) ==
+                              sell_asset->options.blacklist_markets.end());
+                }
+
+                FC_ASSERT(this->db.is_authorized_asset(*seller, *sell_asset));
+                FC_ASSERT(this->db.is_authorized_asset(*seller, *receive_asset));
+
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
+
+                FC_ASSERT(sell_asset->precision == o.amount_to_sell.get_decimals(), "Assets decimals amount does not match");
+
+                FC_ASSERT(this->db.get_balance(*seller, *sell_asset) >= delta, "insufficient balance",
+                          ("balance", this->db.get_balance(*seller, *sell_asset))("amount_to_sell", o.amount_to_sell));
+
+            } FC_CAPTURE_AND_RETHROW((o))
+
+            try {
+                const auto &seller_stats = this->db.get_account_statistics(seller->name);
+                this->db.template modify(seller_stats, [&](account_statistics_object &bal) {
+                    if (o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME) {
+                        bal.total_core_in_orders += o.amount_to_sell.amount;
                     }
-                    if (!sell_asset->options.blacklist_markets.empty()) {
-                        FC_ASSERT(sell_asset->options.blacklist_markets.find(receive_asset->asset_name) ==
-                                  sell_asset->options.blacklist_markets.end());
+                });
+
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
+
+                this->db.adjust_balance(this->db.get_account(o.owner), -delta);
+
+                const limit_order_object &limit_order = this->db.template create<limit_order_object>(
+                        [&](limit_order_object &obj) {
+                            obj.created = this->db.head_block_time();
+                            obj.order_id = o.order_id;
+                            obj.seller = seller->name;
+                            obj.for_sale = protocol::asset<0, 17, 0>(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
+                            obj.sell_price = protocol::price<0, 17, 0>(
+                                    protocol::asset<0, 17, 0>(o.get_price().base.amount,
+                                                              o.get_price().base.symbol_name(),
+                                                              o.get_price().base.get_decimals()),
+                                    protocol::asset<0, 17, 0>(o.get_price().quote.amount,
+                                                              o.get_price().quote.symbol_name(),
+                                                              o.get_price().quote.get_decimals()));
+                            obj.expiration = o.expiration;
+                            obj.deferred_fee = deferred_fee;
+                        });
+
+                bool filled = this->db.apply_order(limit_order);
+
+                FC_ASSERT(!o.fill_or_kill || filled);
+            } FC_CAPTURE_AND_RETHROW((o))
+        }
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+        void limit_order_create2_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork >= 17>>::do_apply(const operation_type &o) {
+            try {
+                FC_ASSERT(o.expiration >= this->db.head_block_time());
+
+                seller = this->db.find_account(o.owner);
+                sell_asset = this->db.find_asset(o.amount_to_sell.symbol_name());
+                receive_asset = this->db.find_asset(o.exchange_rate.quote.symbol_name());
+
+                if (!sell_asset->options.whitelist_markets.empty()) {
+                    FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
+                              sell_asset->options.whitelist_markets.end());
+                }
+                if (!sell_asset->options.blacklist_markets.empty()) {
+                    FC_ASSERT(sell_asset->options.blacklist_markets.find(receive_asset->asset_name) ==
+                              sell_asset->options.blacklist_markets.end());
+                }
+
+                FC_ASSERT(this->db.is_authorized_asset(*seller, *sell_asset));
+                FC_ASSERT(this->db.is_authorized_asset(*seller, *receive_asset));
+
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+
+                FC_ASSERT(sell_asset->precision == o.amount_to_sell.get_decimals(), "Assets decimals amount does not match");
+
+                FC_ASSERT(this->db.get_balance(*seller, *sell_asset) >= delta, "insufficient balance",
+                          ("balance", this->db.get_balance(*seller, *sell_asset))("amount_to_sell", o.amount_to_sell));
+
+            } FC_CAPTURE_AND_RETHROW((o))
+
+            try {
+                const auto &seller_stats = this->db.get_account_statistics(seller->name);
+                this->db.template modify(seller_stats, [&](account_statistics_object &bal) {
+                    if (o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME) {
+                        bal.total_core_in_orders += o.amount_to_sell.amount;
                     }
+                });
 
-                    FC_ASSERT(this->db.template is_authorized_asset(*seller, *sell_asset));
-                    FC_ASSERT(this->db.template is_authorized_asset(*seller, *receive_asset));
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
 
-                    FC_ASSERT(this->db.template get_balance(*seller, *sell_asset) >=
-                              typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount_to_sell.amount,
-                                                                                        o.amount_to_sell.symbol_name()),
-                              "insufficient balance",
-                              ("balance", this->db.template get_balance(*seller, *sell_asset))("amount_to_sell",
-                                                                                               o.amount_to_sell));
+                this->db.adjust_balance(this->db.get_account(o.owner), -delta);
 
-                } FC_CAPTURE_AND_RETHROW((o))
-
-                try {
-                    const auto &seller_stats = this->db.template get_account_statistics(seller->name);
-                    this->db.template modify(seller_stats, [&](account_statistics_object &bal) {
-                        if (o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME) {
-                            bal.total_core_in_orders += o.amount_to_sell.amount;
-                        }
-                    });
-
-                    this->db.template adjust_balance(this->db.template get_account(o.owner),
-                                                     -protocol::asset<0, 17, 0>(o.amount_to_sell.amount,
-                                                                                o.amount_to_sell.symbol_name()));
-
-                    bool filled = this->db.template apply_order(
-                            this->db.template create<limit_order_object>([&](limit_order_object &obj) {
-                                obj.created = this->db.template head_block_time();
-                                obj.order_id = o.order_id;
-                                obj.seller = seller->name;
-                                obj.for_sale = o.amount_to_sell.amount;
-                                obj.sell_price = protocol::price<0, 17, 0>(
-                                        protocol::asset<0, 17, 0>(o.get_price().base.amount,
-                                                                  o.get_price().base.symbol_name()),
-                                        protocol::asset<0, 17, 0>(o.get_price().quote.amount,
-                                                                  o.get_price().quote.symbol_name()));
-                                obj.expiration = o.expiration;
-                                obj.deferred_fee = deferred_fee;
-                            }));
-
-                    FC_ASSERT(!o.fill_or_kill || filled);
-                } FC_CAPTURE_AND_RETHROW((o))
-            } else {
-                FC_ASSERT((o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME &&
-                           o.min_to_receive.symbol_name() == SBD_SYMBOL_NAME) ||
-                          (o.amount_to_sell.symbol_name() == SBD_SYMBOL_NAME &&
-                           o.min_to_receive.symbol_name() == STEEM_SYMBOL_NAME),
-                          "Limit order must be for the STEEM:SBD market");
-
-                FC_ASSERT(o.expiration > this->db.template head_block_time(),
-                          "Limit order has to expire after head block time.");
-
-                const auto &owner = this->db.template get_account(o.owner);
-
-                FC_ASSERT(this->db.template get_balance(owner, o.amount_to_sell.symbol_name()) >=
-                          typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount_to_sell.amount,
-                                                                                    o.amount_to_sell.symbol_name()),
-                          "Account does not have sufficient funds for limit order.");
-
-                this->db.template adjust_balance(owner, -protocol::asset<0, 17, 0>(o.amount_to_sell.amount,
-                                                                                   o.amount_to_sell.symbol_name()));
-
-                const auto &order = this->db.template create<limit_order_object>([&](limit_order_object &obj) {
+                const limit_order_object &limit_order = this->db.template create<limit_order_object>([&](limit_order_object &obj) {
                     obj.created = this->db.template head_block_time();
-                    obj.seller = o.owner;
                     obj.order_id = o.order_id;
-                    obj.for_sale = o.amount_to_sell.amount;
+                    obj.seller = seller->name;
+                    obj.for_sale = protocol::asset<0, 17, 0>(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
                     obj.sell_price = protocol::price<0, 17, 0>(
-                            protocol::asset<0, 17, 0>(o.get_price().base.amount, o.get_price().base.symbol_name()),
-                            protocol::asset<0, 17, 0>(o.get_price().quote.amount, o.get_price().quote.symbol_name()));
+                            protocol::asset<0, 17, 0>(o.get_price().base.amount,
+                                                      o.get_price().base.symbol_name(),
+                                                      o.get_price().base.get_decimals()),
+                            protocol::asset<0, 17, 0>(o.get_price().quote.amount,
+                                                      o.get_price().quote.symbol_name(),
+                                                      o.get_price().quote.get_decimals()));
                     obj.expiration = o.expiration;
+                    obj.deferred_fee = deferred_fee;
                 });
 
-                bool filled = this->db.template apply_order(order);
+                bool filled = this->db.apply_order(limit_order);
 
-                if (o.fill_or_kill) {
-                    FC_ASSERT(filled, "Cancelling order because it was not filled. ");
-                }
+                FC_ASSERT(!o.fill_or_kill || filled);
+            } FC_CAPTURE_AND_RETHROW((o))
+        }
+
+        template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
+        void limit_order_create2_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork <= 16>>::do_apply(const operation_type &o) {
+            FC_ASSERT((o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME &&
+                       o.exchange_rate.quote.symbol_name() == SBD_SYMBOL_NAME) ||
+                      (o.amount_to_sell.symbol_name() == SBD_SYMBOL_NAME &&
+                       o.exchange_rate.quote.symbol_name() == STEEM_SYMBOL_NAME),
+                      "Limit order must be for the STEEM:SBD market");
+
+            FC_ASSERT(o.expiration > this->db.head_block_time(), "Limit order has to expire after head block time.");
+
+            const auto &owner = this->db.get_account(o.owner);
+
+            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+
+            FC_ASSERT(this->db.template get_balance(owner, o.amount_to_sell.symbol_name()) >= delta, "Account does not have sufficient funds for limit order.");
+
+            this->db.template adjust_balance(owner, -delta);
+
+            const auto &order = this->db.template create<limit_order_object>([&](limit_order_object &obj) {
+                obj.created = this->db.template head_block_time();
+                obj.seller = o.owner;
+                obj.order_id = o.order_id;
+                obj.for_sale = protocol::asset<0, 17, 0>(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
+                obj.sell_price = protocol::price<0, 17, 0>(
+                        protocol::asset<0, 17, 0>(o.exchange_rate.base.amount,
+                                                  o.exchange_rate.base.symbol_name(),
+                                                  o.exchange_rate.base.get_decimals()),
+                        protocol::asset<0, 17, 0>(o.exchange_rate.quote.amount,
+                                                  o.exchange_rate.quote.symbol_name(),
+                                                  o.exchange_rate.quote.get_decimals()));
+                obj.expiration = o.expiration;
+            });
+
+            bool filled = this->db.template apply_order(order);
+
+            if (o.fill_or_kill) {
+                FC_ASSERT(filled, "Cancelling order because it was not filled.");
             }
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        void limit_order_create2_evaluator<Major, Hardfork, Release>::do_apply(const operation_type &o) {
-            if (this->db.template has_hardfork(STEEMIT_HARDFORK_0_17__115)) {
-                try {
-                    FC_ASSERT(o.expiration >= this->db.template head_block_time());
+        void limit_order_cancel_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork >= 17>>::do_apply(const operation_type &op) {
+            try {
+                _order = this->db.template find_limit_order(op.owner, op.order_id);
+                FC_ASSERT(_order->seller == op.owner);
+            } FC_CAPTURE_AND_RETHROW((op))
 
-                    seller = this->db.template find_account(o.owner);
-                    sell_asset = this->db.template find_asset(o.amount_to_sell.symbol_name());
-                    receive_asset = this->db.template find_asset(o.exchange_rate.quote.symbol_name());
+            try {
+                auto base_asset = _order->sell_price.base.symbol_name();
+                auto quote_asset = _order->sell_price.quote.symbol_name();
 
-                    if (!sell_asset->options.whitelist_markets.empty()) {
-                        FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
-                                  sell_asset->options.whitelist_markets.end());
-                    }
-                    if (!sell_asset->options.blacklist_markets.empty()) {
-                        FC_ASSERT(sell_asset->options.blacklist_markets.find(receive_asset->asset_name) ==
-                                  sell_asset->options.blacklist_markets.end());
-                    }
+                this->db.template cancel_order(*_order, false /* don't create a virtual op*/);
 
-                    FC_ASSERT(this->db.template is_authorized_asset(*seller, *sell_asset));
-                    FC_ASSERT(this->db.template is_authorized_asset(*seller, *receive_asset));
-
-                    FC_ASSERT(this->db.template get_balance(*seller, *sell_asset) >=
-                              typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount_to_sell.amount,
-                                                                                        o.amount_to_sell.symbol_name()),
-                              "insufficient balance",
-                              ("balance", this->db.template get_balance(*seller, *sell_asset))("amount_to_sell",
-                                                                                               o.amount_to_sell));
-
-                } FC_CAPTURE_AND_RETHROW((o))
-
-                try {
-                    const auto &seller_stats = this->db.template get_account_statistics(seller->name);
-                    this->db.template modify(seller_stats, [&](account_statistics_object &bal) {
-                        if (o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME) {
-                            bal.total_core_in_orders += o.amount_to_sell.amount;
-                        }
-                    });
-
-                    this->db.template adjust_balance(this->db.template get_account(o.owner),
-                                                     -protocol::asset<0, 17, 0>(o.amount_to_sell.amount,
-                                                                                o.amount_to_sell.symbol_name()));
-
-                    bool filled = this->db.template apply_order(
-                            this->db.template create<limit_order_object>([&](limit_order_object &obj) {
-                                obj.created = this->db.template head_block_time();
-                                obj.order_id = o.order_id;
-                                obj.seller = seller->name;
-                                obj.for_sale = o.amount_to_sell.amount;
-                                obj.sell_price = protocol::price<0, 17, 0>(
-                                        protocol::asset<0, 17, 0>(o.get_price().base.amount,
-                                                                  o.get_price().base.symbol_name()),
-                                        protocol::asset<0, 17, 0>(o.get_price().quote.amount,
-                                                                  o.get_price().quote.symbol_name()));
-                                obj.expiration = o.expiration;
-                                obj.deferred_fee = deferred_fee;
-                            }));
-
-                    FC_ASSERT(!o.fill_or_kill || filled);
-                } FC_CAPTURE_AND_RETHROW((o))
-            } else {
-                FC_ASSERT((o.amount_to_sell.symbol_name() == STEEM_SYMBOL_NAME &&
-                           o.exchange_rate.quote.symbol_name() == SBD_SYMBOL_NAME) ||
-                          (o.amount_to_sell.symbol_name() == SBD_SYMBOL_NAME &&
-                           o.exchange_rate.quote.symbol_name() == STEEM_SYMBOL_NAME),
-                          "Limit order must be for the STEEM:SBD market");
-
-                FC_ASSERT(o.expiration > this->db.template head_block_time(),
-                          "Limit order has to expire after head block time.");
-
-                const auto &owner = this->db.template get_account(o.owner);
-
-                FC_ASSERT(this->db.template get_balance(owner, o.amount_to_sell.symbol_name()) >=
-                          typename BOOST_IDENTITY_TYPE((protocol::asset<0, 17, 0>))(o.amount_to_sell.amount,
-                                                                                    o.amount_to_sell.symbol_name()),
-                          "Account does not have sufficient funds for limit order.");
-
-                this->db.template adjust_balance(owner, -protocol::asset<0, 17, 0>(o.amount_to_sell.amount,
-                                                                                   o.amount_to_sell.symbol_name()));
-
-                const auto &order = this->db.template create<limit_order_object>([&](limit_order_object &obj) {
-                    obj.created = this->db.template head_block_time();
-                    obj.seller = o.owner;
-                    obj.order_id = o.order_id;
-                    obj.for_sale = o.amount_to_sell.amount;
-                    obj.sell_price = protocol::price<0, 17, 0>(protocol::asset<0, 17, 0>(o.exchange_rate.base.amount, o.exchange_rate.base.symbol_name()), protocol::asset<0, 17, 0>(o.exchange_rate.quote.amount, o.exchange_rate.quote.symbol_name()));
-                    obj.expiration = o.expiration;
-                });
-
-                bool filled = this->db.template apply_order(order);
-
-                if (o.fill_or_kill) {
-                    FC_ASSERT(filled, "Cancelling order because it was not filled.");
-                }
-            }
+                // Possible optimization: order can be called by canceling a limit order iff the canceled order was at the top of the book.
+                // Do I need to check calls in both assets?
+                this->db.template check_call_orders(this->db.template get_asset(base_asset));
+                this->db.template check_call_orders(this->db.template get_asset(quote_asset));
+            } FC_CAPTURE_AND_RETHROW((op))
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        void limit_order_cancel_evaluator<Major, Hardfork, Release>::do_apply(const operation_type &op) {
-            if (this->db.template has_hardfork(STEEMIT_HARDFORK_0_17__115)) {
-                try {
-                    _order = this->db.template find_limit_order(op.owner, op.order_id);
-                    FC_ASSERT(_order->seller == op.owner);
-                } FC_CAPTURE_AND_RETHROW((op))
-
-                try {
-                    auto base_asset = _order->sell_price.base.symbol_name();
-                    auto quote_asset = _order->sell_price.quote.symbol_name();
-
-                    this->db.template cancel_order(*_order, false /* don't create a virtual op*/);
-
-                    // Possible optimization: order can be called by canceling a limit order iff the canceled order was at the top of the book.
-                    // Do I need to check calls in both assets?
-                    this->db.template check_call_orders(this->db.template get_asset(base_asset));
-                    this->db.template check_call_orders(this->db.template get_asset(quote_asset));
-                } FC_CAPTURE_AND_RETHROW((op))
-            } else {
-                this->db.template cancel_order(this->db.template get_limit_order(op.owner, op.order_id), false);
-            }
+        void limit_order_cancel_evaluator<Major, Hardfork, Release,
+                type_traits::static_range<Hardfork <= 16>>::do_apply(const operation_type &op) {
+            this->db.template cancel_order(this->db.template get_limit_order(op.owner, op.order_id), false);
         }
 
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
@@ -400,7 +419,7 @@ namespace golos {
                     // limit orders available that could be used to fill the order.
                     if (this->db.template check_call_orders(*_debt_asset, false)) {
                         const auto order_obj = this->db.template find<call_order_object, by_id>(call_order_id);
-                        // if we filled at least one call order, we are OK if we totally filled. 
+                        // if we filled at least one call order, we are OK if we totally filled.
                         STEEMIT_ASSERT(!order_obj,
                                        typename BOOST_IDENTITY_TYPE((exceptions::operations::call_order_update::unfilled_margin_call<
                                                Major, Hardfork, Release >)),

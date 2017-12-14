@@ -8,8 +8,8 @@ namespace golos {
     namespace wallet {
 
         struct static_variant_map {
-            flat_map<string, int> name_to_which;
-            vector<string> which_to_name;
+            flat_map<std::string, int> name_to_which;
+            std::vector<std::string> which_to_name;
         };
 
         namespace impl {
@@ -17,7 +17,7 @@ namespace golos {
             std::string clean_name(const std::string &name) {
                 const static std::string prefix = "golos::protocol::";
                 const static std::string suffix = "_operation";
-                // graphene::chain::.*_operation
+                // golos::chain::.*_operation
                 if (name.find('<') != std::string::npos && name.find('>') != std::string::npos) {
                     if ((name.size() >= prefix.size() + suffix.size()) && (name.substr(0, prefix.size()) == prefix) &&
                         (name.substr(name.size() - suffix.size() - name.find('>') + name.find('<') - 1,

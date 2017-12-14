@@ -15,7 +15,7 @@ namespace golos {
             };
 
             struct account_balances {
-                vector <protocol::asset<0, 17, 0>> assets;
+                std::vector <protocol::asset<0, 17, 0>> assets;
             };
 
             struct snapshot_summary {
@@ -28,15 +28,15 @@ namespace golos {
 
             struct account_summary {
                 uint32_t id;
-                string name;
+                std::string name;
                 account_keys keys;
                 protocol::share_type posting_rewards;
                 protocol::share_type curation_rewards;
                 account_balances balances;
-                string json_metadata;
-                string proxy;
+                std::string json_metadata;
+                std::string proxy;
                 uint32_t post_count;
-                string recovery_account;
+                std::string recovery_account;
                 protocol::share_type reputation;
             };
 
@@ -47,7 +47,7 @@ namespace golos {
                 protocol::chain_id_type chain_id;
                 snapshot_summary summary;
 
-                vector <account_summary> accounts;
+                std::vector <account_summary> accounts;
             };
         }
     }

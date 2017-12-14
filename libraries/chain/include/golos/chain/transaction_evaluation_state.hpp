@@ -30,4 +30,4 @@ namespace golos {
             bool skip_fee_schedule_check = false;
         };
     }
-} // namespace graphene::chain
+} // namespace golos::chain

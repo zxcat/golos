@@ -63,5 +63,5 @@ namespace graphene {
         };
 
     }
-} //graphene::utilities
+} //golos::utilities
 

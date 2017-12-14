@@ -398,7 +398,7 @@ namespace golos {
 
 
     }
-} // graphene::network
+} // golos::network
 
 FC_REFLECT_ENUM(golos::network::core_message_type_enum,
         (trx_message_type)
