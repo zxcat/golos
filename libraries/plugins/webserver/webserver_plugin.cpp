@@ -106,7 +106,9 @@ namespace golos {
             struct webserver_plugin::webserver_plugin_impl final {
             public:
                 boost::thread_group& thread_pool = appbase::app().scheduler();
-                webserver_plugin_impl(thread_pool_size_t thread_pool_size) : thread_pool_work(this->thread_pool_ios) {
+                webserver_plugin_impl(thread_pool_size_t thread_pool_size, connection_context_ptr conn_ctx)
+                        : thread_pool_work(this->thread_pool_ios)
+                        , context_ptr(conn_ctx) {
                     for (uint32_t i = 0; i < thread_pool_size; ++i) {
                         thread_pool.create_thread(boost::bind(&asio::io_service::run, &thread_pool_ios));
                     }
