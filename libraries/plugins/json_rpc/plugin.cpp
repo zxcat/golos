@@ -285,9 +285,7 @@ namespace golos {
             fc::variant plugin::call(const msg_pack &msg) {
                 auto new_msg = msg;
                 auto parent_plugin = my->get_methods_parent_plugin( msg.method );
-
                 new_msg.plugin = parent_plugin;
-
                 api_method *call = nullptr;
                 call = my->find_api_method(new_msg.plugin, new_msg.method);
                 fc::variant tmp;
