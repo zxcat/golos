@@ -73,7 +73,7 @@ namespace languages {
         void on_operation(const operation_notification &note);
         
         // API
-        get_languages_r get_languages() ;
+       get_languages_r get_languages() ;
         
         std::set<std::string> cache_languages;
     private:

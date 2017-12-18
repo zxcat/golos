@@ -21,10 +21,16 @@
 #include <golos/plugins/test_api/test_api_plugin.hpp>
 #include <golos/plugins/tolstoy_api/tolstoy_api_plugin.hpp>
 #include <golos/plugins/market_history_api/api_plugin.hpp>
+#include <golos/plugins/account_statistics/plugin.hpp>
+#include <golos/plugins/auth_util_api/api_plugin.hpp>
+#include <golos/plugins/block_info/plugin.hpp>
+#include <golos/plugins/blockchain_statistics/plugin.hpp>
+#include <golos/plugins/private_message/private_message_plugin.hpp>
+#include <plugins/raw_block/include/golos/plugins/raw_block/plugin.hpp>
+#include <plugins/snapshot/include/golos/plugins/snapshot/snapshot_plugin.hpp>
 
 
 #include <fc/exception/exception.hpp>
-#include <fc/thread/thread.hpp>
 #include <fc/interprocess/signals.hpp>
 #include <fc/git_revision.hpp>
 
@@ -40,8 +46,6 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
 
-
-namespace bpo = boost::program_options;
 using golos::protocol::version;
 
 
@@ -132,13 +136,13 @@ int main( int argc, char** argv ) {
 
         auto& args = appbase::app().get_args();
 
-        // try {
-        //     fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( args, appbase::app().data_dir() );
-        //     if( logging_config )
-        //         fc::configure_logging( *logging_config );
-        // } catch( const fc::exception& ) {
-        //     wlog( "Error parsing logging config" );
-        // }
+         try {
+             fc::optional< fc::logging_config > logging_config = golos::utilities::load_logging_config( args, appbase::app().data_dir() );
+             if( logging_config )
+                 fc::configure_logging( *logging_config );
+         } catch( const fc::exception& ) {
+             wlog( "Error parsing logging config" );
+        }
 
         appbase::app().startup();
         appbase::app().exec();
@@ -264,7 +268,6 @@ namespace golos {
 
     namespace plugins {
         void register_plugins() {
-///PLUGIN
             appbase::app().register_plugin< golos::plugins::chain::plugin                                       >();
             appbase::app().register_plugin< golos::plugins::p2p::p2p_plugin                                     >();
             appbase::app().register_plugin< golos::plugins::webserver::webserver_plugin                         >();
@@ -275,12 +278,18 @@ namespace golos {
             appbase::app().register_plugin< golos::plugins::languages::plugin                                   >();
             appbase::app().register_plugin< golos::plugins::tags::tags_plugin                                   >();
             appbase::app().register_plugin< golos::plugins::witness_plugin::witness_plugin                      >();
-///API
+            appbase::app().register_plugin< golos::plugins::account_statistics::plugin                          >();
+            appbase::app().register_plugin< golos::plugins::auth_util_api::api_plugin                           >();
+            appbase::app().register_plugin< golos::plugins::block_info::plugin                                  >();
+            appbase::app().register_plugin< golos::plugins::blockchain_statistics::plugin                       >();
             appbase::app().register_plugin< golos::plugins::network_broadcast_api::network_broadcast_api_plugin >();
+            appbase::app().register_plugin< golos::plugins::private_message::private_message_plugin             >();
+            appbase::app().register_plugin< golos::plugins::raw_block::plugin                                   >();
             golos::plugins::database_api::register_database_api();
             appbase::app().register_plugin< golos::plugins::test_api::test_api_plugin                           >();
             appbase::app().register_plugin< golos::plugins::tolstoy_api::tolstoy_api_plugin                     >();
             appbase::app().register_plugin< golos::plugins::market_history::api_plugin                          >();
+            appbase::app().register_plugin< golos::plugins::snapshot::snapshot_plugin                           >();
 
         }
     }

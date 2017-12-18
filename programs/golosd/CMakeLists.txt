@@ -23,6 +23,8 @@ target_link_libraries(
         golos::network_broadcast_api_plugin
         golos::account_by_key_plugin
         golos::tags_plugin
+        golos::auth_util_api
+        golos::block_info_plugin
         golos::languages_plugin
         golos::witness_plugin
         golos::account_history_plugin

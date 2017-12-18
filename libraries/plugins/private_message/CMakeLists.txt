@@ -4,24 +4,24 @@ list(APPEND CURRENT_TARGET_HEADERS
      include/golos/plugins/private_message/private_message_evaluators.hpp
      include/golos/plugins/private_message/private_message_operations.hpp
      include/golos/plugins/private_message/private_message_plugin.hpp
-
-     )
+)
 
 list(APPEND CURRENT_TARGET_SOURCES
      private_message_plugin.cpp
      private_message_evaluators.cpp
-     )
+     private_message_operations.cpp
+)
 
 if(BUILD_SHARED_LIBRARIES)
     add_library(golos_${CURRENT_TARGET} SHARED
                 ${CURRENT_TARGET_HEADERS}
                 ${CURRENT_TARGET_SOURCES}
-                )
+    )
 else()
     add_library(golos_${CURRENT_TARGET} STATIC
                 ${CURRENT_TARGET_HEADERS}
                 ${CURRENT_TARGET_SOURCES}
-                )
+    )
 endif()
 
 add_library(golos::${CURRENT_TARGET} ALIAS golos_${CURRENT_TARGET})

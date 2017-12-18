@@ -198,7 +198,7 @@ namespace golos {
             }
 
 
-            snapshot_plugin::snapshot_plugin() : impl(new snapshot_plugin_impl(*this)) {
+            snapshot_plugin::snapshot_plugin(){
             }
 
             snapshot_plugin::~snapshot_plugin() {
@@ -207,7 +207,7 @@ namespace golos {
 
             void snapshot_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
                 ilog("Initializing snapshot plugin");
-
+                impl.reset(new snapshot_plugin_impl(*this));
                 impl->options = options;
             }
 

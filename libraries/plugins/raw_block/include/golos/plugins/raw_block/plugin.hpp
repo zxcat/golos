@@ -30,7 +30,7 @@ namespace raw_block {
 
     class plugin final : public appbase::plugin<plugin> {
     public:
-        APPBASE_PLUGIN_REQUIRES()
+        APPBASE_PLUGIN_REQUIRES((chain::plugin)(json_rpc::plugin))
 
         constexpr const static char *plugin_name = "raw_block";
 

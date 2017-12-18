@@ -138,8 +138,7 @@ namespace golos {
                     });
                 }
 
-                bool p2p_plugin_impl::handle_block(const block_message &blk_msg, bool sync_mode,
-                                                   std::vector<fc::uint160_t> &) {
+                bool p2p_plugin_impl::handle_block(const block_message &blk_msg, bool sync_mode, std::vector<fc::uint160_t> &) {
                     try {
                         uint32_t head_block_num;
                         chain.db().with_read_lock([&]() {
@@ -168,9 +167,7 @@ namespace golos {
                             if (!sync_mode) {
                                 fc::microseconds latency = fc::time_point::now() - blk_msg.block.timestamp;
                                 ilog("Got ${t} transactions on block ${b} by ${w} -- latency: ${l} ms",
-                                     ("t", blk_msg.block.transactions.size())("b", blk_msg.block.block_num())("w",
-                                                                                                              blk_msg.block.witness)(
-                                             "l", latency.count() / 1000));
+                                     ("t", blk_msg.block.transactions.size())("b", blk_msg.block.block_num())("w", blk_msg.block.witness)("l", latency.count() / 1000));
                             }
 
                             return result;

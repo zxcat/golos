@@ -24,7 +24,8 @@ namespace golos {
 #endif
 
             enum account_history_object_type {
-                key_account_object_type = 0, bucket_object_type = 1 ///< used in market_history_plugin
+                key_account_object_type = 0,
+                bucket_object_type = 1 ///< used in market_history_plugin
             };
 
 

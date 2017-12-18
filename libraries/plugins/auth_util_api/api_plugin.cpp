@@ -17,6 +17,13 @@ namespace auth_util_api {
 
     void api_plugin::plugin_shutdown() {
     }
+
+    void api_plugin::set_program_options(boost::program_options::options_description &cli,
+                                         boost::program_options::options_description &cfg) {
+
     }
+
+    api_plugin::~api_plugin() = default;
+}
 }
 } // golos::plugins::api
