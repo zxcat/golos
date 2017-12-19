@@ -7,3 +7,6 @@
 [submodule "frameworks/appbase"]
 	path = frameworks/appbase
 	url = https://github.com/GolosChain/appbase.git
+[submodule "share/golosd/doc"]
+	path = share/golosd/doc
+	url = https://github.com/GolosChain/golos-reference.git

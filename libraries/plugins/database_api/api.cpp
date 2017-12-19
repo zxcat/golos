@@ -1486,22 +1486,6 @@ namespace golos {
                 });
             }
 
-            DEFINE_API(plugin, get_payout_extension_cost) {
-                CHECK_ARG_SIZE(3)
-                auto author = args.args->at(0).as<string>();
-                auto permlink = args.args->at(1).as<string>();
-                auto time = args.args->at(0).as<time_point_sec>();
-                return my->database().get_payout_extension_cost(my->database().get_comment(author, permlink), time);
-            }
-
-            DEFINE_API(plugin, get_payout_extension_time) {
-                CHECK_ARG_SIZE(3)
-                auto author = args.args->at(0).as<string>();
-                auto permlink = args.args->at(1).as<string>();
-                auto cost = args.args->at(0).as<asset<0, 17, 0>>();
-                return my->database().get_payout_extension_time(my->database().get_comment(author, permlink), cost);
-            }
-
 
             std::vector<std::pair<std::string, uint32_t>> plugin::api_impl::get_tags_used_by_author(
                     const std::string &author) const {

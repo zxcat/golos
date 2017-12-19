@@ -10,8 +10,7 @@
 namespace golos {
     namespace chain {
         template<uint8_t Major, uint8_t Hardfork, uint16_t Release>
-        void account_create_evaluator<Major, Hardfork, Release>::do_apply(
-                const account_create_operation<Major, Hardfork, Release> &o) {
+        void account_create_evaluator<Major, Hardfork, Release>::do_apply(const account_create_operation<Major, Hardfork, Release> &o) {
             const auto &creator = this->db.get_account(o.creator);
 
             const auto &props = this->db.get_dynamic_global_properties();
@@ -25,9 +24,7 @@ namespace golos {
             asset<0, 17, 0> fee(0, STEEM_SYMBOL_NAME);
 
             if (this->db.template has_hardfork(STEEMIT_HARDFORK_0_17__101)) {
-                fee = asset<0, 17, 0>(
-                        wso.median_props.account_creation_fee.amount * STEEMIT_CREATE_ACCOUNT_WITH_STEEM_MODIFIER,
-                        STEEM_SYMBOL_NAME);
+                fee = asset<0, 17, 0>(wso.median_props.account_creation_fee.amount * STEEMIT_CREATE_ACCOUNT_WITH_STEEM_MODIFIER, STEEM_SYMBOL_NAME);
             } else {
                 fee = wso.median_props.account_creation_fee;
             }
@@ -48,7 +45,7 @@ namespace golos {
                 }
             }
 
-            this->db.adjust_balance(creator, -protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name()));
+            this->db.adjust_balance(creator, -protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name(), o.fee.get_decimals()));
 
             const auto &new_account = this->db.template create<account_object>([&](account_object &acc) {
                 acc.name = o.new_account_name;
@@ -73,12 +70,14 @@ namespace golos {
                 b.owner = new_account.name;
                 b.asset_name = STEEM_SYMBOL_NAME;
                 b.balance = 0;
+                b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
             });
 
             this->db.template create<account_balance_object>([new_account](account_balance_object &b) {
                 b.owner = new_account.name;
                 b.asset_name = SBD_SYMBOL_NAME;
                 b.balance = 0;
+                b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
             });
 
             this->db.template create<account_authority_object>([&](account_authority_object &auth) {
@@ -162,7 +161,7 @@ namespace golos {
                 this->db.get_account(a.first);
             }
 
-            this->db.adjust_balance(creator, -protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name()));
+            this->db.adjust_balance(creator, -protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name(), o.fee.get_decimals()));
 
             this->db.modify(creator, [&](account_object &c) {
                 c.delegated_vesting_shares += o.delegation;
@@ -188,12 +187,14 @@ namespace golos {
                 b.owner = new_account.name;
                 b.asset_name = STEEM_SYMBOL_NAME;
                 b.balance = 0;
+                b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
             });
 
             this->db.template create<account_balance_object>([new_account](account_balance_object &b) {
                 b.owner = new_account.name;
                 b.asset_name = SBD_SYMBOL_NAME;
                 b.balance = 0;
+                b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
             });
 
             this->db.template create<account_authority_object>([&](account_authority_object &auth) {
@@ -215,14 +216,7 @@ namespace golos {
             }
 
             if (o.fee.amount > 0) {
-                if (this->db.has_hardfork(STEEMIT_HARDFORK_0_17__108)) {
-                    this->db.template create_vesting(new_account,
-                                                     protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name()) -
-                                                     this->db.get_name_cost(o.new_account_name));
-                } else {
-                    this->db.template create_vesting(new_account,
-                                                     protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name()));
-                }
+                this->db.template create_vesting(new_account, protocol::asset<0, 17, 0>(o.fee.amount, o.fee.symbol_name(), o.fee.get_decimals()));
             }
 
             this->db.template create<account_statistics_object>([&](account_statistics_object &s) {

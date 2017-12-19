@@ -68,15 +68,36 @@ namespace golos {
                 cfg.add(cli);
             }
 
+            void private_message_plugin::plugin_shutdown() {
+
+            }
+
+            std::vector<message_api_object> private_message_plugin::get_inbox(std::string to, time_point newest, uint16_t limit) const {
+                FC_ASSERT(limit <= 100);
+                std::vector<message_api_object> result;
+                const auto &idx = my->database().get_index<message_index>().indices().get<by_to_date>();
+                auto itr = idx.lower_bound(std::make_tuple(to, newest));
+                while (itr != idx.end() && limit && itr->to == to) {
+                    result.push_back(*itr);
+                    ++itr;
+                    --limit;
+                }
+            }
+
             void private_message_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
                 ilog("Intializing private message plugin");
                 my.reset(new private_message_plugin_impl());
                 my->plugin_initialize(*this);
                 golos::chain::database &db = my->database();
                 db.add_plugin_index<message_index>();
-
                 using pairstring= std::pair<std::string, std::string>;
                 LOAD_VALUE_SET(options, "pm-accounts", my->_tracked_accounts, pairstring);
+            }
+
+            std::vector<message_api_object> private_message_plugin::get_outbox(std::string from, time_point newest, uint16_t limit) const {
+                FC_ASSERT(limit <= 100);
+                std::vector<message_api_object> result;
+                const auto &idx = my->database().get_index<message_index>().indices().get<by_from_date>();
             }
 
             void private_message_plugin::plugin_startup() {
@@ -89,3 +110,4 @@ namespace golos {
         }
     }
 }
+

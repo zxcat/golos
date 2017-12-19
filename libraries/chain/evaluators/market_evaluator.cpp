@@ -31,7 +31,7 @@ namespace golos {
         void convert_evaluator<Major, Hardfork, Release>::do_apply(const operation_type &o) {
 
             const auto &owner = this->db.get_account(o.owner);
-            asset<0, 17, 0> delta(o.amount.amount, o.amount.symbol_name());
+            asset<0, 17, 0> delta(o.amount.amount, o.amount.symbol_name(), o.amount.get_decimals());
 
             FC_ASSERT(this->db.get_balance(owner, o.amount.symbol_name()) >= delta,
                       "Account ${n} does not have sufficient balance for conversion. Balance: ${b}. Required: ${r}",
@@ -70,7 +70,7 @@ namespace golos {
 
             const auto &owner = this->db.get_account(o.owner);
 
-            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
 
             FC_ASSERT(this->db.get_balance(owner, o.amount_to_sell.symbol_name()) >= delta,
                       "Account does not have sufficient funds for limit order.");
@@ -108,6 +108,10 @@ namespace golos {
                 seller = this->db.find_account(o.owner);
                 sell_asset = this->db.find_asset(o.amount_to_sell.symbol_name());
                 receive_asset = this->db.find_asset(o.min_to_receive.symbol_name());
+
+                FC_ASSERT(seller, "Seller should exist");
+                FC_ASSERT(sell_asset, "Sell asset should exist");
+                FC_ASSERT(receive_asset, "Receive asset should exist");
 
                 if (!sell_asset->options.whitelist_markets.empty()) {
                     FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
@@ -175,6 +179,10 @@ namespace golos {
                 sell_asset = this->db.find_asset(o.amount_to_sell.symbol_name());
                 receive_asset = this->db.find_asset(o.exchange_rate.quote.symbol_name());
 
+                FC_ASSERT(seller, "Seller should exist");
+                FC_ASSERT(sell_asset, "Sell asset should exist");
+                FC_ASSERT(receive_asset, "Receive asset should exist");
+
                 if (!sell_asset->options.whitelist_markets.empty()) {
                     FC_ASSERT(sell_asset->options.whitelist_markets.find(receive_asset->asset_name) !=
                               sell_asset->options.whitelist_markets.end());
@@ -187,7 +195,7 @@ namespace golos {
                 FC_ASSERT(this->db.is_authorized_asset(*seller, *sell_asset));
                 FC_ASSERT(this->db.is_authorized_asset(*seller, *receive_asset));
 
-                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
 
                 FC_ASSERT(sell_asset->precision == o.amount_to_sell.get_decimals(), "Assets decimals amount does not match");
 
@@ -204,7 +212,7 @@ namespace golos {
                     }
                 });
 
-                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+                asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
 
                 this->db.adjust_balance(this->db.get_account(o.owner), -delta);
 
@@ -243,7 +251,7 @@ namespace golos {
 
             const auto &owner = this->db.get_account(o.owner);
 
-            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name());
+            asset<0, 17, 0> delta(o.amount_to_sell.amount, o.amount_to_sell.symbol_name(), o.amount_to_sell.get_decimals());
 
             FC_ASSERT(this->db.template get_balance(owner, o.amount_to_sell.symbol_name()) >= delta, "Account does not have sufficient funds for limit order.");
 
@@ -304,6 +312,9 @@ namespace golos {
                 _paying_account = this->db.template find_account(op.funding_account);
                 _debt_asset = this->db.template find_asset(op.delta_debt.symbol_name());
 
+                FC_ASSERT(_paying_account, "Payer account should exist");
+                FC_ASSERT(_debt_asset, "Debt asset should exist");
+
                 FC_ASSERT(_debt_asset->is_market_issued(),
                           "Unable to cover ${sym} as it is not a collateralized asset.",
                           ("sym", _debt_asset->asset_name));
@@ -325,19 +336,14 @@ namespace golos {
 
                 if (op.delta_debt.amount < 0) {
                     FC_ASSERT(this->db.template get_balance(*_paying_account, *_debt_asset) >= op.delta_debt,
-                              "Cannot cover by ${c} when payer only has ${b}", ("c", op.delta_debt.amount)("b",
-                                                                                                           this->db.template get_balance(
-                                                                                                                   *_paying_account,
-                                                                                                                   *_debt_asset).amount));
+                              "Cannot cover by ${c} when payer only has ${b}", ("c", op.delta_debt.amount)("b", this->db.template get_balance(*_paying_account, *_debt_asset).amount));
                 }
 
                 if (op.delta_collateral.amount > 0) {
                     FC_ASSERT(this->db.template get_balance(*_paying_account, this->db.template get_asset(
                             _bitasset_data->options.short_backing_asset)) >= op.delta_collateral,
                               "Cannot increase collateral by ${c} when payer only has ${b}",
-                              ("c", op.delta_collateral.amount)("b", this->db.template get_balance(*_paying_account,
-                                                                                                   this->db.template get_asset(
-                                                                                                           op.delta_collateral.symbol_name())).amount));
+                              ("c", op.delta_collateral.amount)("b", this->db.template get_balance(*_paying_account, this->db.template get_asset(op.delta_collateral.symbol_name())).amount));
                 }
             } FC_CAPTURE_AND_RETHROW((op))
 

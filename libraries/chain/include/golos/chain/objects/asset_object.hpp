@@ -117,7 +117,7 @@ namespace golos {
 
             /// Helper function to get an asset object with the given amount in this asset's type
             protocol::asset<0, 17, 0> amount(share_type a) const {
-                return protocol::asset<0, 17, 0>(a, asset_name);
+                return protocol::asset<0, 17, 0>(a, asset_name, precision);
             }
 
             /// Convert a std::string amount (i.e. "123.45") to an asset object with this asset's type
@@ -197,7 +197,7 @@ namespace golos {
             protocol::asset_name_type asset_name;
 
             /// The tunable options for BitAssets are stored in this field.
-            protocol::bitasset_options options;
+            protocol::bitasset_options<0, 17, 0> options;
 
             /// Feeds published for this asset. If issuer is not committee, the keys in this map are the feed publishing
             /// accounts; otherwise, the feed publishers are the currently active committee_members and witnesses and this map

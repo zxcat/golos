@@ -156,22 +156,24 @@ namespace golos {
                             auto &index = db.get_index<account_balance_index>().indices().get<by_account_asset>();
                             auto itr = index.find(boost::make_tuple(new_account.name, STEEM_SYMBOL_NAME));
                             if (itr == index.end()) {
-                                db.create<account_balance_object>(
-                                        [new_account](account_balance_object &b) {
-                                            b.owner = new_account.name;
-                                            b.asset_name = STEEM_SYMBOL_NAME;
-                                            b.balance = 0;
-                                        });
+                                db.create<account_balance_object>([new_account](account_balance_object &b) {
+                                    b.owner = new_account.name;
+                                    b.asset_name = STEEM_SYMBOL_NAME;
+                                    b.balance = 0;
+                                    b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
+                                });
+
                             }
 
                             itr = index.find(boost::make_tuple(new_account.name, SBD_SYMBOL_NAME));
                             if (itr == index.end()) {
-                                db.create<account_balance_object>(
-                                        [new_account](account_balance_object &b) {
-                                            b.owner = new_account.name;
-                                            b.asset_name = SBD_SYMBOL_NAME;
-                                            b.balance = 0;
-                                        });
+                                db.create<account_balance_object>([new_account](account_balance_object &b) {
+                                    b.owner = new_account.name;
+                                    b.asset_name = SBD_SYMBOL_NAME;
+                                    b.balance = 0;
+                                    b.precision = STEEMIT_BLOCKCHAIN_PRECISION_DIGITS;
+                                });
+
                             }
 
                             auto &stats_index = db.get_index<account_statistics_index>().indices().get<by_name>();

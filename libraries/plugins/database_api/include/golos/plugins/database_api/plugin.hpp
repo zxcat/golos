@@ -182,8 +182,6 @@ namespace golos {
             DEFINE_API_ARGS(get_assets, msg_pack, std::vector<optional<asset_object>>)
             DEFINE_API_ARGS(get_best_categories, msg_pack, std::vector<category_api_object>)
             DEFINE_API_ARGS(lookup_asset_symbols, msg_pack, std::vector<optional<asset_object>>)
-            DEFINE_API_ARGS(get_payout_extension_cost, msg_pack, asset_17)
-            DEFINE_API_ARGS(get_payout_extension_time, msg_pack, fc::time_point_sec)
 
 
             /**
@@ -615,7 +613,7 @@ namespace golos {
                                      * @return SBD amount required to set payout window duration up to time passed
                                      */
 
-                                    (get_payout_extension_cost)
+
 
                                     /**
                                      * Used o retrieve comment payout window extension time by cost
@@ -625,7 +623,6 @@ namespace golos {
                                      * @return deadline time the payout window pretends to be extended for
                                      */
 
-                                    (get_payout_extension_time)
 
                                     ///////////////////////////
                                     // Proposed transactions //

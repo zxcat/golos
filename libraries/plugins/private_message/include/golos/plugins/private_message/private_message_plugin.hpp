@@ -62,14 +62,14 @@ namespace golos {
 
             using message_id_type = message_object::id_type;
 
-            struct message_api_obj {
-                message_api_obj(const message_object &o) : id(o.id), from(o.from), to(o.to),
+            struct message_api_object {
+                message_api_object(const message_object &o) : id(o.id), from(o.from), to(o.to),
                         from_memo_key(o.from_memo_key), to_memo_key(o.to_memo_key), sent_time(o.sent_time),
                         receive_time(o.receive_time), checksum(o.checksum),
                         encrypted_message(o.encrypted_message.begin(), o.encrypted_message.end()) {
                 }
 
-                message_api_obj() {
+                message_api_object() {
                 }
 
                 message_id_type id;
@@ -83,11 +83,11 @@ namespace golos {
                 std::vector<char> encrypted_message;
             };
 
-            struct extended_message_object : public message_api_obj {
+            struct extended_message_object : public message_api_object {
                 extended_message_object() {
                 }
 
-                extended_message_object(const message_api_obj &o) : message_api_obj(o) {
+                extended_message_object(const message_api_object &o) : message_api_object(o) {
                 }
 
                 message_body message;
@@ -141,10 +141,14 @@ namespace golos {
 
                 void plugin_startup() override;
 
-                void plugin_shutdown() override {
-                }
+                void plugin_shutdown() override;
 
                 flat_map<std::string, std::string> tracked_accounts() const; /// map start_range to end_range
+
+                std::vector<message_api_object> get_inbox(std::string to, time_point newest, uint16_t limit) const;
+
+                std::vector<message_api_object> get_outbox(std::string from, time_point newest, uint16_t limit) const;
+
             private:
                 struct private_message_plugin_impl;
 
@@ -164,8 +168,8 @@ FC_REFLECT((golos::plugins::private_message::message_object),
 CHAINBASE_SET_INDEX_TYPE(golos::plugins::private_message::message_object,
                          golos::plugins::private_message::message_index);
 
-FC_REFLECT((golos::plugins::private_message::message_api_obj),
+FC_REFLECT((golos::plugins::private_message::message_api_object),
            (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
 
 FC_REFLECT_DERIVED((golos::plugins::private_message::extended_message_object),
-                   ((golos::plugins::private_message::message_api_obj)), (message));
+                   ((golos::plugins::private_message::message_api_object)), (message));
