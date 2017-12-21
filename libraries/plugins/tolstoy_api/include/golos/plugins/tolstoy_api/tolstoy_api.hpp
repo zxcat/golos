@@ -95,9 +95,6 @@ namespace golos {
             DEFINE_API_ARGS(get_assets, msg_pack, variant)
             DEFINE_API_ARGS(get_best_categories, msg_pack, variant)
             DEFINE_API_ARGS(lookup_asset_symbols, msg_pack, variant)
-            DEFINE_API_ARGS(get_payout_extension_cost, msg_pack, variant)
-            DEFINE_API_ARGS(get_payout_extension_time, msg_pack, variant)
-
 
             class tolstoy_api final {
             public:
@@ -478,25 +475,7 @@ namespace golos {
                                      */
                                     (get_account_history)
 
-                                    /**
-                                     * Used to retrieve comment payout window extension cost by time
-                                     * @param author comment author
-                                     * @param permlink comment permlink
-                                     * @param time deadline time the payout window pretends to be extended for
-                                     * @return SBD amount required to set payout window duration up to time passed
-                                     */
 
-                                    (get_payout_extension_cost)
-
-                                    /**
-                                     * Used o retrieve comment payout window extension time by cost
-                                     * @param author comment author
-                                     * @param permlink comment permlink
-                                     * @param cost SBD amount pretended to be spent on extension
-                                     * @return deadline time the payout window pretends to be extended for
-                                     */
-
-                                    (get_payout_extension_time)
 
                                     ///////////////////////////
                                     // Proposed transactions //

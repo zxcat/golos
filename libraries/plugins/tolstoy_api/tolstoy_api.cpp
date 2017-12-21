@@ -264,14 +264,6 @@ namespace golos {
                 return pimpl->rpc().call(args);
             }
 
-            DEFINE_API(tolstoy_api, get_payout_extension_cost) {
-                return pimpl->rpc().call(args);
-            }
-
-            DEFINE_API(tolstoy_api, get_payout_extension_time) {
-                return pimpl->rpc().call(args);
-            }
-
             DEFINE_API(tolstoy_api, get_tags_used_by_author) {
                 return pimpl->rpc().call(args);
             }
