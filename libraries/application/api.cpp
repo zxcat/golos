@@ -104,9 +104,9 @@ namespace steemit {
 
         steem_version_info login_api::get_version() {
             return steem_version_info(
-                    fc::string(STEEMIT_BLOCKCHAIN_VERSION),
-                    fc::string(graphene::utilities::git_revision_sha),
-                    fc::string(fc::git_revision_sha));
+                    std::string(STEEMIT_BLOCKCHAIN_VERSION),
+                    std::string(graphene::utilities::git_revision_sha),
+                    std::string(fc::git_revision_sha));
         }
 
         network_broadcast_api::network_broadcast_api(const api_context &a)

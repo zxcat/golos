@@ -337,10 +337,10 @@ namespace steemit {
         ordered_unique <tag<by_volume_weight>,
         composite_key<liquidity_reward_balance_object,
                 member <
-                liquidity_reward_balance_object, fc::uint128, &liquidity_reward_balance_object::weight>,
+                liquidity_reward_balance_object, fc::uint128_t, &liquidity_reward_balance_object::weight>,
         member<liquidity_reward_balance_object, account_id_type, &liquidity_reward_balance_object::owner>
         >,
-        composite_key_compare <std::greater<fc::uint128>, std::less<account_id_type>>
+        composite_key_compare <std::greater<fc::uint128_t>, std::less<account_id_type>>
         >
         >,
         allocator <liquidity_reward_balance_object>

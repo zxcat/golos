@@ -10,13 +10,13 @@ namespace steemit {
         void reset_virtual_schedule_time(database &db) {
             const witness_schedule_object &wso = db.get_witness_schedule_object();
             db.modify(wso, [&](witness_schedule_object &o) {
-                o.current_virtual_time = fc::uint128(); // reset it 0
+                o.current_virtual_time = fc::uint128_t(); // reset it 0
             });
 
             const auto &idx = db.get_index<witness_index>().indices();
             for (const auto &witness : idx) {
                 db.modify(witness, [&](witness_object &wobj) {
-                    wobj.virtual_position = fc::uint128();
+                    wobj.virtual_position = fc::uint128_t();
                     wobj.virtual_last_update = wso.current_virtual_time;
                     wobj.virtual_scheduled_time = VIRTUAL_SCHEDULE_LAP_LENGTH2 /
                                                   (wobj.votes.value + 1);
@@ -127,7 +127,7 @@ namespace steemit {
             auto num_miners = selected_miners.size();
 
             /// Add the running witnesses in the lead
-            fc::uint128 new_virtual_time = wso.current_virtual_time;
+            fc::uint128_t new_virtual_time = wso.current_virtual_time;
             const auto &schedule_idx = db.get_index<witness_index>().indices().get<by_schedule_time>();
             auto sitr = schedule_idx.begin();
             vector<decltype(sitr)> processed_witnesses;
@@ -167,13 +167,13 @@ namespace steemit {
                     break;
                 }
                 db.modify(*(*itr), [&](witness_object &wo) {
-                    wo.virtual_position = fc::uint128();
+                    wo.virtual_position = fc::uint128_t();
                     wo.virtual_last_update = new_virtual_time;
                     wo.virtual_scheduled_time = new_virtual_scheduled_time;
                 });
             }
             if (reset_virtual_time) {
-                new_virtual_time = fc::uint128();
+                new_virtual_time = fc::uint128_t();
                 reset_virtual_schedule_time(db);
             }
 
@@ -318,7 +318,7 @@ namespace steemit {
                 vector<account_name_type> active_witnesses;
                 active_witnesses.reserve(STEEMIT_MAX_WITNESSES);
 
-                fc::uint128 new_virtual_time;
+                fc::uint128_t new_virtual_time;
 
                 /// only use vote based scheduling after the first 1M STEEM is created or if there is no POW queued
                 if (props.num_pow_witnesses == 0 ||
@@ -337,7 +337,7 @@ namespace steemit {
 
                         /// don't consider the top 19 for the purpose of virtual time scheduling
                         db.modify(*itr, [&](witness_object &wo) {
-                            wo.virtual_scheduled_time = fc::uint128::max_value();
+                            wo.virtual_scheduled_time = fc::uint128_t::max_value();
                         });
                     }
 
@@ -352,14 +352,14 @@ namespace steemit {
                     if (sitr != schedule_idx.end()) {
                         active_witnesses.push_back(sitr->owner);
                         db.modify(*sitr, [&](witness_object &wo) {
-                            wo.virtual_position = fc::uint128();
+                            wo.virtual_position = fc::uint128_t();
                             new_virtual_time = wo.virtual_scheduled_time; /// everyone advances to this time
 
                             /// extra cautious sanity check... we should never end up here if witnesses are
                             /// properly voted on. TODO: remove this line if it is not triggered and therefore
                             /// the code path is unreachable.
-                            if (new_virtual_time == fc::uint128::max_value()) {
-                                new_virtual_time = fc::uint128();
+                            if (new_virtual_time == fc::uint128_t::max_value()) {
+                                new_virtual_time = fc::uint128_t();
                             }
 
                             /// this witness will produce again here

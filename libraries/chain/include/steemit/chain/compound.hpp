@@ -5,7 +5,7 @@
 #include <steemit/protocol/config.hpp>
 #include <steemit/protocol/types.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc/uint128_t.hpp>
 
 namespace steemit {
     namespace protocol {

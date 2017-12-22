@@ -27,9 +27,9 @@ namespace fc {
     };
 
     struct get_operation_name {
-        string &name;
+        std::string &name;
 
-        get_operation_name(string &dv)
+        get_operation_name(std::string &dv)
                 : name(dv) {
         }
 
@@ -96,14 +96,14 @@ void to_variant( const OperationType& var,  fc::variant& vo )              \
                                                                            \
 void from_variant( const fc::variant& var,  OperationType& vo )            \
 {                                                                          \
-   static std::map<string,uint32_t> to_tag = []()                          \
+   static std::map<std::string,uint32_t> to_tag = []()                          \
    {                                                                       \
-      std::map<string,uint32_t> name_map;                                  \
+      std::map<std::string,uint32_t> name_map;                                  \
       for( int i = 0; i < OperationType::count(); ++i )                    \
       {                                                                    \
          OperationType tmp;                                                \
          tmp.set_which(i);                                                 \
-         string n;                                                         \
+         std::string n;                                                         \
          tmp.visit( get_operation_name(n) );                               \
          name_map[n] = i;                                                  \
       }                                                                    \

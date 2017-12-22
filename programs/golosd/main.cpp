@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
                   << "\n";
         std::cerr << "chain id: " << std::string(STEEMIT_CHAIN_ID) << "\n";
         std::cerr << "blockchain version: "
-                  << fc::string(STEEMIT_BLOCKCHAIN_VERSION) << "\n";
+                  << std::string(STEEMIT_BLOCKCHAIN_VERSION) << "\n";
         std::cerr << "------------------------------------------------------\n";
 #endif
 
@@ -94,12 +94,12 @@ int main(int argc, char **argv) {
 
         if (options.count("version")) {
             std::cout << "steem_blockchain_version: "
-                      << fc::string(STEEMIT_BLOCKCHAIN_VERSION) << "\n";
+                      << std::string(STEEMIT_BLOCKCHAIN_VERSION) << "\n";
             std::cout << "steem_git_revision:       "
-                      << fc::string(graphene::utilities::git_revision_sha)
+                      << std::string(graphene::utilities::git_revision_sha)
                       << "\n";
             std::cout << "fc_git_revision:          "
-                      << fc::string(fc::git_revision_sha) << "\n";
+                      << std::string(fc::git_revision_sha) << "\n";
             return 0;
         }
 

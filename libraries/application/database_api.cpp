@@ -996,7 +996,7 @@ namespace steemit {
             });
         }
 
-        u256 to256(const fc::uint128 &t) {
+        u256 to256(const fc::uint128_t &t) {
             u256 result(t.high_bits());
             result <<= 65;
             result += t.low_bits();

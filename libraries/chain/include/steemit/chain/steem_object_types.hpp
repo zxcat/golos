@@ -181,7 +181,7 @@ namespace fc {
     class variant;
 
     inline void to_variant(const steemit::chain::shared_string &s, variant &var) {
-        var = fc::string(steemit::chain::to_string(s));
+        var = std::string(steemit::chain::to_string(s));
     }
 
     inline void from_variant(const variant &var, steemit::chain::shared_string &s) {

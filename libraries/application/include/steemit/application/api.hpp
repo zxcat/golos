@@ -175,14 +175,14 @@ namespace steemit {
             steem_version_info() {
             }
 
-            steem_version_info(fc::string bc_v, fc::string s_v, fc::string fc_v)
+            steem_version_info(std::string bc_v, std::string s_v, std::string fc_v)
                     : blockchain_version(bc_v), steem_revision(s_v),
                       fc_revision(fc_v) {
             }
 
-            fc::string blockchain_version;
-            fc::string steem_revision;
-            fc::string fc_revision;
+            std::string blockchain_version;
+            std::string steem_revision;
+            std::string fc_revision;
         };
 
         /**

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fc/uint128.hpp>
+#include <fc/uint128_t.hpp>
 
 #include <steemit/chain/steem_object_types.hpp>
 
@@ -59,7 +59,7 @@ namespace steemit {
             asset total_vesting_fund_steem = asset(0, STEEM_SYMBOL);
             asset total_vesting_shares = asset(0, VESTS_SYMBOL);
             asset total_reward_fund_steem = asset(0, STEEM_SYMBOL);
-            fc::uint128 total_reward_shares2; ///< the running total of REWARD^2
+            fc::uint128_t total_reward_shares2; ///< the running total of REWARD^2
 
             price get_vesting_share_price() const {
                 if (total_vesting_fund_steem.amount == 0 ||
