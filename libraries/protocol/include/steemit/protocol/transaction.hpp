@@ -125,11 +125,20 @@ namespace steemit {
         };
 
 
+        struct processed_transaction : public signed_transaction {
+            processed_transaction(const signed_transaction &trx = signed_transaction()) : signed_transaction(trx) {
+            }
+
+            digest_type merkle_digest() const;
+        };
+
+
         /// @} transactions group
 
     }
 } // steemit::protocol
 
-FC_REFLECT(steemit::protocol::transaction, (ref_block_num)(ref_block_prefix)(expiration)(operations)(extensions))
-FC_REFLECT_DERIVED(steemit::protocol::signed_transaction, (steemit::protocol::transaction), (signatures))
-FC_REFLECT_DERIVED(steemit::protocol::annotated_signed_transaction, (steemit::protocol::signed_transaction), (transaction_id)(block_num)(transaction_num));
+FC_REFLECT((steemit::protocol::transaction), (ref_block_num)(ref_block_prefix)(expiration)(operations)(extensions))
+FC_REFLECT_DERIVED((steemit::protocol::signed_transaction), ((steemit::protocol::transaction)), (signatures))
+FC_REFLECT_DERIVED((steemit::protocol::annotated_signed_transaction), ((steemit::protocol::signed_transaction)), (transaction_id)(block_num)(transaction_num));
+FC_REFLECT_DERIVED((steemit::protocol::processed_transaction), ((steemit::protocol::signed_transaction)),)

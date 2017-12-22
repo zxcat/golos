@@ -57,5 +57,5 @@ namespace steemit {
     }
 } // steemit::protocol
 
-FC_REFLECT_TYPENAME(steemit::protocol::block_header_extensions)
-FC_REFLECT_TYPENAME(steemit::protocol::future_extensions)
+FC_REFLECT_TYPENAME((steemit::protocol::block_header_extensions))
+FC_REFLECT_TYPENAME((steemit::protocol::future_extensions))

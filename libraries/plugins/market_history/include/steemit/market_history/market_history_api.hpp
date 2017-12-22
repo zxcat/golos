@@ -112,15 +112,15 @@ namespace steemit {
     }
 } // steemit::market_history
 
-FC_REFLECT(steemit::market_history::market_ticker,
+FC_REFLECT((steemit::market_history::market_ticker),
         (latest)(lowest_ask)(highest_bid)(percent_change)(steem_volume)(sbd_volume));
-FC_REFLECT(steemit::market_history::market_volume,
+FC_REFLECT((steemit::market_history::market_volume),
         (steem_volume)(sbd_volume));
-FC_REFLECT(steemit::market_history::order,
+FC_REFLECT((steemit::market_history::order),
         (price)(steem)(sbd));
-FC_REFLECT(steemit::market_history::order_book,
+FC_REFLECT((steemit::market_history::order_book),
         (bids)(asks));
-FC_REFLECT(steemit::market_history::market_trade,
+FC_REFLECT((steemit::market_history::market_trade),
         (date)(current_pays)(open_pays));
 
 FC_API(steemit::market_history::market_history_api,

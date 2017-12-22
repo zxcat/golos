@@ -50,7 +50,7 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::chain::utilities::comment_reward_context,
+FC_REFLECT((steemit::chain::utilities::comment_reward_context),
         (rshares)
                 (reward_weight)
                 (max_sbd)

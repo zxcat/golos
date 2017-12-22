@@ -162,7 +162,7 @@ namespace steemit {
             bool allow_votes = true;      /// allows a post to receive votes;
             bool allow_curation_rewards = true;
 
-            bip::vector <protocol::beneficiary_route_type, allocator<protocol::beneficiary_route_type>> beneficiaries;
+            boost::interprocess::vector <protocol::beneficiary_route_type, allocator<protocol::beneficiary_route_type>> beneficiaries;
         };
 
 
@@ -321,7 +321,7 @@ namespace steemit {
     }
 } // steemit::chain
 
-FC_REFLECT(steemit::chain::comment_object,
+FC_REFLECT((steemit::chain::comment_object),
         (id)(author)(permlink)
                 (category)(parent_author)(parent_permlink)
                 (title)(body)(json_metadata)(last_update)(created)(active)(last_payout)
@@ -334,12 +334,12 @@ FC_REFLECT(steemit::chain::comment_object,
 )
 CHAINBASE_SET_INDEX_TYPE(steemit::chain::comment_object, steemit::chain::comment_index)
 
-FC_REFLECT(steemit::chain::comment_vote_object,
+FC_REFLECT((steemit::chain::comment_vote_object),
         (id)(voter)(comment)(weight)(rshares)(vote_percent)(last_update)(num_changes)
 )
 CHAINBASE_SET_INDEX_TYPE(steemit::chain::comment_vote_object, steemit::chain::comment_vote_index)
 
-FC_REFLECT(steemit::chain::category_object,
+FC_REFLECT((steemit::chain::category_object),
         (id)(name)(abs_rshares)(total_payouts)(discussions)(last_update)
 )
 CHAINBASE_SET_INDEX_TYPE(steemit::chain::category_object, steemit::chain::category_index)

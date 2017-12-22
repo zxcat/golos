@@ -154,6 +154,6 @@ namespace fc {
     }
 }
 
-FC_REFLECT(steemit::protocol::asset, (amount)(symbol))
-FC_REFLECT(steemit::protocol::price, (base)(quote))
+FC_REFLECT((steemit::protocol::asset), (amount)(symbol))
+FC_REFLECT((steemit::protocol::price), (base)(quote))
 

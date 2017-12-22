@@ -101,4 +101,4 @@ namespace steemit {
 }*/
 
 STEEMIT_DECLARE_OPERATION_TYPE(steemit::protocol::operation)
-FC_REFLECT_TYPENAME(steemit::protocol::operation)
+FC_REFLECT_TYPENAME((steemit::protocol::operation))

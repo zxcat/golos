@@ -23,7 +23,7 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::application::applied_operation,
+FC_REFLECT((steemit::application::applied_operation),
         (trx_id)
                 (block)
                 (trx_in_block)

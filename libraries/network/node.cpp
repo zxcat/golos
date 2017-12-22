@@ -66,6 +66,7 @@
 #include <steemit/network/exceptions.hpp>
 
 #include <fc/git_revision.hpp>
+#include "../chain/include/steemit/chain/database_exceptions.hpp"
 
 //#define ENABLE_DEBUG_ULOGS
 
@@ -242,7 +243,7 @@ namespace steemit {
         }
     }
 } // end namespace network::detail
-FC_REFLECT(steemit::network::detail::node_configuration, (listen_endpoint)
+FC_REFLECT((steemit::network::detail::node_configuration), (listen_endpoint)
         (accept_incoming_connections)
         (wait_if_endpoint_is_busy)
         (private_key));
@@ -2380,7 +2381,7 @@ namespace steemit {
                     reply_message.item_hashes_available = _delegate->get_block_ids(fetch_blockchain_item_ids_message_received.blockchain_synopsis,
                             reply_message.total_remaining_item_count);
                 }
-                catch (const peer_is_on_an_unreachable_fork &) {
+                catch (const exceptions::peer_is_on_an_unreachable_fork<> &) {
                     dlog("Peer is on a fork and there's no set of blocks we can provide to switch them to our fork");
                     // we reply with an empty list as if we had an empty blockchain;
                     // we don't want to disconnect because they may be able to provide
@@ -2552,7 +2553,7 @@ namespace steemit {
                     peer->item_ids_requested_from_peer = boost::make_tuple(blockchain_synopsis, fc::time_point::now());
                     peer->send_message(fetch_blockchain_item_ids_message(_sync_item_type, blockchain_synopsis));
                 }
-                catch (const block_older_than_undo_history &e) {
+                catch (const exceptions::block_older_than_undo_history<> &e) {
                     synopsis_exception = e;
                 }
                 if (synopsis_exception) {
@@ -3142,7 +3143,7 @@ namespace steemit {
 
                     client_accepted_block = true;
                 }
-                catch (const block_older_than_undo_history &e) {
+                catch (const exceptions::block_older_than_undo_history<> &e) {
                     fc_wlog(fc::logger::get("sync"),
                             "p2p failed to push sync block #${block_num} ${block_hash}: block is on a fork older than our undo history would "
                                     "allow us to switch to: ${e}",
@@ -3546,7 +3547,7 @@ namespace steemit {
                 catch (const fc::canceled_exception &) {
                     throw;
                 }
-                catch (const unlinkable_block_exception &e) {
+                catch (const steemit::chain::unlinkable_block_exception &e) {
                     restart_sync_exception = e;
                 }
                 catch (const fc::exception &e) {
@@ -4650,8 +4651,8 @@ namespace steemit {
             void node_impl::connect_to_endpoint(const fc::ip::endpoint &remote_endpoint) {
                 VERIFY_CORRECT_THREAD();
                 if (is_connection_to_endpoint_in_progress(remote_endpoint))
-                    FC_THROW_EXCEPTION(already_connected_to_requested_peer, "already connected to requested endpoint ${endpoint}",
-                            ("endpoint", remote_endpoint));
+                    FC_THROW_EXCEPTION(exceptions::already_connected_to_requested_peer<>, "already connected to requested endpoint ${endpoint}",
+                                       ("endpoint", remote_endpoint));
 
                 dlog("node_impl::connect_to_endpoint(${endpoint})", ("endpoint", remote_endpoint));
                 peer_connection_ptr new_peer(peer_connection::make_shared(this));

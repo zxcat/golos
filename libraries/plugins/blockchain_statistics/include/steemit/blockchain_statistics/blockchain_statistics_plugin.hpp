@@ -122,7 +122,7 @@ namespace steemit {
             uint128_t estimated_hashpower = 0;                     ///< Estimated average hashpower over interval
         };
 
-        typedef oid<bucket_object> bucket_id_type;
+        typedef object_id<bucket_object> bucket_id_type;
 
         struct by_id;
         struct by_bucket;
@@ -143,7 +143,7 @@ namespace steemit {
     }
 } // steemit::blockchain_statistics
 
-FC_REFLECT(steemit::blockchain_statistics::bucket_object,
+FC_REFLECT((steemit::blockchain_statistics::bucket_object),
         (id)
                 (open)
                 (seconds)

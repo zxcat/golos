@@ -50,9 +50,9 @@ namespace steemit {
     }
 }
 
-FC_REFLECT(steemit::chain::object_schema_repr, (space_type)(type))
-FC_REFLECT(steemit::chain::operation_schema_repr, (id)(type))
-FC_REFLECT(steemit::chain::db_schema, (types)(object_types)(operation_type)(custom_operation_types))
+FC_REFLECT((steemit::chain::object_schema_repr), (space_type)(type))
+FC_REFLECT((steemit::chain::operation_schema_repr), (id)(type))
+FC_REFLECT((steemit::chain::db_schema), (types)(object_types)(operation_type)(custom_operation_types))
 
 namespace steemit {
     namespace chain {
@@ -2967,7 +2967,7 @@ namespace steemit {
                     try {
                         trx.verify_authority(chain_id, get_active, get_owner, get_posting, STEEMIT_MAX_SIG_CHECK_DEPTH);
                     }
-                    catch (protocol::tx_missing_active_auth &e) {
+                    catch (steemit::protocol::exceptions::transaction::tx_missing_active_auth<> &e) {
                         if (get_shared_db_merkle().find(head_block_num() + 1) ==
                             get_shared_db_merkle().end()) {
                             throw e;

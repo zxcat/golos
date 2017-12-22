@@ -1,26 +1,3 @@
-/*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
- *
- * The MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 #include <steemit/application/api.hpp>
 
 #include <steemit/chain/database_exceptions.hpp>
@@ -95,7 +72,7 @@ namespace steemit {
                                     }
                                 } catch (const fc::exception &e) {
                                     wlog("caught exception ${e} while adding seed node ${endpoint}",
-                                            ("e", e.to_detail_string())("endpoint", endpoint_string));
+                                         ("e", e.to_detail_string())("endpoint", endpoint_string));
                                 }
                             }
                         }
@@ -123,8 +100,8 @@ namespace steemit {
                         _p2p_network->connect_to_p2p_network();
                         idump((_chain_db->head_block_id()));
                         _p2p_network->sync_from(network::item_id(network::core_message_type_enum::block_message_type,
-                                _chain_db->head_block_id()),
-                                std::vector<uint32_t>());
+                                                                 _chain_db->head_block_id()),
+                                                std::vector<uint32_t>());
                     } FC_CAPTURE_AND_RETHROW()
                 }
 
@@ -133,7 +110,7 @@ namespace steemit {
                         string::size_type colon_pos = endpoint_string.find(':');
                         if (colon_pos == std::string::npos)
                             FC_THROW("Missing required port number in endpoint string \"${endpoint_string}\"",
-                                    ("endpoint_string", endpoint_string));
+                                     ("endpoint_string", endpoint_string));
                         std::string port_string = endpoint_string.substr(
                                 colon_pos + 1);
                         try {
@@ -215,7 +192,7 @@ namespace steemit {
 
                 application_impl(application *self)
                         : _self(self),
-                        //_pending_trx_db(std::make_shared<graphene::db::object_database>()),
+                        //_pending_trx_db(std::make_shared<golos::get_database::object_database>()),
                           _chain_db(std::make_shared<chain::database>()) {
                 }
 
@@ -286,7 +263,7 @@ namespace steemit {
                                         _chain_db->reindex(_data_dir /
                                                            "blockchain", _shared_dir, _shared_file_size);
                                     }
-                                    catch (chain::block_log_exception &) {
+                                    catch (block_log_exception &) {
                                         wlog("Error opening block log. Having to resync from network...");
                                         _chain_db->open(_data_dir /
                                                         "blockchain", _shared_dir, STEEMIT_INIT_SUPPLY, _shared_file_size, chainbase::database::read_write);
@@ -409,7 +386,7 @@ namespace steemit {
                  * @throws exception if error validating the item, otherwise the item is safe to broadcast on.
                  */
                 virtual bool handle_block(const network::block_message &blk_msg, bool sync_mode,
-                        std::vector<fc::uint160_t> &contained_transaction_message_ids) override {
+                                          std::vector<fc::uint160_t> &contained_transaction_message_ids) override {
                     try {
                         if (_running) {
                             if (sync_mode)
@@ -427,8 +404,8 @@ namespace steemit {
                             if (sync_mode &&
                                 blk_msg.block.block_num() % 10000 == 0) {
                                 ilog("Syncing Blockchain --- Got block: #${n} time: ${t}",
-                                        ("t", blk_msg.block.timestamp)
-                                                ("n", blk_msg.block.block_num()));
+                                     ("t", blk_msg.block.timestamp)
+                                             ("n", blk_msg.block.block_num()));
                             }
 
                             time_point_sec now = fc::time_point::now();
@@ -452,19 +429,19 @@ namespace steemit {
                                 if (!sync_mode &&
                                     blk_msg.block.transactions.size()) {
                                     ilog("Got ${t} transactions from network on block ${b}",
-                                            ("t", blk_msg.block.transactions.size())
-                                                    ("b", blk_msg.block.block_num()));
+                                         ("t", blk_msg.block.transactions.size())
+                                                 ("b", blk_msg.block.block_num()));
                                 }
 
                                 return result;
                             } catch (const steemit::chain::unlinkable_block_exception &e) {
-                                // translate to a graphene::network exception
+                                // translate to a golos::network exception
                                 fc_elog(fc::logger::get("sync"),
                                         "Error when pushing block, current head block is ${head}:\n${e}",
                                         ("e", e.to_detail_string())
                                                 ("head", _chain_db->head_block_num()));
                                 elog("Error when pushing block:\n${e}", ("e", e.to_detail_string()));
-                                FC_THROW_EXCEPTION(network::unlinkable_block_exception, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
+                                FC_THROW_EXCEPTION(network::exceptions::unlinkable_block<>, "Error when pushing block:\n${e}", ("e", e.to_detail_string()));
                             } catch (const fc::exception &e) {
                                 fc_elog(fc::logger::get("sync"),
                                         "Error when pushing block, current head block is ${head}:\n${e}",
@@ -507,8 +484,8 @@ namespace steemit {
                  * or 0 if the result contains the last item in the blockchain
                  */
                 virtual std::vector<item_hash_t> get_block_ids(const std::vector<item_hash_t> &blockchain_synopsis,
-                        uint32_t &remaining_item_count,
-                        uint32_t limit) override {
+                                                               uint32_t &remaining_item_count,
+                                                               uint32_t limit) override {
                     try {
                         vector<block_id_type> result;
                         remaining_item_count = 0;
@@ -539,7 +516,7 @@ namespace steemit {
                                 }
                             }
                             if (!found_a_block_in_synopsis)
-                                FC_THROW_EXCEPTION(network::peer_is_on_an_unreachable_fork, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
+                                FC_THROW_EXCEPTION(network::exceptions::peer_is_on_an_unreachable_fork<>, "Unable to provide a list of blocks starting at any of the blocks in peer's synopsis");
                         }
                         for (uint32_t num = block_header::num_from_id(last_known_block_id);
                              num <= _chain_db->head_block_num() &&
@@ -571,7 +548,7 @@ namespace steemit {
                             auto opt_block = _chain_db->fetch_block_by_id(id.item_hash);
                             if (!opt_block)
                                 elog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
-                                        ("id", id.item_hash)("id2", _chain_db->get_block_id_for_num(block_header::num_from_id(id.item_hash))));
+                                     ("id", id.item_hash)("id2", _chain_db->get_block_id_for_num(block_header::num_from_id(id.item_hash))));
                             FC_ASSERT(opt_block.valid());
                             // ilog("Serving up block #${num}", ("num", opt_block->block_num()));
                             return block_message(std::move(*opt_block));
@@ -639,7 +616,7 @@ namespace steemit {
                  * the main chain.
                  */
                 virtual std::vector<item_hash_t> get_blockchain_synopsis(const item_hash_t &reference_point,
-                        uint32_t number_of_blocks_after_reference_point) override {
+                                                                         uint32_t number_of_blocks_after_reference_point) override {
                     try {
                         std::vector<item_hash_t> synopsis;
                         synopsis.reserve(30);
@@ -691,7 +668,7 @@ namespace steemit {
                                     boost::reverse(fork_history);
 
                                     if (last_non_fork_block ==
-                                        block_id_type()) { // if the fork goes all the way back to genesis (does graphene's fork db allow this?)
+                                        block_id_type()) { // if the fork goes all the way back to genesis (does golos's fork get_database allow this?)
                                         non_fork_high_block_num = 0;
                                     } else {
                                         non_fork_high_block_num = block_header::num_from_id(last_non_fork_block);
@@ -710,10 +687,10 @@ namespace steemit {
                                 }
                                 if (non_fork_high_block_num < low_block_num) {
                                     wlog("Unable to generate a usable synopsis because the peer we're generating it for forked too long ago "
-                                            "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})",
-                                            ("low_block_num", low_block_num)
-                                                    ("non_fork_high_block_num", non_fork_high_block_num));
-                                    FC_THROW_EXCEPTION(network::block_older_than_undo_history, "Peer is are on a fork I'm unable to switch to");
+                                                 "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})",
+                                         ("low_block_num", low_block_num)
+                                                 ("non_fork_high_block_num", non_fork_high_block_num));
+                                    FC_THROW_EXCEPTION(network::exceptions::block_older_than_undo_history<>, "Peer is are on a fork I'm unable to switch to");
                                 }
                             }
                         } else {
@@ -807,7 +784,7 @@ namespace steemit {
                 }
 
                 virtual uint32_t estimate_last_known_fork_from_git_revision_timestamp(uint32_t unix_timestamp) const override {
-                    return 0; // there are no forks in graphene
+                    return 0; // there are no forks in golos
                 }
 
                 virtual void error_encountered(const std::string &message, const fc::oexception &error) override {
@@ -824,7 +801,7 @@ namespace steemit {
                     fc::usleep(fc::seconds(1));
                     if (_p2p_network) {
                         _p2p_network->close();
-                        fc::usleep(fc::seconds(1)); // p2p node has some calls to the database, give it a second to shutdown before invalidating the chain db pointer
+                        fc::usleep(fc::seconds(1)); // p2p node has some calls to the database, give it a second to shutdown before invalidating the chain get_database pointer
                     }
                     if (_chain_db) {
                         _chain_db->close();
@@ -838,7 +815,7 @@ namespace steemit {
                 const bpo::variables_map *_options = nullptr;
                 api_access _apiaccess;
 
-                //std::shared_ptr<graphene::db::object_database>   _pending_trx_db;
+                //std::shared_ptr<golos::get_database::object_database>   _pending_trx_db;
                 std::shared_ptr<steemit::chain::database> _chain_db;
                 std::shared_ptr<network::node> _p2p_network;
                 std::shared_ptr<fc::http::websocket_server> _websocket_server;
@@ -877,27 +854,29 @@ namespace steemit {
         }
 
         void application::set_program_options(boost::program_options::options_description &command_line_options,
-                boost::program_options::options_description &configuration_file_options) const {
+                                              boost::program_options::options_description &configuration_file_options) const {
             std::vector<std::string> default_apis;
             default_apis.push_back("database_api");
             default_apis.push_back("login_api");
             default_apis.push_back("account_by_key_api");
+            default_apis.push_back("market_history_api");
             std::string str_default_apis = boost::algorithm::join(default_apis, " ");
 
             std::vector<std::string> default_plugins;
             default_plugins.push_back("witness");
             default_plugins.push_back("account_history");
             default_plugins.push_back("account_by_key");
+            default_plugins.push_back("market_history");
             default_plugins.push_back("snapshot");
             std::string str_default_plugins = boost::algorithm::join(default_plugins, " ");
 
             configuration_file_options.add_options()
                     ("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on")
-                    ("p2p-max-connections", bpo::value<uint32_t>(), "Maxmimum number of incoming connections on P2P endpoint")
+                    ("p2p-max-connections", bpo::value<uint32_t>(), "Maximum number of incoming connections on P2P endpoint")
                     ("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)")
                     ("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
                     ("shared-file-dir", bpo::value<string>(), "Location of the shared memory file. Defaults to data_dir/blockchain")
-                    ("shared-file-size", bpo::value<string>()->default_value("32G"), "Size of the shared memory file. Default: 32G")
+                    ("shared-file-size", bpo::value<string>()->default_value("8G"), "Size of the shared memory file. Default: 8G")
                     ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
                     ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")
                     ("read-forward-rpc", bpo::value<string>(), "Endpoint to forward write API calls to for a read node")
@@ -907,7 +886,8 @@ namespace steemit {
                     ("public-api", bpo::value<vector<string>>()->composing()->default_value(default_apis, str_default_apis), "Set an API to be publicly available, may be specified multiple times")
                     ("enable-plugin", bpo::value<vector<string>>()->composing()->default_value(default_plugins, str_default_plugins), "Plugin(s) to enable, may be specified multiple times")
                     ("max-block-age", bpo::value<int32_t>()->default_value(200), "Maximum age of head block when broadcasting tx via API")
-                    ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks");
+                    ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks")
+                    ("statsd_port", bpo::value<uint32_t>()->default_value(8125), "Statsd agregators port");
             command_line_options.add(configuration_file_options);
             command_line_options.add_options()
                     ("replay-blockchain", "Rebuild object graph by replaying all blocks")
@@ -954,7 +934,7 @@ namespace steemit {
             return my->_chain_db;
         }
 
-/*std::shared_ptr<graphene::db::object_database> application::pending_trx_database() const
+/*std::shared_ptr<golos::get_database::object_database> application::pending_trx_database() const
 {
    return my->_pending_trx_db;
 }*/
@@ -972,87 +952,87 @@ namespace steemit {
         }
 
         void application::register_api_factory(const string &name, std::function<fc::api_ptr(const api_context &)> factory) {
-            return my->register_api_factory(name, factory);
+        return my->register_api_factory(name, factory);
+    }
+
+    fc::api_ptr application::create_api_by_name(const api_context &ctx) {
+        return my->create_api_by_name(ctx);
+    }
+
+    void application::get_max_block_age(int32_t &result) {
+        my->get_max_block_age(result);
+    }
+
+    void application::connect_to_write_node() {
+        if (_remote_endpoint) {
+            _remote_net_api.reset();
+            auto ws_ptr = _client.connect(*_remote_endpoint);
+            auto apic = std::make_shared<fc::rpc::websocket_api_connection>(*ws_ptr);
+            auto login = apic->get_remote_api<login_api>(1);
+            FC_ASSERT(login->login("", ""));
+            _remote_net_api = login->get_api_by_name("network_broadcast_api")->as<network_broadcast_api>();
+        }
+    }
+
+    void application::shutdown_plugins() {
+        for (auto &entry : my->_plugins_enabled) {
+            entry.second->plugin_shutdown();
+        }
+        return;
+    }
+
+    void application::shutdown() {
+        my->shutdown();
+    }
+
+    void application::register_abstract_plugin(std::shared_ptr<abstract_plugin> plug) {
+        boost::program_options::options_description plugin_cli_options(
+                "Options for plugin " +
+                plug->plugin_name()), plugin_cfg_options;
+        plug->plugin_set_program_options(plugin_cli_options, plugin_cfg_options);
+        if (!plugin_cli_options.options().empty()) {
+            _cli_options.add(plugin_cli_options);
+        }
+        if (!plugin_cfg_options.options().empty()) {
+            _cfg_options.add(plugin_cfg_options);
         }
 
-        fc::api_ptr application::create_api_by_name(const api_context &ctx) {
-            return my->create_api_by_name(ctx);
+        my->_plugins_available[plug->plugin_name()] = plug;
+    }
+
+    void application::enable_plugin(const std::string &name) {
+        auto it = my->_plugins_available.find(name);
+        if (it == my->_plugins_available.end()) {
+            elog("can't enable plugin ${name}", ("name", name));
         }
+        FC_ASSERT(it != my->_plugins_available.end());
+        my->_plugins_enabled[name] = it->second;
+    }
 
-        void application::get_max_block_age(int32_t &result) {
-            my->get_max_block_age(result);
-        }
-
-        void application::connect_to_write_node() {
-            if (_remote_endpoint) {
-                _remote_net_api.reset();
-                auto ws_ptr = _client.connect(*_remote_endpoint);
-                auto apic = std::make_shared<fc::rpc::websocket_api_connection>(*ws_ptr);
-                auto login = apic->get_remote_api<login_api>(1);
-                FC_ASSERT(login->login("", ""));
-                _remote_net_api = login->get_api_by_name("network_broadcast_api")->as<network_broadcast_api>();
-            }
-        }
-
-        void application::shutdown_plugins() {
-            for (auto &entry : my->_plugins_enabled) {
-                entry.second->plugin_shutdown();
-            }
-            return;
-        }
-
-        void application::shutdown() {
-            my->shutdown();
-        }
-
-        void application::register_abstract_plugin(std::shared_ptr<abstract_plugin> plug) {
-            boost::program_options::options_description plugin_cli_options(
-                    "Options for plugin " +
-                    plug->plugin_name()), plugin_cfg_options;
-            plug->plugin_set_program_options(plugin_cli_options, plugin_cfg_options);
-            if (!plugin_cli_options.options().empty()) {
-                _cli_options.add(plugin_cli_options);
-            }
-            if (!plugin_cfg_options.options().empty()) {
-                _cfg_options.add(plugin_cfg_options);
-            }
-
-            my->_plugins_available[plug->plugin_name()] = plug;
-        }
-
-        void application::enable_plugin(const std::string &name) {
-            auto it = my->_plugins_available.find(name);
-            if (it == my->_plugins_available.end()) {
-                elog("can't enable plugin ${name}", ("name", name));
-            }
-            FC_ASSERT(it != my->_plugins_available.end());
-            my->_plugins_enabled[name] = it->second;
-        }
-
-        void application::initialize_plugins(const boost::program_options::variables_map &options) {
-            if (options.count("enable-plugin") > 0) {
-                for (auto &arg : options.at("enable-plugin").as<std::vector<std::string>>()) {
-                    vector<string> names;
-                    boost::split(names, arg, boost::is_any_of(" \t,"));
-                    for (const std::string &name : names) {
-                        enable_plugin(name);
-                    }
+    void application::initialize_plugins(const boost::program_options::variables_map &options) {
+        if (options.count("enable-plugin") > 0) {
+            for (auto &arg : options.at("enable-plugin").as<std::vector<std::string>>()) {
+                vector<string> names;
+                boost::split(names, arg, boost::is_any_of(" \t,"));
+                for (const std::string &name : names) {
+                    enable_plugin(name);
                 }
             }
-            for (auto &entry : my->_plugins_enabled) {
-                ilog("Initializing plugin ${name}", ("name", entry.first));
-                entry.second->plugin_initialize(options);
-            }
-            return;
         }
+        for (auto &entry : my->_plugins_enabled) {
+            ilog("Initializing plugin ${name}", ("name", entry.first));
+            entry.second->plugin_initialize(options);
+        }
+        return;
+    }
 
-        void application::startup_plugins() {
-            for (auto &entry : my->_plugins_enabled) {
-                entry.second->plugin_startup();
-            }
-            return;
+    void application::startup_plugins() {
+        for (auto &entry : my->_plugins_enabled) {
+            entry.second->plugin_startup();
         }
+        return;
+    }
 
 // namespace detail
-    }
+}
 }

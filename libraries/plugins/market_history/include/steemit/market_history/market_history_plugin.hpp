@@ -101,7 +101,7 @@ namespace steemit {
             }
         };
 
-        typedef oid<bucket_object> bucket_id_type;
+        typedef object_id<bucket_object> bucket_id_type;
 
 
         struct order_history_object
@@ -117,7 +117,7 @@ namespace steemit {
             protocol::fill_order_operation op;
         };
 
-        typedef oid<order_history_object> order_history_id_type;
+        typedef object_id<order_history_object> order_history_id_type;
 
 
         struct by_bucket;
@@ -149,7 +149,7 @@ namespace steemit {
     }
 } // steemit::market_history
 
-FC_REFLECT(steemit::market_history::bucket_object,
+FC_REFLECT((steemit::market_history::bucket_object),
         (id)
                 (open)(seconds)
                 (high_steem)(high_sbd)
@@ -159,7 +159,7 @@ FC_REFLECT(steemit::market_history::bucket_object,
                 (steem_volume)(sbd_volume))
 CHAINBASE_SET_INDEX_TYPE(steemit::market_history::bucket_object, steemit::market_history::bucket_index)
 
-FC_REFLECT(steemit::market_history::order_history_object,
+FC_REFLECT((steemit::market_history::order_history_object),
         (id)
                 (time)
                 (op))

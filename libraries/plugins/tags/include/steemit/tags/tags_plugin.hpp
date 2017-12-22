@@ -17,7 +17,7 @@ namespace steemit {
         using steemit::application::application;
 
         using chainbase::object;
-        using chainbase::oid;
+        using chainbase::object_id;
         using chainbase::allocator;
 
 //
@@ -102,7 +102,7 @@ namespace steemit {
             }
         };
 
-        typedef oid<tag_object> tag_id_type;
+        typedef object_id<tag_object> tag_id_type;
 
         template<typename T, typename C = std::less<T>>
         class comparable_index {
@@ -400,7 +400,7 @@ namespace steemit {
             uint32_t comments = 0;
         };
 
-        typedef oid<tag_stats_object> tag_stats_id_type;
+        typedef object_id<tag_stats_object> tag_stats_id_type;
 
         struct by_comments;
         struct by_top_posts;
@@ -487,7 +487,7 @@ namespace steemit {
             }
         };
 
-        typedef oid<peer_stats_object> peer_stats_id_type;
+        typedef object_id<peer_stats_object> peer_stats_id_type;
 
         struct by_rank;
         struct by_voter_peer;
@@ -535,7 +535,7 @@ namespace steemit {
             uint32_t total_posts = 0;
         };
 
-        typedef oid<author_tag_stats_object> author_tag_stats_id_type;
+        typedef object_id<author_tag_stats_object> author_tag_stats_id_type;
 
         struct by_author_tag_posts;
         struct by_author_posts_tag;
@@ -647,20 +647,20 @@ namespace steemit {
 
 FC_API(steemit::tags::tag_api, (get_tags));
 
-FC_REFLECT(steemit::tags::tag_object,
+FC_REFLECT((steemit::tags::tag_object),
         (id)(tag)(created)(active)(cashout)(net_rshares)(net_votes)(hot)(trending)(promoted_balance)(children)(children_rshares2)(author)(parent)(comment))
 
 CHAINBASE_SET_INDEX_TYPE(steemit::tags::tag_object, steemit::tags::tag_index)
 
-FC_REFLECT(steemit::tags::tag_stats_object,
+FC_REFLECT((steemit::tags::tag_stats_object),
         (id)(tag)(total_children_rshares2)(total_payout)(net_votes)(top_posts)(comments));
 CHAINBASE_SET_INDEX_TYPE(steemit::tags::tag_stats_object, steemit::tags::tag_stats_index)
 
-FC_REFLECT(steemit::tags::peer_stats_object,
+FC_REFLECT((steemit::tags::peer_stats_object),
         (id)(voter)(peer)(direct_positive_votes)(direct_votes)(indirect_positive_votes)(indirect_votes)(rank));
 CHAINBASE_SET_INDEX_TYPE(steemit::tags::peer_stats_object, steemit::tags::peer_stats_index)
 
-FC_REFLECT(steemit::tags::comment_metadata, (tags));
+FC_REFLECT((steemit::tags::comment_metadata), (tags));
 
-FC_REFLECT(steemit::tags::author_tag_stats_object, (id)(author)(tag)(total_posts)(total_rewards))
+FC_REFLECT((steemit::tags::author_tag_stats_object), (id)(author)(tag)(total_posts)(total_rewards))
 CHAINBASE_SET_INDEX_TYPE(steemit::tags::author_tag_stats_object, steemit::tags::author_tag_stats_index)

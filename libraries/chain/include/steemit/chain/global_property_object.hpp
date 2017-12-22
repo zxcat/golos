@@ -152,7 +152,7 @@ namespace steemit {
     }
 } // steemit::chain
 
-FC_REFLECT(steemit::chain::dynamic_global_property_object,
+FC_REFLECT((steemit::chain::dynamic_global_property_object),
         (id)
                 (head_block_number)
                 (head_block_id)

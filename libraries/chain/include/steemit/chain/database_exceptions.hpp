@@ -64,6 +64,44 @@
 namespace steemit {
     namespace chain {
 
+#define FC_DECLARE_DERIVED_EXCEPTION( TYPE, BASE, CODE, WHAT ) \
+   class TYPE : public BASE  \
+   { \
+      public: \
+       enum code_enum { \
+          code_value = CODE, \
+       }; \
+       explicit TYPE( int64_t code, const std::string& name_value, const std::string& what_value ) \
+       :BASE( code, name_value, what_value ){} \
+       explicit TYPE( fc::log_message&& m, int64_t code, const std::string& name_value, const std::string& what_value ) \
+       :BASE( std::move(m), code, name_value, what_value ){} \
+       explicit TYPE( fc::log_messages&& m, int64_t code, const std::string& name_value, const std::string& what_value )\
+       :BASE( std::move(m), code, name_value, what_value ){}\
+       explicit TYPE( const fc::log_messages& m, int64_t code, const std::string& name_value, const std::string& what_value )\
+       :BASE( m, code, name_value, what_value ){}\
+       TYPE( const std::string& what_value, const fc::log_messages& m ) \
+       :BASE( m, CODE, BOOST_PP_STRINGIZE(TYPE), what_value ){} \
+       TYPE( fc::log_message&& m ) \
+       :BASE( fc::move(m), CODE, BOOST_PP_STRINGIZE(TYPE), WHAT ){}\
+       TYPE( fc::log_messages msgs ) \
+       :BASE( fc::move( msgs ), CODE, BOOST_PP_STRINGIZE(TYPE), WHAT ) {} \
+       TYPE( const TYPE& c ) \
+       :BASE(c){} \
+       TYPE( const BASE& c ) \
+       :BASE(c){} \
+       TYPE():BASE(CODE, BOOST_PP_STRINGIZE(TYPE), WHAT){}\
+       \
+       virtual std::shared_ptr<fc::exception> dynamic_copy_exception()const\
+       { return std::make_shared<TYPE>( *this ); } \
+       virtual NO_RETURN void     dynamic_rethrow_exception()const \
+       { if( code() == CODE ) throw *this;\
+         else fc::exception::dynamic_rethrow_exception(); \
+       } \
+   };
+
+   #define FC_DECLARE_EXCEPTION( TYPE, CODE, WHAT ) \
+      FC_DECLARE_DERIVED_EXCEPTION( TYPE, fc::exception, CODE, WHAT )
+
         FC_DECLARE_EXCEPTION(chain_exception, 4000000, "blockchain exception")
 
         FC_DECLARE_DERIVED_EXCEPTION(database_query_exception, steemit::chain::chain_exception, 4010000, "database query exception")
