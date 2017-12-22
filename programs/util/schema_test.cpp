@@ -17,7 +17,7 @@ struct mystruct {
     uint64_t beta;
 };
 
-FC_REFLECT(mystruct,
+FC_REFLECT((mystruct),
 (alpha)
         (beta)
 );
