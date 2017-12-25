@@ -1,10 +1,12 @@
 #include <golos/plugins/webserver/leaky_bucket.hpp>
+#include <fc/log/logger_config.hpp>
 
 namespace golos {
 namespace plugins {
 namespace webserver {
 
     bool leaky_bucket::increment() {
+        ilog("Leaky bucket increment.");
         if (limit == 0 || time_period == 0)
             return true;
 

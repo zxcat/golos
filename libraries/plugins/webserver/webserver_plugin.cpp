@@ -248,6 +248,7 @@ namespace golos {
                 if (leaky_iter != leaky_buckets.end()) {
                     leaky_bucket_ptr lbucket = leaky_iter->second;
                     if (lbucket && !lbucket->increment()) {
+                        ilog("Leaky bucket is overflown.");
                         return;
                     }
                 }
@@ -275,6 +276,7 @@ namespace golos {
                     leaky_bucket_ptr lbucket = leaky_iter->second;
                     // If bucket returns false - its overflown, abort message handling
                     if (lbucket && !lbucket->increment()) {
+                        ilog("Leaky bucket is overflown.");
                         return;
                     }
                 }
