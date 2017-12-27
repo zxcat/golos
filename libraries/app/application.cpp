@@ -915,7 +915,8 @@ namespace steemit {
                     ("public-api", bpo::value<vector<string>>()->composing()->default_value(default_apis, str_default_apis), "Set an API to be publicly available, may be specified multiple times")
                     ("enable-plugin", bpo::value<vector<string>>()->composing()->default_value(default_plugins, str_default_plugins), "Plugin(s) to enable, may be specified multiple times")
                     ("max-block-age", bpo::value<int32_t>()->default_value(200), "Maximum age of head block when broadcasting tx via API")
-                    ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks");
+                    ("flush", bpo::value<uint32_t>()->default_value(100000), "Flush shared memory file to disk this many blocks")
+                    ("statistics_sender_default_port", bpo::value<uint32_t>()->default_value(8125), "Default port for statistics_sender.");
             command_line_options.add(configuration_file_options);
             command_line_options.add_options()
                     ("replay-blockchain", "Rebuild object graph by replaying all blocks")
