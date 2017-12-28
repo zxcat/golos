@@ -581,13 +581,18 @@ void blockchain_statistics_plugin::plugin_initialize(const boost::program_option
         if (options.count("chain-stats-history-per-bucket")) {
             _my->_maximum_history_per_bucket_size = options["chain-stats-history-per-bucket"].as<uint32_t>();
         }
+        if (options.count("chain-stats-statsd-ip")) {
+            for (auto it : options["chain-stats-statsd-ip"].as<std::vector<std::string>>()) {
+                _my->stat_sender_->add_address(it);
+            }
+        }
 
         wlog("chain-stats-bucket-size: ${b}", ("b", _my->_tracked_buckets));
         wlog("chain-stats-history-per-bucket: ${h}", ("h", _my->_maximum_history_per_bucket_size));
 
         ilog("chain_stats_plugin: plugin_initialize() end");
 
-        const auto &bucket_idx = db.get_index<bucket_index>().indices().get<by_id>();
+        // const auto &bucket_idx = db.get_index<bucket_index>().indices().get<by_id>();
 
     
 
