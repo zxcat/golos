@@ -76,7 +76,7 @@ namespace golos { namespace wallet {
  */
         class wallet_api {
         public:
-            wallet_api( const wallet_data& initial_data, const golos::protocol::chain_id_type& _steem_chain_id, fc::api< remote_node_api > rapi );
+            wallet_api( const wallet_data& initial_data, const golos::protocol::chain_id_type& _steem_chain_id, fc::api_connection& con );
             virtual ~wallet_api();
 
             bool copy_wallet_file( string destination_filename );
