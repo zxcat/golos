@@ -687,88 +687,94 @@ namespace golos { namespace wallet {
                     flat_set< account_name_type > req_posting_approvals;
                     vector< authority > other_auths;
 
-                    tx.get_required_authorities( req_active_approvals, req_owner_approvals, req_posting_approvals, other_auths );
+                    // gets required account names of operations
+                    tx.get_required_authorities( req_active_approvals, req_owner_approvals,
+                        req_posting_approvals, other_auths );
 
                     for( const auto& auth : other_auths )
                         for( const auto& a : auth.account_auths )
                             req_active_approvals.insert(a.first);
 
-                    // std::merge lets us de-duplicate account_id's that occur in both
-                    //   sets, and dump them into a vector (as required by remote_db api)
-                    //   at the same time
-                    vector< account_name_type > v_approving_account_names;
-                    std::merge(req_active_approvals.begin(), req_active_approvals.end(),
-                               req_owner_approvals.begin() , req_owner_approvals.end(),
-                               std::back_inserter( v_approving_account_names ) );
+                    // collects all keys to common set and accounts to common map
+                    
+                    flat_map<string, golos::api::account_api_object> approving_account_lut;
 
-                    for( const auto& a : req_posting_approvals )
-                        v_approving_account_names.push_back(a);
+                    flat_set<public_key_type> approving_key_set;
 
-                    /// TODO: fetch the accounts specified via other_auths as well.
+                    std::vector<account_name_type> active_account_auths; 
+                    std::vector<account_name_type> owner_account_auths; 
+                    std::vector<account_name_type> posting_account_auths; 
 
-                    auto approving_account_objects = _remote_database_api->get_accounts( v_approving_account_names );
-
-                    /// TODO: recursively check one layer deeper in the authority tree for keys
-
-                    FC_ASSERT( approving_account_objects.size() == v_approving_account_names.size(), "", ("aco.size:", approving_account_objects.size())("acn",v_approving_account_names.size()) );
-
-                    flat_map< string, golos::api::account_api_object > approving_account_lut;
-                    size_t i = 0;
-                    for( const optional< golos::api::account_api_object >& approving_acct : approving_account_objects ) {
-                        if( !approving_acct.valid() ) {
-                            wlog( "operation_get_required_auths said approval of non-existing account ${name} was needed",
-                                  ("name", v_approving_account_names[i]) );
-                            i++;
-                            continue;
+                    auto fetch_keys = [&](const authority& auth) {
+                        for (const public_key_type& approving_key : auth.get_keys()) {
+                            wdump((approving_key));
+                            approving_key_set.insert( approving_key );
                         }
-                        approving_account_lut[ approving_acct->name ] = *approving_acct;
-                        i++;
+                    };
+                    
+                    if (!req_active_approvals.empty()) {
+                        auto req_active_accs =_remote_database_api->get_accounts(std::vector<account_name_type>(
+                            req_active_approvals.begin(), req_active_approvals.end()));
+                        for (auto& acc : req_active_accs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.active);
+                            for (const auto& auth : acc.active.account_auths) {
+                                active_account_auths.push_back(auth.first);
+                            }
+                        }
                     }
+                    if (!req_owner_approvals.empty()) {
+                        auto req_owner_accs =_remote_database_api->get_accounts(std::vector<account_name_type>(
+                            req_owner_approvals.begin(), req_owner_approvals.end()));
+                        for (auto& acc : req_owner_accs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.owner);
+                            for (const auto& auth : acc.owner.account_auths) {
+                                owner_account_auths.push_back(auth.first);
+                            }
+                        }
+                    }
+                    if (!req_posting_approvals.empty()) {
+                        auto req_posting_accs =_remote_database_api->get_accounts(std::vector<account_name_type>(
+                            req_posting_approvals.begin(), req_posting_approvals.end()));
+                        for (auto& acc : req_posting_accs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.posting);
+                            for (const auto& auth : acc.posting.account_auths) {
+                                posting_account_auths.push_back(auth.first);
+                            }
+                        }
+                    }
+
+                    if (!active_account_auths.empty()) {
+                        auto active_account_auth_objs = _remote_database_api->get_accounts(active_account_auths);
+                        for (auto& acc : active_account_auth_objs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.active);
+                        }
+                    }
+                    if (!owner_account_auths.empty()) {
+                        auto owner_account_auth_objs = _remote_database_api->get_accounts(owner_account_auths);
+                        for (auto& acc : owner_account_auth_objs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.owner);
+                        }
+                    }
+                    if (!posting_account_auths.empty()) {
+                        auto posting_account_auth_objs = _remote_database_api->get_accounts(posting_account_auths);
+                        for (auto& acc : posting_account_auth_objs) {
+                            approving_account_lut[acc.name] = acc;
+                            fetch_keys(acc.posting);
+                        }
+                    }
+
                     auto get_account_from_lut = [&]( const std::string& name ) -> const golos::api::account_api_object& {
                         auto it = approving_account_lut.find( name );
-                        FC_ASSERT( it != approving_account_lut.end() );
+                        FC_ASSERT( it != approving_account_lut.end(), "No account in lut: '${name}'", ("name",name) );
                         return it->second;
                     };
 
-                    flat_set<public_key_type> approving_key_set;
-                    for( account_name_type& acct_name : req_active_approvals ) {
-                        const auto it = approving_account_lut.find( acct_name );
-                        if( it == approving_account_lut.end() )
-                            continue;
-                        const golos::api::account_api_object& acct = it->second;
-                        vector<public_key_type> v_approving_keys = acct.active.get_keys();
-                        wdump((v_approving_keys));
-                        for( const public_key_type& approving_key : v_approving_keys ) {
-                            wdump((approving_key));
-                            approving_key_set.insert( approving_key );
-                        }
-                    }
-
-                    for( account_name_type& acct_name : req_posting_approvals ) {
-                        const auto it = approving_account_lut.find( acct_name );
-                        if( it == approving_account_lut.end() )
-                            continue;
-                        const golos::api::account_api_object& acct = it->second;
-                        vector<public_key_type> v_approving_keys = acct.posting.get_keys();
-                        wdump((v_approving_keys));
-                        for( const public_key_type& approving_key : v_approving_keys )
-                        {
-                            wdump((approving_key));
-                            approving_key_set.insert( approving_key );
-                        }
-                    }
-
-                    for( const account_name_type& acct_name : req_owner_approvals ) {
-                        const auto it = approving_account_lut.find( acct_name );
-                        if( it == approving_account_lut.end() )
-                            continue;
-                        const golos::api::account_api_object& acct = it->second;
-                        vector<public_key_type> v_approving_keys = acct.owner.get_keys();
-                        for( const public_key_type& approving_key : v_approving_keys ) {
-                            wdump((approving_key));
-                            approving_key_set.insert( approving_key );
-                        }
-                    }
+                    // get keys of each other auth into common set
                     for( const authority& a : other_auths ) {
                         for( const auto& k : a.key_auths ) {
                             wdump((k.first));
@@ -781,6 +787,8 @@ namespace golos { namespace wallet {
                     tx.set_expiration( dyn_props.time + fc::seconds(_tx_expiration_seconds) );
                     tx.signatures.clear();
 
+                    // checking each key from common set exists in wallet's keys
+                    // and adding available ones to available set and map
                     //idump((_keys));
                     flat_set< public_key_type > available_keys;
                     flat_map< public_key_type, fc::ecc::private_key > available_private_keys;
@@ -796,6 +804,7 @@ namespace golos { namespace wallet {
                         }
                     }
 
+                    // removing excessive keys from available keys set
                     auto minimal_signing_keys = tx.minimize_required_signatures(
                             steem_chain_id,
                             available_keys,
@@ -808,6 +817,7 @@ namespace golos { namespace wallet {
                             STEEMIT_MAX_SIG_CHECK_DEPTH
                     );
 
+                    // checking if each private key exists and signing tx with it
                     for( const public_key_type& k : minimal_signing_keys ) {
                         auto it = available_private_keys.find(k);
                         FC_ASSERT( it != available_private_keys.end() );
