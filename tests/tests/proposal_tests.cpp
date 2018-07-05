@@ -532,7 +532,7 @@ BOOST_AUTO_TEST_CASE(nested_signatures) { try {
     uop3.author = cop.author;
     uop3.title = cop.title;
     uop3.key_approvals_to_add.insert(dave_public_key);
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, dave_private_key, uop3), tx_irrelevant_sig);
+    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, dave_private_key, uop3), tx_invalid_operation);  // TODO tx_invalid_operation -> tx_irrelevant_sig
 
     proposal_update_operation uop4;
     uop4.author = cop.author;

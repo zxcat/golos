@@ -6234,7 +6234,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
 
             BOOST_TEST_MESSAGE("--- Test specifying a non-existent benefactor");
@@ -6245,7 +6245,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
 
             BOOST_TEST_MESSAGE("--- Test setting when comment has been voted on");
@@ -6264,7 +6264,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
 
             BOOST_TEST_MESSAGE("--- Test success");
@@ -6280,7 +6280,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.extensions.clear();
             op.extensions.insert(b);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6381,7 +6381,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.memo_key = priv_key.get_public_key();
             op.json_metadata = "{\"foo\":\"bar\"}";
             sign_tx_with_ops(tx, alice_private_key, withdraw, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_invalid_operation);
 
             BOOST_TEST_MESSAGE("--- Test success under normal conditions");
             push_tx_with_ops(tx, alice_private_key, op);
@@ -6611,7 +6611,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.delegatee = "alice";
             op.vesting_shares = asset(max_allowed.amount + 1, VESTS_SYMBOL);
             sign_tx_with_ops(tx, bob_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
             op.vesting_shares = max_allowed;
             push_tx_with_ops(tx, bob_private_key, op);
 
@@ -6628,12 +6628,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.delegator = "sam";
             op.delegatee = "dave";
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
             BOOST_TEST_MESSAGE("--- Test failure delegating more vesting shares than account has");
             op.vesting_shares = asset(sam_vest.amount + 1, VESTS_SYMBOL);
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
             BOOST_TEST_MESSAGE("--- Test failure delegating vesting shares that are part of a power down");
             sam_vest = asset(sam_vest.amount / 2, VESTS_SYMBOL);
@@ -6643,7 +6643,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.vesting_shares = asset(sam_vest.amount + 2, VESTS_SYMBOL);
             push_tx_with_ops(tx, sam_private_key, withdraw);
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
             BOOST_TEST_MESSAGE("--- Test available_vesting_shares calculation with active power down");
             BOOST_REQUIRE(sam_acc.available_vesting_shares(true) ==
@@ -6658,7 +6658,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             withdraw.vesting_shares = asset(sam_vest.amount, VESTS_SYMBOL);
             push_tx_with_ops(tx, sam_private_key, op);
             sign_tx_with_ops(tx, sam_private_key, withdraw);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
 
             BOOST_TEST_MESSAGE("--- Remove a delegation and ensure it is returned after 1 week");
             op.vesting_shares = ASSET_GESTS(0);
