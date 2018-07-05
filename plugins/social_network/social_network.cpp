@@ -3,9 +3,11 @@
 #include <golos/chain/index.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/chain/steem_objects.hpp>
-#include <golos/api/discussion_helper.hpp>
 // These visitors creates additional tables, we don't really need them in LOW_MEM mode
 #include <golos/plugins/tags/plugin.hpp>
+#include <golos/chain/operation_notification.hpp>
+#include <golos/protocol/types.hpp>
+#include <golos/protocol/config.hpp>
 
 #define CHECK_ARG_SIZE(_S)                                 \
    FC_ASSERT(                                              \
@@ -73,9 +75,29 @@ namespace golos { namespace plugins { namespace social_network {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const ;
 
+        void set_comment_title_depth(const uint32_t & value);
+        void set_comment_body_depth(const uint32_t & value);
+        void set_comment_json_metadata_depth(const uint32_t & value);
+
+        // Removes comment_content data which is not needed anymore
+        void clear_comment_content_info();
+
+        // Looks for a comment_operation, fills the comment_content state objects.
+        void post_operation(const operation_notification &o);
+
     private:
         golos::chain::database& database_;
         std::unique_ptr<discussion_helper> helper;
+
+        // Depth of comment_content information storage history.
+        uint32_t comment_title_depth;
+        uint32_t comment_body_depth;
+        uint32_t comment_json_metadata_depth;
+
+        // #TODO delete
+        // bool has_comment_title_depth;
+        // bool has_comment_body_depth;
+        // bool has_comment_json_metadata_depth;
     };
 
 
@@ -89,6 +111,120 @@ namespace golos { namespace plugins { namespace social_network {
     ) const {
         helper->select_active_votes(result, total_count, author, permlink, limit);
     }
+
+    void social_network::impl::set_comment_title_depth(const uint32_t & value) {
+        comment_title_depth = value;
+    }
+    void social_network::impl::set_comment_body_depth(const uint32_t & value) {
+        comment_body_depth = value;
+    }
+    void social_network::impl::set_comment_json_metadata_depth(const uint32_t & value) {
+        comment_json_metadata_depth = value;
+    }
+
+    struct operation_visitor {
+        using result_type = void;
+        
+        template<class T>
+        void operator()(const T& o) const {
+        }
+
+        void operator()(const delete_comment_operation& o) const {
+            auto & db = database();
+
+            const auto &comment = _db.get_comment(o.author, o.permlink);
+            auto& content = db.get_comment_content(comment.id);
+            db.remove(content);
+        }
+
+        void operator()(const golos::protocol::comment_operation& o) const {
+            auto & db = database();
+
+            const auto& comment = db.get_comment(o.author, o.permlink);
+
+            if (comment.created != db.head_block_time()) {
+                // Edit case
+                db.modify(db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
+                    if (o.title.size()) {
+                        from_string(con.title, o.title);
+                    }
+                    if (o.json_metadata.size()) {
+                        if (fc::is_utf8(o.json_metadata)) {
+                            from_string(con.json_metadata, o.json_metadata );
+                        }
+                        else {
+                            wlog("Comment ${a}/${p} contains invalid UTF-8 metadata", ("a", o.author)("p", o.permlink));
+                        }
+                    }
+                    if (o.body.size()) {
+                        try {
+                            diff_match_patch<std::wstring> dmp;
+                            auto patch = dmp.patch_fromText(utf8_to_wstring(o.body));
+                            if (patch.size()) {
+                                auto result = dmp.patch_apply(patch, utf8_to_wstring(to_string(con.body)));
+                                auto patched_body = wstring_to_utf8(result.first);
+                                if(!fc::is_utf8(patched_body)) {
+                                    idump(("invalid utf8")(patched_body));
+                                    from_string(con.body, fc::prune_invalid_utf8(patched_body));
+                                }
+                                else {
+                                    from_string(con.body, patched_body);
+                                }
+                            }
+                            else { // replace
+                                from_string(con.body, o.body);
+                            }
+                        } catch ( ... ) {
+                            from_string(con.body, o.body);
+                        }
+                    }
+                });
+
+            }
+            else {
+                // Creation case
+                const comment_object *parent = nullptr;
+
+                if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
+                    parent = &db.get_comment(o.parent_author, o.parent_permlink);
+                }
+
+                db.create<comment_content_object>([&](comment_content_object& con) {
+                    con.comment = id;
+                    from_string(con.title, o.title);
+                    if (o.body.size() < 1024*1024*128) {
+                        from_string(con.body, o.body);
+                    }
+                    if (fc::is_utf8(o.json_metadata)) {
+                        from_string(con.json_metadata, o.json_metadata);
+                    } else {
+                        wlog("Comment ${a}/${p} contains invalid UTF-8 metadata",
+                            ("a", o.author)("p", o.permlink));
+                    }
+                });
+            }
+        }
+    };
+
+    void social_network::impl::clear_comment_content_info() {
+    }
+
+    void social_network::impl::post_operation(const operation_notification &o) {
+        operation_visitor ovisit;
+        auto x = o.op.visit(ovisit);
+        
+        auto& db = pimpl->database();
+
+        if (!x.valid) {
+            return;   
+        }
+        // else work with comment_operation and upd content
+
+        // std::cout << "\t\to.op.visit(ovisit) :\n\t\t" << "x.title = [" << x.title << "]\n\t\t" <<
+        // "x.body = [" << x.body << "]\n\t\t" <<
+        // "x.json_metadata = [" << x.json_metadata << "]" << std::endl;
+    }
+
 
     void social_network::plugin_startup() {
         wlog("social_network plugin: plugin_startup()");
@@ -106,14 +242,46 @@ namespace golos { namespace plugins { namespace social_network {
     social_network::social_network() = default;
 
     void social_network::set_program_options(
-        boost::program_options::options_description&,
+        boost::program_options::options_description& cfg,
         boost::program_options::options_description& config_file_options
     ) {
+        cfg.add_options()
+            ( // Depth of comment_content information storage history.
+                "comment-title-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.title"
+            ) (
+                "comment-body-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.body"
+            ) (
+                "comment-json-metadata-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.json_metadata"
+            );
     }
 
     void social_network::plugin_initialize(const boost::program_options::variables_map& options) {
         pimpl = std::make_unique<impl>();
         JSON_RPC_REGISTER_API(name());
+
+        auto& db = pimpl->database();
+
+        // add_plugin_index<comment_content_index>(db);
+
+        db.post_apply_operation.connect([&](const operation_notification &o) {
+            pimpl->post_operation(o);
+        });
+
+
+        if (options.count("comment-title-depth")) {
+            pimpl->set_comment_title_depth( options.at("comment-title-depth").as<uint32_t>() );
+        }
+
+        if (options.count("comment-body-depth")) {
+            pimpl->set_comment_body_depth( options.at("comment-body-depth").as<uint32_t>() );
+        }
+
+        if (options.count("comment-json-metadata-depth")) {
+            pimpl->set_comment_json_metadata_depth( options.at("comment-json-metadata-depth").as<uint32_t>() );
+        }
     }
 
     social_network::~social_network() = default;

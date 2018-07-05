@@ -40,25 +40,25 @@ namespace golos {
             archived
         };
 
-        class comment_content_object
-                : public object<comment_content_object_type, comment_content_object> {
-        public:
-            comment_content_object() = delete;
+        // class comment_content_object
+        //         : public object<comment_content_object_type, comment_content_object> {
+        // public:
+        //     comment_content_object() = delete;
 
-            template<typename Constructor, typename Allocator>
-            comment_content_object(Constructor &&c, allocator <Allocator> a)
-                    :title(a), body(a), json_metadata(a) {
-                c(*this);
-            }
+        //     template<typename Constructor, typename Allocator>
+        //     comment_content_object(Constructor &&c, allocator <Allocator> a)
+        //             :title(a), body(a), json_metadata(a) {
+        //         c(*this);
+        //     }
 
-            id_type id;
+        //     id_type id;
 
-            comment_id_type   comment;
+        //     comment_id_type   comment;
 
-            shared_string title;
-            shared_string body;
-            shared_string json_metadata;
-        };
+        //     shared_string title;
+        //     shared_string body;
+        //     shared_string json_metadata;
+        // };
 
         class comment_object
                 : public object<comment_object_type, comment_object> {
@@ -263,15 +263,15 @@ namespace golos {
         comment_index;
 
 
-    struct by_comment;
+    // struct by_comment;
 
-    typedef multi_index_container<
-          comment_content_object,
-          indexed_by<
-             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id > >,
-             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment > > >,
-        allocator< comment_content_object >
-    > comment_content_index;
+    // typedef multi_index_container<
+    //       comment_content_object,
+    //       indexed_by<
+    //          ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id > >,
+    //          ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment > > >,
+    //     allocator< comment_content_object >
+    // > comment_content_index;
 
     }
 } // golos::chain
@@ -280,7 +280,7 @@ FC_REFLECT_ENUM(golos::chain::comment_mode, (not_set)(first_payout)(second_payou
 
 CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_object, golos::chain::comment_index)
 
-CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_content_object, golos::chain::comment_content_index)
+// CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_content_object, golos::chain::comment_content_index)
 
 CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_vote_object, golos::chain::comment_vote_index)
 

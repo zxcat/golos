@@ -51,7 +51,7 @@ namespace golos { namespace chain {
             block_summary_object_type,
             witness_schedule_object_type,
             comment_object_type,
-            comment_content_object_type,
+            // comment_content_object_type,
             comment_vote_object_type,
             witness_vote_object_type,
             limit_order_object_type,
@@ -216,7 +216,7 @@ FC_REFLECT_ENUM(golos::chain::object_type,
                 (block_summary_object_type)
                 (witness_schedule_object_type)
                 (comment_object_type)
-                (comment_content_object_type)
+                // (comment_content_object_type)
                 (comment_vote_object_type)
                 (witness_vote_object_type)
                 (limit_order_object_type)

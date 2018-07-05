@@ -286,6 +286,10 @@ namespace golos {
             struct plugin::impl final {
             public:
                 impl() : database_(appbase::app().get_plugin<chain::plugin>().db()) {
+                    helper = std::make_unique<discussion_helper>(
+                        database_,
+                        golos::social_network::plugins::get_comment_content_callback;
+                    );
                 }
 
                 ~impl() {
@@ -378,6 +382,8 @@ namespace golos {
 
                 std::shared_ptr<generic_custom_operation_interpreter<
                         follow::follow_plugin_operation>> _custom_operation_interpreter;
+
+                std::unique_ptr<discussion_helper> helper;
             };
 
             plugin::plugin() {
@@ -556,7 +562,7 @@ namespace golos {
                 while (itr != feed_idx.end() && itr->account == account && result.size() < limit) {
                     const auto &comment = db.get(itr->comment);
                     comment_feed_entry entry;
-                    entry.comment = comment_api_object(comment, db);
+                    entry.comment = helper->create_comment_api_object(comment);
                     entry.entry_id = itr->account_feed_id;
                     if (itr->first_reblogged_by != account_name_type()) {
                         //entry.reblog_by = itr->first_reblogged_by;

@@ -6,13 +6,15 @@
 #include <golos/plugins/follow/plugin.hpp>
 #include <golos/api/account_vote.hpp>
 #include <golos/api/vote_state.hpp>
+#include <golos/api/discussion_helper.hpp>
+
 
 namespace golos { namespace plugins { namespace social_network {
     using plugins::json_rpc::msg_pack;
     using golos::api::discussion;
     using golos::api::account_vote;
     using golos::api::vote_state;
-    using golos::api::comment_api_object;
+    using golos::api::get_comment_content_res;
     using namespace golos::chain;
 
     DEFINE_API_ARGS(get_content,                msg_pack, discussion)
@@ -42,7 +44,7 @@ namespace golos { namespace plugins { namespace social_network {
         ~social_network();
 
         void set_program_options(
-            boost::program_options::options_description&,
+            boost::program_options::options_description& cfg,
             boost::program_options::options_description& config_file_options
         ) override;
 
@@ -57,4 +59,53 @@ namespace golos { namespace plugins { namespace social_network {
         struct impl;
         std::unique_ptr<impl> pimpl;
     };
+
+    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) const;
+
+    using comment_content_object_type = 4223;
+
+
+    class comment_content_object
+            : public object<comment_content_object_type, comment_content_object> {
+    public:
+        comment_content_object() = delete;
+
+        template<typename Constructor, typename Allocator>
+        comment_content_object(Constructor &&c, allocator <Allocator> a)
+                :title(a), body(a), json_metadata(a) {
+            c(*this);
+        }
+
+        id_type id;
+
+        comment_id_type   comment;
+
+        shared_string title;
+        shared_string body;
+        shared_string json_metadata;
+    };
+
+    struct by_comment;
+
+    typedef multi_index_container<
+          comment_content_object,
+          indexed_by<
+             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id > >,
+             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment > > >,
+        allocator< comment_content_object >
+    > comment_content_index;
+
+// Callback which is needed for correct work of discussion_helper
+    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) {
+        if (!db.has_index<comment_content_index>()) {
+            return;
+        }
+        return db.get<comment_content_object, by_comment>(comment);
+    }
+
 } } } // golos::plugins::social_network
+
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::social_network::comment_content_object, 
+    golos::plugins::social_network::comment_content_index
+)

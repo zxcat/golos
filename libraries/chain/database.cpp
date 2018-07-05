@@ -615,15 +615,15 @@ namespace golos { namespace chain {
         }
 
 
-        const comment_content_object &database::get_comment_content(const comment_id_type &comment) const {
-            try {
-                return get<comment_content_object, by_comment>(comment);
-            } FC_CAPTURE_AND_RETHROW((comment))
-        }
+        // const comment_content_object &database::get_comment_content(const comment_id_type &comment) const {
+        //     try {
+        //         return get<comment_content_object, by_comment>(comment);
+        //     } FC_CAPTURE_AND_RETHROW((comment))
+        // }
 
-        const comment_content_object *database::find_comment_content(const comment_id_type &comment) const {
-            return find<comment_content_object, by_comment>(comment);
-        }
+        // const comment_content_object *database::find_comment_content(const comment_id_type &comment) const {
+        //     return find<comment_content_object, by_comment>(comment);
+        // }
 
         const escrow_object &database::get_escrow(const account_name_type &name, uint32_t escrow_id) const {
             try {
@@ -2915,7 +2915,7 @@ namespace golos { namespace chain {
             add_core_index<block_summary_index>(*this);
             add_core_index<witness_schedule_index>(*this);
             add_core_index<comment_index>(*this);
-            add_core_index<comment_content_index>(*this);
+            // add_core_index<comment_content_index>(*this);
             add_core_index<comment_vote_index>(*this);
             add_core_index<witness_vote_index>(*this);
             add_core_index<limit_order_index>(*this);

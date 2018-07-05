@@ -1,6 +1,6 @@
 #include <golos/api/discussion_helper.hpp>
+#include <golos/api/comment_api_object.hpp>
 #include <golos/chain/account_object.hpp>
-// #include <golos/plugins/follow/follow_objects.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <fc/io/json.hpp>
 #include <boost/algorithm/string.hpp>
@@ -85,14 +85,86 @@ namespace golos { namespace api {
             return database_;
         }
 
+        comment_api_object create_comment_api_object(const comment_object & o) const;
+
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
+
+        get_comment_content_res get_comment_content(const golos::chain::database & db, const comment_object & o);
 
     private:
         golos::chain::database& database_;
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation_;
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted_;
+        std::function<get_comment_content_res(const golos::chain::database&, const comment_object &)> get_comment_content_callback;
     };
 
+// create_comment_api_object 
+    comment_api_object discussion_helper::create_comment_api_object(const comment_object & o) const {
+        return pimpl->create_comment_api_object(o);
+    }
+
+    comment_api_object discussion_helper::impl::create_comment_api_object(const comment_object & o) const {
+        comment_api_object result;
+        auto & db = database_;
+
+        result.id = o.id;
+        result.parent_author = o.parent_author;
+        result.parent_permlink = to_string(o.parent_permlink);
+        result.author = o.author;
+        result.permlink = to_string(o.permlink);
+        result.last_update = o.last_update;
+        result.created = o.created;
+        result.active = o.active;
+        result.last_payout = o.last_payout;
+        result.depth = o.depth;
+        result.children = o.children;
+        result.children_rshares2 = o.children_rshares2;
+        result.net_rshares = o.net_rshares;
+        result.abs_rshares = o.abs_rshares;
+        result.vote_rshares = o.vote_rshares;
+        result.children_abs_rshares = o.children_abs_rshares;
+        result.cashout_time = o.cashout_time;
+        result.max_cashout_time = o.max_cashout_time;
+        result.total_vote_weight = o.total_vote_weight;
+        result.reward_weight = o.reward_weight;
+        result.total_payout_value = o.total_payout_value;
+        result.curator_payout_value = o.curator_payout_value;
+        result.author_rewards = o.author_rewards;
+        result.net_votes = o.net_votes;
+        result.mode = o.mode;
+        result.root_comment = o.root_comment;
+        result.max_accepted_payout = o.max_accepted_payout;
+        result.percent_steem_dollars = o.percent_steem_dollars;
+        result.allow_replies = o.allow_replies;
+        result.allow_votes = o.allow_votes;
+        result.allow_curation_rewards = o.allow_curation_rewards;
+
+        for (auto& route : o.beneficiaries) {
+            result.beneficiaries.push_back(route);
+        }
+
+        if ( get_comment_content_callback ) {
+            auto content = get_comment_content_callback(database(), o);
+
+            result.title = content.title;
+            result.body = content.body;
+            result.json_metadata = content.json_metadata;
+        }
+
+        if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
+            result.category = to_string(o.parent_permlink);
+        } else {
+            result.category = to_string(db.get<comment_object, by_id>(o.root_comment).parent_permlink);
+        }
+
+        return result;
+    }
+
+
+// get_comment_content
+    get_comment_content_res discussion_helper::impl::get_comment_content(const golos::chain::database & db, const comment_object & o) {
+        return get_comment_content_callback(db, o);        
+    }
 // get_discussion
     discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
         discussion d = create_discussion(c);
@@ -191,7 +263,9 @@ namespace golos { namespace api {
 //
 // set_url
     void discussion_helper::impl::set_url(discussion& d) const {
-        const comment_api_object root(database().get<comment_object, by_id>(d.root_comment), database());
+        comment_object cm = database().get<comment_object, by_id>(d.root_comment);
+
+        comment_api_object root = create_comment_api_object( cm );
 
         d.root_title = root.title;
         d.url = "/" + root.category + "/@" + root.author + "/" + root.permlink;
@@ -213,7 +287,8 @@ namespace golos { namespace api {
     }
 
     discussion discussion_helper::impl::create_discussion(const comment_object& o) const {
-        return discussion(o, database_);
+        auto x = create_comment_api_object(o);
+        return discussion(x);
     }
 
     discussion discussion_helper::create_discussion(const std::string& author) const {
