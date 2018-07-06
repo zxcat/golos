@@ -7,7 +7,6 @@
 #include <golos/api/vote_state.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/api/discussion_helper.hpp>
-// These visitors creates additional tables, we don't really need them in LOW_MEM mode
 #include <golos/plugins/tags/tag_visitor.hpp>
 #include <golos/chain/operation_notification.hpp>
 
@@ -44,7 +43,6 @@ namespace golos { namespace plugins { namespace tags {
         ~impl() {}
 
         void on_operation(const operation_notification& note) {
-#ifndef IS_LOW_MEM
             try {
                 /// plugins shouldn't ever throw
                 note.op.visit(tags::operation_visitor(database()));
@@ -53,7 +51,6 @@ namespace golos { namespace plugins { namespace tags {
             } catch (...) {
                 elog("unhandled exception");
             }
-#endif
         }
 
         golos::chain::database& database() {
@@ -208,8 +205,6 @@ namespace golos { namespace plugins { namespace tags {
 
     void tags_plugin::plugin_initialize(const boost::program_options::variables_map& options) {
         pimpl.reset(new impl());
-// Disable index creation for tag visitor
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
         db.post_apply_operation.connect([&](const operation_notification& note) {
             pimpl->on_operation(note);
@@ -218,7 +213,6 @@ namespace golos { namespace plugins { namespace tags {
         add_plugin_index<tags::tag_stats_index>(db);
         add_plugin_index<tags::author_tag_stats_index>(db);
         add_plugin_index<tags::language_index>(db);
-#endif
         JSON_RPC_REGISTER_API (name());
 
     }
@@ -537,49 +531,39 @@ namespace golos { namespace plugins { namespace tags {
 
     DEFINE_API(tags_plugin, get_discussions_by_blog) {
         CHECK_ARG_SIZE(1)
-        std::vector<discussion> result;
 
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
         FC_ASSERT(query.select_authors.size(), "Must get blogs for specific authors");
 
-
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
         FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
             return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(query);
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_feed) {
         CHECK_ARG_SIZE(1)
-        std::vector<discussion> result;
 
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
         FC_ASSERT(query.select_authors.size(), "Must get feeds for specific authors");
 
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
         FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
             return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(query);
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_comments) {
         CHECK_ARG_SIZE(1)
         std::vector<discussion> result;
-#ifndef IS_LOW_MEM
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
@@ -620,8 +604,6 @@ namespace golos { namespace plugins { namespace tags {
             }
             return result;
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_trending) {
@@ -629,15 +611,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_trending>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_promoted) {
@@ -645,15 +624,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_promoted>(
             query,
             [&](const discussion& d) -> bool {
                 return !!d.promoted && d.promoted->amount > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_created) {
@@ -661,15 +637,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_created>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_active) {
@@ -677,15 +650,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_active>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_cashout) {
@@ -693,15 +663,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_cashout>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_payout) {
@@ -709,15 +676,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_net_rshares>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_votes) {
@@ -725,15 +689,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_net_votes>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_children) {
@@ -741,15 +702,12 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_children>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_hot) {
@@ -757,22 +715,18 @@ namespace golos { namespace plugins { namespace tags {
         auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_hot>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     std::vector<tag_api_object>
     tags_plugin::impl::get_trending_tags(const std::string& after, uint32_t limit) const {
         limit = std::min(limit, uint32_t(1000));
         std::vector<tag_api_object> result;
-#ifndef IS_LOW_MEM
         result.reserve(limit);
 
         const auto& nidx = database().get_index<tags::tag_stats_index>().indices().get<tags::by_tag>();
@@ -800,7 +754,6 @@ namespace golos { namespace plugins { namespace tags {
 
             result.emplace_back(push_object);
         }
-#endif
         return result;
     }
 
@@ -818,7 +771,6 @@ namespace golos { namespace plugins { namespace tags {
         const std::string& author
     ) const {
         std::vector<std::pair<std::string, uint32_t>> result;
-#ifndef IS_LOW_MEM
         auto& db = database();
         const auto* acnt = db.find_account(author);
         if (acnt == nullptr) {
@@ -835,7 +787,6 @@ namespace golos { namespace plugins { namespace tags {
                 }
             }
         }
-#endif
         return result;
     }
 
@@ -851,7 +802,6 @@ namespace golos { namespace plugins { namespace tags {
         std::vector<discussion> result;
 
         CHECK_ARG_MIN_SIZE(4, 5)
-#ifndef IS_LOW_MEM
         auto author = args.args->at(0).as<std::string>();
         auto start_permlink = args.args->at(1).as<std::string>();
         auto before_date = args.args->at(2).as<time_point_sec>();
@@ -892,8 +842,6 @@ namespace golos { namespace plugins { namespace tags {
                 return result;
             } FC_CAPTURE_AND_RETHROW((author)(start_permlink)(before_date)(limit))
         });
-#endif
-        return result;
     }
 
     // Needed for correct work of golos::api::discussion_helper::set_pending_payout and etc api methods
