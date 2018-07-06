@@ -79,8 +79,8 @@ namespace golos { namespace plugins { namespace tags {
 
         bool filter_query(discussion_query& query) const;
 
-        template<typename DatabaseIndex, typename DiscussionIndex>
-        std::vector<discussion> select_unordered_discussions(discussion_query& query) const;
+        template<typename DatabaseIndex, typename DiscussionIndex, typename Fill>
+        std::vector<discussion> select_unordered_discussions(discussion_query&, Fill&&) const;
 
         template<typename Iterator, typename Order, typename Select, typename Exit>
         void select_discussions(
@@ -282,7 +282,13 @@ namespace golos { namespace plugins { namespace tags {
             if (!comment) {
                 return false;
             }
+
             query.start_comment = create_discussion(*comment, query);
+            auto& d = query.start_comment;
+            operation_visitor v(database_);
+
+            d.hot = v.calculate_hot(d.net_rshares, d.created);
+            d.trending = v.calculate_trending(d.net_rshares, d.created);
         }
         return true;
     }
@@ -314,8 +320,12 @@ namespace golos { namespace plugins { namespace tags {
 
     template<
         typename DatabaseIndex,
-        typename DiscussionIndex>
-    std::vector<discussion> tags_plugin::impl::select_unordered_discussions(discussion_query& query) const {
+        typename DiscussionIndex,
+        typename Fill>
+    std::vector<discussion> tags_plugin::impl::select_unordered_discussions(
+        discussion_query& query,
+        Fill&& fill
+    ) const {
         std::vector<discussion> result;
 
         if (!filter_start_comment(query) || !filter_query(query)) {
@@ -367,7 +377,8 @@ namespace golos { namespace plugins { namespace tags {
                 }
 
                 fill_discussion(d, query);
-                result.push_back(d);
+                fill(d, *itr);
+                result.push_back(std::move(d));
             }
         }
         return result;
@@ -495,7 +506,6 @@ namespace golos { namespace plugins { namespace tags {
                     }
                     query.reset_start_comment();
                     itr = idx.iterator_to(*citr);
-                    ++itr;
                 }
 
                 unordered.reserve(query.limit);
@@ -550,7 +560,11 @@ namespace golos { namespace plugins { namespace tags {
         FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
-            return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(query);
+            return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(
+                query,
+                [&](discussion& d, const follow::blog_object& b) {
+                    d.first_reblogged_on = b.reblogged_on;
+                });
         });
 #endif
         return result;
@@ -570,7 +584,13 @@ namespace golos { namespace plugins { namespace tags {
         FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
-            return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(query);
+            return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(
+                query,
+                [&](discussion& d, const follow::feed_object& f) {
+                    d.reblogged_by.assign(f.reblogged_by.begin(), f.reblogged_by.end());
+                    d.first_reblogged_by = f.first_reblogged_by;
+                    d.first_reblogged_on = f.first_reblogged_on;
+                });
         });
 #endif
         return result;
