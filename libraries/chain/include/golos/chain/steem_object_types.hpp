@@ -115,7 +115,7 @@ namespace golos { namespace chain {
         typedef object_id<block_summary_object> block_summary_id_type;
         typedef object_id<witness_schedule_object> witness_schedule_id_type;
         typedef object_id<comment_object> comment_id_type;
-        typedef object_id<comment_content_object> comment_content_id_type;
+        // typedef object_id<comment_content_object> comment_content_id_type;
         typedef object_id<comment_vote_object> comment_vote_id_type;
         typedef object_id<witness_vote_object> witness_vote_id_type;
         typedef object_id<limit_order_object> limit_order_id_type;

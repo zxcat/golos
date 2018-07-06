@@ -60,10 +60,17 @@ namespace golos { namespace plugins { namespace social_network {
         std::unique_ptr<impl> pimpl;
     };
 
-    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) const;
+    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o);
 
-    using comment_content_object_type = 4223;
+#ifndef SOCIAL_NETWORK_SPACE_ID
+#define SOCIAL_NETWORK_SPACE_ID 23
+#endif
 
+    enum social_network_types {
+        comment_content_object_type = (SOCIAL_NETWORK_SPACE_ID << 8) + 1
+    };
+
+    using comment_content_id_type = object_id<comment_content_object>;
 
     class comment_content_object
             : public object<comment_content_object_type, comment_content_object> {
