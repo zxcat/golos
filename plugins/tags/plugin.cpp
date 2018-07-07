@@ -115,6 +115,8 @@ namespace golos { namespace plugins { namespace tags {
         discussion create_discussion(const comment_object& o, const discussion_query& query) const;
         void fill_discussion(discussion& d, const discussion_query& query) const;
 
+        comment_api_object create_comment_api_object(const comment_object & o) const;
+
         get_languages_result get_languages();
 
     private:
@@ -176,6 +178,10 @@ namespace golos { namespace plugins { namespace tags {
         fill_discussion(d, query);
 
         return d;
+    }
+
+    comment_api_object tags_plugin::impl::create_comment_api_object(const comment_object & o) const {
+        return helper->create_comment_api_object( o );
     }
 
     DEFINE_API(tags_plugin, get_languages) {
@@ -610,11 +616,11 @@ namespace golos { namespace plugins { namespace tags {
 
             for (; itr != idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
                 if (itr->parent_author.size() > 0) {
-                    discussion p(db.get<comment_object>(itr->root_comment), db);
+                    discussion p( pimpl->create_comment_api_object(db.get<comment_object>(itr->root_comment) ) );
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
-                    result.emplace_back(discussion(*itr, db));
+                    result.emplace_back(pimpl->create_comment_api_object(*itr));
                     pimpl->fill_discussion(result.back(), query);
                 }
             }

@@ -85,7 +85,7 @@ namespace golos { namespace chain {
         class proposal_object;
         class required_approval_object;
         class comment_object;
-        class comment_content_object;
+        // class comment_content_object;
         class comment_vote_object;
         class witness_vote_object;
         class limit_order_object;

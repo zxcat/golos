@@ -70,7 +70,6 @@ namespace golos { namespace plugins { namespace social_network {
         comment_content_object_type = (SOCIAL_NETWORK_SPACE_ID << 8) + 1
     };
 
-    using comment_content_id_type = object_id<comment_content_object>;
 
     class comment_content_object
             : public object<comment_content_object_type, comment_content_object> {
@@ -92,22 +91,33 @@ namespace golos { namespace plugins { namespace social_network {
         shared_string json_metadata;
     };
 
+
+    using comment_content_id_type = object_id<comment_content_object>;
+
     struct by_comment;
 
     typedef multi_index_container<
           comment_content_object,
           indexed_by<
-             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id > >,
-             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment > > >,
+             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id>>,
+             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment>>>,
         allocator< comment_content_object >
     > comment_content_index;
 
 // Callback which is needed for correct work of discussion_helper
     get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) {
         if (!db.has_index<comment_content_index>()) {
-            return;
+            return get_comment_content_res();
         }
-        return db.get<comment_content_object, by_comment>(comment);
+        auto & content = db.get<comment_content_object, by_comment>(o);
+
+        get_comment_content_res result;
+
+        result.title = std::string(content.title.begin(), content.title.end());
+        result.body = std::string(content.body.begin(), content.body.end());
+        result.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
+
+        return result;
     }
 
 } } } // golos::plugins::social_network
