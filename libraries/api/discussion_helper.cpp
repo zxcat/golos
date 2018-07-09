@@ -62,6 +62,12 @@ namespace golos { namespace api {
               fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted) {
         }
+        impl(
+            golos::chain::database& db,
+            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback)
+            :   database_(db),
+                get_comment_content_callback(get_comment_content_callback) {
+        }
         ~impl() = default;
 
         discussion create_discussion(const std::string& author) const ;
@@ -305,6 +311,13 @@ namespace golos { namespace api {
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted
     ) {
         pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted);
+    }
+
+    discussion_helper::discussion_helper(
+            golos::chain::database& db,
+            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
+        ) {
+        pimpl = std::make_unique<impl>(db, get_comment_content_callback);
     }
 
     discussion_helper::~discussion_helper() = default;

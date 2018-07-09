@@ -4,14 +4,18 @@
 #include <golos/chain/comment_object.hpp>
 #include <golos/chain/account_object.hpp>
 #include <boost/algorithm/string.hpp>
+#include <golos/api/discussion_helper.hpp>
+
 
 namespace golos { namespace plugins { namespace tags {
+    using golos::api::discussion_helper;
 
     struct operation_visitor {
-        operation_visitor(database& db);
+        operation_visitor(database& db, const std::shared_ptr<discussion_helper> &helper);
         using result_type = void;
 
         database& db_;
+        std::shared_ptr<discussion_helper> helper_;
 
         void remove_stats(const tag_object& tag) const;
 

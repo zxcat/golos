@@ -10,6 +10,7 @@
 #include <memory>
 #include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/chain/index.hpp>
+#include <golos/api/discussion_helper.hpp>
 
 #define CHECK_ARG_SIZE(s) \
    FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
@@ -24,6 +25,7 @@ namespace golos {
             using golos::chain::to_string;
             using golos::chain::account_index;
             using golos::chain::by_name;
+            using golos::api::discussion_helper;
 
             void fill_account_reputation(
                 const golos::chain::database& db,
@@ -288,7 +290,7 @@ namespace golos {
                 impl() : database_(appbase::app().get_plugin<chain::plugin>().db()) {
                     helper = std::make_unique<discussion_helper>(
                         database_,
-                        golos::social_network::plugins::get_comment_content_callback;
+                        golos::plugins::social_network::get_comment_content_callback
                     );
                 }
 
@@ -634,7 +636,7 @@ namespace golos {
                 while (itr != blog_idx.end() && itr->account == account && result.size() < limit) {
                     const auto &comment = db.get(itr->comment);
                     comment_blog_entry entry;
-                    entry.comment = comment_api_object(comment, db);
+                    entry.comment = helper->create_comment_api_object(comment);
                     entry.blog = account;
                     entry.reblog_on = itr->reblogged_on;
                     entry.entry_id = itr->blog_feed_id;

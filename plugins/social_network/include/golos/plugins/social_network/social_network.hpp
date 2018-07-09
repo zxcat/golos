@@ -99,9 +99,9 @@ namespace golos { namespace plugins { namespace social_network {
     typedef multi_index_container<
           comment_content_object,
           indexed_by<
-             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id>>,
-             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment>>>,
-        allocator< comment_content_object >
+             ordered_unique<tag<by_id>, member<comment_content_object, comment_content_id_type, &comment_content_object::id>>,
+             ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>>,
+        allocator<comment_content_object>
     > comment_content_index;
 
 // Callback which is needed for correct work of discussion_helper
@@ -109,7 +109,7 @@ namespace golos { namespace plugins { namespace social_network {
         if (!db.has_index<comment_content_index>()) {
             return get_comment_content_res();
         }
-        auto & content = db.get<comment_content_object, by_comment>(o);
+        auto & content = db.get<comment_content_object, by_comment>(o.id);
 
         get_comment_content_res result;
 

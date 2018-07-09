@@ -9,6 +9,10 @@
 #include <golos/protocol/types.hpp>
 #include <golos/protocol/config.hpp>
 
+#include <diff_match_patch.h>
+// #include <boost/locale.hpp>
+#include <boost/locale/encoding_utf.hpp>
+
 #define CHECK_ARG_SIZE(_S)                                 \
    FC_ASSERT(                                              \
        args.args->size() == _S,                            \
@@ -33,6 +37,8 @@
 namespace golos { namespace plugins { namespace social_network {
     using golos::plugins::tags::fill_promoted;
     using golos::api::discussion_helper;
+
+    using boost::locale::conv::utf_to_utf;
 
     struct social_network::impl final {
         impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
@@ -123,6 +129,31 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     struct operation_visitor {
+        golos::chain::database &db;
+
+        operation_visitor(golos::chain::database &db) : db(db) {
+        }
+
+        // using boost::locale::conv::utf_to_utf;
+
+        std::wstring utf8_to_wstring(const std::string &str) const {
+            return utf_to_utf<wchar_t>(str.c_str(), str.c_str() + str.size());
+        }
+
+        std::string wstring_to_utf8(const std::wstring &str) const {
+            return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
+        }
+
+        const comment_content_object &get_comment_content(const comment_id_type &comment) const {
+            try {
+                return db.get<comment_content_object, by_comment>(comment);
+            } FC_CAPTURE_AND_RETHROW((comment))
+        }
+
+        const comment_content_object *find_comment_content(const comment_id_type &comment) const {
+            return db.find<comment_content_object, by_comment>(comment);
+        }
+        
         using result_type = void;
         
         template<class T>
@@ -130,16 +161,12 @@ namespace golos { namespace plugins { namespace social_network {
         }
 
         void operator()(const delete_comment_operation& o) const {
-            auto & db = database();
-
-            const auto &comment = _db.get_comment(o.author, o.permlink);
-            auto& content = db.get_comment_content(comment.id);
+            const auto &comment = db.get_comment(o.author, o.permlink);
+            auto& content = get_comment_content(comment.id);
             db.remove(content);
         }
 
         void operator()(const golos::protocol::comment_operation& o) const {
-            auto & db = database();
-
             const auto& comment = db.get_comment(o.author, o.permlink);
 
             if (comment.created != db.head_block_time()) {
@@ -189,6 +216,10 @@ namespace golos { namespace plugins { namespace social_network {
                     parent = &db.get_comment(o.parent_author, o.parent_permlink);
                 }
 
+                // const auto& new_comment = database().get_comment(o.author, permlink);
+
+                comment_id_type id = parent->id;
+
                 db.create<comment_content_object>([&](comment_content_object& con) {
                     con.comment = id;
                     from_string(con.title, o.title);
@@ -210,14 +241,12 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     void social_network::impl::post_operation(const operation_notification &o) {
-        operation_visitor ovisit;
-        auto x = o.op.visit(ovisit);
-        
-        auto& db = pimpl->database();
+        auto& db = database();
 
-        if (!x.valid) {
-            return;   
-        }
+        operation_visitor ovisit( db );
+
+        o.op.visit(ovisit);
+    
         // else work with comment_operation and upd content
 
         // std::cout << "\t\to.op.visit(ovisit) :\n\t\t" << "x.title = [" << x.title << "]\n\t\t" <<

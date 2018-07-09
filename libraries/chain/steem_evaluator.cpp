@@ -6,7 +6,7 @@
 
 #ifndef IS_LOW_MEM
 
-#include <diff_match_patch.h>
+// #include <diff_match_patch.h>
 #include <boost/locale/encoding_utf.hpp>
 
 using boost::locale::conv::utf_to_utf;
