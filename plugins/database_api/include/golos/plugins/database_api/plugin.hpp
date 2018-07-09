@@ -94,7 +94,7 @@ struct signed_block_api_object : public signed_block {
 };
 
 
-using block_applied_callback = std::function<void(const variant &block_header)>;
+using block_applied_callback = std::function<void(const signed_block&)>;
 
 ///               API,                                    args,                return
 DEFINE_API_ARGS(get_block_header,                 msg_pack, optional<block_header>)
