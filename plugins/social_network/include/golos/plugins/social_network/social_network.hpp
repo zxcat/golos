@@ -105,20 +105,7 @@ namespace golos { namespace plugins { namespace social_network {
     > comment_content_index;
 
 // Callback which is needed for correct work of discussion_helper
-    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) {
-        if (!db.has_index<comment_content_index>()) {
-            return get_comment_content_res();
-        }
-        auto & content = db.get<comment_content_object, by_comment>(o.id);
-
-        get_comment_content_res result;
-
-        result.title = std::string(content.title.begin(), content.title.end());
-        result.body = std::string(content.body.begin(), content.body.end());
-        result.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
-
-        return result;
-    }
+    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o);
 
 } } } // golos::plugins::social_network
 
