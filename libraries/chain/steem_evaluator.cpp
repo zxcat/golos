@@ -87,7 +87,14 @@ namespace golos { namespace chain {
         void store_account_json_metadata(
             database& db, const account_name_type& account, const string& json_metadata, bool skip_empty = false
         ) {
-#ifndef IS_LOW_MEM
+            if (!db.store_metadata_for_account(account)) {
+                auto meta = db.find<account_metadata_object, by_account>(account);
+                if (meta != nullptr) {
+                    db.remove(*meta);
+                }
+                return;
+            }
+
             if (skip_empty && json_metadata.size() == 0)
                 return;
 
@@ -104,7 +111,6 @@ namespace golos { namespace chain {
                     from_string(a.json_metadata, json_metadata);
                 });
             }
-#endif
         }
 
         void account_create_evaluator::do_apply(const account_create_operation &o) {
@@ -2104,13 +2110,14 @@ namespace golos { namespace chain {
             FC_ASSERT(_db.get_savings_balance(from, op.amount.symbol) >=
                       op.amount);
             _db.adjust_savings_balance(from, -op.amount);
+
             _db.create<savings_withdraw_object>([&](savings_withdraw_object &s) {
                 s.from = op.from;
                 s.to = op.to;
                 s.amount = op.amount;
-#ifndef IS_LOW_MEM
-                from_string(s.memo, op.memo);
-#endif
+                if (_db.store_memo_in_savings_withdraws())  {
+                    from_string(s.memo, op.memo);
+                }
                 s.request_id = op.request_id;
                 s.complete =
                         _db.head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME;

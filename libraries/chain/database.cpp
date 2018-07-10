@@ -352,6 +352,30 @@ namespace golos { namespace chain {
             return _clear_votes_block > head_block_num();
         }
 
+        void database::set_store_account_metadata(store_metadata_modes store_account_metadata) {
+            _store_account_metadata = store_account_metadata;
+        }
+
+        void database::set_accounts_to_store_metadata(const std::vector<std::string>& accounts_to_store_metadata) {
+            _accounts_to_store_metadata = accounts_to_store_metadata;
+        }
+
+        bool database::store_metadata_for_account(const std::string& name) const {
+            if (_store_account_metadata != store_metadata_for_listed) {
+                return _store_account_metadata == store_metadata_for_all;
+            }
+            auto& v = _accounts_to_store_metadata;
+            return std::find(v.begin(), v.end(), name) != v.end();
+        }
+
+        void database::set_store_memo_in_savings_withdraws(bool store_memo_in_savings_withdraws) {
+            _store_memo_in_savings_withdraws = store_memo_in_savings_withdraws;
+        }
+
+        bool database::store_memo_in_savings_withdraws() const {
+            return _store_memo_in_savings_withdraws;
+        }
+
         void database::set_skip_virtual_ops() {
             _skip_virtual_ops = true;
         }
@@ -2017,26 +2041,31 @@ namespace golos { namespace chain {
 
             const auto &cprops = get_dynamic_global_properties();
 
-            while (current != widx.end() &&
-                   current->next_vesting_withdrawal <= head_block_time()) {
+            while (current != widx.end() && current->next_vesting_withdrawal <= head_block_time()) {
                 const auto &from_account = *current;
                 ++current;
 
                 /**
-      *  Let T = total tokens in vesting fund
-      *  Let V = total vesting shares
-      *  Let v = total vesting shares being cashed out
-      *
-      *  The user may withdraw vT / V tokens
-      */
+                 *  Let T = total tokens in vesting fund
+                 *  Let V = total vesting shares
+                 *  Let v = total vesting shares being cashed out
+                 *
+                 *  The user may withdraw vT / V tokens
+                 */
                 share_type to_withdraw;
                 if (from_account.to_withdraw - from_account.withdrawn <
                     from_account.vesting_withdraw_rate.amount) {
-                    to_withdraw = std::min(from_account.vesting_shares.amount,
-                            from_account.to_withdraw %
-                            from_account.vesting_withdraw_rate.amount).value;
+                    to_withdraw = std::min(
+                        from_account.vesting_shares.amount,
+                        from_account.to_withdraw % from_account.vesting_withdraw_rate.amount).value;
                 } else {
-                    to_withdraw = std::min(from_account.vesting_shares.amount, from_account.vesting_withdraw_rate.amount).value;
+                    to_withdraw = std::min(
+                        from_account.vesting_shares.amount,
+                        from_account.vesting_withdraw_rate.amount).value;
+                }
+
+                if (to_withdraw < 0) {
+                    to_withdraw = 0;
                 }
 
                 share_type vests_deposited_as_steem = 0;
@@ -2046,11 +2075,11 @@ namespace golos { namespace chain {
                 // Do two passes, the first for vests, the second for steem. Try to maintain as much accuracy for vests as possible.
                 for (auto itr = didx.upper_bound(boost::make_tuple(from_account.id, account_id_type()));
                      itr != didx.end() && itr->from_account == from_account.id;
-                     ++itr) {
+                     ++itr
+                ) {
                     if (itr->auto_vest) {
                         share_type to_deposit = (
-                                (fc::uint128_t(to_withdraw.value) *
-                                 itr->percent) /
+                                (fc::uint128_t(to_withdraw.value) * itr->percent) /
                                 STEEMIT_100_PERCENT).to_uint64();
                         vests_deposited_as_vests += to_deposit;
 
@@ -2063,24 +2092,26 @@ namespace golos { namespace chain {
 
                             adjust_proxied_witness_votes(to_account, to_deposit);
 
-                            push_virtual_operation(fill_vesting_withdraw_operation(from_account.name, to_account.name, asset(to_deposit, VESTS_SYMBOL), asset(to_deposit, VESTS_SYMBOL)));
+                            push_virtual_operation(
+                                fill_vesting_withdraw_operation(
+                                    from_account.name, to_account.name,
+                                    asset(to_deposit, VESTS_SYMBOL), asset(to_deposit, VESTS_SYMBOL)));
                         }
                     }
                 }
 
                 for (auto itr = didx.upper_bound(boost::make_tuple(from_account.id, account_id_type()));
                      itr != didx.end() && itr->from_account == from_account.id;
-                     ++itr) {
+                     ++itr
+                ) {
                     if (!itr->auto_vest) {
                         const auto &to_account = get(itr->to_account);
 
                         share_type to_deposit = (
-                                (fc::uint128_t(to_withdraw.value) *
-                                 itr->percent) /
+                                (fc::uint128_t(to_withdraw.value) * itr->percent) /
                                 STEEMIT_100_PERCENT).to_uint64();
                         vests_deposited_as_steem += to_deposit;
-                        auto converted_steem = asset(to_deposit, VESTS_SYMBOL) *
-                                               cprops.get_vesting_share_price();
+                        auto converted_steem = asset(to_deposit, VESTS_SYMBOL) * cprops.get_vesting_share_price();
                         total_steem_converted += converted_steem;
 
                         if (to_deposit > 0) {
@@ -2093,26 +2124,28 @@ namespace golos { namespace chain {
                                 o.total_vesting_shares.amount -= to_deposit;
                             });
 
-                            push_virtual_operation(fill_vesting_withdraw_operation(from_account.name, to_account.name, asset(to_deposit, VESTS_SYMBOL), converted_steem));
+                            push_virtual_operation(
+                                fill_vesting_withdraw_operation(
+                                    from_account.name, to_account.name,
+                                    asset(to_deposit, VESTS_SYMBOL), converted_steem));
                         }
                     }
                 }
 
-                share_type to_convert = to_withdraw - vests_deposited_as_steem -
-                                        vests_deposited_as_vests;
-                FC_ASSERT(to_convert >=
-                          0, "Deposited more vests than were supposed to be withdrawn");
+                share_type to_convert = to_withdraw - vests_deposited_as_steem - vests_deposited_as_vests;
 
-                auto converted_steem = asset(to_convert, VESTS_SYMBOL) *
-                                       cprops.get_vesting_share_price();
+                if (to_convert < 0) {
+                    to_convert = 0;
+                }
+
+                auto converted_steem = asset(to_convert, VESTS_SYMBOL) * cprops.get_vesting_share_price();
 
                 modify(from_account, [&](account_object &a) {
                     a.vesting_shares.amount -= to_withdraw;
                     a.balance += converted_steem;
                     a.withdrawn += to_withdraw;
 
-                    if (a.withdrawn >= a.to_withdraw ||
-                        a.vesting_shares.amount == 0) {
+                    if (a.withdrawn >= a.to_withdraw || a.vesting_shares.amount == 0) {
                         a.vesting_withdraw_rate.amount = 0;
                         a.next_vesting_withdrawal = fc::time_point_sec::maximum();
                     } else {
@@ -2127,9 +2160,11 @@ namespace golos { namespace chain {
 
                 if (to_withdraw > 0) {
                     adjust_proxied_witness_votes(from_account, -to_withdraw);
+                    push_virtual_operation(
+                        fill_vesting_withdraw_operation(
+                            from_account.name, from_account.name,
+                            asset(to_withdraw, VESTS_SYMBOL), converted_steem));
                 }
-
-                push_virtual_operation(fill_vesting_withdraw_operation(from_account.name, from_account.name, asset(to_withdraw, VESTS_SYMBOL), converted_steem));
             }
         }
 
@@ -3011,11 +3046,13 @@ namespace golos { namespace chain {
                 create<account_object>([&](account_object &a) {
                     a.name = STEEMIT_MINER_ACCOUNT;
                 });
-#ifndef IS_LOW_MEM
-                create<account_metadata_object>([&](account_metadata_object& m) {
-                    m.account = STEEMIT_MINER_ACCOUNT;
-                });
-#endif
+
+                if (store_metadata_for_account(STEEMIT_MINER_ACCOUNT)) {
+                    create<account_metadata_object>([&](account_metadata_object& m) {
+                        m.account = STEEMIT_MINER_ACCOUNT;
+                    });
+                }
+
                 create<account_authority_object>([&](account_authority_object &auth) {
                     auth.account = STEEMIT_MINER_ACCOUNT;
                     auth.owner.weight_threshold = 1;
@@ -3025,11 +3062,13 @@ namespace golos { namespace chain {
                 create<account_object>([&](account_object &a) {
                     a.name = STEEMIT_NULL_ACCOUNT;
                 });
-#ifndef IS_LOW_MEM
-                create<account_metadata_object>([&](account_metadata_object& m) {
-                    m.account = STEEMIT_NULL_ACCOUNT;
-                });
-#endif
+                
+                if (store_metadata_for_account(STEEMIT_NULL_ACCOUNT)) {
+                    create<account_metadata_object>([&](account_metadata_object& m) {
+                        m.account = STEEMIT_NULL_ACCOUNT;
+                    });
+                }
+                
                 create<account_authority_object>([&](account_authority_object &auth) {
                     auth.account = STEEMIT_NULL_ACCOUNT;
                     auth.owner.weight_threshold = 1;
@@ -3039,11 +3078,13 @@ namespace golos { namespace chain {
                 create<account_object>([&](account_object &a) {
                     a.name = STEEMIT_TEMP_ACCOUNT;
                 });
-#ifndef IS_LOW_MEM
-                create<account_metadata_object>([&](account_metadata_object& m) {
-                    m.account = STEEMIT_TEMP_ACCOUNT;
-                });
-#endif
+
+                if (store_metadata_for_account(STEEMIT_TEMP_ACCOUNT)) {
+                    create<account_metadata_object>([&](account_metadata_object& m) {
+                        m.account = STEEMIT_TEMP_ACCOUNT;
+                    });
+                }
+
                 create<account_authority_object>([&](account_authority_object &auth) {
                     auth.account = STEEMIT_TEMP_ACCOUNT;
                     auth.owner.weight_threshold = 0;
@@ -3057,11 +3098,13 @@ namespace golos { namespace chain {
                         a.memo_key = init_public_key;
                         a.balance = asset(i ? 0 : init_supply, STEEM_SYMBOL);
                     });
-#ifndef IS_LOW_MEM
-                    create<account_metadata_object>([&](account_metadata_object& m) {
-                        m.account = name;
-                    });
-#endif
+
+                    if (store_metadata_for_account(name)) {
+                        create<account_metadata_object>([&](account_metadata_object& m) {
+                            m.account = name;
+                        });
+                    }
+
                     create<account_authority_object>([&](account_authority_object &auth) {
                         auth.account = name;
                         auth.owner.add_authority(init_public_key, 1);
@@ -3120,12 +3163,14 @@ namespace golos { namespace chain {
                         a.memo_key = account.keys.memo_key;
                         a.recovery_account = STEEMIT_INIT_MINER_NAME;
                     });
-#ifndef IS_LOW_MEM
-                    create<account_metadata_object>([&](account_metadata_object& m) {
-                        m.account = account.name;
-                        m.json_metadata = "{created_at: 'GENESIS'}";
-                    });
-#endif
+
+                    if (store_metadata_for_account(account.name)) {
+                        create<account_metadata_object>([&](account_metadata_object& m) {
+                            m.account = account.name;
+                            m.json_metadata = "{created_at: 'GENESIS'}";
+                        });
+                    }
+                    
                     create<account_authority_object>([&](account_authority_object& auth) {
                         auth.account = account.name;
                         auth.owner.weight_threshold = 1;

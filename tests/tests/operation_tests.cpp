@@ -9,6 +9,8 @@
 #include <golos/chain/hardfork.hpp>
 #include <golos/chain/steem_objects.hpp>
 
+#include <golos/api/account_api_object.hpp>
+
 #include <fc/crypto/digest.hpp>
 
 #include "database_fixture.hpp"
@@ -18,6 +20,7 @@
 #include <stdexcept>
 
 using namespace golos;
+using namespace golos::api;
 using namespace golos::chain;
 using namespace golos::protocol;
 using std::string;
@@ -5709,6 +5712,69 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(transfer_from_savings_memo_storing_flag) {
+         try {
+            BOOST_TEST_MESSAGE("Testing: transfer_from_savings_memo_storing_flag");
+
+            ACTORS((alice)(bob));
+            generate_block();
+
+            fund("alice", ASSET("10.000 GOLOS"));
+
+            transfer_to_savings_operation save;
+            save.from = "alice";
+            save.to = "alice";
+            save.amount = ASSET("10.000 GOLOS");
+
+            signed_transaction tx;
+            tx.operations.push_back(save);
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            // Default is true
+
+            transfer_from_savings_operation op;
+            op.from = "alice";
+            op.to = "alice";
+            op.amount = ASSET("1.000 GOLOS");
+            op.request_id = 1;
+            op.memo = "{\"test\":123}";
+
+            tx.clear();
+            tx.operations.push_back(op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
+
+            db->set_store_memo_in_savings_withdraws(true);
+
+            op.request_id = 2;
+
+            tx.clear();
+            tx.operations.push_back(op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
+
+            db->set_store_memo_in_savings_withdraws(false);
+
+            op.request_id = 3;
+
+            tx.clear();
+            tx.operations.push_back(op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == "");
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
     BOOST_AUTO_TEST_CASE(cancel_transfer_from_savings_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: cancel_transfer_from_savings_validate");
@@ -6669,9 +6735,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
-    BOOST_AUTO_TEST_CASE(account_metadata_apply) {
+    // WARNING: it should be before another metadata apply tests
+    BOOST_AUTO_TEST_CASE(account_metadata_apply_store_for_all) {
         try {
-            BOOST_TEST_MESSAGE("Testing: account_metadata_apply");
+            BOOST_TEST_MESSAGE("Testing: account_metadata_apply_store_for_all");
+
+            // Do not set any settings related to storing of account metadata
+            // and it should store for all.
+
             signed_transaction tx;
             ACTOR(alice);
 
@@ -6685,18 +6756,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             push_tx_with_ops(tx, alice_private_key, op);
             generate_blocks(10);
 
-            auto acc = db->get_account("alice");
-#ifndef IS_LOW_MEM
+            auto alice_acc = db->get_account("alice");
             auto meta = db->get<account_metadata_object, by_account>("alice");
             BOOST_REQUIRE(meta.account == "alice");
             BOOST_REQUIRE(meta.json_metadata == json);
-#endif
-            BOOST_REQUIRE(acc.last_account_update == now);
+            BOOST_REQUIRE(alice_acc.last_account_update == now);
 
-#ifndef IS_LOW_MEM
+            BOOST_TEST_MESSAGE("----- Test API");
+            account_api_object alice_api(alice_acc, *db);
+            BOOST_REQUIRE(alice_api.json_metadata == json);
+
             BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create");
+            // bob is created before all metadata storing settings
+            // therefore it should have account_metadata_object
             ACTOR(bob);                                             // create_account with json_metadata = ""
-            meta = db->get<account_metadata_object, by_account>("bob");
+            meta = db->get<account_metadata_object, by_account>("bob"); // just checks presence, throws on fail
             BOOST_REQUIRE(meta.account == "bob");
             BOOST_REQUIRE(meta.json_metadata == "");
 
@@ -6712,13 +6786,122 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             cr.owner = authority(1, priv_key.get_public_key(), 1);
             cr.active = authority(1, priv_key.get_public_key(), 1);
             cr.memo_key = priv_key.get_public_key();
-            // cr.json_metadata = "";                               // don't set
             push_tx_with_ops(tx, bob_private_key, cr);
 
             meta = db->get<account_metadata_object, by_account>("sam");
             BOOST_REQUIRE(meta.account == "sam");
             BOOST_REQUIRE(meta.json_metadata == "");
-#endif
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(account_metadata_apply_store_for_nobody) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: account_metadata_apply_store_for_nobody");
+
+            db->set_store_account_metadata(database::store_metadata_for_nobody);
+            // Add account to list to check restriction works
+            std::vector<std::string> accs_v;
+            accs_v.push_back("alice");
+            accs_v.push_back("sam");
+            db->set_accounts_to_store_metadata(accs_v);
+
+            signed_transaction tx;
+            ACTOR(alice);
+
+            BOOST_TEST_MESSAGE("--- Test success under normal conditions");
+            generate_blocks(10);
+            const auto json = "{\"test\":1}";
+            auto now = db->head_block_time();
+            account_metadata_operation op;
+            op.account = "alice";
+            op.json_metadata = json;
+            push_tx_with_ops(tx, alice_private_key, op);
+            generate_blocks(10);
+
+            auto alice_acc = db->get_account("alice");
+            auto meta = db->find<account_metadata_object, by_account>("alice");
+            BOOST_REQUIRE(meta == nullptr);
+            BOOST_REQUIRE(alice_acc.last_account_update == now);
+
+            BOOST_TEST_MESSAGE("----- Test API");
+            account_api_object alice_api(alice_acc, *db);
+            BOOST_REQUIRE(alice_api.json_metadata == "");
+
+            ACTOR(bob);                                             // create_account with json_metadata = ""
+
+            BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create_with_delegation");
+            generate_blocks(1);
+            fund("bob", ASSET_GOLOS(1000));
+            private_key_type priv_key = generate_private_key("temp_key");
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "sam";
+            cr.owner = authority(1, priv_key.get_public_key(), 1);
+            cr.active = authority(1, priv_key.get_public_key(), 1);
+            cr.memo_key = priv_key.get_public_key();
+            push_tx_with_ops(tx, bob_private_key, cr);
+
+            meta = db->find<account_metadata_object, by_account>("sam");
+            BOOST_REQUIRE(meta == nullptr);
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(account_metadata_apply_store_for_listed) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: account_metadata_apply_store_for_listed");
+
+            db->set_store_account_metadata(database::store_metadata_for_listed);
+            // Add account to list to check restriction works
+            std::vector<std::string> accs_v;
+            accs_v.push_back("sam");
+            db->set_accounts_to_store_metadata(accs_v);
+
+            signed_transaction tx;
+            ACTOR(alice);
+
+            BOOST_TEST_MESSAGE("--- Test success under normal conditions");
+            generate_blocks(10);
+            const auto json = "{\"test\":1}";
+            auto now = db->head_block_time();
+            account_metadata_operation op;
+            op.account = "alice";
+            op.json_metadata = json;
+            push_tx_with_ops(tx, alice_private_key, op);
+            generate_blocks(10);
+
+            auto alice_acc = db->get_account("alice");
+            auto meta = db->find<account_metadata_object, by_account>("alice");
+            BOOST_REQUIRE(meta == nullptr);
+            BOOST_REQUIRE(alice_acc.last_account_update == now);
+
+            BOOST_TEST_MESSAGE("----- Test API");
+            account_api_object alice_api(alice_acc, *db);
+            BOOST_REQUIRE(alice_api.json_metadata == "");
+
+            ACTOR(bob);                                             // create_account with json_metadata = ""
+
+            BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create_with_delegation");
+            generate_blocks(1);
+            fund("bob", ASSET_GOLOS(1000));
+            private_key_type priv_key = generate_private_key("temp_key");
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "sam";
+            cr.owner = authority(1, priv_key.get_public_key(), 1);
+            cr.active = authority(1, priv_key.get_public_key(), 1);
+            cr.memo_key = priv_key.get_public_key();
+            push_tx_with_ops(tx, bob_private_key, cr);
+
+            meta = db->find<account_metadata_object, by_account>("sam");
+            BOOST_REQUIRE(meta != nullptr);
             validate_database();
         }
         FC_LOG_AND_RETHROW()

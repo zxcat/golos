@@ -239,11 +239,10 @@ namespace mongo_db {
 
             format_value(body, "last_post", account.last_post);
 
-#ifndef IS_LOW_MEM
-            auto& account_metadata = db_.get<account_metadata_object, by_account>(account.name);
-            
-            format_value(body, "json_metadata", account_metadata.json_metadata);
-#endif
+            auto account_metadata = db_.find<account_metadata_object, by_account>(account.name);
+            if (account_metadata != nullptr) {
+                format_value(body, "json_metadata", account_metadata->json_metadata);
+            }
 
             body << close_document;
 
@@ -1169,9 +1168,9 @@ namespace mongo_db {
             format_value(body, "removed", false);
             format_value(body, "from", op.from);
             format_value(body, "to", op.to);
-#ifndef IS_LOW_MEM
-            format_value(body, "memo", op.memo);
-#endif
+            if (db_.store_memo_in_savings_withdraws()) {
+                format_value(body, "memo", op.memo);
+            }
             format_value(body, "request_id", swo.request_id);
             format_value(body, "amount", op.amount);
             format_value(body, "complete", swo.complete);
