@@ -21,19 +21,6 @@ std::string wstring_to_utf8(const std::wstring &str) {
 
 #endif
 
-#define GOLOS_CHECK_OP_PARAM(OP, PARAM, VALIDATOR) \
-    FC_MULTILINE_MACRO_BEGIN \
-        try { \
-            VALIDATOR; \
-        } catch (const fc::exception& e) { \
-            FC_THROW_EXCEPTION(invalid_parameter, "Invalid value \"${value}\" for operation parameter \"${param}\": ${errmsg}", \
-                    ("param", FC_STRINGIZE(PARAM)) \
-                    ("value", OP.PARAM) \
-                    ("errmsg", e.to_string()) \
-                    ("error", e)); \
-        } \
-    FC_MULTILINE_MACRO_END
-
 #define GOLOS_CHECK_BALANCE( ACCOUNT, TYPE, REQUIRED ...) \
     FC_EXPAND_MACRO( \
         FC_MULTILINE_MACRO_BEGIN \
@@ -41,20 +28,14 @@ std::string wstring_to_utf8(const std::wstring &str) {
             if( UNLIKELY( exist < (REQUIRED) )) { \
                 FC_THROW_EXCEPTION( golos::insufficient_funds, \
                         "Account \"${account}\" does not have enough ${balance}: exist ${exist}, required ${required}", \
-                        ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("exist",exist)("required",REQUIRED)); \
+                        ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("required",REQUIRED)); \
             } \
         FC_MULTILINE_MACRO_END \
     )
 
-#define GOLOS_CHECK_BANDWIDTH(COND, TYPE, MSG, ...) \
-        GOLOS_ASSERT((COND), golos::bandwidth_exception, MSG, ("bandwidth",TYPE) __VA_ARGS__)
-
-#define GOLOS_CHECK_LOGIC(expr, TYPE, FORMAT, ...) \
-    if (!(expr)) { \
-        golos::logic_exception _E(FC_LOG_MESSAGE(error, FORMAT, ("err_id",TYPE)__VA_ARGS__)); \
-        _E.err_id = TYPE; \
-        throw _E; \
-    }
+#define GOLOS_CHECK_BANDWIDTH(NOW, NEXT, TYPE, MSG, ...) \
+        GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
+                ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
 
 namespace golos { namespace chain {
         using fc::uint128_t;
@@ -610,19 +591,13 @@ namespace golos { namespace chain {
 
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            GOLOS_CHECK_BANDWIDTH((now - band->last_bandwidth_update) > STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                            GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
                                     golos::bandwidth_exception::post_bandwidth,
-                                    "You may only post once every 5 minutes.", 
-                                    ("now", now)
-                                    ("last", band->last_bandwidth_update)
-                                    ("next", band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL));
+                                    "You may only post once every 5 minutes.");
                         else
-                            GOLOS_CHECK_BANDWIDTH((now - auth.last_post) > STEEMIT_MIN_REPLY_INTERVAL, 
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL, 
                                     golos::bandwidth_exception::comment_bandwidth,
-                                    "You may only comment once every 20 seconds.", 
-                                    ("now", now)
-                                    ("last", auth.last_post)
-                                    ("next", auth.last_post + STEEMIT_MIN_REPLY_INTERVAL));
+                                    "You may only comment once every 20 seconds.");
                     } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
                             FC_ASSERT((now - auth.last_post) >

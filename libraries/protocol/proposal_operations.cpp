@@ -8,7 +8,7 @@
 
 namespace golos { namespace protocol {
 
-    inline void validate_account_name(const string& name) {
+    static inline void validate_account_name(const string& name) {
         FC_ASSERT(is_valid_account_name(name), "Account name ${n} is invalid", ("n", name));
     }
 

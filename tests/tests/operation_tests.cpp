@@ -25,6 +25,7 @@ using namespace golos::chain;
 using namespace golos::protocol;
 using std::string;
 
+
 BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_CASE(account_create_validate) {
@@ -587,7 +588,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.operations.push_back(op);
             tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(bandwidth_exception, golos::bandwidth_exception::comment_bandwidth)));
 
             validate_database();
 
@@ -5288,34 +5291,50 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("failure when 'from' is empty");
             op.from = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(golos::invalid_parameter, "from"));
 
 
             BOOST_TEST_MESSAGE("failure when 'to' is empty");
             op.from = "alice";
             op.to = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(golos::invalid_parameter, "to"));
 
 
             BOOST_TEST_MESSAGE("sucess when 'to' is not empty");
             op.to = "bob";
-            op.validate();
+            BOOST_CHECK_NO_THROW(op.validate());
 
 
             BOOST_TEST_MESSAGE("failure when amount is VESTS");
             op.to = "alice";
             op.amount = ASSET("1.000 VESTS");
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(golos::invalid_parameter, "amount"));
 
 
             BOOST_TEST_MESSAGE("success when amount is SBD");
             op.amount = ASSET("1.000 GBG");
-            op.validate();
+            BOOST_CHECK_NO_THROW(op.validate());
 
 
             BOOST_TEST_MESSAGE("success when amount is STEEM");
             op.amount = ASSET("1.000 GOLOS");
-            op.validate();
+            BOOST_CHECK_NO_THROW(op.validate());
+
+
+            BOOST_TEST_MESSAGE("failure when amount is negative");
+            op.memo = std::string();
+            op.amount = ASSET("-1.000 GOLOS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(golos::invalid_parameter, "amount"));
+
+
+            BOOST_TEST_MESSAGE("failure when memo too large");
+            op.memo = string(STEEMIT_MAX_MEMO_SIZE, ' ');
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(golos::invalid_parameter, "memo"));
         }
         FC_LOG_AND_RETHROW()
     }
@@ -5362,8 +5381,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             fund("alice", ASSET("10.000 GOLOS"));
             fund("alice", ASSET("10.000 GBG"));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("10.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("10.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("10.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("10.000 GBG"));
 
             transfer_to_savings_operation op;
             signed_transaction tx;
@@ -5376,7 +5395,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(insufficient_funds, "alice", "fund", "20.000 GOLOS")));
             validate_database();
 
 
@@ -5387,7 +5408,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "account", "sam")));
             validate_database();
 
 
@@ -5397,10 +5420,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("9.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_balance == ASSET("1.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("1.000 GOLOS"));
             validate_database();
 
 
@@ -5410,10 +5433,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("9.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_sbd_balance == ASSET("1.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("9.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("1.000 GBG"));
             validate_database();
 
 
@@ -5424,10 +5447,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("8.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").savings_balance == ASSET("1.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("8.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_balance, ASSET("1.000 GOLOS"));
             validate_database();
 
 
@@ -5437,10 +5460,23 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("8.000 GBG"));
-            BOOST_REQUIRE(db->get_account("bob").savings_sbd_balance == ASSET("1.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("8.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_sbd_balance, ASSET("1.000 GBG"));
+            validate_database();
+
+
+
+            BOOST_TEST_MESSAGE("--- failure when transferring without authorities");
+            op.from = "bob";
+            op.to = "alice";
+            op.amount = ASSET("1.000 GOLOS");
+
+            tx.clear();
+            tx.operations.push_back(op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx, 0), tx_missing_active_auth, {});
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -5542,13 +5578,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(save);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             save.amount = ASSET("10.000 GBG");
             tx.clear();
             tx.operations.push_back(save);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
 
             BOOST_TEST_MESSAGE("--- failure when account has insufficient funds");
@@ -5561,7 +5597,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(insufficient_funds, "alice", "savings", "20.000 GOLOS")));
 
 
             BOOST_TEST_MESSAGE("--- failure withdrawing to non-existant account");
@@ -5571,7 +5609,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "account", "sam")));
 
 
             BOOST_TEST_MESSAGE("--- success withdrawing GOLOS to self");
@@ -5580,17 +5620,17 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_balance == ASSET("9.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 1);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).from == op.from);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).to == op.to);
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).request_id == op.request_id);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).amount == op.amount);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).complete == db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("9.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 1);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).from, op.from);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).to, op.to);
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).request_id, op.request_id);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).amount, op.amount);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
 
@@ -5601,17 +5641,17 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("0.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_sbd_balance == ASSET("9.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 2);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).from == op.from);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).to == op.to);
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).request_id == op.request_id);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).amount == op.amount);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).complete == db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("0.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("9.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 2);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).from, op.from);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).to, op.to);
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).request_id, op.request_id);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).amount, op.amount);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
 
@@ -5621,6 +5661,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
+
+            // TODO try to add dublicate transaction throws logic_error
             STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
 
 
@@ -5632,17 +5674,17 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_balance == ASSET("8.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 3);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).from == op.from);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).to == op.to);
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).request_id == op.request_id);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).amount == op.amount);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).complete == db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("8.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 3);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).from, op.from);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).to, op.to);
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).request_id, op.request_id);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).amount, op.amount);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
 
@@ -5653,37 +5695,37 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("0.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_sbd_balance == ASSET("8.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 4);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).from == op.from);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).to == op.to);
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).request_id == op.request_id);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).amount == op.amount);
-            BOOST_REQUIRE(db->get_savings_withdraw("alice", op.request_id).complete == db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("0.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("8.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 4);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).from, op.from);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).to, op.to);
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).request_id, op.request_id);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).amount, op.amount);
+            BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
 
             BOOST_TEST_MESSAGE("--- withdraw on timeout");
             generate_blocks(db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME - fc::seconds(STEEMIT_BLOCK_INTERVAL), true);
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("0.000 GBG"));
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").sbd_balance == ASSET("0.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 4);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("0.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").sbd_balance, ASSET("0.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 4);
             validate_database();
 
             generate_block();
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("1.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").sbd_balance == ASSET("1.000 GBG"));
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("1.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").sbd_balance == ASSET("1.000 GBG"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 0);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("1.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("1.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("1.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").sbd_balance, ASSET("1.000 GBG"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 0);
             validate_database();
 
 
@@ -5698,15 +5740,18 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.operations.push_back(op);
                 tx.sign(alice_private_key, db->get_chain_id());
                 db->push_transaction(tx, 0);
-                BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == i + 1);
+                BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, i + 1);
             }
 
             op.request_id = STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT;
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, golos::logic_exception::reached_limit_for_pending_withdraw_requests)));
+
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -6234,7 +6279,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
 
             BOOST_TEST_MESSAGE("--- Test specifying a non-existent benefactor");
@@ -6245,7 +6290,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
 
             BOOST_TEST_MESSAGE("--- Test setting when comment has been voted on");
@@ -6264,7 +6309,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
 
             BOOST_TEST_MESSAGE("--- Test success");
@@ -6280,7 +6325,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.extensions.clear();
             op.extensions.insert(b);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), fc::assert_exception, {});
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6381,7 +6426,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.memo_key = priv_key.get_public_key();
             op.json_metadata = "{\"foo\":\"bar\"}";
             sign_tx_with_ops(tx, alice_private_key, withdraw, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx, 0), tx_invalid_operation, {});
 
             BOOST_TEST_MESSAGE("--- Test success under normal conditions");
             push_tx_with_ops(tx, alice_private_key, op);
@@ -6440,14 +6485,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.delegation = ASSET_GESTS(0);
             op.new_account_name = "dave";
             sign_tx_with_ops(tx, alice_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx, 0), fc::exception, {});
 
             BOOST_TEST_MESSAGE("--- Test failure when insufficient fee to reach target delegation");
             fund("alice", required_fee);
             op.fee = ASSET_GOLOS(0);
             op.delegation = required_gests - ASSET_GESTS(1);
             sign_tx_with_ops(tx, alice_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx, 0), fc::exception, {});
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test removing delegation from new account");
@@ -6611,7 +6656,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.delegatee = "alice";
             op.vesting_shares = asset(max_allowed.amount + 1, VESTS_SYMBOL);
             sign_tx_with_ops(tx, bob_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
             op.vesting_shares = max_allowed;
             push_tx_with_ops(tx, bob_private_key, op);
 
@@ -6628,12 +6673,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.delegator = "sam";
             op.delegatee = "dave";
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
             BOOST_TEST_MESSAGE("--- Test failure delegating more vesting shares than account has");
             op.vesting_shares = asset(sam_vest.amount + 1, VESTS_SYMBOL);
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
             BOOST_TEST_MESSAGE("--- Test failure delegating vesting shares that are part of a power down");
             sam_vest = asset(sam_vest.amount / 2, VESTS_SYMBOL);
@@ -6643,7 +6688,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.vesting_shares = asset(sam_vest.amount + 2, VESTS_SYMBOL);
             push_tx_with_ops(tx, sam_private_key, withdraw);
             sign_tx_with_ops(tx, sam_private_key, op);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
             BOOST_TEST_MESSAGE("--- Test available_vesting_shares calculation with active power down");
             BOOST_REQUIRE(sam_acc.available_vesting_shares(true) ==
@@ -6658,7 +6703,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             withdraw.vesting_shares = asset(sam_vest.amount, VESTS_SYMBOL);
             push_tx_with_ops(tx, sam_private_key, op);
             sign_tx_with_ops(tx, sam_private_key, withdraw);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx), tx_invalid_operation);
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_invalid_operation, {});
 
             BOOST_TEST_MESSAGE("--- Remove a delegation and ensure it is returned after 1 week");
             op.vesting_shares = ASSET_GESTS(0);
@@ -6695,7 +6740,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("--- Test failure when bad account name passed");
             op.account = "-bad-";
             op.json_metadata = "{}";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
+            STEEMIT_REQUIRE_THROW(op.validate(), invalid_value);
 
             BOOST_TEST_MESSAGE("--- Test failure when json_metadata is empty");
             op.account = "alice";

@@ -13,7 +13,7 @@ namespace golos { namespace protocol {
             FC_ASSERT(fc::is_utf8(permlink), "permlink not formatted in UTF8");
         }
 
-        inline void validate_account_name(const string &name) {
+        static inline void validate_account_name(const string &name) {
             GOLOS_CHECK_VALUE(is_valid_account_name(name), "Account name ${name} is invalid", ("name", name));
         }
 
@@ -529,13 +529,17 @@ namespace golos { namespace protocol {
         }
 
         void transfer_to_savings_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            FC_ASSERT(amount.amount > 0);
-            FC_ASSERT(amount.symbol == STEEM_SYMBOL ||
-                      amount.symbol == SBD_SYMBOL);
-            FC_ASSERT(memo.size() < STEEMIT_MAX_MEMO_SIZE, "Memo is too large");
-            FC_ASSERT(fc::is_utf8(memo), "Memo is not UTF8");
+            GOLOS_CHECK_PARAM(from, validate_account_name(from));
+            GOLOS_CHECK_PARAM(to, validate_account_name(to));
+            GOLOS_CHECK_PARAM(amount, {
+                GOLOS_CHECK_VALUE(amount.amount > 0, "Amount must be positive");
+                GOLOS_CHECK_VALUE(amount.symbol == STEEM_SYMBOL ||
+                          amount.symbol == SBD_SYMBOL, "Available currency GOLOS or GBG");
+            });
+            GOLOS_CHECK_PARAM(memo, {
+                GOLOS_CHECK_VALUE(memo.size() < STEEMIT_MAX_MEMO_SIZE, "Memo is too large");
+                GOLOS_CHECK_VALUE(fc::is_utf8(memo), "Memo is not UTF8");
+            });
         }
 
         void transfer_from_savings_operation::validate() const {

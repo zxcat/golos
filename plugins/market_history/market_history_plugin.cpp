@@ -8,27 +8,6 @@
 #include <golos/protocol/exceptions.hpp>
 
 
-
-#define CHECK_ARG_SIZE(s) \
-   FC_ASSERT( args.args->size() == s, "Expected "#s" argument(s), was ${n}", ("n", args.args->size()) );
-
-#define GOLOS_CHECK_LIMIT(limit, max_value) \
-    GOLOS_ASSERT( limit <= max_value, golos::limit_too_large, "Exceeded limit value. Maximum allowed ${max}", \
-            ("limit",limit)("max",max_value))
-
-#define GOLOS_DECLARE_PARAM(PARAM, GETTER) auto (PARAM) = [&]() {\
-    try {return (GETTER);} \
-    catch (const fc::exception &e) { \
-        FC_THROW_EXCEPTION(golos::invalid_parameter, \
-            "Invalid parameter \"${name}\": ${reason}", \
-            ("param", BOOST_PP_STRINGIZE(PARAM)) \
-            ("errmsg", e.to_string()) \
-            ("error", e) \
-            ); \
-    } \
-}()
-
-
 namespace golos {
     namespace plugins {
         namespace market_history {
@@ -482,7 +461,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_order_book) {
-                CHECK_ARG_SIZE(1)
+                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
                 GOLOS_DECLARE_PARAM(limit, args.args->at(0).as<uint32_t>());
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
@@ -491,7 +470,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_order_book_extended) {
-                CHECK_ARG_SIZE(1)
+                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
                 auto limit = args.args->at(0).as<uint32_t>();
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
@@ -501,7 +480,7 @@ namespace golos {
 
 
             DEFINE_API(market_history_plugin, get_trade_history) {
-                CHECK_ARG_SIZE(3)
+                GOLOS_CHECK_ARGS_COUNT(args.args, 3);
                 auto start = args.args->at(0).as<time_point_sec>();
                 auto end = args.args->at(1).as<time_point_sec>();
                 auto limit = args.args->at(2).as<uint32_t>();
@@ -512,7 +491,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_recent_trades) {
-                CHECK_ARG_SIZE(1)
+                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
                 auto limit = args.args->at(0).as<uint32_t>();
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
@@ -521,7 +500,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_market_history) {
-                CHECK_ARG_SIZE(3)
+                GOLOS_CHECK_ARGS_COUNT(args.args, 3);
                 auto bucket_seconds = args.args->at(0).as<uint32_t>();
                 auto start = args.args->at(1).as<time_point_sec>();
                 auto end = args.args->at(2).as<time_point_sec>();
@@ -539,7 +518,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_open_orders) {
-                CHECK_ARG_SIZE(1);
+                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
                 GOLOS_DECLARE_PARAM(account, args.args->at(0).as<string>());
                 //auto tmp = args.args->at(0).as<string>();
                 auto &db = _my->database();
