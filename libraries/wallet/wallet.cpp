@@ -1371,7 +1371,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             } else {
                 accounts.push_back(get_account(account));
             }
-            
+
             for (auto it = accounts.begin(); it != accounts.end(); it++) {
                 key_with_data memo_key_data;
                 memo_key_data.public_key = std::string(it->memo_key);
@@ -1381,7 +1381,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 all_keys.push_back(memo_key_data);
 
                 auto acc_owner_keys = it->owner.get_keys();
-                for (auto it2 = acc_owner_keys.begin(); it2 != acc_owner_keys.end(); it2++) { 
+                for (auto it2 = acc_owner_keys.begin(); it2 != acc_owner_keys.end(); it2++) {
                     key_with_data key_data;
                     key_data.public_key = std::string(*it2);
                     key_data.private_key = get_private_key(*it2);
@@ -1391,7 +1391,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 }
 
                 auto acc_active_keys = it->active.get_keys();
-                for (auto it2 = acc_active_keys.begin(); it2 != acc_active_keys.end(); it2++) { 
+                for (auto it2 = acc_active_keys.begin(); it2 != acc_active_keys.end(); it2++) {
                     key_with_data key_data;
                     key_data.public_key = std::string(*it2);
                     key_data.private_key = get_private_key(*it2);
@@ -1401,7 +1401,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 }
 
                 auto acc_posting_keys = it->posting.get_keys();
-                for (auto it2 = acc_posting_keys.begin(); it2 != acc_posting_keys.end(); it2++) { 
+                for (auto it2 = acc_posting_keys.begin(); it2 != acc_posting_keys.end(); it2++) {
                     key_with_data key_data;
                     key_data.public_key = std::string(*it2);
                     key_data.private_key = get_private_key(*it2);
@@ -2618,4 +2618,3 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
     } } // steem::wallet
-

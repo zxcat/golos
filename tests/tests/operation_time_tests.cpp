@@ -3,13 +3,11 @@
 #include <boost/test/unit_test.hpp>
 
 #include <golos/protocol/exceptions.hpp>
-
 #include <golos/chain/block_summary_object.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/hardfork.hpp>
-#include <golos/plugins/account_history/history_object.hpp>
 #include <golos/chain/steem_objects.hpp>
-
+#include <golos/plugins/account_history/history_object.hpp>
 #include <golos/plugins/debug_node/plugin.hpp>
 
 #include <fc/crypto/digest.hpp>
@@ -923,7 +921,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
         }
         FC_LOG_AND_RETHROW()
     }
-    
+
     BOOST_AUTO_TEST_CASE(vesting_withdraw_route) {
         try {
             ACTORS((alice)(bob)(sam))
@@ -1932,8 +1930,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                 db->head_block_time() + fc::seconds(STEEMIT_MIN_LIQUIDITY_REWARD_PERIOD_SEC_HF10.to_seconds() / 2),
                 true);
 
-            ops = get_last_operations(1);
-            fill_order_op = ops[0].get<fill_order_operation>();
+            auto fill_ops = get_last_operations<fill_order_operation>(1);
+            fill_order_op = fill_ops[0];
 
             BOOST_REQUIRE(fill_order_op.open_owner == "alice");
             BOOST_REQUIRE(fill_order_op.open_orderid == 6);

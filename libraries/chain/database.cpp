@@ -437,7 +437,7 @@ namespace golos { namespace chain {
 
                 if (free_gb == 0) {
                     uint32_t free_mb = uint32_t(free_mem / (1024 * 1024));
-                    if (free_mb <= 500 && current_block_num % 10 == 0) {
+                    if (free_mb <= (_is_testing ? 2 : 500) && current_block_num % 10 == 0) {
                         elog("Free memory is now ${n}M. Increase shared file size immediately!", ("n", free_mb));
                     }
                 }

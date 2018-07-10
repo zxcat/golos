@@ -49,7 +49,7 @@ namespace golos { namespace chain {
             }
 
             bool _is_producing = false;
-
+            bool _is_testing = false;           ///< set for tests to avoid low free memory spam
             bool _log_hardforks = true;
 
             enum validation_steps {
