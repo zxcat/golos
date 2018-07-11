@@ -182,23 +182,22 @@ namespace golos { namespace plugins { namespace social_network {
             const auto& comment = db.get_comment(o.author, o.permlink);
 
             if (comment.created != db.head_block_time()) {
-                printf("edit case\n");
                 // Edit case
                 db.modify(db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
-                    if (o.title.size()) {
-                        if (depth_parameters.has_comment_title_depth) {
-                            from_string(con.title, o.title);
-                        }
+                    if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
+                        from_string(con.title, o.title);
                     }
                     if (o.json_metadata.size()) {
-                        if (depth_parameters.has_comment_json_metadata_depth && fc::is_utf8(o.json_metadata)) {
+                        if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                            fc::is_utf8(o.json_metadata)
+                        ) {
                             from_string(con.json_metadata, o.json_metadata );
                         }
                         else {
                             wlog("Comment ${a}/${p} contains invalid UTF-8 metadata", ("a", o.author)("p", o.permlink));
                         }
                     }
-                    if (o.body.size() && depth_parameters.has_comment_body_depth) {
+                    if (o.body.size() && (!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0)) {
                         try {
                             diff_match_patch<std::wstring> dmp;
                             auto patch = dmp.patch_fromText(utf8_to_wstring(o.body));
@@ -229,40 +228,38 @@ namespace golos { namespace plugins { namespace social_network {
             }
             else {
                 // Creation case
-                printf("creation case\n");
                 const comment_object *parent = nullptr;
 
                 if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
                     parent = &db.get_comment(o.parent_author, o.parent_permlink);
                 }
+
                 const auto &new_comment = db.get_comment(o.author, o.permlink);
-                printf("after if\n");
                 comment_id_type id = new_comment.id;
-                printf("before db.create\n");
+
                 db.create<comment_content_object>([&](comment_content_object& con) {
-                    printf("in db.create\n");
                     con.comment = id;
-                    if (depth_parameters.has_comment_title_depth) {
-                        con.title = o.title;
+                    if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
+                        from_string(con.title, o.title);
                     }
-                    printf("after title\n");
-                    if (depth_parameters.has_comment_body_depth && o.body.size() < 1024*1024*128) {
+                    
+                    if ((!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
                         from_string(con.body, o.body);
                     }
-                    printf("after body\n");
-                    if (depth_parameters.has_comment_json_metadata_depth && fc::is_utf8(o.json_metadata)) {
+
+                    if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                        fc::is_utf8(o.json_metadata)
+                    ) {
                         from_string(con.json_metadata, o.json_metadata);
-                    } else {
+                    }
+                    else {
                         wlog("Comment ${a}/${p} contains invalid UTF-8 metadata",
                             ("a", o.author)("p", o.permlink));
                     }
-                    printf("after json_metadata\n");
 
                     con.block_number = db.head_block_num();
-                    printf("after block_number\n");
                 });
             }
-            printf("DONE with comment_content_object edit or create\n");
         }
     };
 
@@ -337,7 +334,7 @@ namespace golos { namespace plugins { namespace social_network {
 
         auto& db = pimpl->database();
 
-        // add_plugin_index<comment_content_index>(db);
+        add_plugin_index<comment_content_index>(db);
 
         db.post_apply_operation.connect([&](const operation_notification &o) {
             pimpl->post_operation(o);
