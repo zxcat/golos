@@ -18,7 +18,7 @@ struct operation_notification {
     uint32_t trx_in_block = 0;
     uint16_t op_in_trx = 0;
     uint32_t virtual_op = 0;
-    const operation &op;
+    const operation& op;
 };
 
 } } // golos::chain

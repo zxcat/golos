@@ -328,12 +328,6 @@ namespace golos { namespace chain {
             return fc::ecc::private_key::regenerate(fc::sha256::hash(seed));
         }
 
-        string database_fixture::generate_anon_acct_name() {
-            // names of the form "anon-acct-x123" ; the "x" is necessary
-            //    to workaround issue #46
-            return "anon-acct-x" + std::to_string(anon_acct_count++);
-        }
-
         void database_fixture::startup(bool generate_hardfork) {
             generate_block();
             if (generate_hardfork) {

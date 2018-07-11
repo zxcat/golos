@@ -665,7 +665,7 @@ namespace golos {
                     std::vector < account_name_type > accounts
                 ) {
 
-                GOLOS_CHECK_PARAM(accounts, 
+                GOLOS_CHECK_PARAM(accounts,
                     GOLOS_CHECK_VALUE(accounts.size() <= 100, "Cannot retrieve more than 100 account reputations at a time."));
 
                 const auto& idx = database().get_index<account_index>().indices().get<by_name>();
