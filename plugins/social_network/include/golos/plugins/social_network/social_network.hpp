@@ -89,18 +89,23 @@ namespace golos { namespace plugins { namespace social_network {
         shared_string title;
         shared_string body;
         shared_string json_metadata;
+
+        uint32_t block_number;
     };
 
 
     using comment_content_id_type = object_id<comment_content_object>;
 
     struct by_comment;
+    struct by_block_number;
 
     typedef multi_index_container<
           comment_content_object,
           indexed_by<
              ordered_unique<tag<by_id>, member<comment_content_object, comment_content_id_type, &comment_content_object::id>>,
-             ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>>,
+             ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>,
+             ordered_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>
+            >, // TODO fix code style!!
         allocator<comment_content_object>
     > comment_content_index;
 

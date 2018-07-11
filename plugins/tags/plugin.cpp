@@ -285,7 +285,7 @@ namespace golos { namespace plugins { namespace tags {
 
             query.start_comment = create_discussion(*comment, query);
             auto& d = query.start_comment;
-            operation_visitor v(database_);
+            operation_visitor v(database_, helper);
 
             d.hot = v.calculate_hot(d.net_rshares, d.created);
             d.trending = v.calculate_trending(d.net_rshares, d.created);
