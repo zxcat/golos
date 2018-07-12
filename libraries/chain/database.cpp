@@ -1518,13 +1518,14 @@ namespace golos { namespace chain {
                 new_virtual_time = fc::uint128_t();
                 reset_virtual_schedule_time();
             }
-
+#ifndef STEEMIT_BUILD_TESTNET
             size_t expected_active_witnesses = std::min(size_t(STEEMIT_MAX_WITNESSES), widx.size());
             if (head_block_num() > 14400) {
                 FC_ASSERT(active_witnesses.size() ==
                           expected_active_witnesses, "number of active witnesses does not equal expected_active_witnesses=${expected_active_witnesses}",
                         ("active_witnesses.size()", active_witnesses.size())("STEEMIT_MAX_WITNESSES", STEEMIT_MAX_WITNESSES)("expected_active_witnesses", expected_active_witnesses));
             }
+#endif
 
             auto majority_version = wso.majority_version;
 
