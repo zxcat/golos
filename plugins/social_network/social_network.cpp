@@ -12,8 +12,9 @@
 #include <golos/protocol/config.hpp>
 
 #include <diff_match_patch.h>
-// #include <boost/locale.hpp>
 #include <boost/locale/encoding_utf.hpp>
+
+#include <golos/protocol/config.hpp>
 
 #define CHECK_ARG_SIZE(_S)                                 \
    FC_ASSERT(                                              \
@@ -43,7 +44,21 @@ struct content_depth_params {
     }
 
     inline bool miss_content() const {
-        return has_comment_title_depth && has_comment_body_depth && has_comment_json_metadata_depth;
+        return has_comment_title_depth && !comment_title_depth &&
+               has_comment_body_depth && !comment_body_depth &&
+               has_comment_json_metadata_depth && !comment_json_metadata_depth;
+    }
+
+    inline bool need_clear() const {
+        return has_comment_title_depth || has_comment_body_depth || has_comment_json_metadata_depth;
+    }
+
+    inline bool should_delete_whole_content_object(const uint32_t & delta) const {
+        return comment_title_depth > delta && comment_body_depth > delta && comment_json_metadata_depth > delta;
+    }
+
+    inline bool should_delete_part_of_content_object(const uint32_t & delta) const {
+        return comment_title_depth > delta || comment_body_depth > delta || comment_json_metadata_depth > delta;
     }
 
 
@@ -107,13 +122,11 @@ namespace golos { namespace plugins { namespace social_network {
  
         void set_depth_parameters(const content_depth_params &params);
 
-        // Removes comment_content data which is not needed anymore
-        void clear_comment_content_info();
-
         // Looks for a comment_operation, fills the comment_content state objects.
         void post_operation(const operation_notification &o);
 
         void on_block(const signed_block &b);
+
 
     private:
         golos::chain::database& database_;
@@ -138,6 +151,8 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     struct operation_visitor {
+        using result_type = void;
+
         golos::chain::database &db;
         content_depth_params depth_parameters;
 
@@ -161,9 +176,7 @@ namespace golos { namespace plugins { namespace social_network {
         const comment_content_object *find_comment_content(const comment_id_type &comment) const {
             return db.find<comment_content_object, by_comment>(comment);
         }
-        
-        using result_type = void;
-        
+
         template<class T>
         void operator()(const T& o) const {
         }
@@ -235,19 +248,16 @@ namespace golos { namespace plugins { namespace social_network {
                 db.create<comment_content_object>([&](comment_content_object& con) {
                     con.comment = id;
                     if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
-                        printf("Was in title\n");
                         from_string(con.title, o.title);
                     }
                     
                     if ((!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
-                        printf("Was in body\n");
                         from_string(con.body, o.body);
                     }
 
                     if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
                         fc::is_utf8(o.json_metadata)
                     ) {
-                        printf("Was in json_metadata\n");
                         from_string(con.json_metadata, o.json_metadata);
                     }
                     else {
@@ -259,10 +269,42 @@ namespace golos { namespace plugins { namespace social_network {
                 });
             }
         }
-    };
 
-    void social_network::impl::clear_comment_content_info() {
-    }
+        // Checking should we delete comment_content if needed depth has been expired
+        void operator()(const comment_payout_update_operation& o) const { 
+            if (!depth_parameters.need_clear()) {
+                return;
+            }
+
+            const auto &comment = db.get_comment(o.author, o.permlink);
+            auto& content = get_comment_content(comment.id);
+            auto delta = db.head_block_num() - content.block_number;
+
+            if (depth_parameters.should_delete_whole_content_object(delta)) {
+                db.remove(content);
+                return;
+            }
+
+            if (depth_parameters.should_delete_part_of_content_object(delta)) {
+                db.modify(content, [&](comment_content_object& con) {
+                    if (delta > depth_parameters.comment_title_depth) {
+                        con.title.clear();
+                    }
+
+                    if (delta > depth_parameters.comment_body_depth) {
+                        con.body.clear();
+                    }
+
+                    if (delta > depth_parameters.comment_json_metadata_depth) {
+                        con.json_metadata.clear();
+                    }
+                });
+
+                return; 
+            }
+        }
+
+    };
 
     void social_network::impl::post_operation(const operation_notification &o) {
         auto& db = database();
@@ -272,8 +314,42 @@ namespace golos { namespace plugins { namespace social_network {
         o.op.visit(ovisit);
     }
     void social_network::impl::on_block(const signed_block &b) {
-  
+        auto & db = database();
 
+        const auto &idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
+
+        for (auto itr = idx.begin(); itr != idx.end(); ++itr) {
+            auto & content = *itr;
+
+            const auto &cidx = db.get_index<comment_index>().indices().get<by_id>();
+        
+            auto comment = cidx.find(content.comment);
+
+            int64_t cash_window_sec = STEEMIT_CASHOUT_WINDOW_SECONDS;
+            auto time_delta = db.head_block_time() - comment->created;
+            auto delta = db.head_block_num() - content.block_number;
+
+            if (time_delta > fc::microseconds(cash_window_sec) && depth_parameters.should_delete_part_of_content_object(delta)) {
+                if (depth_parameters.should_delete_whole_content_object(delta)) {
+                    db.remove(content);
+                    continue;
+                }
+                db.modify(content, [&](comment_content_object& con) {
+                    if (delta > depth_parameters.comment_title_depth) {
+                        con.title.clear();
+                    }
+
+                    if (delta > depth_parameters.comment_body_depth) {
+                        con.body.clear();
+                    }
+
+                    if (delta > depth_parameters.comment_json_metadata_depth) {
+                        con.json_metadata.clear();
+                    }
+                });
+
+            }
+        }
     }
 
 
@@ -322,6 +398,10 @@ namespace golos { namespace plugins { namespace social_network {
 
         db.post_apply_operation.connect([&](const operation_notification &o) {
             pimpl->post_operation(o);
+        });
+
+        db.applied_block.connect([&](const signed_block &b) {
+            pimpl->on_block(b);
         });
 
         content_depth_params params;
@@ -448,16 +528,11 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     discussion social_network::impl::get_content(std::string author, std::string permlink, uint32_t limit) const {
-        printf("in get_content\n");
-        std::cout << "author = " << author << ", permlink = " << permlink << std::endl;
-
         const auto& by_permlink_idx = database().get_index<comment_index>().indices().get<by_permlink>();
         auto itr = by_permlink_idx.find(std::make_tuple(author, permlink));
         if (itr != by_permlink_idx.end()) {
-            printf("return get_discussion(*itr, limit);\n");
             return get_discussion(*itr, limit);
         }
-        printf("return helper->create_discussion(*itr);\n");
         return helper->create_discussion(*itr);
     }
 
