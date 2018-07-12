@@ -66,7 +66,7 @@ namespace golos { namespace plugins { namespace social_network {
 
     struct social_network::impl final {
         impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
-            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted);
+            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted, get_comment_content_callback);
         }
 
         ~impl() = default;
@@ -228,11 +228,6 @@ namespace golos { namespace plugins { namespace social_network {
             }
             else {
                 // Creation case
-                const comment_object *parent = nullptr;
-
-                if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
-                    parent = &db.get_comment(o.parent_author, o.parent_permlink);
-                }
 
                 const auto &new_comment = db.get_comment(o.author, o.permlink);
                 comment_id_type id = new_comment.id;
@@ -240,16 +235,19 @@ namespace golos { namespace plugins { namespace social_network {
                 db.create<comment_content_object>([&](comment_content_object& con) {
                     con.comment = id;
                     if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
+                        printf("Was in title\n");
                         from_string(con.title, o.title);
                     }
                     
                     if ((!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
+                        printf("Was in body\n");
                         from_string(con.body, o.body);
                     }
 
                     if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
                         fc::is_utf8(o.json_metadata)
                     ) {
+                        printf("Was in json_metadata\n");
                         from_string(con.json_metadata, o.json_metadata);
                     }
                     else {
@@ -274,21 +272,7 @@ namespace golos { namespace plugins { namespace social_network {
         o.op.visit(ovisit);
     }
     void social_network::impl::on_block(const signed_block &b) {
-        auto& db = database();
-
-        const auto &idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
-        
-        for (auto itr = idx.rbegin(); itr != idx.rend(); ++itr) {
-            printf("on_block in for\n");
-            db.modify(*itr, [&](comment_content_object& con) {
-                std::cout << con.block_number << std::endl;
-            });
-        }
-
-        if ( idx.rbegin() != idx.rend() ){
-            printf("after on_block for\n");
-        }
-            
+  
 
     }
 
@@ -464,12 +448,17 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     discussion social_network::impl::get_content(std::string author, std::string permlink, uint32_t limit) const {
+        printf("in get_content\n");
+        std::cout << "author = " << author << ", permlink = " << permlink << std::endl;
+
         const auto& by_permlink_idx = database().get_index<comment_index>().indices().get<by_permlink>();
         auto itr = by_permlink_idx.find(std::make_tuple(author, permlink));
         if (itr != by_permlink_idx.end()) {
+            printf("return get_discussion(*itr, limit);\n");
             return get_discussion(*itr, limit);
         }
-        return helper->create_discussion(author);
+        printf("return helper->create_discussion(*itr);\n");
+        return helper->create_discussion(*itr);
     }
 
     DEFINE_API(social_network, get_content) {

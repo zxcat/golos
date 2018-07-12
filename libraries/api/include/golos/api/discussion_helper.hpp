@@ -27,6 +27,12 @@ namespace golos { namespace api {
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted);
         discussion_helper(
             golos::chain::database& db,
+            std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
+            std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
+            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
+        );
+        discussion_helper(
+            golos::chain::database& db,
             std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
         );
         ~discussion_helper();
