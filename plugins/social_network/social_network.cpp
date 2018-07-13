@@ -54,11 +54,11 @@ struct content_depth_params {
     }
 
     inline bool should_delete_whole_content_object(const uint32_t & delta) const {
-        return comment_title_depth > delta && comment_body_depth > delta && comment_json_metadata_depth > delta;
+        return delta > comment_title_depth && delta > comment_body_depth && delta > comment_json_metadata_depth;
     }
 
     inline bool should_delete_part_of_content_object(const uint32_t & delta) const {
-        return comment_title_depth > delta || comment_body_depth > delta || comment_json_metadata_depth > delta;
+        return delta > comment_title_depth || delta > comment_body_depth || delta > comment_json_metadata_depth;
     }
 
 
@@ -354,7 +354,7 @@ namespace golos { namespace plugins { namespace social_network {
             auto time_delta = db.head_block_time() - comment->created;
             auto delta = db.head_block_num() - content.block_number;
 
-            if (time_delta > fc::microseconds(cash_window_sec) && depth_parameters.should_delete_part_of_content_object(delta)) {
+            if (time_delta.to_seconds() > fc::microseconds(cash_window_sec * 1000000).to_seconds() && depth_parameters.should_delete_part_of_content_object(delta)) {
                 if (depth_parameters.should_delete_whole_content_object(delta)) {
                     db.remove(content);
                     continue;
@@ -397,7 +397,7 @@ namespace golos { namespace plugins { namespace social_network {
         boost::program_options::options_description& cfg,
         boost::program_options::options_description& config_file_options
     ) {
-        cfg.add_options()
+        config_file_options.add_options()
             ( // Depth of comment_content information storage history.
                 "comment-title-depth", boost::program_options::value<uint32_t>(),
                 "max count of storing records of comment.title"
