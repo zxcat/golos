@@ -18,6 +18,47 @@
 
 uint32_t STEEMIT_TESTING_GENESIS_TIMESTAMP = 1431700000;
 
+
+namespace fc {
+
+std::ostream& operator<<(std::ostream& out, const fc::exception& e) {
+    out << e.to_detail_string();
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::time_point& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::uint128_t v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::fixed_string<fc::uint128_t>& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+} // namespace fc
+
+
+namespace golos { namespace protocol {
+
+std::ostream& operator<<(std::ostream& out, const asset& v) {
+    out << v.to_string();
+    return out;
+}
+
+} } // namespace golos::protocol
+
+
 namespace golos { namespace chain {
 
         using std::cout;
