@@ -59,7 +59,7 @@
     try {return (GETTER);} \
     catch (const fc::exception &e) { \
         FC_THROW_EXCEPTION(golos::invalid_parameter, \
-            "Invalid parameter \"${name}\": ${reason}", \
+            "Invalid parameter \"${param}\": ${errmsg}", \
             ("param", BOOST_PP_STRINGIZE(PARAM)) \
             ("errmsg", e.to_string()) \
             ("error", e) \
@@ -124,16 +124,24 @@ namespace golos {
         1010000, "Unsupported operation");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
-        invalid_arguments_count, operation_exception,
-        1020000, "Invalid argument count");
+        parameter_exception, operation_exception,
+        1020000, "Parameter exception");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
-        missing_object, operation_exception,
-        1030000, "Missing object");
+        invalid_arguments_count, parameter_exception,
+        1020100, "Invalid argument count");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
-        invalid_parameter, operation_exception,
-        1040000, "Invalid parameter value");
+        missing_object, parameter_exception,
+        1020200, "Missing object");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        object_already_exist, parameter_exception,
+        1020300, "Object already exist");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        invalid_parameter, parameter_exception,
+        1020400, "Invalid parameter value");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         business_exception, golos_exception,
