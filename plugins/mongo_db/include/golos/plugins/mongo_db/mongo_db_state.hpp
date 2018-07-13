@@ -128,6 +128,11 @@ namespace mongo_db {
         void format_required_approval(const required_approval_object& reqapp,
             const account_name_type& proposal_author, const std::string& proposal_title);
 
+        void format_liquidity_reward_balance(const liquidity_reward_balance_object& lrbo,
+            const account_name_type& owner);
+
+        void format_liquidity_reward_balance(const account_name_type& owner);
+
         named_document create_document(const std::string& name,
             const std::string& key, const std::string& keyval);
 
