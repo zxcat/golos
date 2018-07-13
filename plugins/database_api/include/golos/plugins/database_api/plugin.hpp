@@ -94,12 +94,11 @@ struct signed_block_api_object : public signed_block {
 };
 
 
-using block_applied_callback = std::function<void(const signed_block&)>;
-
 ///               API,                                    args,                return
 DEFINE_API_ARGS(get_block_header,                 msg_pack, optional<block_header>)
 DEFINE_API_ARGS(get_block,                        msg_pack, optional<signed_block>)
 DEFINE_API_ARGS(set_block_applied_callback,       msg_pack, void_type)
+DEFINE_API_ARGS(set_pending_transaction_callback, msg_pack, void_type)
 DEFINE_API_ARGS(get_config,                       msg_pack, variant_object)
 DEFINE_API_ARGS(get_dynamic_global_properties,    msg_pack, dynamic_global_property_api_object)
 DEFINE_API_ARGS(get_chain_properties,             msg_pack, chain_api_properties)
@@ -139,51 +138,25 @@ DEFINE_API_ARGS(get_proposed_transactions,        msg_pack, std::vector<proposal
  */
 class plugin final : public appbase::plugin<plugin> {
 public:
-    constexpr static const char *plugin_name = "database_api";
+    constexpr static const char* plugin_name = "database_api";
 
-    static const std::string &name() {
+    static const std::string& name() {
         static std::string name = plugin_name;
         return name;
     }
 
     APPBASE_PLUGIN_REQUIRES(
-            (json_rpc::plugin)
-            (chain::plugin)
+        (json_rpc::plugin)
+        (chain::plugin)
     )
 
-    void set_program_options(boost::program_options::options_description &cli, boost::program_options::options_description &cfg) override{}
-
-    void plugin_initialize(const boost::program_options::variables_map &options) override;
-
+    void set_program_options(boost::program_options::options_description& cli, boost::program_options::options_description& cfg) override{}
+    void plugin_initialize(const boost::program_options::variables_map& options) override;
     void plugin_startup() override;
-
     void plugin_shutdown() override{}
 
     plugin();
-
     ~plugin();
-
-    ///////////////////
-    // Subscriptions //
-    ///////////////////
-
-    void set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter);
-
-    void set_pending_transaction_callback(std::function<void(const variant &)> cb);
-
-    /**
-     * @brief Stop receiving any notifications
-     *
-     * This unsubscribes from all subscribed markets and objects.
-     */
-    void cancel_all_subscriptions();
-
-
-    /**
-     * @brief Clear disconnected callbacks on applied block
-     */
-
-    void clear_block_applied_callback();
 
     DECLARE_API(
         /**
@@ -212,9 +185,14 @@ public:
 
         /**
          * @brief Set callback which is triggered on each generated block
-         * @param callback function which should be called
+         * @param type of data, callback will send (block, header, virtual_ops, full)
          */
         (set_block_applied_callback)
+
+        /**
+         * @brief Set callback which is triggered on each received transaction (before applying)
+         */
+        (set_pending_transaction_callback)
 
         /////////////
         // Globals //
@@ -292,11 +270,6 @@ public:
 
         (get_vesting_delegations)
         (get_expiring_vesting_delegations)
-        // (list_vesting_delegations)
-        // (find_vesting_delegations)
-        // (list_vesting_delegation_expirations)
-        // (find_vesting_delegation_expirations)
-
 
         (get_conversion_requests)
 
