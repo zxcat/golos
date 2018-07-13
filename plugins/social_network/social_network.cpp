@@ -127,6 +127,12 @@ namespace golos { namespace plugins { namespace social_network {
 
         void on_block(const signed_block &b);
 
+        comment_api_object create_comment_api_object(const comment_object & o) const ;
+
+        const comment_content_object &get_comment_content(const comment_id_type &comment) const ;
+
+        const comment_content_object *find_comment_content(const comment_id_type &comment) const ;
+
 
     private:
         golos::chain::database& database_;
@@ -134,6 +140,25 @@ namespace golos { namespace plugins { namespace social_network {
         content_depth_params depth_parameters;
     };
 
+
+    const comment_content_object &social_network::impl::get_comment_content(const comment_id_type &comment) const {
+        try {
+            return database().get<comment_content_object, by_comment>(comment);
+        } FC_CAPTURE_AND_RETHROW((comment))
+    }
+
+    const comment_content_object &social_network::get_comment_content(const comment_id_type &comment) const {
+        return pimpl->get_comment_content(comment);
+    }
+
+
+    const comment_content_object *social_network::impl::find_comment_content(const comment_id_type &comment) const {
+        return database().find<comment_content_object, by_comment>(comment);
+    }
+     
+    const comment_content_object *social_network::find_comment_content(const comment_id_type &comment) const {
+        return pimpl->find_comment_content(comment);
+    }
 
     discussion social_network::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
         return helper->get_discussion(c, vote_limit);
@@ -429,6 +454,14 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     social_network::~social_network() = default;
+
+    comment_api_object social_network::impl::create_comment_api_object(const comment_object & o) const {
+        return helper->create_comment_api_object(o);
+    }
+
+    comment_api_object social_network::create_comment_api_object(const comment_object & o) const {
+        return pimpl->create_comment_api_object(o);
+    }
 
     void social_network::impl::select_content_replies(
         std::vector<discussion>& result, std::string author, std::string permlink, uint32_t limit

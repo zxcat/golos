@@ -16,6 +16,7 @@ list(APPEND CURRENT_TARGET_SOURCES
     discussion_helper.cpp
     chain_api_properties.cpp
     witness_api_object.cpp
+    comment_api_object.cpp
 )
 
 if(BUILD_SHARED_LIBRARIES)

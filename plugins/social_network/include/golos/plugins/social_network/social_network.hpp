@@ -7,7 +7,7 @@
 #include <golos/api/account_vote.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/api/discussion_helper.hpp>
-
+#include <golos/plugins/social_network/comment_content_object.hpp>
 
 namespace golos { namespace plugins { namespace social_network {
     using plugins::json_rpc::msg_pack;
@@ -16,6 +16,7 @@ namespace golos { namespace plugins { namespace social_network {
     using golos::api::vote_state;
     using golos::api::get_comment_content_res;
     using namespace golos::chain;
+    using golos::api::comment_api_object;
 
     DEFINE_API_ARGS(get_content,                msg_pack, discussion)
     DEFINE_API_ARGS(get_content_replies,        msg_pack, std::vector<discussion>)
@@ -55,66 +56,18 @@ namespace golos { namespace plugins { namespace social_network {
         void plugin_startup() override;
         void plugin_shutdown() override;
 
+        comment_api_object create_comment_api_object(const comment_object & o) const;
+
+        const comment_content_object &get_comment_content(const comment_id_type &comment) const ;
+        const comment_content_object *find_comment_content(const comment_id_type &comment) const ;
+
+
     private:
         struct impl;
         std::unique_ptr<impl> pimpl;
     };
 
-    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o);
-
-#ifndef SOCIAL_NETWORK_SPACE_ID
-#define SOCIAL_NETWORK_SPACE_ID 23
-#endif
-
-    enum social_network_types {
-        comment_content_object_type = (SOCIAL_NETWORK_SPACE_ID << 8) + 1
-    };
-
-
-    class comment_content_object
-            : public object<comment_content_object_type, comment_content_object> {
-    public:
-        comment_content_object() = delete;
-
-        template<typename Constructor, typename Allocator>
-        comment_content_object(Constructor &&c, allocator <Allocator> a)
-                :title(a), body(a), json_metadata(a) {
-            c(*this);
-        }
-
-        id_type id;
-
-        comment_id_type   comment;
-
-        shared_string title;
-        shared_string body;
-        shared_string json_metadata;
-
-        uint32_t block_number;
-    };
-
-
-    using comment_content_id_type = object_id<comment_content_object>;
-
-    struct by_comment;
-    struct by_block_number;
-
-    typedef multi_index_container<
-          comment_content_object,
-          indexed_by<
-             ordered_unique<tag<by_id>, member<comment_content_object, comment_content_id_type, &comment_content_object::id>>,
-             ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>,
-             ordered_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>
-            >, // TODO fix code style!!
-        allocator<comment_content_object>
-    > comment_content_index;
-
 // Callback which is needed for correct work of discussion_helper
     get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o);
 
 } } } // golos::plugins::social_network
-
-CHAINBASE_SET_INDEX_TYPE(
-    golos::plugins::social_network::comment_content_object, 
-    golos::plugins::social_network::comment_content_index
-)

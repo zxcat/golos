@@ -9,6 +9,7 @@
 
 #include <golos/plugins/debug_node/plugin.hpp>
 #include <golos/plugins/account_history/plugin.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -170,6 +171,7 @@ namespace golos { namespace chain {
             golos::plugins::debug_node::plugin *db_plugin = nullptr;
             golos::plugins::operation_history::plugin *oh_plugin = nullptr;
             golos::plugins::account_history::plugin *ah_plugin = nullptr;
+            golos::plugins::social_network::social_network *sn_plugin = nullptr;
 
             optional<fc::temp_directory> data_dir;
             bool skip_key_index_test = false;
