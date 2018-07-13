@@ -1,18 +1,15 @@
 #include <golos/plugins/database_api/plugin.hpp>
-
+#include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/plugins/follow/plugin.hpp>
-
 #include <golos/protocol/get_config.hpp>
+#include <golos/chain/operation_notification.hpp>
 
-#include <fc/bloom_filter.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
 #include <memory>
-#include <golos/plugins/json_rpc/plugin.hpp>
 
-#define GET_REQUIRED_FEES_MAX_RECURSION 4
 
 #define CHECK_ARG_SIZE(s) \
    FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
@@ -22,30 +19,78 @@
 
 namespace golos { namespace plugins { namespace database_api {
 
-struct block_applied_callback_info {
-    using ptr = std::shared_ptr<block_applied_callback_info>;
+
+template<typename arg>
+struct callback_info {
+    using callback_t = std::function<void(arg)>;
+    using ptr = std::shared_ptr<callback_info>;
     using cont = std::list<ptr>;
 
-    block_applied_callback callback;
+    callback_t callback;
     boost::signals2::connection connection;
-    cont::iterator it;
+    typename cont::iterator it;
 
     void connect(
-        boost::signals2::signal<void(const signed_block &)> &sig,
-        cont &free_cont,
-        block_applied_callback cb
+        boost::signals2::signal<void(arg)>& sig,
+        cont& free_cont,
+        callback_t cb
     ) {
         callback = cb;
-
-        connection = sig.connect([this, &free_cont](const signed_block &block) {
+        connection = sig.connect([this, &free_cont](arg item) {
             try {
-                this->callback(fc::variant(block));
+                this->callback(item);
             } catch (...) {
                 free_cont.push_back(*this->it);
                 this->connection.disconnect();
             }
         });
     }
+};
+
+using block_applied_callback_info = callback_info<const signed_block&>;
+using block_applied_callback = block_applied_callback_info::callback_t;
+using pending_tx_callback_info = callback_info<const signed_transaction&>;
+using pending_tx_callback = pending_tx_callback_info::callback_t;
+
+
+// block_operation used in block_applied_callback to represent virtual operations.
+// default operation type have no position info (trx, op_in_trx)
+struct block_operation {
+    block_operation(const operation_notification& o) :
+        trx_in_block(o.trx_in_block),
+        op_in_trx(o.op_in_trx),
+        virtual_op(o.virtual_op),
+        op(o.op) {};
+
+    uint32_t trx_in_block = 0;
+    uint16_t op_in_trx = 0;
+    uint32_t virtual_op = 0;
+    operation op;
+};
+
+using block_operations = std::vector<block_operation>;
+
+struct block_with_vops : public signed_block {
+    block_with_vops(signed_block b, block_operations ops): signed_block(b), _virtual_operations(ops) {
+    };
+
+    // name field starting with _ coz it's not directly related to block
+    block_operations _virtual_operations;
+};
+
+struct virtual_operations {
+    virtual_operations(uint32_t block_num, block_operations ops): block_num(block_num), operations(ops) {
+    };
+
+    uint32_t block_num;
+    block_operations operations;
+};
+
+enum block_applied_callback_result_type {
+    block       = 0,        // send signed blocks
+    header      = 1,        // send only block headers
+    virtual_ops = 2,        // send only virtual operations
+    full        = 3         // send signed block + virtual operations
 };
 
 
@@ -58,11 +103,10 @@ public:
     }
 
     // Subscriptions
-    void set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter);
-    void set_pending_transaction_callback(std::function<void(const variant &)> cb);
     void set_block_applied_callback(block_applied_callback cb);
-    void clear_block_applied_callback();
-    void cancel_all_subscriptions();
+    void set_pending_tx_callback(pending_tx_callback cb);
+    void clear_outdated_callbacks(bool clear_blocks);
+    void op_applied_callback(const operation_notification& o);
 
     // Blocks and transactions
     optional<block_header> get_block_header(uint32_t block_num) const;
@@ -88,99 +132,27 @@ public:
     std::vector<withdraw_route> get_withdraw_routes(std::string account, withdraw_route_type type) const;
     std::vector<proposal_api_object> get_proposed_transactions(const std::string&, uint32_t, uint32_t) const;
 
-    template<typename T>
-    void subscribe_to_item(const T &i) const {
-        auto vec = fc::raw::pack(i);
-        if (!_subscribe_callback) {
-            return;
-        }
-
-        if (!is_subscribed_to_item(i)) {
-            idump((i));
-            _subscribe_filter.insert(vec.data(), vec.size());
-        }
-    }
-
-    template<typename T>
-    bool is_subscribed_to_item(const T &i) const {
-        if (!_subscribe_callback) {
-            return false;
-        }
-
-        return _subscribe_filter.contains(i);
-    }
-
-    mutable fc::bloom_filter _subscribe_filter;
-    std::function<void(const fc::variant &)> _subscribe_callback;
-    std::function<void(const fc::variant &)> _pending_trx_callback;
-
-
-    golos::chain::database &database() const {
+    golos::chain::database& database() const {
         return _db;
     }
 
-
-    std::map<std::pair<asset_symbol_type, asset_symbol_type>, std::function<void(const variant &)>> _market_subscriptions;
-
+    // Callbacks
     block_applied_callback_info::cont active_block_applied_callback;
     block_applied_callback_info::cont free_block_applied_callback;
+    pending_tx_callback_info::cont active_pending_tx_callback;
+    pending_tx_callback_info::cont free_pending_tx_callback;
+
+    block_operations& get_block_vops() {
+        return _block_virtual_ops;
+    }
 
 private:
+    golos::chain::database& _db;
 
-    golos::chain::database &_db;
+    uint32_t _block_virtual_ops_block_num = 0;
+    block_operations _block_virtual_ops;
 };
 
-
-//void find_accounts(std::set<std::string> &accounts, const discussion &d) {
-//    accounts.insert(d.author);
-//}
-
-//////////////////////////////////////////////////////////////////////
-//                                                                  //
-// Subscriptions                                                    //
-//                                                                  //
-//////////////////////////////////////////////////////////////////////
-
-void plugin::set_subscribe_callback(std::function<void(const variant &)> cb, bool clear_filter) {
-    my->database().with_weak_read_lock([&]() {
-        my->set_subscribe_callback(cb, clear_filter);
-    });
-}
-
-void plugin::api_impl::set_subscribe_callback(
-    std::function<void(const variant &)> cb,
-    bool clear_filter
-) {
-    _subscribe_callback = cb;
-    if (clear_filter || !cb) {
-        static fc::bloom_parameters param;
-        param.projected_element_count = 10000;
-        param.false_positive_probability = 1.0 / 10000;
-        param.maximum_size = 1024 * 8 * 8 * 2;
-        param.compute_optimal_parameters();
-        _subscribe_filter = fc::bloom_filter(param);
-    }
-}
-
-void plugin::set_pending_transaction_callback(std::function<void(const variant &)> cb) {
-    my->database().with_weak_read_lock([&]() {
-        my->set_pending_transaction_callback(cb);
-    });
-}
-
-void plugin::api_impl::set_pending_transaction_callback(std::function<void(const variant &)> cb) {
-    _pending_trx_callback = cb;
-}
-
-void plugin::cancel_all_subscriptions() {
-    my->database().with_weak_read_lock([&]() {
-        my->cancel_all_subscriptions();
-    });
-}
-
-void plugin::api_impl::cancel_all_subscriptions() {
-    set_subscribe_callback(std::function<void(const fc::variant &)>(), true);
-}
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
@@ -194,8 +166,7 @@ plugin::plugin()  {
 plugin::~plugin() {
 }
 
-plugin::api_impl::api_impl() : _db(appbase::app().get_plugin<chain::plugin>().db())
-{
+plugin::api_impl::api_impl() : _db(appbase::app().get_plugin<chain::plugin>().db()) {
     wlog("creating database plugin ${x}", ("x", int64_t(this)));
 }
 
@@ -235,15 +206,45 @@ optional<signed_block> plugin::api_impl::get_block(uint32_t block_num) const {
     return database().fetch_block_by_number(block_num);
 }
 
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Subscriptions                                                    //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
 DEFINE_API(plugin, set_block_applied_callback) {
-    CHECK_ARG_SIZE(1)
+    CHECK_ARG_SIZE(1);
+    block_applied_callback_result_type type = block;
+    auto arg = args.args->at(0);
+    try {
+        type = arg.as<block_applied_callback_result_type>();
+    } catch (...) {
+        ilog("Bad argument (${a}) passed to set_block_applied_callback, using default", ("a",arg));
+    }
 
     // Delegate connection handlers to callback
     msg_pack_transfer transfer(args);
 
     my->database().with_weak_read_lock([&]{
-        my->set_block_applied_callback([msg = transfer.msg()](const fc::variant & block_header) {
-            msg->unsafe_result(fc::variant(block_header));
+        my->set_block_applied_callback([this,type,msg = transfer.msg()](const signed_block& block) {
+            fc::variant r;
+            switch (type) {
+                case block_applied_callback_result_type::block:
+                    r = fc::variant(block);
+                    break;
+                case header:
+                    r = fc::variant(block_header(block));
+                    break;
+                case virtual_ops:
+                    r = fc::variant(virtual_operations(block.block_num(), my->get_block_vops()));
+                    break;
+                case full:
+                    r = fc::variant(block_with_vops(block, my->get_block_vops()));
+                    break;
+                default:
+                    break;
+            }
+            msg->unsafe_result(r);
         });
     });
 
@@ -252,24 +253,55 @@ DEFINE_API(plugin, set_block_applied_callback) {
     return {};
 }
 
-void plugin::api_impl::set_block_applied_callback(std::function<void(const variant &block_header)> callback) {
-    auto info_ptr = std::make_shared<block_applied_callback_info>();
+DEFINE_API(plugin, set_pending_transaction_callback) {
+    // CHECK_ARG_SIZE(1);   // not used
+    // Delegate connection handlers to callback
+    msg_pack_transfer transfer(args);
+    my->database().with_weak_read_lock([&]{
+        my->set_pending_tx_callback([this,msg = transfer.msg()](const signed_transaction& tx) {
+            msg->unsafe_result(fc::variant(tx));
+        });
+    });
+    transfer.complete();
+    return {};
+}
 
+void plugin::api_impl::set_block_applied_callback(block_applied_callback callback) {
+    auto info_ptr = std::make_shared<block_applied_callback_info>();
     active_block_applied_callback.push_back(info_ptr);
     info_ptr->it = std::prev(active_block_applied_callback.end());
-
     info_ptr->connect(database().applied_block, free_block_applied_callback, callback);
 }
 
-void plugin::api_impl::clear_block_applied_callback() {
-    for (auto &info: free_block_applied_callback) {
-        active_block_applied_callback.erase(info->it);
-    }
-    free_block_applied_callback.clear();
+void plugin::api_impl::set_pending_tx_callback(pending_tx_callback callback) {
+    auto info_ptr = std::make_shared<pending_tx_callback_info>();
+    active_pending_tx_callback.push_back(info_ptr);
+    info_ptr->it = std::prev(active_pending_tx_callback.end());
+    info_ptr->connect(database().on_pending_transaction, free_pending_tx_callback, callback);
 }
 
-void plugin::clear_block_applied_callback() {
-    my->clear_block_applied_callback();
+void plugin::api_impl::clear_outdated_callbacks(bool clear_blocks) {
+    auto clear_bad = [&](auto& free_list, auto& active_list) {
+        for (auto& info: free_list) {
+            active_list.erase(info->it);
+        }
+        free_list.clear();
+    };
+    if (clear_blocks) {
+        clear_bad(free_block_applied_callback, active_block_applied_callback);
+    } else {
+        clear_bad(free_pending_tx_callback, active_pending_tx_callback);
+    }
+}
+
+void plugin::api_impl::op_applied_callback(const operation_notification& o) {
+    if (o.block != _block_virtual_ops_block_num) {
+        _block_virtual_ops.clear();
+        _block_virtual_ops_block_num = o.block;
+    }
+    if (is_virtual_operation(o.op)) {
+        _block_virtual_ops.push_back(o);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -843,12 +875,19 @@ DEFINE_API(plugin, get_proposed_transactions) {
     });
 }
 
-void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+void plugin::plugin_initialize(const boost::program_options::variables_map& options) {
     ilog("database_api plugin: plugin_initialize() begin");
     my = std::make_unique<api_impl>();
     JSON_RPC_REGISTER_API(plugin_name)
-    my->database().applied_block.connect([this](const protocol::signed_block &) {
-        this->clear_block_applied_callback();
+    auto& db = my->database();
+    db.applied_block.connect([&](const signed_block&) {
+        my->clear_outdated_callbacks(true);
+    });
+    db.on_pending_transaction.connect([&](const signed_transaction& tx) {
+        my->clear_outdated_callbacks(false);
+    });
+    db.pre_apply_operation.connect([&](const operation_notification& o) {
+        my->op_applied_callback(o);
     });
     ilog("database_api plugin: plugin_initialize() end");
 }
@@ -858,3 +897,11 @@ void plugin::plugin_startup() {
 }
 
 } } } // golos::plugins::database_api
+
+FC_REFLECT((golos::plugins::database_api::virtual_operations), (block_num)(operations))
+FC_REFLECT((golos::plugins::database_api::block_operation),
+    (trx_in_block)(op_in_trx)(virtual_op)(op))
+FC_REFLECT_DERIVED((golos::plugins::database_api::block_with_vops), ((golos::protocol::signed_block)),
+    (_virtual_operations))
+FC_REFLECT_ENUM(golos::plugins::database_api::block_applied_callback_result_type,
+    (block)(header)(virtual_ops)(full))

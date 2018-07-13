@@ -26,7 +26,7 @@ T dejsonify(const string &s) {
 
 #define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
 #define LOAD_VALUE_SET(options, name, container, type) \
-if( options.count(name) ) { \
+if (options.count(name)) { \
     const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \
     std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
 }
@@ -339,6 +339,10 @@ if( options.count(name) ) { \
         void operator()(const comment_benefactor_reward_operation& op) {
             impacted.insert(op.benefactor);
             impacted.insert(op.author);
+        }
+
+        void operator()(const producer_reward_operation& op) {
+            impacted.insert(op.producer);
         }
 
         void operator()(const delegate_vesting_shares_operation& op) {

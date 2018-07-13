@@ -6,8 +6,7 @@
 
 #include <numeric>
 
-namespace golos {
-    namespace protocol {
+namespace golos { namespace protocol {
 
         struct transaction {
             uint16_t ref_block_num = 0;
@@ -127,8 +126,7 @@ namespace golos {
 
         /// @} transactions group
 
-    }
-} // golos::protocol
+} } // golos::protocol
 
 FC_REFLECT((golos::protocol::transaction), (ref_block_num)(ref_block_prefix)(expiration)(operations)(extensions))
 FC_REFLECT_DERIVED((golos::protocol::signed_transaction), ((golos::protocol::transaction)), (signatures))

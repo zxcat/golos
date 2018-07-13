@@ -27,15 +27,13 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
    golos::chain::test::_push_block
 
 // See below
-#define REQUIRE_OP_VALIDATION_SUCCESS(op, field, value) \
-{ \
+#define REQUIRE_OP_VALIDATION_SUCCESS(op, field, value) { \
    const auto temp = op.field; \
    op.field = value; \
    op.validate(); \
    op.field = temp; \
 }
-#define REQUIRE_OP_EVALUATION_SUCCESS(op, field, value) \
-{ \
+#define REQUIRE_OP_EVALUATION_SUCCESS(op, field, value) { \
    const auto temp = op.field; \
    op.field = value; \
    trx.operations.back() = op; \
@@ -43,8 +41,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
    db.push_transaction( trx, ~0 ); \
 }
 
-/*#define STEEMIT_REQUIRE_THROW( expr, exc_type )          \
-{                                                         \
+/*#define STEEMIT_REQUIRE_THROW( expr, exc_type ) {       \
    std::string req_throw_info = fc::json::to_string(      \
       fc::mutable_variant_object()                        \
       ("source_file", __FILE__)                           \
@@ -64,8 +61,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
 #define STEEMIT_REQUIRE_THROW(expr, exc_type)          \
    BOOST_REQUIRE_THROW( expr, exc_type );
 
-#define STEEMIT_CHECK_THROW(expr, exc_type)            \
-{                                                         \
+#define STEEMIT_CHECK_THROW(expr, exc_type) {             \
    std::string req_throw_info = fc::json::to_string(      \
       fc::mutable_variant_object()                        \
       ("source_file", __FILE__)                           \
@@ -74,11 +70,11 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
       ("exc_type", #exc_type)                             \
       );                                                  \
    if( fc::enable_record_assert_trip )                    \
-      std::cout << "STEEMIT_CHECK_THROW begin "          \
+      std::cout << "STEEMIT_CHECK_THROW begin "           \
          << req_throw_info << std::endl;                  \
    BOOST_CHECK_THROW( expr, exc_type );                   \
    if( fc::enable_record_assert_trip )                    \
-      std::cout << "STEEMIT_CHECK_THROW end "            \
+      std::cout << "STEEMIT_CHECK_THROW end "             \
          << req_throw_info << std::endl;                  \
 }
 
@@ -171,7 +167,7 @@ struct ErrorValidator<golos::logic_exception> {
     void validate(const std::string& name, const fc::variant& props,
             golos::logic_exception::error_types err) {
         BOOST_CHECK_EQUAL(name, "logic_exception");
-        BOOST_CHECK_EQUAL(props["errid"].get_string(), 
+        BOOST_CHECK_EQUAL(props["errid"].get_string(),
             fc::reflector<golos::logic_exception::error_types>::to_string(err));
     }
 };
@@ -204,10 +200,10 @@ struct ErrorValidator<golos::protocol::tx_irrelevant_sig> {
     catch( E const& ex ) {                                                                              \
         ::boost::unit_test::ut_detail::ignore_unused_variable_warning( ex );                            \
         BOOST_CHECK_IMPL( true, "exception '" BOOST_STRINGIZE( E ) "' is caught", TL, CHECK_MSG );      \
-        const std::string name = ex.name(); \
+        const std::string name = ex.name();                                                             \
         const fc::variant_object &props = ex.get_log().at(0).get_data();                                \
         try {                                                                                           \
-            C(name, props);                                                                                          \
+            C(name, props);                                                                             \
         } catch (const fc::exception& err) {                                                            \
             BOOST_CHECK_IMPL( false, "caught exception '" << err.name() << "' while check props:" <<    \
                 err.to_detail_string(), TL, CHECK_MSG);                                                 \
@@ -268,8 +264,8 @@ struct ErrorValidator<golos::protocol::tx_irrelevant_sig> {
 //   that is why comparision can be done only with some correction
 #define GOLOS_VEST_REQUIRE_EQUAL(left, right) \
     BOOST_REQUIRE( \
-            std::abs((left).amount.value - (right).amount.value) < 5 && \
-            (left).symbol == (right).symbol \
+        std::abs((left).amount.value - (right).amount.value) < 5 && \
+        (left).symbol == (right).symbol \
     )
 
 
@@ -301,20 +297,18 @@ namespace golos { namespace chain {
         using namespace golos::protocol;
 
         struct database_fixture {
-            // the reason we use an app is to exercise the indexes of built-in
-            //   plugins
-            chain::database *db;
+            // the reason we use an app is to exercise the indexes of built-in plugins
+            chain::database* db;
             signed_transaction trx;
             fc::ecc::private_key init_account_priv_key = STEEMIT_INIT_PRIVATE_KEY;
             string debug_key = golos::utilities::key_to_wif(init_account_priv_key);
             public_key_type init_account_pub_key = init_account_priv_key.get_public_key();
-            uint32_t default_skip = 0 | database::skip_undo_history_check |
-                                    database::skip_authority_check;
+            uint32_t default_skip = 0 | database::skip_undo_history_check | database::skip_authority_check;
 
-            golos::plugins::chain::plugin *ch_plugin = nullptr;
-            golos::plugins::debug_node::plugin *db_plugin = nullptr;
-            golos::plugins::operation_history::plugin *oh_plugin = nullptr;
-            golos::plugins::account_history::plugin *ah_plugin = nullptr;
+            golos::plugins::chain::plugin* ch_plugin = nullptr;
+            golos::plugins::debug_node::plugin* db_plugin = nullptr;
+            golos::plugins::operation_history::plugin* oh_plugin = nullptr;
+            golos::plugins::account_history::plugin* ah_plugin = nullptr;
 
             optional<fc::temp_directory> data_dir;
             bool skip_key_index_test = false;
@@ -336,9 +330,10 @@ namespace golos { namespace chain {
             void open_database();
             void close_database();
 
-            void generate_block(uint32_t skip = 0,
-                    const fc::ecc::private_key &key = STEEMIT_INIT_PRIVATE_KEY,
-                    int miss_blocks = 0);
+            void generate_block(
+                uint32_t skip = 0,
+                const fc::ecc::private_key& key = STEEMIT_INIT_PRIVATE_KEY,
+                int miss_blocks = 0);
 
             /**
              * @brief Generates block_count blocks
@@ -403,6 +398,23 @@ namespace golos { namespace chain {
             void sign(signed_transaction &trx, const fc::ecc::private_key &key);
 
             vector<operation> get_last_operations(uint32_t ops);
+
+            // we have producer_reward virtual op now, so get_last_operations
+            // can be hard to use after generate_blocks.
+            // this get_last_operations variant helps to get only required op type
+            template<typename op_type>
+            vector<op_type> get_last_operations(uint32_t num_ops) {
+                vector<op_type> ops;
+                const auto& acc_hist_idx = db->get_index<golos::plugins::account_history::account_history_index>().indices().get<by_id>();
+                auto itr = acc_hist_idx.end();
+                while (itr != acc_hist_idx.begin() && ops.size() < num_ops) {
+                    itr--;
+                    auto op = fc::raw::unpack<golos::chain::operation>(db->get(itr->op).serialized_op);
+                    if (op.which() == operation::tag<op_type>::value)
+                        ops.push_back(op.get<op_type>());
+                }
+                return ops;
+            }
 
             void validate_database(void);
 
@@ -476,9 +488,9 @@ namespace golos { namespace chain {
         };
 
         namespace test {
-            bool _push_block(database &db, const signed_block &b, uint32_t skip_flags = 0);
+            bool _push_block(database& db, const signed_block& b, uint32_t skip_flags = 0);
 
-            void _push_transaction(database &db, const signed_transaction &tx, uint32_t skip_flags = 0);
+            void _push_transaction(database& db, const signed_transaction& tx, uint32_t skip_flags = 0);
         }
 
 } } // golos:chain
