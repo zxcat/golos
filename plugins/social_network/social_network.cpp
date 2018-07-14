@@ -81,7 +81,7 @@ namespace golos { namespace plugins { namespace social_network {
 
     struct social_network::impl final {
         impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
-            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted, get_comment_content_callback);
+            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted, fill_comment_content);
         }
 
         ~impl() = default;
@@ -332,49 +332,53 @@ namespace golos { namespace plugins { namespace social_network {
     };
 
     void social_network::impl::post_operation(const operation_notification &o) {
-        auto& db = database();
+        try {
+            auto& db = database();
 
-        operation_visitor ovisit(db, depth_parameters);
+            operation_visitor ovisit(db, depth_parameters);
 
-        o.op.visit(ovisit);
+            o.op.visit(ovisit);
+        } FC_CAPTURE_AND_RETHROW()
     }
     void social_network::impl::on_block(const signed_block &b) {
-        auto & db = database();
+        try {
+            auto & db = database();
 
-        const auto &idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
+            const auto &idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
 
-        for (auto itr = idx.begin(); itr != idx.end(); ++itr) {
-            auto & content = *itr;
+            for (auto itr = idx.begin(); itr != idx.end(); ++itr) {
+                auto & content = *itr;
 
-            const auto &cidx = db.get_index<comment_index>().indices().get<by_id>();
-        
-            auto comment = cidx.find(content.comment);
+                const auto &cidx = db.get_index<comment_index>().indices().get<by_id>();
+            
+                auto comment = cidx.find(content.comment);
 
-            int64_t cash_window_sec = STEEMIT_CASHOUT_WINDOW_SECONDS;
-            auto time_delta = db.head_block_time() - comment->created;
-            auto delta = db.head_block_num() - content.block_number;
+                int64_t cash_window_sec = STEEMIT_CASHOUT_WINDOW_SECONDS;
+                auto time_delta = db.head_block_time() - comment->created;
+                auto delta = db.head_block_num() - content.block_number;
 
-            if (time_delta.to_seconds() > fc::microseconds(cash_window_sec * 1000000).to_seconds() && depth_parameters.should_delete_part_of_content_object(delta)) {
-                if (depth_parameters.should_delete_whole_content_object(delta)) {
-                    db.remove(content);
-                    continue;
+                if (time_delta.to_seconds() > fc::microseconds(cash_window_sec * 1000000).to_seconds() && depth_parameters.should_delete_part_of_content_object(delta)) {
+                    if (depth_parameters.should_delete_whole_content_object(delta)) {
+                        db.remove(content);
+                        continue;
+                    }
+                    db.modify(content, [&](comment_content_object& con) {
+                        if (delta > depth_parameters.comment_title_depth) {
+                            con.title.clear();
+                        }
+
+                        if (delta > depth_parameters.comment_body_depth) {
+                            con.body.clear();
+                        }
+
+                        if (delta > depth_parameters.comment_json_metadata_depth) {
+                            con.json_metadata.clear();
+                        }
+                    });
+
                 }
-                db.modify(content, [&](comment_content_object& con) {
-                    if (delta > depth_parameters.comment_title_depth) {
-                        con.title.clear();
-                    }
-
-                    if (delta > depth_parameters.comment_body_depth) {
-                        con.body.clear();
-                    }
-
-                    if (delta > depth_parameters.comment_json_metadata_depth) {
-                        con.json_metadata.clear();
-                    }
-                });
-
             }
-        }
+        } FC_CAPTURE_AND_RETHROW()
     }
 
 
@@ -566,7 +570,7 @@ namespace golos { namespace plugins { namespace social_network {
         if (itr != by_permlink_idx.end()) {
             return get_discussion(*itr, limit);
         }
-        return helper->create_discussion(*itr);
+        return helper->create_discussion(author);
     }
 
     DEFINE_API(social_network, get_content) {
@@ -641,20 +645,15 @@ namespace golos { namespace plugins { namespace social_network {
         });
     }
 
-    
-    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o) {
+    void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& con) {
         if (!db.has_index<comment_content_index>()) {
-            return get_comment_content_res();
+            return;
         }
-        auto & content = db.get<comment_content_object, by_comment>(o.id);
+        auto & content = db.get<comment_content_object, by_comment>(co.id);
 
-        get_comment_content_res result;
-
-        result.title = std::string(content.title.begin(), content.title.end());
-        result.body = std::string(content.body.begin(), content.body.end());
-        result.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
-
-        return result;
+        con.title = std::string(content.title.begin(), content.title.end());
+        con.body = std::string(content.body.begin(), content.body.end());
+        con.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
     }
 
 } } } // golos::plugins::social_network

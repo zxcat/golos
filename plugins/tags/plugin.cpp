@@ -34,7 +34,7 @@ namespace golos { namespace plugins { namespace tags {
 
     struct tags_plugin::impl final {
         impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
-            helper = std::make_shared<discussion_helper>(
+            helper = std::make_unique<discussion_helper>(
                 database_,
                 follow::fill_account_reputation,
                 fill_promoted);
@@ -118,7 +118,7 @@ namespace golos { namespace plugins { namespace tags {
 
     private:
         golos::chain::database& database_;
-        std::shared_ptr<discussion_helper> helper;
+        std::unique_ptr<discussion_helper> helper;
     };
 
     void tags_plugin::impl::select_active_votes(

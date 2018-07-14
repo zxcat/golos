@@ -290,7 +290,7 @@ namespace golos {
                 impl() : database_(appbase::app().get_plugin<chain::plugin>().db()) {
                     helper = std::make_unique<discussion_helper>(
                         database_,
-                        golos::plugins::social_network::get_comment_content_callback
+                        golos::plugins::social_network::fill_comment_content
                     );
                 }
 

@@ -14,7 +14,6 @@ namespace golos { namespace plugins { namespace social_network {
     using golos::api::discussion;
     using golos::api::account_vote;
     using golos::api::vote_state;
-    using golos::api::get_comment_content_res;
     using namespace golos::chain;
     using golos::api::comment_api_object;
 
@@ -68,6 +67,6 @@ namespace golos { namespace plugins { namespace social_network {
     };
 
 // Callback which is needed for correct work of discussion_helper
-    get_comment_content_res get_comment_content_callback(const golos::chain::database & db, const comment_object & o);
+    void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
 
 } } } // golos::plugins::social_network

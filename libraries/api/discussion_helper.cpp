@@ -66,17 +66,17 @@ namespace golos { namespace api {
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback)
+            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
             : database_(db),
               fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted),
-              get_comment_content_callback(get_comment_content_callback) {
+              fill_comment_content_(fill_comment_content) {
         }
         impl(
             golos::chain::database& db,
-            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback)
+            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
             :   database_(db),
-                get_comment_content_callback(get_comment_content_callback) {
+                fill_comment_content_(fill_comment_content) {
         }
         ~impl() = default;
 
@@ -105,13 +105,13 @@ namespace golos { namespace api {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
 
-        get_comment_content_res get_comment_content(const golos::chain::database & db, const comment_object & o);
+        void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
 
     private:
         golos::chain::database& database_;
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation_;
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted_;
-        std::function<get_comment_content_res(const golos::chain::database&, const comment_object &)> get_comment_content_callback;
+        std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content_;
     };
 
 // create_comment_api_object 
@@ -159,12 +159,8 @@ namespace golos { namespace api {
             result.beneficiaries.push_back(route);
         }
 
-        if ( get_comment_content_callback ) {
-            auto content = get_comment_content_callback(database(), o);
-
-            result.title = content.title;
-            result.body = content.body;
-            result.json_metadata = content.json_metadata;
+        if ( fill_comment_content_ ) {
+            fill_comment_content_(database(), o, result);
         }
 
         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
@@ -178,8 +174,8 @@ namespace golos { namespace api {
 
 
 // get_comment_content
-    get_comment_content_res discussion_helper::impl::get_comment_content(const golos::chain::database & db, const comment_object & o) {
-        return get_comment_content_callback(db, o);        
+    void discussion_helper::impl::fill_comment_content(const golos::chain::database & db, const comment_object & co, comment_api_object & con) {
+        fill_comment_content_(db, co, con);
     }
 // get_discussion
     discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
@@ -327,16 +323,16 @@ namespace golos { namespace api {
         golos::chain::database& db,
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-        std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
+        std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
     ) {
-        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, get_comment_content_callback);
+        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_content);
     }
 
     discussion_helper::discussion_helper(
             golos::chain::database& db,
-            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
-        ) {
-        pimpl = std::make_unique<impl>(db, get_comment_content_callback);
+            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+    ) {
+        pimpl = std::make_unique<impl>(db, fill_comment_content);
     }
 
     discussion_helper::~discussion_helper() = default;

@@ -9,7 +9,6 @@ namespace golos { namespace plugins { namespace social_network {
     using golos::api::discussion;
     using golos::api::account_vote;
     using golos::api::vote_state;
-    using golos::api::get_comment_content_res;
     using namespace golos::chain;
     
     #ifndef SOCIAL_NETWORK_SPACE_ID

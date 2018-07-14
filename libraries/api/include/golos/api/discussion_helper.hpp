@@ -12,12 +12,6 @@ namespace golos { namespace api {
 
     comment_metadata get_metadata(const comment_api_object &c);
 
-    struct get_comment_content_res {
-        std::string title;
-        std::string body;
-        std::string json_metadata;
-    };
-
     class discussion_helper {
     public:
         discussion_helper() = delete;
@@ -29,11 +23,11 @@ namespace golos { namespace api {
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
+            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
         );
         discussion_helper(
             golos::chain::database& db,
-            std::function<get_comment_content_res(const database&, const comment_object &)> get_comment_content_callback
+            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
         );
         ~discussion_helper();
 
@@ -64,7 +58,3 @@ namespace golos { namespace api {
 } } // golos::api
 
 FC_REFLECT((golos::api::comment_metadata), (tags)(language))
-
-FC_REFLECT((golos::api::get_comment_content_res),
-    (title)(body)(json_metadata)
-    )
