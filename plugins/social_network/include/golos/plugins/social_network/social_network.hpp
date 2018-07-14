@@ -55,10 +55,10 @@ namespace golos { namespace plugins { namespace social_network {
         void plugin_startup() override;
         void plugin_shutdown() override;
 
-        comment_api_object create_comment_api_object(const comment_object & o) const;
+        comment_api_object create_comment_api_object(const comment_object& o) const;
 
-        const comment_content_object &get_comment_content(const comment_id_type &comment) const ;
-        const comment_content_object *find_comment_content(const comment_id_type &comment) const ;
+        const comment_content_object &get_comment_content(const comment_id_type& comment) const ;
+        const comment_content_object *find_comment_content(const comment_id_type& comment) const ;
 
 
     private:

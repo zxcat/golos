@@ -6,7 +6,6 @@
 
 #ifndef IS_LOW_MEM
 
-// #include <diff_match_patch.h>
 #include <boost/locale/encoding_utf.hpp>
 
 using boost::locale::conv::utf_to_utf;
@@ -449,9 +448,11 @@ namespace golos { namespace chain {
                         p.children--;
                         p.active = now;
                     });
+#ifndef IS_LOW_MEM
                     if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                         parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                     } else
+#endif
                     {
                         parent = nullptr;
                     }
@@ -680,10 +681,11 @@ namespace golos { namespace chain {
                             p.children++;
                             p.active = now;
                         });
-
+#ifndef IS_LOW_MEM
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                             parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                         } else
+#endif
                         {
                             parent = nullptr;
                         }

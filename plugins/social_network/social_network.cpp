@@ -53,11 +53,11 @@ struct content_depth_params {
         return has_comment_title_depth || has_comment_body_depth || has_comment_json_metadata_depth;
     }
 
-    inline bool should_delete_whole_content_object(const uint32_t & delta) const {
+    inline bool should_delete_whole_content_object(const uint32_t delta) const {
         return delta > comment_title_depth && delta > comment_body_depth && delta > comment_json_metadata_depth;
     }
 
-    inline bool should_delete_part_of_content_object(const uint32_t & delta) const {
+    inline bool should_delete_part_of_content_object(const uint32_t delta) const {
         return delta > comment_title_depth || delta > comment_body_depth || delta > comment_json_metadata_depth;
     }
 
@@ -120,18 +120,18 @@ namespace golos { namespace plugins { namespace social_network {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const ;
  
-        void set_depth_parameters(const content_depth_params &params);
+        void set_depth_parameters(const content_depth_params& params);
 
         // Looks for a comment_operation, fills the comment_content state objects.
-        void post_operation(const operation_notification &o);
+        void post_operation(const operation_notification& o);
 
-        void on_block(const signed_block &b);
+        void on_block(const signed_block& b);
 
-        comment_api_object create_comment_api_object(const comment_object & o) const ;
+        comment_api_object create_comment_api_object(const comment_object& o) const ;
 
-        const comment_content_object &get_comment_content(const comment_id_type &comment) const ;
+        const comment_content_object &get_comment_content(const comment_id_type& comment) const ;
 
-        const comment_content_object *find_comment_content(const comment_id_type &comment) const ;
+        const comment_content_object *find_comment_content(const comment_id_type& comment) const ;
 
 
     private:
@@ -141,22 +141,22 @@ namespace golos { namespace plugins { namespace social_network {
     };
 
 
-    const comment_content_object &social_network::impl::get_comment_content(const comment_id_type &comment) const {
+    const comment_content_object& social_network::impl::get_comment_content(const comment_id_type& comment) const {
         try {
             return database().get<comment_content_object, by_comment>(comment);
         } FC_CAPTURE_AND_RETHROW((comment))
     }
 
-    const comment_content_object &social_network::get_comment_content(const comment_id_type &comment) const {
+    const comment_content_object& social_network::get_comment_content(const comment_id_type& comment) const {
         return pimpl->get_comment_content(comment);
     }
 
 
-    const comment_content_object *social_network::impl::find_comment_content(const comment_id_type &comment) const {
+    const comment_content_object* social_network::impl::find_comment_content(const comment_id_type& comment) const {
         return database().find<comment_content_object, by_comment>(comment);
     }
      
-    const comment_content_object *social_network::find_comment_content(const comment_id_type &comment) const {
+    const comment_content_object* social_network::find_comment_content(const comment_id_type& comment) const {
         return pimpl->find_comment_content(comment);
     }
 
@@ -171,7 +171,7 @@ namespace golos { namespace plugins { namespace social_network {
         helper->select_active_votes(result, total_count, author, permlink, limit);
     }
 
-    void social_network::impl::set_depth_parameters(const content_depth_params &params) {
+    void social_network::impl::set_depth_parameters(const content_depth_params& params) {
         depth_parameters = params;
     }
 
@@ -181,24 +181,24 @@ namespace golos { namespace plugins { namespace social_network {
         golos::chain::database &db;
         content_depth_params depth_parameters;
 
-        operation_visitor(golos::chain::database &db, const content_depth_params &params) : db(db), depth_parameters(params) {
+        operation_visitor(golos::chain::database& db, const content_depth_params& params) : db(db), depth_parameters(params) {
         }
 
-        std::wstring utf8_to_wstring(const std::string &str) const {
+        std::wstring utf8_to_wstring(const std::string& str) const {
             return utf_to_utf<wchar_t>(str.c_str(), str.c_str() + str.size());
         }
 
-        std::string wstring_to_utf8(const std::wstring &str) const {
+        std::string wstring_to_utf8(const std::wstring& str) const {
             return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
         }
 
-        const comment_content_object &get_comment_content(const comment_id_type &comment) const {
+        const comment_content_object& get_comment_content(const comment_id_type& comment) const {
             try {
                 return db.get<comment_content_object, by_comment>(comment);
             } FC_CAPTURE_AND_RETHROW((comment))
         }
 
-        const comment_content_object *find_comment_content(const comment_id_type &comment) const {
+        const comment_content_object* find_comment_content(const comment_id_type& comment) const {
             return db.find<comment_content_object, by_comment>(comment);
         }
 
@@ -208,6 +208,9 @@ namespace golos { namespace plugins { namespace social_network {
 
         void operator()(const delete_comment_operation& o) const {
             const auto &comment = db.get_comment(o.author, o.permlink);
+            if (find_comment_content(comment.id) == nullptr) {
+                return;
+            }
             auto& content = get_comment_content(comment.id);
             db.remove(content);
         }
@@ -221,6 +224,9 @@ namespace golos { namespace plugins { namespace social_network {
 
             if (comment.created != db.head_block_time()) {
                 // Edit case
+                if (find_comment_content(comment.id) == nullptr) {
+                    return;
+                }
                 db.modify(db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
                     if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
                         from_string(con.title, o.title);
@@ -302,7 +308,13 @@ namespace golos { namespace plugins { namespace social_network {
             }
 
             const auto &comment = db.get_comment(o.author, o.permlink);
-            auto& content = get_comment_content(comment.id);
+
+            if (find_comment_content(comment.id) == nullptr) {
+                return;
+            }
+
+            auto &content = get_comment_content(comment.id);
+
             auto delta = db.head_block_num() - content.block_number;
 
             if (depth_parameters.should_delete_whole_content_object(delta)) {

@@ -23,11 +23,11 @@ namespace golos { namespace api {
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
         );
         discussion_helper(
             golos::chain::database& db,
-            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
         );
         ~discussion_helper();
 
@@ -47,7 +47,7 @@ namespace golos { namespace api {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
 
-        comment_api_object create_comment_api_object(const comment_object & o) const;
+        comment_api_object create_comment_api_object(const comment_object& o) const;
 
 
     private:

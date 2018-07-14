@@ -16,7 +16,7 @@ namespace golos { namespace plugins { namespace social_network {
     #endif
 
         enum social_network_types {
-            comment_content_object_type = (SOCIAL_NETWORK_SPACE_ID << 8) + 1
+            comment_content_object_type = (SOCIAL_NETWORK_SPACE_ID << 8)
         };
 
 
@@ -26,7 +26,7 @@ namespace golos { namespace plugins { namespace social_network {
             comment_content_object() = delete;
 
             template<typename Constructor, typename Allocator>
-            comment_content_object(Constructor &&c, allocator <Allocator> a)
+            comment_content_object(Constructor&& c, allocator <Allocator> a)
                     :title(a), body(a), json_metadata(a) {
                 c(*this);
             }
@@ -53,8 +53,7 @@ namespace golos { namespace plugins { namespace social_network {
               indexed_by<
                  ordered_unique<tag<by_id>, member<comment_content_object, comment_content_id_type, &comment_content_object::id>>,
                  ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>,
-                 ordered_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>
-                >, // TODO fix code style!!
+                 ordered_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>>,
             allocator<comment_content_object>
         > comment_content_index;
 } } }
