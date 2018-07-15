@@ -111,6 +111,7 @@ namespace golos { namespace plugins { namespace tags {
         discussion create_discussion(const comment_object& o) const;
         discussion create_discussion(const comment_object& o, const discussion_query& query) const;
         void fill_discussion(discussion& d, const discussion_query& query) const;
+        void fill_comment_api_object(const comment_object& o, discussion& d) const;
 
         comment_api_object create_comment_api_object(const comment_object & o) const;
 
@@ -143,6 +144,10 @@ namespace golos { namespace plugins { namespace tags {
 
     discussion tags_plugin::impl::create_discussion(const comment_object& o) const {
         return helper->create_discussion(o);
+    }
+
+    void tags_plugin::impl::fill_comment_api_object(const comment_object& o, discussion& d) const {
+        helper->fill_comment_api_object(o, d);
     }
 
     void tags_plugin::impl::fill_discussion(discussion& d, const discussion_query& query) const {
@@ -624,7 +629,9 @@ namespace golos { namespace plugins { namespace tags {
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
-                    result.emplace_back(pimpl->create_comment_api_object(*itr));
+                    discussion d;
+                    pimpl->fill_comment_api_object(*itr, d);
+                    result.emplace_back(d);
                     pimpl->fill_discussion(result.back(), query);
                 }
             }

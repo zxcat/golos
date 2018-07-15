@@ -15,7 +15,7 @@ namespace golos { namespace plugins { namespace tags {
         using result_type = void;
 
         database& db_;
-        const std::unique_ptr<discussion_helper> & helper_;
+        const std::unique_ptr<discussion_helper>& helper_;
 
         void remove_stats(const tag_object& tag) const;
 

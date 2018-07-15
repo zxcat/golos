@@ -178,7 +178,7 @@ namespace golos { namespace plugins { namespace social_network {
     struct operation_visitor {
         using result_type = void;
 
-        golos::chain::database &db;
+        golos::chain::database& db;
         content_depth_params depth_parameters;
 
         operation_visitor(golos::chain::database& db, const content_depth_params& params) : db(db), depth_parameters(params) {
@@ -237,9 +237,6 @@ namespace golos { namespace plugins { namespace social_network {
                         ) {
                             from_string(con.json_metadata, o.json_metadata );
                         }
-                        else {
-                            wlog("Comment ${a}/${p} contains invalid UTF-8 metadata", ("a", o.author)("p", o.permlink));
-                        }
                     }
                     if (o.body.size() && (!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0)) {
                         try {
@@ -273,7 +270,7 @@ namespace golos { namespace plugins { namespace social_network {
             else {
                 // Creation case
 
-                const auto &new_comment = db.get_comment(o.author, o.permlink);
+                const auto& new_comment = db.get_comment(o.author, o.permlink);
                 comment_id_type id = new_comment.id;
 
                 db.create<comment_content_object>([&](comment_content_object& con) {
@@ -291,10 +288,6 @@ namespace golos { namespace plugins { namespace social_network {
                     ) {
                         from_string(con.json_metadata, o.json_metadata);
                     }
-                    else {
-                        wlog("Comment ${a}/${p} contains invalid UTF-8 metadata",
-                            ("a", o.author)("p", o.permlink));
-                    }
 
                     con.block_number = db.head_block_num();
                 });
@@ -307,7 +300,7 @@ namespace golos { namespace plugins { namespace social_network {
                 return;
             }
 
-            const auto &comment = db.get_comment(o.author, o.permlink);
+            const auto& comment = db.get_comment(o.author, o.permlink);
 
             if (find_comment_content(comment.id) == nullptr) {
                 return;

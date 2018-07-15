@@ -101,11 +101,13 @@ namespace golos { namespace api {
             return database_;
         }
 
-        comment_api_object create_comment_api_object(const comment_object & o) const;
+        comment_api_object create_comment_api_object(const comment_object& o) const;
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
 
         void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
+
+        void fill_comment_api_object(const comment_object& o, discussion& d) const;
 
     private:
         golos::chain::database& database_;
@@ -121,7 +123,6 @@ namespace golos { namespace api {
 
     comment_api_object discussion_helper::impl::create_comment_api_object(const comment_object & o) const {
         comment_api_object result;
-        auto & db = database_;
 
         result.id = o.id;
         result.parent_author = o.parent_author;
@@ -166,10 +167,64 @@ namespace golos { namespace api {
         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
             result.category = to_string(o.parent_permlink);
         } else {
-            result.category = to_string(db.get<comment_object, by_id>(o.root_comment).parent_permlink);
+            result.category = to_string(database().get<comment_object, by_id>(o.root_comment).parent_permlink);
         }
 
         return result;
+    }
+
+// fill_comment_api_object 
+
+    void discussion_helper::fill_comment_api_object(const comment_object& o, discussion& d) const {
+        pimpl->fill_comment_api_object(o, d);
+    }
+
+    void discussion_helper::impl::fill_comment_api_object(const comment_object& o, discussion& d) const {
+        d.id = o.id;
+        d.parent_author = o.parent_author;
+        d.parent_permlink = to_string(o.parent_permlink);
+        d.author = o.author;
+        d.permlink = to_string(o.permlink);
+        d.last_update = o.last_update;
+        d.created = o.created;
+        d.active = o.active;
+        d.last_payout = o.last_payout;
+        d.depth = o.depth;
+        d.children = o.children;
+        d.children_rshares2 = o.children_rshares2;
+        d.net_rshares = o.net_rshares;
+        d.abs_rshares = o.abs_rshares;
+        d.vote_rshares = o.vote_rshares;
+        d.children_abs_rshares = o.children_abs_rshares;
+        d.cashout_time = o.cashout_time;
+        d.max_cashout_time = o.max_cashout_time;
+        d.total_vote_weight = o.total_vote_weight;
+        d.reward_weight = o.reward_weight;
+        d.total_payout_value = o.total_payout_value;
+        d.curator_payout_value = o.curator_payout_value;
+        d.author_rewards = o.author_rewards;
+        d.net_votes = o.net_votes;
+        d.mode = o.mode;
+        d.root_comment = o.root_comment;
+        d.max_accepted_payout = o.max_accepted_payout;
+        d.percent_steem_dollars = o.percent_steem_dollars;
+        d.allow_replies = o.allow_replies;
+        d.allow_votes = o.allow_votes;
+        d.allow_curation_rewards = o.allow_curation_rewards;
+
+        for (auto& route : o.beneficiaries) {
+            d.beneficiaries.push_back(route);
+        }
+
+        if ( fill_comment_content_ ) {
+            fill_comment_content_(database(), o, d);
+        }
+
+        if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
+            d.category = to_string(o.parent_permlink);
+        } else {
+            d.category = to_string(database().get<comment_object, by_id>(o.root_comment).parent_permlink);
+        }
     }
 
 

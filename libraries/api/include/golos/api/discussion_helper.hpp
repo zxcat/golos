@@ -49,6 +49,8 @@ namespace golos { namespace api {
 
         comment_api_object create_comment_api_object(const comment_object& o) const;
 
+        void fill_comment_api_object(const comment_object& o, discussion& d) const;
+
 
     private:
         struct impl;
