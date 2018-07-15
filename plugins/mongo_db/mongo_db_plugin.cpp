@@ -1,5 +1,4 @@
 #include <golos/plugins/mongo_db/mongo_db_plugin.hpp>
-#include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/protocol/block.hpp>
 

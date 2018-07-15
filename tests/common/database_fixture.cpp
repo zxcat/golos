@@ -1,9 +1,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/program_options.hpp>
 
-#include <golos/time/time.hpp>
 #include <graphene/utilities/tempdir.hpp>
-
+#include <golos/time/time.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/plugins/account_history/history_object.hpp>
 
@@ -12,7 +11,6 @@
 
 #include "database_fixture.hpp"
 
-//using namespace golos::chain::test;
 
 #define STEEM_NAMESPACE_PREFIX std::string("golos::protocol::")
 
@@ -301,7 +299,7 @@ namespace golos { namespace chain {
 
         void database_fixture::initialize() {
             int argc = boost::unit_test::framework::master_test_suite().argc;
-            char **argv = boost::unit_test::framework::master_test_suite().argv;
+            char** argv = boost::unit_test::framework::master_test_suite().argv;
             for (int i = 1; i < argc; i++) {
                 const std::string arg = argv[i];
                 if (arg == "--record-assert-trip") {
@@ -321,16 +319,16 @@ namespace golos { namespace chain {
             db_plugin = &appbase::app().register_plugin<debug_node::plugin>();
 
             appbase::app().initialize<
-                    golos::plugins::chain::plugin,
-                    account_history::plugin,
-                    debug_node::plugin,
-                    golos::plugins::social_network::social_network
+                golos::plugins::chain::plugin,
+                account_history::plugin,
+                debug_node::plugin,
+                golos::plugins::social_network::social_network
             >( argc, argv );
 
             db_plugin->set_logging(false);
 
             db = &ch_plugin->db();
-            BOOST_REQUIRE( db );
+            BOOST_REQUIRE(db);
         }
 
         void database_fixture::startup(bool generate_hardfork) {
@@ -343,13 +341,13 @@ namespace golos { namespace chain {
             vest(STEEMIT_INIT_MINER_NAME, 10000);
 
             // Fill up the rest of the required miners
-            for (int i = STEEMIT_NUM_INIT_MINERS;
-                 i < STEEMIT_MAX_WITNESSES; i++) {
+            for (int i = STEEMIT_NUM_INIT_MINERS; i < STEEMIT_MAX_WITNESSES; i++) {
                 account_create(STEEMIT_INIT_MINER_NAME + fc::to_string(i), init_account_pub_key);
                 fund(STEEMIT_INIT_MINER_NAME + fc::to_string(i), STEEMIT_MIN_PRODUCER_REWARD.amount.value);
-                witness_create(STEEMIT_INIT_MINER_NAME + fc::to_string(i),
-                               init_account_priv_key, "foo.bar", init_account_pub_key,
-                               STEEMIT_MIN_PRODUCER_REWARD.amount);
+                witness_create(
+                    STEEMIT_INIT_MINER_NAME + fc::to_string(i),
+                    init_account_priv_key, "foo.bar", init_account_pub_key,
+                    STEEMIT_MIN_PRODUCER_REWARD.amount);
             }
 
             oh_plugin->plugin_startup();
@@ -364,9 +362,9 @@ namespace golos { namespace chain {
             if (!data_dir) {
                 data_dir = fc::temp_directory(golos::utilities::temp_directory_path());
                 db->_log_hardforks = false;
+                db->_is_testing = true;
                 db->open(data_dir->path(), data_dir->path(), INITIAL_TEST_SUPPLY,
-                        1024 * 1024 *
-                        8, chainbase::database::read_write); // 8 MB file for testing
+                    1024 * 1024 * 10, chainbase::database::read_write); // 10 MB file for testing
             }
         }
 
@@ -644,14 +642,12 @@ namespace golos { namespace chain {
 
         vector<operation> database_fixture::get_last_operations(uint32_t num_ops) {
             vector<operation> ops;
-            const auto &acc_hist_idx = db->get_index<golos::plugins::account_history::account_history_index>().indices().get<by_id>();
+            const auto& acc_hist_idx = db->get_index<golos::plugins::account_history::account_history_index>().indices().get<by_id>();
             auto itr = acc_hist_idx.end();
-
             while (itr != acc_hist_idx.begin() && ops.size() < num_ops) {
                 itr--;
                 ops.push_back(fc::raw::unpack<golos::chain::operation>(db->get(itr->op).serialized_op));
             }
-
             return ops;
         }
 
