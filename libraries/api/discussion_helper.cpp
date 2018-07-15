@@ -332,13 +332,24 @@ namespace golos { namespace api {
     void discussion_helper::impl::set_url(discussion& d) const {
         comment_object cm = database().get<comment_object, by_id>(d.root_comment);
 
-        comment_api_object root = create_comment_api_object( cm );
+        comment_api_object con;
 
-        d.root_title = root.title;
-        d.url = "/" + root.category + "/@" + root.author + "/" + root.permlink;
+        if (fill_comment_content_) {
+            fill_comment_content(database(), cm, con);
+        }
 
-        if (root.id != d.id) {
-            d.url += "#@" + d.author + "/" + d.permlink;
+        d.root_title = con.title;
+
+        if (cm.parent_author == STEEMIT_ROOT_POST_PARENT) {
+            d.category = to_string(cm.parent_permlink);
+        } else {
+            d.category = to_string(cm.parent_permlink);
+        }
+
+        d.url = "/" + d.category + "/@" + cm.author + "/" + cm.permlink;
+
+        if (cm.id != d.id) {
+            d.url += "#@" + cm.author + "/" + cm.permlink;
         }
     }
 

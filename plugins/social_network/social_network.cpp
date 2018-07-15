@@ -207,7 +207,7 @@ namespace golos { namespace plugins { namespace social_network {
         }
 
         void operator()(const delete_comment_operation& o) const {
-            const auto &comment = db.get_comment(o.author, o.permlink);
+            const auto& comment = db.get_comment(o.author, o.permlink);
             if (find_comment_content(comment.id) == nullptr) {
                 return;
             }
