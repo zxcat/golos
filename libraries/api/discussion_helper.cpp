@@ -354,8 +354,9 @@ namespace golos { namespace api {
     }
 
     discussion discussion_helper::impl::create_discussion(const comment_object& o) const {
-        auto x = create_comment_api_object(o);
-        return discussion(x);
+        discussion d;
+        fill_comment_api_object(o, d);
+        return d;
     }
 
     discussion discussion_helper::create_discussion(const std::string& author) const {

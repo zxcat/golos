@@ -625,7 +625,8 @@ namespace golos { namespace plugins { namespace tags {
 
             for (; itr != idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
                 if (itr->parent_author.size() > 0) {
-                    discussion p( pimpl->create_comment_api_object(db.get<comment_object>(itr->root_comment) ) );
+                    discussion p;
+                    pimpl->fill_comment_api_object(db.get<comment_object>(itr->root_comment), p);
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
