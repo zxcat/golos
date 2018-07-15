@@ -334,22 +334,16 @@ namespace golos { namespace api {
 
         comment_api_object con;
 
-        if (fill_comment_content_) {
-            fill_comment_content(database(), cm, con);
-        }
-
-        d.root_title = con.title;
-
         if (cm.parent_author == STEEMIT_ROOT_POST_PARENT) {
             d.category = to_string(cm.parent_permlink);
         } else {
             d.category = to_string(cm.parent_permlink);
         }
 
-        d.url = "/" + d.category + "/@" + cm.author + "/" + cm.permlink;
+        d.url = "/" + d.category + "/@" + cm.author + "/" + to_string(cm.permlink);
 
         if (cm.id != d.id) {
-            d.url += "#@" + cm.author + "/" + cm.permlink;
+            d.url += "#@" + cm.author + "/" + to_string(cm.permlink);
         }
     }
 
