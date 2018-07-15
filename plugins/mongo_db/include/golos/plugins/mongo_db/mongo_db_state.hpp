@@ -78,6 +78,7 @@ namespace mongo_db {
         result_type operator()(const shutdown_witness_operation& op);
         result_type operator()(const fill_transfer_from_savings_operation& op);
         result_type operator()(const hardfork_operation& op);
+        result_type operator()(const producer_reward_operation& op);
         result_type operator()(const comment_payout_update_operation& op);
         result_type operator()(const comment_benefactor_reward_operation& op);
         result_type operator()(const return_vesting_delegation_operation& op);

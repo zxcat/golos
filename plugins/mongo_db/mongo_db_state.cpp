@@ -1552,6 +1552,10 @@ namespace mongo_db {
         
     }
 
+    auto state_writer::operator()(const producer_reward_operation& op) -> result_type {
+
+    }
+
     auto state_writer::operator()(const comment_payout_update_operation& op) -> result_type {
         format_comment(op.author, op.permlink);
     }
