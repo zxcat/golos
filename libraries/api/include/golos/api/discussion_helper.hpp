@@ -49,7 +49,7 @@ namespace golos { namespace api {
 
         comment_api_object create_comment_api_object(const comment_object& o) const;
 
-        void fill_comment_api_object(const comment_object& o, discussion& d) const;
+        void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
 
 
     private:

@@ -351,7 +351,7 @@ namespace golos { namespace plugins { namespace social_network {
 
             const auto &idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
 
-            for (auto itr = idx.begin(); itr != idx.end(); ++itr) {
+            for (auto itr = idx.begin(); itr != idx.end();) {
                 auto & content = *itr;
 
                 const auto &cidx = db.get_index<comment_index>().indices().get<by_id>();
@@ -362,9 +362,10 @@ namespace golos { namespace plugins { namespace social_network {
                 auto time_delta = db.head_block_time() - comment->created;
                 auto delta = db.head_block_num() - content.block_number;
 
-                if (time_delta.to_seconds() > fc::microseconds(cash_window_sec * 1000000).to_seconds() && depth_parameters.should_delete_part_of_content_object(delta)) {
+                if (time_delta.to_seconds() > cash_window_sec && depth_parameters.should_delete_part_of_content_object(delta)) {
                     if (depth_parameters.should_delete_whole_content_object(delta)) {
                         db.remove(content);
+                        ++itr;
                         continue;
                     }
                     db.modify(content, [&](comment_content_object& con) {
@@ -379,8 +380,12 @@ namespace golos { namespace plugins { namespace social_network {
                         if (delta > depth_parameters.comment_json_metadata_depth) {
                             con.json_metadata.clear();
                         }
+                        ++itr;
                     });
 
+                }
+                else {
+                    break;
                 }
             }
         } FC_CAPTURE_AND_RETHROW()
