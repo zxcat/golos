@@ -654,14 +654,17 @@ namespace golos { namespace plugins { namespace social_network {
         if (!db.has_index<comment_content_index>()) {
             return;
         }
-        const auto & content = db.get<comment_content_object, by_comment>(co.id);
+        const auto content = db.find<comment_content_object, by_comment>(co.id);
+        if (content != nullptr) {
+            con.title = std::string(content->title.begin(), content->title.end());
+            con.body = std::string(content->body.begin(), content->body.end());
+            con.json_metadata = std::string(content->json_metadata.begin(), content->json_metadata.end());
+        }
 
         const auto root_content = db.find<comment_content_object, by_comment>(co.root_comment);
-        con.root_title = std::string(root_content->title.begin(), root_content->title.end());
-        
-        con.title = std::string(content.title.begin(), content.title.end());
-        con.body = std::string(content.body.begin(), content.body.end());
-        con.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
+        if (root_content != nullptr) {
+            con.root_title = std::string(root_content->title.begin(), root_content->title.end());
+        }
     }
 
 } } } // golos::plugins::social_network

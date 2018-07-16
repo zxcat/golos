@@ -74,7 +74,7 @@ FC_REFLECT(
     (created)(active)(last_payout)(depth)(children)(children_rshares2)(net_rshares)(abs_rshares)
     (vote_rshares)(children_abs_rshares)(cashout_time)(max_cashout_time)(total_vote_weight)
     (reward_weight)(total_payout_value)(curator_payout_value)(author_rewards)(net_votes)
-    (mode)(root_comment)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
+    (mode)(root_comment)(root_title)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
     (allow_curation_rewards)(beneficiaries))
 
 #endif //GOLOS_COMMENT_API_OBJ_H

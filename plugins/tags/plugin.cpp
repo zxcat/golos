@@ -45,7 +45,7 @@ namespace golos { namespace plugins { namespace tags {
         void on_operation(const operation_notification& note) {
             try {
                 /// plugins shouldn't ever throw
-                note.op.visit(tags::operation_visitor(database(), helper));
+                note.op.visit(tags::operation_visitor(database(), *helper));
             } catch (const fc::exception& e) {
                 edump((e.to_detail_string()));
             } catch (...) {
@@ -290,7 +290,7 @@ namespace golos { namespace plugins { namespace tags {
 
             query.start_comment = create_discussion(*comment, query);
             auto& d = query.start_comment;
-            operation_visitor v(database_, helper);
+            operation_visitor v(database_, *helper);
 
             d.hot = v.calculate_hot(d.net_rshares, d.created);
             d.trending = v.calculate_trending(d.net_rshares, d.created);
