@@ -110,7 +110,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
 template<typename exception>
 struct ErrorValidator {};
 
-typedef void (*ErrorValidateFunc)(const std::string&, const fc::variant& props);
+using ErrorValidateFunc = std::function<void(const std::string&, const fc::variant& props)>;
 
 #define CHECK_ERROR(exception, ...) [&](const std::string& name, const fc::variant& props) \
     {\
