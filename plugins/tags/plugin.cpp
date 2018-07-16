@@ -632,7 +632,7 @@ namespace golos { namespace plugins { namespace tags {
                     }
                     discussion d;
                     pimpl->fill_comment_api_object(*itr, d);
-                    result.emplace_back(d);
+                    result.push_back(std::move(d));
                     pimpl->fill_discussion(result.back(), query);
                 }
             }

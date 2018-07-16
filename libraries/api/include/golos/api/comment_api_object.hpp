@@ -54,6 +54,8 @@ namespace golos { namespace api {
         comment_mode mode = not_set;
 
         comment_object::id_type root_comment;
+        
+        string root_title;
 
         protocol::asset max_accepted_payout;
         uint16_t percent_steem_dollars = 0;

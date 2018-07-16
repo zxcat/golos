@@ -288,8 +288,6 @@ namespace golos { namespace api {
     void discussion_helper::impl::set_url(discussion& d) const {
         comment_object cm = database().get<comment_object, by_id>(d.root_comment);
 
-        d.root_title = d.title;
-
         d.url = "/" + d.category + "/@" + cm.author + "/" + to_string(cm.permlink);
 
         if (cm.id != d.id) {

@@ -220,11 +220,11 @@ namespace golos { namespace plugins { namespace social_network {
                 return;
             }
 
-            const auto& comment = db.get_comment(o.author, o.permlink);
+            const auto comment = db.find_comment(o.author, o.permlink);
 
-            if (find_comment_content(comment.id) != nullptr) {
+            if ( comment != nullptr) {
                 // Edit case
-                db.modify(db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
+                db.modify(db.get< comment_content_object, by_comment >( comment->id ), [&]( comment_content_object& con ) {
                     if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
                         from_string(con.title, o.title);
                     }
@@ -266,9 +266,7 @@ namespace golos { namespace plugins { namespace social_network {
             }
             else {
                 // Creation case
-
-                const auto& new_comment = db.get_comment(o.author, o.permlink);
-                comment_id_type id = new_comment.id;
+                comment_id_type id = comment->id;
 
                 db.create<comment_content_object>([&](comment_content_object& con) {
                     con.comment = id;
@@ -299,11 +297,12 @@ namespace golos { namespace plugins { namespace social_network {
 
             const auto& comment = db.get_comment(o.author, o.permlink);
 
-            if (find_comment_content(comment.id) == nullptr) {
+            auto* content_ptr = find_comment_content(comment.id);
+            if (content_ptr == nullptr) {
                 return;
             }
+            auto& content = *content_ptr;
 
-            auto &content = get_comment_content(comment.id);
 
             auto delta = db.head_block_num() - content.block_number;
 
@@ -350,6 +349,7 @@ namespace golos { namespace plugins { namespace social_network {
 
             for (auto itr = idx.begin(); itr != idx.end();) {
                 auto & content = *itr;
+                ++itr;
 
                 const auto &cidx = db.get_index<comment_index>().indices().get<by_id>();
             
@@ -362,7 +362,6 @@ namespace golos { namespace plugins { namespace social_network {
                 if (time_delta.to_seconds() > cash_window_sec && depth_parameters.should_delete_part_of_content_object(delta)) {
                     if (depth_parameters.should_delete_whole_content_object(delta)) {
                         db.remove(content);
-                        ++itr;
                         continue;
                     }
                     db.modify(content, [&](comment_content_object& con) {
@@ -377,7 +376,6 @@ namespace golos { namespace plugins { namespace social_network {
                         if (delta > depth_parameters.comment_json_metadata_depth) {
                             con.json_metadata.clear();
                         }
-                        ++itr;
                     });
 
                 }
@@ -659,6 +657,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto & content = db.get<comment_content_object, by_comment>(co.id);
 
         con.title = std::string(content.title.begin(), content.title.end());
+        con.root_title = con.title;
         con.body = std::string(content.body.begin(), content.body.end());
         con.json_metadata = std::string(content.json_metadata.begin(), content.json_metadata.end());
     }
