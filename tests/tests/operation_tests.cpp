@@ -590,7 +590,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(sam_private_key, db->get_chain_id());
             GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
                 CHECK_ERROR(tx_invalid_operation, 0,
-                    CHECK_ERROR(bandwidth_exception, golos::bandwidth_exception::comment_bandwidth)));
+                    CHECK_ERROR(bandwidth_exception, golos::bandwidth_exception::post_bandwidth)));
 
             validate_database();
 
@@ -5332,6 +5332,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
 
             BOOST_TEST_MESSAGE("failure when memo too large");
+            op.amount = ASSET("1.000 GOLOS");
             op.memo = string(STEEMIT_MAX_MEMO_SIZE, ' ');
             GOLOS_CHECK_ERROR_PROPS(op.validate(), 
                 CHECK_ERROR(golos::invalid_parameter, "memo"));
