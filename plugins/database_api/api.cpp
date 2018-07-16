@@ -606,13 +606,13 @@ std::set<public_key_type> plugin::api_impl::get_required_signatures(
     auto result = trx.get_required_signatures(
         STEEMIT_CHAIN_ID, available_keys,
         [&](std::string account_name) {
-            return authority(database().get<account_authority_object, by_account>(account_name).active);
+            return authority(database().get_authority(account_name).active);
         },
         [&](std::string account_name) {
-            return authority(database().get<account_authority_object, by_account>(account_name).owner);
+            return authority(database().get_authority(account_name).owner);
         },
         [&](std::string account_name) {
-            return authority(database().get<account_authority_object, by_account>(account_name).posting);
+            return authority(database().get_authority(account_name).posting);
         },
         STEEMIT_MAX_SIG_CHECK_DEPTH
     );
@@ -632,21 +632,21 @@ std::set<public_key_type> plugin::api_impl::get_potential_signatures(const signe
     std::set<public_key_type> result;
     trx.get_required_signatures(STEEMIT_CHAIN_ID, flat_set<public_key_type>(),
         [&](account_name_type account_name) {
-            const auto &auth = database().get<account_authority_object, by_account>(account_name).active;
+            const auto &auth = database().get_authority(account_name).active;
             for (const auto &k : auth.get_keys()) {
                 result.insert(k);
             }
             return authority(auth);
         },
         [&](account_name_type account_name) {
-            const auto &auth = database().get<account_authority_object, by_account>(account_name).owner;
+            const auto &auth = database().get_authority(account_name).owner;
             for (const auto &k : auth.get_keys()) {
                 result.insert(k);
             }
             return authority(auth);
         },
         [&](account_name_type account_name) {
-            const auto &auth = database().get<account_authority_object, by_account>(account_name).posting;
+            const auto &auth = database().get_authority(account_name).posting;
             for (const auto &k : auth.get_keys()) {
                 result.insert(k);
             }
@@ -668,11 +668,11 @@ DEFINE_API(plugin, verify_authority) {
 
 bool plugin::api_impl::verify_authority(const signed_transaction &trx) const {
     trx.verify_authority(STEEMIT_CHAIN_ID, [&](std::string account_name) {
-        return authority(database().get<account_authority_object, by_account>(account_name).active);
+        return authority(database().get_authority(account_name).active);
     }, [&](std::string account_name) {
-        return authority(database().get<account_authority_object, by_account>(account_name).owner);
+        return authority(database().get_authority(account_name).owner);
     }, [&](std::string account_name) {
-        return authority(database().get<account_authority_object, by_account>(account_name).posting);
+        return authority(database().get_authority(account_name).posting);
     }, STEEMIT_MAX_SIG_CHECK_DEPTH);
     return true;
 }

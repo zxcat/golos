@@ -1,6 +1,7 @@
 #include <golos/chain/database.hpp>
 #include <golos/chain/proposal_object.hpp>
 #include <golos/chain/account_object.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 namespace golos { namespace chain {
 
@@ -9,6 +10,8 @@ namespace golos { namespace chain {
         const std::string& title
     ) const { try {
         return get<proposal_object, by_account>(std::make_tuple(author, title));
+    } catch (const std::out_of_range &e) {
+        GOLOS_THROW_MISSING_OBJECT("proposal", fc::mutable_variant_object()("account",author)("proposal",title));
     } FC_CAPTURE_AND_RETHROW((author)(title)) }
 
     const proposal_object *database::find_proposal(

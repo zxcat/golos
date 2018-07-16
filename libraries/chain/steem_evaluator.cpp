@@ -334,7 +334,7 @@ namespace golos { namespace chain {
             }
 
             const auto &account = _db.get_account(o.account);
-            const auto &account_auth = _db.get<account_authority_object, by_account>(o.account);
+            const auto &account_auth = _db.get_authority(o.account);
 
             if (o.owner) {
 #ifndef STEEMIT_BUILD_TESTNET
@@ -735,7 +735,7 @@ namespace golos { namespace chain {
 
                     });
 #ifndef IS_LOW_MEM
-                    _db.modify(_db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
+                    _db.modify(_db.get_comment_content( comment.id ), [&]( comment_content_object& con ) {
                         if (o.title.size())
                             from_string(con.title, o.title);
                         if (o.json_metadata.size()) {
@@ -1727,7 +1727,7 @@ namespace golos { namespace chain {
             }
 
             const auto &worker_account = db.get_account(name); // verify it exists
-            const auto &worker_auth = db.get<account_authority_object, by_account>(name);
+            const auto &worker_auth = db.get_authority(name);
             FC_ASSERT(worker_auth.active.num_auths() ==
                       1, "Miners can only have one key authority. ${a}", ("a", worker_auth.active));
             FC_ASSERT(worker_auth.active.key_auths.size() ==
