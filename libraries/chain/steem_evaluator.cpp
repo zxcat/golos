@@ -449,11 +449,9 @@ namespace golos { namespace chain {
                         p.children--;
                         p.active = now;
                     });
-#ifndef IS_LOW_MEM
                     if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                         parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                     } else
-#endif
                     {
                         parent = nullptr;
                     }
@@ -702,11 +700,9 @@ namespace golos { namespace chain {
                             p.children++;
                             p.active = now;
                         });
-#ifndef IS_LOW_MEM
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                             parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                         } else
-#endif
                         {
                             parent = nullptr;
                         }

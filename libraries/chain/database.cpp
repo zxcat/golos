@@ -4804,12 +4804,7 @@ namespace golos { namespace chain {
 
             for (auto itr = cidx.begin(); itr != cidx.end(); ++itr) {
                 if (itr->parent_author != STEEMIT_ROOT_POST_PARENT) {
-// Low memory nodes only need immediate child count, full nodes track total children
-#ifdef IS_LOW_MEM
-                    modify(get_comment(itr->parent_author, itr->parent_permlink), [&](comment_object &c) {
-                        c.children++;
-                    });
-#else
+
                     const comment_object *parent = &get_comment(itr->parent_author, itr->parent_permlink);
                     while (parent) {
                         modify(*parent, [&](comment_object &c) {
@@ -4822,7 +4817,7 @@ namespace golos { namespace chain {
                             parent = nullptr;
                         }
                     }
-#endif
+
                 }
             }
         }
