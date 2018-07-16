@@ -222,11 +222,8 @@ namespace golos { namespace plugins { namespace social_network {
 
             const auto& comment = db.get_comment(o.author, o.permlink);
 
-            if (comment.created != db.head_block_time()) {
+            if (find_comment_content(comment.id) != nullptr) {
                 // Edit case
-                if (find_comment_content(comment.id) == nullptr) {
-                    return;
-                }
                 db.modify(db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
                     if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
                         from_string(con.title, o.title);
