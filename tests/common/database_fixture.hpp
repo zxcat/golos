@@ -82,13 +82,13 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
     try {                                                                                               \
         BOOST_TEST_PASSPOINT();                                                                         \
         S;                                                                                              \
-        BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected" ); }                       \
+        BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected, but no exception thrown" ); }    \
     catch( E const& ex ) {                                                                              \
         const fc::variant_object &props = ex.get_log().at(0).get_data();                                \
         try {                                                                                           \
             C;                                                                                          \
         } catch (const fc::exception& err) {                                                            \
-            BOOST_##TL( "caught exception '" << err.name() << "' while check props:" <<           \
+            BOOST_##TL( "caught exception '" << err.name() << "' while check props:" <<                 \
                 err.to_detail_string());                                                                \
         }                                                                                               \
     } catch ( ... ) {                                                                                   \
@@ -212,6 +212,21 @@ struct ErrorValidator<golos::protocol::tx_irrelevant_sig> {
     }
 };
 
+
+template<>
+struct ErrorValidator<golos::protocol::tx_duplicate_sig> {
+    void validate(const std::string& name, const fc::variant& props, int) {
+        BOOST_CHECK_EQUAL(name, "tx_duplicate_sig");
+    }
+};
+
+template<>
+struct ErrorValidator<golos::protocol::tx_missing_posting_auth> {
+    void validate(const std::string& name, const fc::variant& props, int) {
+        BOOST_CHECK_EQUAL(name, "tx_missing_posting_auth");
+    }
+};
+
 #define GOLOS_CHECK_ERROR_PROPS_IMPL( S, C, TL ) \
     GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C(ex.name(), ex.get_log().at(0).get_data()), TL)
 
@@ -282,6 +297,16 @@ bool operator==(const fc::variant_object &left, const fc::variant_object &right)
 
 } // namespace fc
 
+
+namespace chainbase {
+
+template<typename T>
+std::ostream& operator<<(std::ostream& out, const object_id<T> &v) {
+    out << v._id;
+    return out;
+}
+
+} // namespace chainbase
 
 namespace golos { namespace protocol {
 
