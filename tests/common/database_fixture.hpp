@@ -107,6 +107,21 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
 #define GOLOS_CHECK_THROW_PROPS(S, E, C)         GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, ERROR)
 #define GOLOS_REQUIRE_THROW_PROPS(S, E, C)       GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, FAIL)
 
+#define GOLOS_CHECK_NO_THROW_IMPL( S, TL )                                                              \
+    try {                                                                                               \
+        BOOST_TEST_PASSPOINT();                                                                         \
+        S;                                                                                              \
+    } catch( fc::exception const& ex ) {                                                                \
+        BOOST_##TL("no exception expected, but '" << ex.name() << "' thrown: \n" <<                     \
+            ex.to_string());                                                                     \
+    } catch ( ... ) {                                                                                   \
+        BOOST_##TL("no exception expected, but unknown exception thrown");                              \
+    }
+
+#define GOLOS_WARN_NO_THROW(S)          GOLOS_CHECK_NO_THROW_IMPL(S, WARN)
+#define GOLOS_CHECK_NO_THROW(S)         GOLOS_CHECK_NO_THROW_IMPL(S, ERROR)
+#define GOLOS_REQUIRE_NO_THROW(S)       GOLOS_CHECK_NO_THROW_IMPL(S, FAIL)
+
 template<typename exception>
 struct ErrorValidator {};
 
@@ -157,6 +172,13 @@ struct ErrorValidator<golos::missing_object> {
         BOOST_CHECK_EQUAL(name, "missing_object");
         BOOST_CHECK_EQUAL(props["type"].get_string(), type);
         BOOST_CHECK_EQUAL(props["id"].get_string(), id);
+    }
+
+    void validate(const std::string& name, const fc::variant& props,
+            const std::string& type, const fc::variant_object& id) {
+        BOOST_CHECK_EQUAL(name, "missing_object");
+        BOOST_CHECK_EQUAL(props["type"].get_string(), type);
+        BOOST_CHECK_EQUAL(props["id"].get_object(), id);
     }
 };
 
@@ -246,9 +268,17 @@ namespace fc {
 
 std::ostream& operator<<(std::ostream& out, const fc::exception& e);
 std::ostream& operator<<(std::ostream& out, const fc::time_point& v);
-std::ostream& operator<<(std::ostream& out, const fc::uint128_t v);
 std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v);
 std::ostream& operator<<(std::ostream& out, const fc::fixed_string<fc::uint128_t>& v);
+std::ostream& operator<<(std::ostream &out, const fc::variant_object &v);
+
+template<typename T>
+std::ostream& operator<<(std::ostream& out, const fc::safe<T> &v) {
+    out << v.value;
+    return out;
+}
+
+bool operator==(const fc::variant_object &left, const fc::variant_object &right);
 
 } // namespace fc
 

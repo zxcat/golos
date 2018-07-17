@@ -8,9 +8,8 @@ namespace golos { namespace protocol {
         ///  Issue #56 contains the justificiation for allowing any UTF-8 string to serve as a permlink, content will be grouped by tags
         ///  going forward.
         inline void validate_permlink(const string &permlink) {
-            FC_ASSERT(permlink.size() <
-                      STEEMIT_MAX_PERMLINK_LENGTH, "permlink is too long");
-            FC_ASSERT(fc::is_utf8(permlink), "permlink not formatted in UTF8");
+            GOLOS_CHECK_VALUE(permlink.size() < STEEMIT_MAX_PERMLINK_LENGTH, "permlink is too long");
+            GOLOS_CHECK_VALUE(fc::is_utf8(permlink), "permlink not formatted in UTF8");
         }
 
         static inline void validate_account_name(const string &name) {
@@ -157,11 +156,13 @@ namespace golos { namespace protocol {
         }
 
         void vote_operation::validate() const {
-            validate_account_name(voter);
-            validate_account_name(author);\
-      FC_ASSERT(abs(weight) <=
-                STEEMIT_100_PERCENT, "Weight is not a STEEMIT percentage");
-            validate_permlink(permlink);
+            GOLOS_CHECK_PARAM(voter, validate_account_name(voter));
+            GOLOS_CHECK_PARAM(author, validate_account_name(author));
+            GOLOS_CHECK_PARAM(weight, {
+                GOLOS_CHECK_VALUE(abs(weight) <= STEEMIT_100_PERCENT,
+                        "Weight is not a STEEMIT percentage");
+            });
+            GOLOS_CHECK_PARAM(permlink, validate_permlink(permlink));
         }
 
         void transfer_operation::validate() const {
