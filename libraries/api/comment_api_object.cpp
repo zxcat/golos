@@ -50,7 +50,7 @@ namespace golos { namespace api {
         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
             category = to_string(o.parent_permlink);
         } else {
-            category = to_string(db.get<comment_object, by_id>(o.root_comment).parent_permlink);
+            category = to_string(db.get_comment(o.root_comment).parent_permlink);
         }
     }
 

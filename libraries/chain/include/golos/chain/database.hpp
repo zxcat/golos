@@ -172,6 +172,8 @@ namespace golos { namespace chain {
 
             const comment_object *find_comment(const account_name_type &author, const string &permlink) const;
 
+            const comment_object &get_comment(const comment_id_type &comment) const;
+
             const comment_content_object &get_comment_content(const comment_id_type &comment) const;
 
             const comment_content_object *find_comment_content(const comment_id_type &comment) const;
@@ -188,6 +190,8 @@ namespace golos { namespace chain {
 
             const savings_withdraw_object *find_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
 
+            const account_authority_object &get_authority(const account_name_type &name) const;
+
             const dynamic_global_property_object &get_dynamic_global_properties() const;
 
             const feed_history_object &get_feed_history() const;
@@ -195,6 +199,8 @@ namespace golos { namespace chain {
             const witness_schedule_object &get_witness_schedule_object() const;
 
             const hardfork_property_object &get_hardfork_property_object() const;
+
+            const block_summary_object &get_block_summary(const block_summary_id_type &ref_block_num) const;
 
 
             const time_point_sec calculate_discussion_payout_time(const comment_object &comment) const;

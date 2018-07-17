@@ -37,7 +37,7 @@ private:
     std::vector<protocol::public_key_type> result;
 
     const golos::chain::account_authority_object &acct =
-            db.get<golos::chain::account_authority_object, golos::chain::by_account>(account_name);
+            db.get_authority(account_name);
     protocol::authority auth;
     if ((level == "posting") || (level == "p")) {
         auth = protocol::authority(acct.posting);
@@ -57,7 +57,7 @@ private:
 
     flat_set<protocol::public_key_type> avail;
     protocol::sign_state ss(signing_keys, [&db](const std::string &account_name) -> const protocol::authority {
-        return protocol::authority(db.get<golos::chain::account_authority_object, golos::chain::by_account>(account_name).active);
+        return protocol::authority(db.get_authority(account_name).active);
     }, avail);
 
     bool has_authority = ss.check_authority(auth);

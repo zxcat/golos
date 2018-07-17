@@ -59,15 +59,15 @@ namespace golos { namespace chain {
         auto ops = operations();
 
         auto get_active = [&](const account_name_type& name) {
-            return authority(db.get<account_authority_object, by_account>(name).active);
+            return authority(db.get_authority(name).active);
         };
 
         auto get_owner = [&](const account_name_type& name) {
-            return authority(db.get<account_authority_object, by_account>(name).owner);
+            return authority(db.get_authority(name).owner);
         };
 
         auto get_posting = [&](const account_name_type& name) {
-            return authority(db.get<account_authority_object, by_account>(name).posting);
+            return authority(db.get_authority(name).posting);
         };
 
         golos::protocol::verify_authority(

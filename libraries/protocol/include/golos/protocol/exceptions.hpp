@@ -110,6 +110,14 @@
         "Expected ${min}..${max} argument(s), was ${count}", \
         ("count", (args)->size())("min", min)("max", max) );
 
+
+#define GOLOS_THROW_MISSING_OBJECT(type, id, ...) \
+    FC_THROW_EXCEPTION(golos::missing_object, "Missing ${type} with id \"${id}\"", \
+            ("type",type)("id",id) __VA_ARGS__)
+
+#define GOLOS_THROW_INTERNAL_ERROR(MSG, ...) \
+    FC_THROW_EXCEPTION(golos::internal_error, MSG, __VA_ARGS__)
+
 namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         golos_exception, fc::exception,

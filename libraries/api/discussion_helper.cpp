@@ -172,7 +172,7 @@ namespace golos { namespace api {
         fill_reputation_(db, d.author, d.author_reputation);
 
         if (d.parent_author != STEEMIT_ROOT_POST_PARENT) {
-            d.cashout_time = db.calculate_discussion_payout_time(db.get<comment_object>(d.id));
+            d.cashout_time = db.calculate_discussion_payout_time(db.get_comment(d.id));
         }
 
         if (d.body.size() > 1024 * 128) {
@@ -191,7 +191,7 @@ namespace golos { namespace api {
 //
 // set_url
     void discussion_helper::impl::set_url(discussion& d) const {
-        const comment_api_object root(database().get<comment_object, by_id>(d.root_comment), database());
+        const comment_api_object root(database().get_comment(d.root_comment), database());
 
         d.root_title = root.title;
         d.url = "/" + root.category + "/@" + root.author + "/" + root.permlink;
