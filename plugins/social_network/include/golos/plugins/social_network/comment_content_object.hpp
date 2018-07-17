@@ -12,7 +12,7 @@ namespace golos { namespace plugins { namespace social_network {
     using namespace golos::chain;
     
     #ifndef SOCIAL_NETWORK_SPACE_ID
-    #define SOCIAL_NETWORK_SPACE_ID 6
+    #define SOCIAL_NETWORK_SPACE_ID 10
     #endif
 
         enum social_network_types {
