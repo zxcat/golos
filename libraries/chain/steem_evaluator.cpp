@@ -1000,10 +1000,8 @@ namespace golos { namespace chain {
 
             const auto &account = _db.get_account(o.account);
 
-            FC_ASSERT(account.vesting_shares.amount >= 0,
-                "Account does not have sufficient Golos Power for withdraw.");
-            FC_ASSERT(account.available_vesting_shares() >= o.vesting_shares,
-                "Account does not have sufficient Golos Power for withdraw.");
+            GOLOS_CHECK_BALANCE(account, VESTING, asset(0, VESTS_SYMBOL));
+            GOLOS_CHECK_BALANCE(account, HAVING_VESTING, o.vesting_shares);
 
             if (!account.mined && _db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                 const auto &props = _db.get_dynamic_global_properties();
@@ -1013,17 +1011,19 @@ namespace golos { namespace chain {
                                   props.get_vesting_share_price();
                 min_vests.amount.value *= 10;
 
-                FC_ASSERT(account.vesting_shares.amount > min_vests.amount ||
+                GOLOS_CHECK_LOGIC(account.vesting_shares.amount > min_vests.amount ||
                           (_db.has_hardfork(STEEMIT_HARDFORK_0_16__562) &&
                            o.vesting_shares.amount == 0),
+                           logic_exception::insufficient_fee_for_powerdown_registered_account,
                         "Account registered by another account requires 10x account creation fee worth of Golos Power before it can be powered down.");
             }
 
             if (o.vesting_shares.amount == 0) {
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                    FC_ASSERT(account.vesting_withdraw_rate.amount !=
-                              0, "This operation would not change the vesting withdraw rate.");
+                    GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate.amount != 0, 
+                            logic_exception::operation_would_not_change_vesting_withdraw_rate,
+                            "This operation would not change the vesting withdraw rate.");
 
                 _db.modify(account, [&](account_object &a) {
                     a.vesting_withdraw_rate = asset(0, VESTS_SYMBOL);
@@ -1047,8 +1047,9 @@ namespace golos { namespace chain {
 
                     if (_db.is_producing() ||
                         _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                        FC_ASSERT(account.vesting_withdraw_rate !=
-                                  new_vesting_withdraw_rate, "This operation would not change the vesting withdraw rate.");
+                        GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate != new_vesting_withdraw_rate, 
+                                logic_exception::operation_would_not_change_vesting_withdraw_rate,
+                                "This operation would not change the vesting withdraw rate.");
 
                     a.vesting_withdraw_rate = new_vesting_withdraw_rate;
                     a.next_vesting_withdrawal = _db.head_block_time() +
