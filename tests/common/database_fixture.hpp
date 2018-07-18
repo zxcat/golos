@@ -83,37 +83,35 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
     try {                                                                                               \
         BOOST_TEST_PASSPOINT();                                                                         \
         S;                                                                                              \
-        BOOST_CHECK_IMPL( false, "exception '" BOOST_STRINGIZE( E ) "' is expected", TL, CHECK_MSG ); } \
+        BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected" ); }                       \
     catch( E const& ex ) {                                                                              \
-        ::boost::unit_test::ut_detail::ignore_unused_variable_warning( ex );                            \
-        BOOST_CHECK_IMPL( true, "exception '" BOOST_STRINGIZE( E ) "' is caught", TL, CHECK_MSG );      \
         const fc::variant_object &props = ex.get_log().at(0).get_data();                                \
         try {                                                                                           \
             C;                                                                                          \
         } catch (const fc::exception& err) {                                                            \
-            BOOST_CHECK_IMPL( false, "caught exception '" << err.name() << "' while check props:" <<    \
-                err.to_detail_string(), TL, CHECK_MSG);                                                 \
+            BOOST_##TL( "caught exception '" << err.name() << "' while check props:" <<           \
+                err.to_detail_string());                                                                \
         }                                                                                               \
     } catch ( ... ) {                                                                                   \
         try {                                                                                           \
             throw;                                                                                      \
         } catch (const fc::exception& ex) {                                                             \
-            BOOST_CHECK_IMPL( false, "exception '" BOOST_STRINGIZE( E ) "' is expected, "               \
-                "but '" << ex.name() << "' is caught", TL, CHECK_MSG);                                  \
+            BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected, "                      \
+                "but '" << ex.name() << "' is caught");                                                 \
         } catch (...) {                                                                                 \
-            BOOST_CHECK_IMPL( false, "exception " BOOST_STRINGIZE( E ) " is expected, "                 \
-                "but unknown is caught", TL, CHECK_MSG);                                                \
+            BOOST_##TL( "exception " BOOST_STRINGIZE( E ) " is expected, "                        \
+                "but unknown is caught");                                                               \
         }                                                                                               \
     }                                                                                                   \
 
 #define GOLOS_WARN_THROW_PROPS(S, E, C)          GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, WARN)
-#define GOLOS_CHECK_THROW_PROPS(S, E, C)         GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, CHECK)
-#define GOLOS_REQUIRE_THROW_PROPS(S, E, C)       GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, REQUIRE)
+#define GOLOS_CHECK_THROW_PROPS(S, E, C)         GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, ERROR)
+#define GOLOS_REQUIRE_THROW_PROPS(S, E, C)       GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, FAIL)
 
 template<typename exception>
 struct ErrorValidator {};
 
-typedef void (*ErrorValidateFunc)(const std::string&, const fc::variant& props);
+using ErrorValidateFunc = std::function<void(const std::string&, const fc::variant& props)>;
 
 #define CHECK_ERROR(exception, ...) [&](const std::string& name, const fc::variant& props) \
     {\
@@ -146,7 +144,7 @@ struct ErrorValidator<golos::protocol::tx_invalid_operation> {
     void validate(const std::string& name, const fc::variant& props,
             int index, ErrorValidateFunc validator = NULL) {
         BOOST_CHECK_EQUAL(name, "tx_invalid_operation");
-        BOOST_CHECK_EQUAL(props["index"].as_uint64(), index);
+        BOOST_CHECK_EQUAL(props["index"].as_int64(), index);
         if(validator) {
             validator(props["error"]["name"].get_string(), props["error"]["stack"][(size_t)0]["data"]);
         }
@@ -193,37 +191,12 @@ struct ErrorValidator<golos::protocol::tx_irrelevant_sig> {
     }
 };
 
-#define GOLOS_CHECK_ERROR_PROPS_IMPL( S, E, C, TL )                                                     \
-    try {                                                                                               \
-        BOOST_TEST_PASSPOINT();                                                                         \
-        S;                                                                                              \
-        BOOST_CHECK_IMPL( false, "exception '" BOOST_STRINGIZE( E ) "' is expected", TL, CHECK_MSG ); } \
-    catch( E const& ex ) {                                                                              \
-        ::boost::unit_test::ut_detail::ignore_unused_variable_warning( ex );                            \
-        BOOST_CHECK_IMPL( true, "exception '" BOOST_STRINGIZE( E ) "' is caught", TL, CHECK_MSG );      \
-        const std::string name = ex.name();                                                             \
-        const fc::variant_object &props = ex.get_log().at(0).get_data();                                \
-        try {                                                                                           \
-            C(name, props);                                                                             \
-        } catch (const fc::exception& err) {                                                            \
-            BOOST_CHECK_IMPL( false, "caught exception '" << err.name() << "' while check props:" <<    \
-                err.to_detail_string(), TL, CHECK_MSG);                                                 \
-        }                                                                                               \
-    } catch ( ... ) {                                                                                   \
-        try {                                                                                           \
-            throw;                                                                                      \
-        } catch (const fc::exception& ex) {                                                             \
-            BOOST_CHECK_IMPL( false, "exception '" BOOST_STRINGIZE( E ) "' is expected, "               \
-                "but '" << ex.name() << "' is caught", TL, CHECK_MSG);                                  \
-        } catch (...) {                                                                                 \
-            BOOST_CHECK_IMPL( false, "exception " BOOST_STRINGIZE( E ) " is expected, "                 \
-                "but unknown is caught", TL, CHECK_MSG);                                                \
-        }                                                                                               \
-    }                                                                                                   \
+#define GOLOS_CHECK_ERROR_PROPS_IMPL( S, C, TL ) \
+    GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C(ex.name(), ex.get_log().at(0).get_data()), TL)
 
-#define GOLOS_WARN_ERROR_PROPS(S, C)          GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C, WARN)
-#define GOLOS_CHECK_ERROR_PROPS(S, C)         GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C, CHECK)
-#define GOLOS_REQUIRE_ERROR_PROPS(S, C)       GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C, REQUIRE)
+#define GOLOS_WARN_ERROR_PROPS(S, C)          GOLOS_CHECK_ERROR_PROPS_IMPL(S, C, WARN)
+#define GOLOS_CHECK_ERROR_PROPS(S, C)         GOLOS_CHECK_ERROR_PROPS_IMPL(S, C, ERROR)
+#define GOLOS_REQUIRE_ERROR_PROPS(S, C)       GOLOS_CHECK_ERROR_PROPS_IMPL(S, C, FAIL)
 
 
 ///This simply resets v back to its default-constructed value. Requires v to have a working assingment operator and

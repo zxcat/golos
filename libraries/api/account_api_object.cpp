@@ -38,7 +38,7 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         proxied_vsf_votes.push_back(a.proxied_vsf_votes[i]);
     }
 
-    const auto& auth = db.get<account_authority_object, by_account>(name);
+    const auto& auth = db.get_authority(name);
     owner = authority(auth.owner);
     active = authority(auth.active);
     posting = authority(auth.posting);

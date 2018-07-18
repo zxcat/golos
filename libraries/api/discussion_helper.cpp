@@ -262,7 +262,7 @@ namespace golos { namespace api {
         fill_reputation_(db, d.author, d.author_reputation);
 
         if (d.parent_author != STEEMIT_ROOT_POST_PARENT) {
-            d.cashout_time = db.calculate_discussion_payout_time(db.get<comment_object>(d.id));
+            d.cashout_time = db.calculate_discussion_payout_time(db.get_comment(d.id));
         }
 
         if (d.body.size() > 1024 * 128) {

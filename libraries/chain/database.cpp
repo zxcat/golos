@@ -601,6 +601,8 @@ namespace golos { namespace chain {
         const witness_object &database::get_witness(const account_name_type &name) const {
             try {
                 return get<witness_object, by_name>(name);
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("witness", name);
             } FC_CAPTURE_AND_RETHROW((name))
         }
 
@@ -612,9 +614,7 @@ namespace golos { namespace chain {
             try {
                 return get<account_object, by_name>(name);
             } catch(const std::out_of_range &e) {
-                //GOLOS_THROW_MISSING_OBJECT("account", name);
-                GOLOS_ASSERT(false, missing_object, "Missing ${type} with id \"${id}\"",
-                        ("type","account")("id",name));
+                GOLOS_THROW_MISSING_OBJECT("account", name);
             }
             FC_CAPTURE_AND_RETHROW((name))
         }
@@ -626,6 +626,8 @@ namespace golos { namespace chain {
         const comment_object &database::get_comment(const account_name_type &author, const shared_string &permlink) const {
             try {
                 return get<comment_object, by_permlink>(boost::make_tuple(author, permlink));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("comment", fc::mutable_variant_object()("account", author)("permlink", permlink));
             } FC_CAPTURE_AND_RETHROW((author)(permlink))
         }
 
@@ -636,6 +638,8 @@ namespace golos { namespace chain {
         const comment_object &database::get_comment(const account_name_type &author, const string &permlink) const {
             try {
                 return get<comment_object, by_permlink>(boost::make_tuple(author, permlink));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("comment", fc::mutable_variant_object()("account", author)("permlink", permlink));
             } FC_CAPTURE_AND_RETHROW((author)(permlink))
         }
 
@@ -643,9 +647,19 @@ namespace golos { namespace chain {
             return find<comment_object, by_permlink>(boost::make_tuple(author, permlink));
         }
 
+        const comment_object &database::get_comment(const comment_id_type &comment_id) const {
+            try {
+                return get<comment_object, by_id>(comment_id);
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("comment", comment_id);
+            } FC_CAPTURE_AND_RETHROW((comment_id))
+        }
+
         const escrow_object &database::get_escrow(const account_name_type &name, uint32_t escrow_id) const {
             try {
                 return get<escrow_object, by_from_id>(boost::make_tuple(name, escrow_id));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("escrow", fc::mutable_variant_object()("account", name)("escrow", escrow_id));
             } FC_CAPTURE_AND_RETHROW((name)(escrow_id))
         }
 
@@ -660,6 +674,8 @@ namespace golos { namespace chain {
                 }
 
                 return get<limit_order_object, by_account>(boost::make_tuple(name, orderid));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("limit_order", fc::mutable_variant_object()("account",name)("order_id", orderid));
             } FC_CAPTURE_AND_RETHROW((name)(orderid))
         }
 
@@ -674,7 +690,17 @@ namespace golos { namespace chain {
         const savings_withdraw_object &database::get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const {
             try {
                 return get<savings_withdraw_object, by_from_rid>(boost::make_tuple(owner, request_id));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("savings_withdraw", fc::mutable_variant_object()("account",owner)("request_id", request_id));
             } FC_CAPTURE_AND_RETHROW((owner)(request_id))
+        }
+
+        const account_authority_object &database::get_authority(const account_name_type &name) const {
+            try {
+                return get<account_authority_object, by_account>(name);
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("authority", name);
+            } FC_CAPTURE_AND_RETHROW((name))
         }
 
         const savings_withdraw_object *database::find_savings_withdraw(const account_name_type &owner, uint32_t request_id) const {
@@ -684,24 +710,40 @@ namespace golos { namespace chain {
         const dynamic_global_property_object &database::get_dynamic_global_properties() const {
             try {
                 return get<dynamic_global_property_object>();
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_INTERNAL_ERROR("Missing dynamic_global_properties");
             } FC_CAPTURE_AND_RETHROW()
         }
 
         const feed_history_object &database::get_feed_history() const {
             try {
                 return get<feed_history_object>();
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_INTERNAL_ERROR("Missing feed_history");
             } FC_CAPTURE_AND_RETHROW()
         }
 
         const witness_schedule_object &database::get_witness_schedule_object() const {
             try {
                 return get<witness_schedule_object>();
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_INTERNAL_ERROR("Missing witness_schedule");
             } FC_CAPTURE_AND_RETHROW()
         }
 
         const hardfork_property_object &database::get_hardfork_property_object() const {
             try {
                 return get<hardfork_property_object>();
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_INTERNAL_ERROR("Missing hardfork_property");
+            } FC_CAPTURE_AND_RETHROW()
+        }
+
+        const block_summary_object &database::get_block_summary(const block_summary_id_type &ref_block_num) const {
+            try {
+                return get<block_summary_object>(ref_block_num);
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("block_summary", ref_block_num);
             } FC_CAPTURE_AND_RETHROW()
         }
 
@@ -709,7 +751,7 @@ namespace golos { namespace chain {
             if (has_hardfork(STEEMIT_HARDFORK_0_17__431) || comment.parent_author == STEEMIT_ROOT_POST_PARENT) {
                 return comment.cashout_time;
             } else {
-                return get<comment_object>(comment.root_comment).cashout_time;
+                return get_comment(comment.root_comment).cashout_time;
             }
         }
 
@@ -2018,12 +2060,12 @@ namespace golos { namespace chain {
                 STEEMIT_OWNER_AUTH_HISTORY_TRACKING_START_BLOCK_NUM) {
                 create<owner_authority_history_object>([&](owner_authority_history_object &hist) {
                     hist.account = account.name;
-                    hist.previous_owner_authority = get<account_authority_object, by_account>(account.name).owner;
+                    hist.previous_owner_authority = get_authority(account.name).owner;
                     hist.last_valid_time = head_block_time();
                 });
             }
 
-            modify(get<account_authority_object, by_account>(account.name), [&](account_authority_object &auth) {
+            modify(get_authority(account.name), [&](account_authority_object &auth) {
                 auth.owner = owner_authority;
                 auth.last_owner_update = head_block_time();
             });
@@ -3229,15 +3271,15 @@ namespace golos { namespace chain {
                 const chain_id_type &chain_id = STEEMIT_CHAIN_ID;
 
                 auto get_active = [&](const account_name_type& name) {
-                    return authority(get<account_authority_object, by_account>(name).active);
+                    return authority(get_authority(name).active);
                 };
 
                 auto get_owner = [&](const account_name_type& name) {
-                    return authority(get<account_authority_object, by_account>(name).owner);
+                    return authority(get_authority(name).owner);
                 };
 
                 auto get_posting = [&](const account_name_type& name) {
-                    return authority(get<account_authority_object, by_account>(name).posting);
+                    return authority(get_authority(name).posting);
                 };
 
                 try {
@@ -3254,7 +3296,7 @@ namespace golos { namespace chain {
             // It's impossible that the transaction is expired, and TaPoS makes no sense as no blocks exist.
             if (BOOST_LIKELY(head_block_num() > 0)) {
                 if (!(skip & skip_tapos_check)) {
-                    const auto &tapos_block_summary = get<block_summary_object>(trx.ref_block_num);
+                    const auto &tapos_block_summary = get_block_summary(trx.ref_block_num);
                     //Verify TaPoS block summary has correct ID prefix,
                     //   and that this block's time is not past the expiration
                     FC_ASSERT(
@@ -3691,7 +3733,7 @@ namespace golos { namespace chain {
         void database::create_block_summary(const signed_block &next_block) {
             try {
                 block_summary_id_type sid(next_block.block_num() & 0xffff);
-                modify(get<block_summary_object>(sid), [&](block_summary_object &p) {
+                modify(get_block_summary(sid), [&](block_summary_object &p) {
                     p.block_id = next_block.id();
                 });
             } FC_CAPTURE_AND_RETHROW()
@@ -4484,17 +4526,17 @@ namespace golos { namespace chain {
                         }
                     }
 
-                    modify(get<account_authority_object, by_account>(STEEMIT_MINER_ACCOUNT), [&](account_authority_object &auth) {
+                    modify(get_authority(STEEMIT_MINER_ACCOUNT), [&](account_authority_object &auth) {
                         auth.posting = authority();
                         auth.posting.weight_threshold = 1;
                     });
 
-                    modify(get<account_authority_object, by_account>(STEEMIT_NULL_ACCOUNT), [&](account_authority_object &auth) {
+                    modify(get_authority(STEEMIT_NULL_ACCOUNT), [&](account_authority_object &auth) {
                         auth.posting = authority();
                         auth.posting.weight_threshold = 1;
                     });
 
-                    modify(get<account_authority_object, by_account>(STEEMIT_TEMP_ACCOUNT), [&](account_authority_object &auth) {
+                    modify(get_authority(STEEMIT_TEMP_ACCOUNT), [&](account_authority_object &auth) {
                         auth.posting = authority();
                         auth.posting.weight_threshold = 1;
                     });
@@ -4522,7 +4564,7 @@ namespace golos { namespace chain {
 
                         update_owner_authority(*account, authority(1, public_key_type("GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1));
 
-                        modify(get<account_authority_object, by_account>(account->name), [&](account_authority_object &auth) {
+                        modify(get_authority(account->name), [&](account_authority_object &auth) {
                             auth.active = authority(1, public_key_type("GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1);
                             auth.posting = authority(1, public_key_type("GLS8hLtc7rC59Ed7uNVVTXtF578pJKQwMfdTvuzYLwUi8GkNTh5F6"), 1);
                         });
@@ -4792,12 +4834,7 @@ namespace golos { namespace chain {
 
             for (auto itr = cidx.begin(); itr != cidx.end(); ++itr) {
                 if (itr->parent_author != STEEMIT_ROOT_POST_PARENT) {
-// Low memory nodes only need immediate child count, full nodes track total children
-#ifdef IS_LOW_MEM
-                    modify(get_comment(itr->parent_author, itr->parent_permlink), [&](comment_object &c) {
-                        c.children++;
-                    });
-#else
+
                     const comment_object *parent = &get_comment(itr->parent_author, itr->parent_permlink);
                     while (parent) {
                         modify(*parent, [&](comment_object &c) {
@@ -4810,7 +4847,7 @@ namespace golos { namespace chain {
                             parent = nullptr;
                         }
                     }
-#endif
+
                 }
             }
         }
