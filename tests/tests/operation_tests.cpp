@@ -23,6 +23,7 @@ using namespace golos;
 using namespace golos::api;
 using namespace golos::chain;
 using namespace golos::protocol;
+using golos::plugins::social_network::comment_content_object;
 using std::string;
 
 
@@ -437,7 +438,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             db->push_transaction(tx, 0);
 
             const comment_object &alice_comment = db->get_comment("alice", string("lorem"));
-            const comment_content_object& alice_content = db->get_comment_content(alice_comment.id);
+            const comment_content_object& alice_content = sn_plugin->get_comment_content(alice_comment.id);
 
             BOOST_REQUIRE(alice_comment.author == op.author);
             BOOST_REQUIRE(to_string(alice_comment.permlink) == op.permlink);

@@ -1,6 +1,6 @@
 #include <golos/api/discussion_helper.hpp>
+#include <golos/api/comment_api_object.hpp>
 #include <golos/chain/account_object.hpp>
-// #include <golos/plugins/follow/follow_objects.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <fc/io/json.hpp>
 #include <boost/algorithm/string.hpp>
@@ -8,7 +8,7 @@
 
 namespace golos { namespace api {
 
-    comment_metadata get_metadata(const comment_api_object &c) {
+    comment_metadata get_metadata(const comment_api_object& c) {
 
         comment_metadata meta;
 
@@ -62,6 +62,22 @@ namespace golos { namespace api {
               fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted) {
         }
+        impl(
+            golos::chain::database& db,
+            std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
+            std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
+            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
+            : database_(db),
+              fill_reputation_(fill_reputation),
+              fill_promoted_(fill_promoted),
+              fill_comment_content_(fill_comment_content) {
+        }
+        impl(
+            golos::chain::database& db,
+            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
+            :   database_(db),
+                fill_comment_content_(fill_comment_content) {
+        }
         ~impl() = default;
 
         discussion create_discussion(const std::string& author) const ;
@@ -85,13 +101,85 @@ namespace golos { namespace api {
             return database_;
         }
 
+        comment_api_object create_comment_api_object(const comment_object& o) const;
+
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
+
+        void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
 
     private:
         golos::chain::database& database_;
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation_;
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted_;
+        std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content_;
     };
+
+// create_comment_api_object 
+    comment_api_object discussion_helper::create_comment_api_object(const comment_object& o) const {
+        return pimpl->create_comment_api_object(o);
+    }
+
+    comment_api_object discussion_helper::impl::create_comment_api_object(const comment_object& o) const {
+        comment_api_object result;
+
+        fill_comment_api_object(o, result);
+
+        return result;
+    }
+
+// fill_comment_api_object 
+
+    void discussion_helper::fill_comment_api_object(const comment_object& o, comment_api_object& d) const {
+        pimpl->fill_comment_api_object(o, d);
+    }
+
+    void discussion_helper::impl::fill_comment_api_object(const comment_object& o, comment_api_object& d) const {
+        d.id = o.id;
+        d.parent_author = o.parent_author;
+        d.parent_permlink = to_string(o.parent_permlink);
+        d.author = o.author;
+        d.permlink = to_string(o.permlink);
+        d.last_update = o.last_update;
+        d.created = o.created;
+        d.active = o.active;
+        d.last_payout = o.last_payout;
+        d.depth = o.depth;
+        d.children = o.children;
+        d.children_rshares2 = o.children_rshares2;
+        d.net_rshares = o.net_rshares;
+        d.abs_rshares = o.abs_rshares;
+        d.vote_rshares = o.vote_rshares;
+        d.children_abs_rshares = o.children_abs_rshares;
+        d.cashout_time = o.cashout_time;
+        d.max_cashout_time = o.max_cashout_time;
+        d.total_vote_weight = o.total_vote_weight;
+        d.reward_weight = o.reward_weight;
+        d.total_payout_value = o.total_payout_value;
+        d.curator_payout_value = o.curator_payout_value;
+        d.author_rewards = o.author_rewards;
+        d.net_votes = o.net_votes;
+        d.mode = o.mode;
+        d.root_comment = o.root_comment;
+        d.max_accepted_payout = o.max_accepted_payout;
+        d.percent_steem_dollars = o.percent_steem_dollars;
+        d.allow_replies = o.allow_replies;
+        d.allow_votes = o.allow_votes;
+        d.allow_curation_rewards = o.allow_curation_rewards;
+
+        for (auto& route : o.beneficiaries) {
+            d.beneficiaries.push_back(route);
+        }
+
+        if (fill_comment_content_) {
+            fill_comment_content_(database(), o, d);
+        }
+
+        if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
+            d.category = to_string(o.parent_permlink);
+        } else {
+            d.category = to_string(database().get<comment_object, by_id>(o.root_comment).parent_permlink);
+        }
+    }
 
 // get_discussion
     discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
@@ -191,12 +279,11 @@ namespace golos { namespace api {
 //
 // set_url
     void discussion_helper::impl::set_url(discussion& d) const {
-        const comment_api_object root(database().get_comment(d.root_comment), database());
+        comment_object cm = database().get<comment_object, by_id>(d.root_comment);
 
-        d.root_title = root.title;
-        d.url = "/" + root.category + "/@" + root.author + "/" + root.permlink;
+        d.url = "/" + d.category + "/@" + std::string(cm.author) + "/" + to_string(cm.permlink);
 
-        if (root.id != d.id) {
+        if (cm.id != d.id) {
             d.url += "#@" + d.author + "/" + d.permlink;
         }
     }
@@ -213,7 +300,9 @@ namespace golos { namespace api {
     }
 
     discussion discussion_helper::impl::create_discussion(const comment_object& o) const {
-        return discussion(o, database_);
+        discussion d;
+        fill_comment_api_object(o, d);
+        return d;
     }
 
     discussion discussion_helper::create_discussion(const std::string& author) const {
@@ -230,6 +319,22 @@ namespace golos { namespace api {
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted
     ) {
         pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted);
+    }
+
+    discussion_helper::discussion_helper(
+        golos::chain::database& db,
+        std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
+        std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
+        std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+    ) {
+        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_content);
+    }
+
+    discussion_helper::discussion_helper(
+            golos::chain::database& db,
+            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
+    ) {
+        pimpl = std::make_unique<impl>(db, fill_comment_content);
     }
 
     discussion_helper::~discussion_helper() = default;

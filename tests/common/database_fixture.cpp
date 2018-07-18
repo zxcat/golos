@@ -315,13 +315,15 @@ namespace golos { namespace chain {
             ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
             oh_plugin = &appbase::app().register_plugin<operation_history::plugin>();
             ah_plugin = &appbase::app().register_plugin<account_history::plugin>();
+            sn_plugin = &appbase::app().register_plugin<golos::plugins::social_network::social_network>();
             db_plugin = &appbase::app().register_plugin<debug_node::plugin>();
 
             appbase::app().initialize<
                 golos::plugins::chain::plugin,
                 account_history::plugin,
-                debug_node::plugin
-            >(argc, argv);
+                debug_node::plugin,
+                golos::plugins::social_network::social_network
+            >( argc, argv );
 
             db_plugin->set_logging(false);
 
@@ -351,6 +353,7 @@ namespace golos { namespace chain {
             oh_plugin->plugin_startup();
             ah_plugin->plugin_startup();
             db_plugin->plugin_startup();
+            sn_plugin->plugin_startup();
 
             validate_database();
         }

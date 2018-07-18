@@ -3,6 +3,7 @@
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 #include "follow_api_object.hpp"
 
 namespace golos { namespace plugins { namespace follow {

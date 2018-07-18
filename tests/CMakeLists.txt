@@ -27,6 +27,7 @@ target_link_libraries(
         golos_market_history
         golos_debug_node
         golos::api
+        golos_social_network
         fc ${PLATFORM_SPECIFIC_LIBS})
 
 add_test(NAME chain_test_run COMMAND chain_test)
@@ -37,7 +38,7 @@ file(GLOB PLUGIN_TESTS
     "plugin_tests/plugin_ops.cpp"
     "plugin_tests/json_rpc.cpp")
 add_executable(plugin_test ${PLUGIN_TESTS} ${COMMON_SOURCES})
-target_link_libraries(plugin_test golos_chain golos_protocol  golos_account_history golos_market_history golos_debug_node fc ${PLATFORM_SPECIFIC_LIBS})
+target_link_libraries(plugin_test golos_chain golos_protocol  golos_account_history golos_market_history golos_debug_node golos_social_network fc ${PLATFORM_SPECIFIC_LIBS})
 target_include_directories(plugin_test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
 add_test(NAME plugin_test_run COMMAND plugin_test)
 
@@ -56,6 +57,7 @@ macro(add_exec_test)
         golos_account_history
         golos_market_history
         golos_debug_node
+        golos_social_network
         fc ${PLATFORM_SPECIFIC_LIBS})
     target_include_directories("${GET_NAME}_test" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
     add_test(NAME "${GET_NAME}_test_run" COMMAND "${GET_NAME}_test")

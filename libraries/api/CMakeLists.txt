@@ -14,7 +14,6 @@ list(APPEND CURRENT_TARGET_HEADERS
 list(APPEND CURRENT_TARGET_SOURCES
     account_api_object.cpp
     discussion_helper.cpp
-    comment_api_object.cpp
     chain_api_properties.cpp
     witness_api_object.cpp
 )

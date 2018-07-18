@@ -10,6 +10,7 @@
 #include <memory>
 #include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/chain/index.hpp>
+#include <golos/api/discussion_helper.hpp>
 
 #define CHECK_ARG_SIZE(s) \
    FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
@@ -24,6 +25,7 @@ namespace golos {
             using golos::chain::to_string;
             using golos::chain::account_index;
             using golos::chain::by_name;
+            using golos::api::discussion_helper;
 
             void fill_account_reputation(
                 const golos::chain::database& db,
@@ -286,6 +288,10 @@ namespace golos {
             struct plugin::impl final {
             public:
                 impl() : database_(appbase::app().get_plugin<chain::plugin>().db()) {
+                    helper = std::make_unique<discussion_helper>(
+                        database_,
+                        golos::plugins::social_network::fill_comment_content
+                    );
                 }
 
                 ~impl() {
@@ -378,6 +384,8 @@ namespace golos {
 
                 std::shared_ptr<generic_custom_operation_interpreter<
                         follow::follow_plugin_operation>> _custom_operation_interpreter;
+
+                std::unique_ptr<discussion_helper> helper;
             };
 
             plugin::plugin() {
@@ -556,7 +564,7 @@ namespace golos {
                 while (itr != feed_idx.end() && itr->account == account && result.size() < limit) {
                     const auto &comment = db.get(itr->comment);
                     comment_feed_entry entry;
-                    entry.comment = comment_api_object(comment, db);
+                    entry.comment = helper->create_comment_api_object(comment);
                     entry.entry_id = itr->account_feed_id;
                     if (itr->first_reblogged_by != account_name_type()) {
                         //entry.reblog_by = itr->first_reblogged_by;
@@ -628,7 +636,7 @@ namespace golos {
                 while (itr != blog_idx.end() && itr->account == account && result.size() < limit) {
                     const auto &comment = db.get(itr->comment);
                     comment_blog_entry entry;
-                    entry.comment = comment_api_object(comment, db);
+                    entry.comment = helper->create_comment_api_object(comment);
                     entry.blog = account;
                     entry.reblog_on = itr->reblogged_on;
                     entry.entry_id = itr->blog_feed_id;

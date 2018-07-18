@@ -3,8 +3,17 @@
 #include <golos/chain/index.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/chain/steem_objects.hpp>
+
 #include <golos/api/discussion_helper.hpp>
+// These visitors creates additional tables, we don't really need them in LOW_MEM mode
 #include <golos/plugins/tags/plugin.hpp>
+#include <golos/chain/operation_notification.hpp>
+#include <golos/protocol/types.hpp>
+#include <golos/protocol/config.hpp>
+#include <golos/protocol/exceptions.hpp>
+
+#include <diff_match_patch.h>
+#include <boost/locale/encoding_utf.hpp>
 
 #define CHECK_ARG_SIZE(_S)                                 \
    FC_ASSERT(                                              \
@@ -27,13 +36,51 @@
 #  define DEFAULT_VOTE_LIMIT 10000
 #endif
 
+
+// Depth of comment_content information storage history.
+struct content_depth_params {
+    content_depth_params() {
+    }
+
+    inline bool miss_content() const {
+        return has_comment_title_depth && !comment_title_depth &&
+               has_comment_body_depth && !comment_body_depth &&
+               has_comment_json_metadata_depth && !comment_json_metadata_depth;
+    }
+
+    inline bool need_clear() const {
+        return has_comment_title_depth || has_comment_body_depth || has_comment_json_metadata_depth;
+    }
+
+    inline bool should_delete_whole_content_object(const uint32_t delta) const {
+        return delta > comment_title_depth && delta > comment_body_depth && delta > comment_json_metadata_depth;
+    }
+
+    inline bool should_delete_part_of_content_object(const uint32_t delta) const {
+        return delta > comment_title_depth || delta > comment_body_depth || delta > comment_json_metadata_depth;
+    }
+
+
+    uint32_t comment_title_depth;
+    uint32_t comment_body_depth;
+    uint32_t comment_json_metadata_depth;
+
+    bool has_comment_title_depth = false;
+    bool has_comment_body_depth = false;
+    bool has_comment_json_metadata_depth = false;
+
+    bool set_null_after_update = false;
+};
+
 namespace golos { namespace plugins { namespace social_network {
     using golos::plugins::tags::fill_promoted;
     using golos::api::discussion_helper;
 
+    using boost::locale::conv::utf_to_utf;
+
     struct social_network::impl final {
         impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
-            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted);
+            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted, fill_comment_content);
         }
 
         ~impl() = default;
@@ -71,12 +118,48 @@ namespace golos { namespace plugins { namespace social_network {
         discussion get_content(std::string author, std::string permlink, uint32_t limit) const;
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const ;
+ 
+        void set_depth_parameters(const content_depth_params& params);
+
+        // Looks for a comment_operation, fills the comment_content state objects.
+        void post_operation(const operation_notification& o);
+
+        void on_block(const signed_block& b);
+
+        comment_api_object create_comment_api_object(const comment_object& o) const ;
+
+        const comment_content_object &get_comment_content(const comment_id_type& comment) const ;
+
+        const comment_content_object *find_comment_content(const comment_id_type& comment) const ;
+
 
     private:
         golos::chain::database& database_;
         std::unique_ptr<discussion_helper> helper;
+        content_depth_params depth_parameters;
     };
 
+
+    const comment_content_object& social_network::impl::get_comment_content(const comment_id_type& comment) const {
+        try {
+            return database().get<comment_content_object, by_comment>(comment);
+        } catch(const std::out_of_range &e) {
+            GOLOS_THROW_MISSING_OBJECT("comment_content", comment);
+        } FC_CAPTURE_AND_RETHROW((comment))
+    }
+
+    const comment_content_object& social_network::get_comment_content(const comment_id_type& comment) const {
+        return pimpl->get_comment_content(comment);
+    }
+
+
+    const comment_content_object* social_network::impl::find_comment_content(const comment_id_type& comment) const {
+        return database().find<comment_content_object, by_comment>(comment);
+    }
+     
+    const comment_content_object* social_network::find_comment_content(const comment_id_type& comment) const {
+        return pimpl->find_comment_content(comment);
+    }
 
     discussion social_network::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
         return helper->get_discussion(c, vote_limit);
@@ -88,6 +171,181 @@ namespace golos { namespace plugins { namespace social_network {
     ) const {
         helper->select_active_votes(result, total_count, author, permlink, limit);
     }
+
+    void social_network::impl::set_depth_parameters(const content_depth_params& params) {
+        depth_parameters = params;
+    }
+
+    struct operation_visitor {
+        using result_type = void;
+
+        golos::chain::database& db;
+        content_depth_params depth_parameters;
+
+        operation_visitor(golos::chain::database& db, const content_depth_params& params) : db(db), depth_parameters(params) {
+        }
+
+        std::wstring utf8_to_wstring(const std::string& str) const {
+            return utf_to_utf<wchar_t>(str.c_str(), str.c_str() + str.size());
+        }
+
+        std::string wstring_to_utf8(const std::wstring& str) const {
+            return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
+        }
+
+        const comment_content_object& get_comment_content(const comment_id_type& comment) const {
+            return db.get<comment_content_object, by_comment>(comment);
+        }
+
+        const comment_content_object* find_comment_content(const comment_id_type& comment) const {
+            return db.find<comment_content_object, by_comment>(comment);
+        }
+
+        template<class T>
+        void operator()(const T& o) const {
+        }
+
+        void operator()(const delete_comment_operation& o) const {
+            const auto& comment = db.get_comment(o.author, o.permlink);
+            if (find_comment_content(comment.id) == nullptr) {
+                return;
+            }
+            auto& content = get_comment_content(comment.id);
+            db.remove(content);
+        }
+
+        void operator()(const golos::protocol::comment_operation& o) const {
+            if (depth_parameters.miss_content()) {
+                return;
+            }
+
+            const auto& comment = db.get_comment(o.author, o.permlink);
+            const auto comment_content = db.find<comment_content_object, by_comment>(comment.id);
+
+            if ( comment_content != nullptr) {
+                // Edit case
+                db.modify(*comment_content, [&]( comment_content_object& con ) {
+                    if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
+                        from_string(con.title, o.title);
+                    }
+                    if (o.json_metadata.size()) {
+                        if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                            fc::is_utf8(o.json_metadata)
+                        ) {
+                            from_string(con.json_metadata, o.json_metadata );
+                        }
+                    }
+                    if (o.body.size() && (!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0)) {
+                        try {
+                            diff_match_patch<std::wstring> dmp;
+                            auto patch = dmp.patch_fromText(utf8_to_wstring(o.body));
+                            if (patch.size()) {
+                                auto result = dmp.patch_apply(patch, utf8_to_wstring(to_string(con.body)));
+                                auto patched_body = wstring_to_utf8(result.first);
+                                if(!fc::is_utf8(patched_body)) {
+                                    from_string(con.body, fc::prune_invalid_utf8(patched_body));
+                                }
+                                else {
+                                    from_string(con.body, patched_body);
+                                }
+                            }
+                            else { // replace
+                                from_string(con.body, o.body);
+                            }
+                        } catch ( ... ) {
+                            from_string(con.body, o.body);
+                        }
+                    }
+                    // Set depth null if needed (this parameter is given in config)
+                    if (depth_parameters.set_null_after_update) {
+                        con.block_number = db.head_block_num();
+                    } 
+                });
+
+            }
+            else {
+                // Creation case
+                comment_id_type id = comment.id;
+
+                db.create<comment_content_object>([&](comment_content_object& con) {
+                    con.comment = id;
+                    if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
+                        from_string(con.title, o.title);
+                    }
+                    
+                    if ((!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
+                        from_string(con.body, o.body);
+                    }
+
+                    if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                        fc::is_utf8(o.json_metadata)
+                    ) {
+                        from_string(con.json_metadata, o.json_metadata);
+                    }
+
+                    con.block_number = db.head_block_num();
+                });
+            }
+        }
+        
+    };
+
+    void social_network::impl::post_operation(const operation_notification& o) {
+        try {
+            auto& db = database();
+
+            operation_visitor ovisit(db, depth_parameters);
+
+            o.op.visit(ovisit);
+        } FC_CAPTURE_AND_RETHROW()
+    }
+    void social_network::impl::on_block(const signed_block& b) {
+        try {
+            auto& db = database();
+
+            const auto& idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
+
+            for (auto itr = idx.begin(); itr != idx.end();) {
+                auto& content = *itr;
+                ++itr;
+
+                const auto&cidx = db.get_index<comment_index>().indices().get<by_id>();
+            
+                auto comment = cidx.find(content.comment);
+                
+                auto delta = db.head_block_num() - content.block_number;
+
+                if (comment->mode == archived && depth_parameters.should_delete_part_of_content_object(delta)) {
+                    if (depth_parameters.should_delete_whole_content_object(delta)) {
+                        db.modify(content, [&](comment_content_object& con) {
+                            con.title.clear();
+                            con.body.clear();
+                            con.json_metadata.clear();
+                        });
+                        continue;
+                    }
+                    db.modify(content, [&](comment_content_object& con) {
+                        if (delta > depth_parameters.comment_title_depth) {
+                            con.title.clear();
+                        }
+
+                        if (delta > depth_parameters.comment_body_depth) {
+                            con.body.clear();
+                        }
+
+                        if (delta > depth_parameters.comment_json_metadata_depth) {
+                            con.json_metadata.clear();
+                        }
+                    });
+
+                }
+                else {
+                    break;
+                }
+            }
+        } FC_CAPTURE_AND_RETHROW()
+    }
+
 
     void social_network::plugin_startup() {
         wlog("social_network plugin: plugin_startup()");
@@ -105,17 +363,74 @@ namespace golos { namespace plugins { namespace social_network {
     social_network::social_network() = default;
 
     void social_network::set_program_options(
-        boost::program_options::options_description&,
+        boost::program_options::options_description& cfg,
         boost::program_options::options_description& config_file_options
     ) {
+        config_file_options.add_options()
+            ( // Depth of comment_content information storage history.
+                "comment-title-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.title"
+            ) (
+                "comment-body-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.body"
+            ) (
+                "comment-json-metadata-depth", boost::program_options::value<uint32_t>(),
+                "max count of storing records of comment.json_metadata"
+            ) (
+                "set-content-storing-depth-null-after-update", boost::program_options::value<bool>()->default_value(false),
+                "should content's depth be set to null after update"
+            );
     }
 
     void social_network::plugin_initialize(const boost::program_options::variables_map& options) {
         pimpl = std::make_unique<impl>();
         JSON_RPC_REGISTER_API(name());
+
+        auto& db = pimpl->database();
+
+        add_plugin_index<comment_content_index>(db);
+
+        db.post_apply_operation.connect([&](const operation_notification &o) {
+            pimpl->post_operation(o);
+        });
+
+        db.applied_block.connect([&](const signed_block &b) {
+            pimpl->on_block(b);
+        });
+
+        content_depth_params params;
+
+        if (options.count("comment-title-depth")) {
+            params.comment_title_depth = options.at("comment-title-depth").as<uint32_t>();
+            params.has_comment_title_depth = true;
+        }
+
+        if (options.count("comment-body-depth")) {
+            params.comment_body_depth = options.at("comment-body-depth").as<uint32_t>();
+            params.has_comment_body_depth = true;
+        }
+
+        if (options.count("comment-json-metadata-depth")) {
+            params.comment_json_metadata_depth = options.at("comment-json-metadata-depth").as<uint32_t>();
+            params.has_comment_json_metadata_depth = true;
+        }
+
+        if (options.count("set-content-storing-depth-null-after-update")) {
+            params.set_null_after_update = options.at("set-content-storing-depth-null-after-update").as<bool>();
+        }
+
+        pimpl->set_depth_parameters(params);
     }
 
     social_network::~social_network() = default;
+
+    comment_api_object social_network::impl::create_comment_api_object(const comment_object& o) const {
+        return helper->create_comment_api_object(o);
+    }
+
+    comment_api_object social_network::create_comment_api_object(const comment_object& o) const {
+        return pimpl->create_comment_api_object(o);
+    }
 
     void social_network::impl::select_content_replies(
         std::vector<discussion>& result, std::string author, std::string permlink, uint32_t limit
@@ -293,6 +608,23 @@ namespace golos { namespace plugins { namespace social_network {
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_replies_by_last_update(start_parent_author, start_permlink, limit, vote_limit);
         });
+    }
+
+    void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& con) {
+        if (!db.has_index<comment_content_index>()) {
+            return;
+        }
+        const auto content = db.find<comment_content_object, by_comment>(co.id);
+        if (content != nullptr) {
+            con.title = std::string(content->title.begin(), content->title.end());
+            con.body = std::string(content->body.begin(), content->body.end());
+            con.json_metadata = std::string(content->json_metadata.begin(), content->json_metadata.end());
+        }
+
+        const auto root_content = db.find<comment_content_object, by_comment>(co.root_comment);
+        if (root_content != nullptr) {
+            con.root_title = std::string(root_content->title.begin(), root_content->title.end());
+        }
     }
 
 } } } // golos::plugins::social_network

@@ -45,7 +45,7 @@ namespace golos { namespace plugins { namespace tags {
         void on_operation(const operation_notification& note) {
             try {
                 /// plugins shouldn't ever throw
-                note.op.visit(tags::operation_visitor(database()));
+                note.op.visit(tags::operation_visitor(database(), *helper));
             } catch (const fc::exception& e) {
                 edump((e.to_detail_string()));
             } catch (...) {
@@ -111,6 +111,9 @@ namespace golos { namespace plugins { namespace tags {
         discussion create_discussion(const comment_object& o) const;
         discussion create_discussion(const comment_object& o, const discussion_query& query) const;
         void fill_discussion(discussion& d, const discussion_query& query) const;
+        void fill_comment_api_object(const comment_object& o, discussion& d) const;
+
+        comment_api_object create_comment_api_object(const comment_object & o) const;
 
         get_languages_result get_languages();
 
@@ -143,6 +146,10 @@ namespace golos { namespace plugins { namespace tags {
         return helper->create_discussion(o);
     }
 
+    void tags_plugin::impl::fill_comment_api_object(const comment_object& o, discussion& d) const {
+        helper->fill_comment_api_object(o, d);
+    }
+
     void tags_plugin::impl::fill_discussion(discussion& d, const discussion_query& query) const {
         set_url(d);
         set_pending_payout(d);
@@ -173,6 +180,10 @@ namespace golos { namespace plugins { namespace tags {
         fill_discussion(d, query);
 
         return d;
+    }
+
+    comment_api_object tags_plugin::impl::create_comment_api_object(const comment_object & o) const {
+        return helper->create_comment_api_object( o );
     }
 
     DEFINE_API(tags_plugin, get_languages) {
@@ -279,7 +290,7 @@ namespace golos { namespace plugins { namespace tags {
 
             query.start_comment = create_discussion(*comment, query);
             auto& d = query.start_comment;
-            operation_visitor v(database_);
+            operation_visitor v(database_, *helper);
 
             d.hot = v.calculate_hot(d.net_rshares, d.created);
             d.trending = v.calculate_trending(d.net_rshares, d.created);
@@ -614,11 +625,14 @@ namespace golos { namespace plugins { namespace tags {
 
             for (; itr != idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
                 if (itr->parent_author.size() > 0) {
-                    discussion p(db.get_comment(itr->root_comment), db);
+                    discussion p;
+                    pimpl->fill_comment_api_object(db.get<comment_object>(itr->root_comment), p);
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
-                    result.emplace_back(discussion(*itr, db));
+                    discussion d;
+                    pimpl->fill_comment_api_object(*itr, d);
+                    result.push_back(std::move(d));
                     pimpl->fill_discussion(result.back(), query);
                 }
             }
