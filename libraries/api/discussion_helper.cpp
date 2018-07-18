@@ -172,7 +172,7 @@ namespace golos { namespace api {
             d.beneficiaries.push_back(route);
         }
 
-        if ( fill_comment_content_ ) {
+        if (fill_comment_content_) {
             fill_comment_content_(database(), o, d);
         }
 
@@ -183,11 +183,6 @@ namespace golos { namespace api {
         }
     }
 
-
-// get_comment_content
-    void discussion_helper::impl::fill_comment_content(const golos::chain::database & db, const comment_object & co, comment_api_object & con) {
-        fill_comment_content_(db, co, con);
-    }
 // get_discussion
     discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
         discussion d = create_discussion(c);

@@ -1,14 +1,6 @@
 #pragma once
 
-#include <appbase/application.hpp>
-#include <golos/api/discussion.hpp>
-#include <golos/api/discussion_helper.hpp>
-
 namespace golos { namespace plugins { namespace social_network {
-    using plugins::json_rpc::msg_pack;
-    using golos::api::discussion;
-    using golos::api::account_vote;
-    using golos::api::vote_state;
     using namespace golos::chain;
     
     #ifndef SOCIAL_NETWORK_SPACE_ID
