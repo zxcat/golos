@@ -45,7 +45,7 @@ namespace golos { namespace plugins { namespace social_network {
               indexed_by<
                  ordered_unique<tag<by_id>, member<comment_content_object, comment_content_id_type, &comment_content_object::id>>,
                  ordered_unique<tag<by_comment>, member<comment_content_object, comment_id_type, &comment_content_object::comment>>,
-                 ordered_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>>,
+                 ordered_non_unique<tag<by_block_number>, member<comment_content_object, uint32_t, &comment_content_object::block_number>>>,
             allocator<comment_content_object>
         > comment_content_index;
 } } }

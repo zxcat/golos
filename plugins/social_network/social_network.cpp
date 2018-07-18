@@ -10,6 +10,7 @@
 #include <golos/chain/operation_notification.hpp>
 #include <golos/protocol/types.hpp>
 #include <golos/protocol/config.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 #include <diff_match_patch.h>
 #include <boost/locale/encoding_utf.hpp>
@@ -142,6 +143,8 @@ namespace golos { namespace plugins { namespace social_network {
     const comment_content_object& social_network::impl::get_comment_content(const comment_id_type& comment) const {
         try {
             return database().get<comment_content_object, by_comment>(comment);
+        } catch(const std::out_of_range &e) {
+            GOLOS_THROW_MISSING_OBJECT("comment_content", comment);
         } FC_CAPTURE_AND_RETHROW((comment))
     }
 

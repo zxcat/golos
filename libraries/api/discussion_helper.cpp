@@ -105,8 +105,6 @@ namespace golos { namespace api {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
 
-        void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
-
         void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
 
     private:
