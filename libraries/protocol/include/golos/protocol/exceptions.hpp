@@ -292,6 +292,11 @@ namespace golos { namespace protocol {
         std::vector<account_name_type> unused_approvals;
     };
 
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        tx_duplicate_transaction, transaction_exception,
+        3080000, "duplicate transaction");
+
+
 } } // golos::protocol
 
 FC_REFLECT_ENUM(golos::logic_exception::error_types, 

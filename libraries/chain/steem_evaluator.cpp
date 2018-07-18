@@ -58,7 +58,7 @@ namespace golos { namespace chain {
                     case SBD_SYMBOL:
                         return account.sbd_balance;
                     default:
-                        FC_ASSERT(false, "invalid symbol");
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
             case SAVINGS:
                 switch (symbol) {
@@ -67,16 +67,16 @@ namespace golos { namespace chain {
                     case SBD_SYMBOL:
                         return account.savings_sbd_balance;
                     default:
-                        FC_ASSERT(false, "invalid symbol");
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
             case VESTING: 
-                FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.vesting_shares;
             case EFFECTIVE_VESTING: 
-                FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.effective_vesting_shares();
             case HAVING_VESTING: 
-                FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.available_vesting_shares(false);
             case AVAILABLE_VESTING: 
                 FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
@@ -974,10 +974,11 @@ namespace golos { namespace chain {
                 });
             }
 
-            GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount); 
-
-            _db.adjust_balance(from_account, -o.amount);
-            _db.adjust_balance(to_account, o.amount);
+            GOLOS_CHECK_OP_PARAM(o, amount, {
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount); 
+                _db.adjust_balance(from_account, -o.amount);
+                _db.adjust_balance(to_account, o.amount);
+            });
         }
 
         void transfer_to_vesting_evaluator::do_apply(const transfer_to_vesting_operation &o) {
