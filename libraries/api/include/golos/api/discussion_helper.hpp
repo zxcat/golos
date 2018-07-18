@@ -10,7 +10,7 @@ namespace golos { namespace api {
         std::string language;
     };
 
-    comment_metadata get_metadata(const comment_api_object &c);
+    comment_metadata get_metadata(const comment_api_object& c);
 
     class discussion_helper {
     public:

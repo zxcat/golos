@@ -11,7 +11,7 @@ namespace golos { namespace plugins { namespace tags {
     using golos::api::discussion_helper;
 
     struct operation_visitor {
-        operation_visitor(database& db, const discussion_helper &helper);
+        operation_visitor(database& db, const discussion_helper& helper);
         using result_type = void;
 
         database& db_;

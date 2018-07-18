@@ -3,7 +3,7 @@
 
 namespace golos { namespace plugins { namespace tags {
 
-    operation_visitor::operation_visitor(database& db, const discussion_helper &helper)
+    operation_visitor::operation_visitor(database& db, const discussion_helper& helper)
         : db_(db), helper_(helper) {
     }
 

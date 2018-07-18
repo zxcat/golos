@@ -8,7 +8,7 @@
 
 namespace golos { namespace api {
 
-    comment_metadata get_metadata(const comment_api_object &c) {
+    comment_metadata get_metadata(const comment_api_object& c) {
 
         comment_metadata meta;
 
@@ -117,11 +117,11 @@ namespace golos { namespace api {
     };
 
 // create_comment_api_object 
-    comment_api_object discussion_helper::create_comment_api_object(const comment_object & o) const {
+    comment_api_object discussion_helper::create_comment_api_object(const comment_object& o) const {
         return pimpl->create_comment_api_object(o);
     }
 
-    comment_api_object discussion_helper::impl::create_comment_api_object(const comment_object & o) const {
+    comment_api_object discussion_helper::impl::create_comment_api_object(const comment_object& o) const {
         comment_api_object result;
 
         fill_comment_api_object(o, result);
@@ -334,7 +334,7 @@ namespace golos { namespace api {
 
     discussion_helper::discussion_helper(
             golos::chain::database& db,
-            std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
     ) {
         pimpl = std::make_unique<impl>(db, fill_comment_content);
     }
