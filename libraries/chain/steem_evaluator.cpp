@@ -27,7 +27,7 @@ std::string wstring_to_utf8(const std::wstring &str) {
             asset exist = get_balance(ACCOUNT, TYPE, (REQUIRED).symbol); \
             if( UNLIKELY( exist < (REQUIRED) )) { \
                 FC_THROW_EXCEPTION( golos::insufficient_funds, \
-                        "Account \"${account}\" does not have enough ${balance}: exist ${exist}, required ${required}", \
+                        "Account \"${account}\" does not have enough ${balance}: required ${required}", \
                         ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("required",REQUIRED)); \
             } \
         FC_MULTILINE_MACRO_END \
@@ -987,11 +987,12 @@ namespace golos { namespace chain {
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = o.to.size() ? _db.get_account(o.to)
                                                  : from_account;
-
-            FC_ASSERT(_db.get_balance(from_account, STEEM_SYMBOL) >=
-                      o.amount, "Account does not have sufficient GOLOS for transfer.");
-            _db.adjust_balance(from_account, -o.amount);
-            _db.create_vesting(to_account, o.amount);
+            
+            GOLOS_CHECK_OP_PARAM(o, amount, {
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount);
+                _db.adjust_balance(from_account, -o.amount);
+                _db.create_vesting(to_account, o.amount);
+            });
         }
 
         void withdraw_vesting_evaluator::do_apply(const withdraw_vesting_operation &o) {

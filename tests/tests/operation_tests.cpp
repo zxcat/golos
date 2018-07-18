@@ -1405,6 +1405,36 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: transfer_to_vesting_validate");
 
+            transfer_to_vesting_operation op;
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            op.from = "alice";
+            op.to = "";
+            op.amount = ASSET("5.000 GOLOS");
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- failed when 'from' is empty");
+            op.from = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "from"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'amount' is negative");
+            op.from = "alice";
+            op.amount = ASSET("-2.000 GOLOS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "amount"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'amount' have invalid symbol");
+            op.amount = ASSET("2.000000 GESTS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "amount"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'to' is invalid");
+            op.amount = ASSET("5.000 GOLOS");
+            op.to = "a";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "to"));
+
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -1427,28 +1457,32 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
             tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with from signature");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             validate_database();
         }
@@ -1464,7 +1498,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             const auto &gpo = db->get_dynamic_global_properties();
 
-            BOOST_REQUIRE(alice.balance == ASSET("10.000 GOLOS"));
+            BOOST_CHECK_EQUAL(alice.balance, ASSET("10.000 GOLOS"));
 
             auto shares = asset(gpo.total_vesting_shares.amount, VESTS_SYMBOL);
             auto vests = asset(gpo.total_vesting_fund_steem.amount, STEEM_SYMBOL);
@@ -1480,17 +1514,17 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             auto new_vest = op.amount * (shares / vests);
             shares += new_vest;
             vests += op.amount;
             alice_shares += new_vest;
 
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("2.500 GOLOS").amount.value);
-            BOOST_REQUIRE(alice.vesting_shares.amount.value == alice_shares.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem.amount.value == vests.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_shares.amount.value == shares.amount.value);
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("2.500 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, alice_shares.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, vests.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares.amount.value, shares.amount.value);
             validate_database();
 
             op.to = "bob";
@@ -1500,29 +1534,31 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             new_vest = asset((op.amount * (shares / vests)).amount, VESTS_SYMBOL);
             shares += new_vest;
             vests += op.amount;
             bob_shares += new_vest;
 
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("0.500 GOLOS").amount.value);
-            BOOST_REQUIRE(alice.vesting_shares.amount.value == alice_shares.amount.value);
-            BOOST_REQUIRE(bob.balance.amount.value == ASSET("0.000 GOLOS").amount.value);
-            BOOST_REQUIRE(bob.vesting_shares.amount.value == bob_shares.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem.amount.value == vests.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_shares.amount.value == shares.amount.value);
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("0.500 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, alice_shares.amount.value);
+            BOOST_CHECK_EQUAL(bob.balance.amount.value, ASSET("0.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(bob.vesting_shares.amount.value, bob_shares.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, vests.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares.amount.value, shares.amount.value);
             validate_database();
 
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(insufficient_funds, "alice", "fund", "2.000 GOLOS")));
 
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("0.500 GOLOS").amount.value);
-            BOOST_REQUIRE(alice.vesting_shares.amount.value == alice_shares.amount.value);
-            BOOST_REQUIRE(bob.balance.amount.value == ASSET("0.000 GOLOS").amount.value);
-            BOOST_REQUIRE(bob.vesting_shares.amount.value == bob_shares.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem.amount.value == vests.amount.value);
-            BOOST_REQUIRE(gpo.total_vesting_shares.amount.value == shares.amount.value);
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("0.500 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, alice_shares.amount.value);
+            BOOST_CHECK_EQUAL(bob.balance.amount.value, ASSET("0.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(bob.vesting_shares.amount.value, bob_shares.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, vests.amount.value);
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares.amount.value, shares.amount.value);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
