@@ -461,11 +461,10 @@ namespace golos { namespace protocol {
         }
 
         void convert_operation::validate() const {
-            validate_account_name(owner);
+            GOLOS_CHECK_PARAM_ACCOUNT(owner);
             /// only allow conversion from GBG to GOLOS, allowing the opposite can enable traders to abuse
             /// market fluxuations through converting large quantities without moving the price.
-            FC_ASSERT(is_asset_type(amount, SBD_SYMBOL), "Can only convert GBG to GOLOS");
-            FC_ASSERT(amount.amount > 0, "Must convert some GBG");
+            GOLOS_CHECK_PARAM(amount, GOLOS_CHECK_ASSET_GT0(amount, GBG));
         }
 
         void report_over_production_operation::validate() const {

@@ -42,6 +42,11 @@ fc::variant_object make_limit_order_id(const std::string& author, uint32_t order
     return fc::variant_object(res);
 }
 
+fc::variant_object make_convert_request_id(const std::string& account, uint32_t requestid) {
+    auto res = fc::mutable_variant_object()("account",account)("request_id",requestid);
+    return fc::variant_object(res);
+}
+
 
 BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
@@ -2584,6 +2589,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(convert_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: convert_validate");
+            convert_operation op;
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            op.owner = "alice";
+            op.amount = ASSET("10.000 GBG");
+            CHECK_OP_VALID(op);
+
+            BOOST_TEST_MESSAGE("--- failed when 'owner' is empty");
+            CHECK_PARAM_INVALID(op, owner, "");
+
+            BOOST_TEST_MESSAGE("--- failed when 'amount' is invalid");
+            CHECK_PARAM_INVALID(op, amount, ASSET("10.000000 GESTS"));
+            CHECK_PARAM_INVALID(op, amount, ASSET("-10.000 GBG"));
+
+            validate_database();
         }
         FC_LOG_AND_RETHROW()
     }
@@ -2611,28 +2631,32 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
             tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with owner signature");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             validate_database();
         }
@@ -2648,7 +2672,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             convert_operation op;
             signed_transaction tx;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
             const auto &convert_request_idx = db->get_index<convert_request_index>().indices().get<by_owner>();
 
@@ -2660,15 +2683,18 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             const auto &new_alice = db->get_account("alice");
             const auto &new_bob = db->get_account("bob");
 
-            BOOST_TEST_MESSAGE("--- Test failure when account does not have the required GOLOS");
+            BOOST_TEST_MESSAGE("--- Test failure when account does not have the required GOLOS (invalid parameter, only GBG)");
             op.owner = "bob";
             op.amount = ASSET("5.000 GOLOS");
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            // Convert operation only available for GBG
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "amount")));
 
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("3.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.sbd_balance.amount.value == ASSET("7.000 GBG").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value, ASSET("3.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.sbd_balance.amount.value, ASSET("7.000 GBG").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test failure when account does not have the required GBG");
@@ -2676,12 +2702,15 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.amount = ASSET("5.000 GBG");
             tx.operations.clear();
             tx.signatures.clear();
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(insufficient_funds, "alice", "fund", "5.000 GBG")));
 
-            BOOST_REQUIRE(new_alice.balance.amount.value == ASSET("7.500 GOLOS").amount.value);
-            BOOST_REQUIRE(new_alice.sbd_balance.amount.value == ASSET("2.500 GBG").amount.value);
+            BOOST_CHECK_EQUAL(new_alice.balance.amount.value, ASSET("7.500 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_alice.sbd_balance.amount.value, ASSET("2.500 GBG").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test failure when account does not exist");
@@ -2690,7 +2719,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.signatures.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(missing_object, "authority", "sam"));
 
             BOOST_TEST_MESSAGE("--- Test success converting GBG to GOLOS");
             op.owner = "bob";
@@ -2700,37 +2730,39 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("3.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.sbd_balance.amount.value == ASSET("4.000 GBG").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value, ASSET("3.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.sbd_balance.amount.value, ASSET("4.000 GBG").amount.value);
 
             auto convert_request = convert_request_idx.find(std::make_tuple(op.owner, op.requestid));
-            BOOST_REQUIRE(convert_request != convert_request_idx.end());
-            BOOST_REQUIRE(convert_request->owner == op.owner);
-            BOOST_REQUIRE(convert_request->requestid == op.requestid);
-            BOOST_REQUIRE(convert_request->amount.amount.value == op.amount.amount.value);
-            //BOOST_REQUIRE( convert_request->premium == 100000 );
-            BOOST_REQUIRE(convert_request->conversion_date == db->head_block_time() + STEEMIT_CONVERSION_DELAY);
+            BOOST_CHECK(convert_request != convert_request_idx.end());
+            BOOST_CHECK_EQUAL(convert_request->owner, op.owner);
+            BOOST_CHECK_EQUAL(convert_request->requestid, op.requestid);
+            BOOST_CHECK_EQUAL(convert_request->amount.amount.value, op.amount.amount.value);
+            //BOOST_CHECK_EQUAL( convert_request->premium, 100000 );
+            BOOST_CHECK_EQUAL(convert_request->conversion_date, db->head_block_time() + STEEMIT_CONVERSION_DELAY);
 
             BOOST_TEST_MESSAGE("--- Test failure from repeated id");
-            op.amount = ASSET("2.000 GOLOS");
+            op.amount = ASSET("2.000 GBG");
             tx.operations.clear();
             tx.signatures.clear();
             tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            tx.sign(bob_private_key, db->get_chain_id());
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(object_already_exist, "convert_request", make_convert_request_id("bob", 0))));
 
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("3.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.sbd_balance.amount.value == ASSET("4.000 GBG").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value, ASSET("3.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.sbd_balance.amount.value, ASSET("4.000 GBG").amount.value);
 
             convert_request = convert_request_idx.find(std::make_tuple(op.owner, op.requestid));
-            BOOST_REQUIRE(convert_request != convert_request_idx.end());
-            BOOST_REQUIRE(convert_request->owner == op.owner);
-            BOOST_REQUIRE(convert_request->requestid == op.requestid);
-            BOOST_REQUIRE(convert_request->amount.amount.value == ASSET("3.000 GBG").amount.value);
-            //BOOST_REQUIRE( convert_request->premium == 100000 );
-            BOOST_REQUIRE(convert_request->conversion_date == db->head_block_time() + STEEMIT_CONVERSION_DELAY);
+            BOOST_CHECK(convert_request != convert_request_idx.end());
+            BOOST_CHECK_EQUAL(convert_request->owner, op.owner);
+            BOOST_CHECK_EQUAL(convert_request->requestid, op.requestid);
+            BOOST_CHECK_EQUAL(convert_request->amount.amount.value, ASSET("3.000 GBG").amount.value);
+            //BOOST_CHECK_EQUAL( convert_request->premium, 100000 );
+            BOOST_CHECK_EQUAL(convert_request->conversion_date, db->head_block_time() + STEEMIT_CONVERSION_DELAY);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
