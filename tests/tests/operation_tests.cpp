@@ -1952,6 +1952,18 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(account_witness_vote_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: account_witness_vote_validate");
+            account_witness_vote_operation op;
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            op.account = "bob";
+            op.witness = "alice";
+            CHECK_OP_VALID(op);
+
+            BOOST_TEST_MESSAGE("--- failed when 'account' is empty");
+            CHECK_PARAM_INVALID(op, account, "");
+
+            BOOST_TEST_MESSAGE("--- failed when 'witness' is empty");
+            CHECK_PARAM_INVALID(op, witness, "");
 
             validate_database();
         }
@@ -1977,34 +1989,39 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
             tx.sign(bob_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with witness signature");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure with proxy signature");
             proxy("bob", "sam");
             tx.signatures.clear();
             tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             validate_database();
         }
@@ -2037,10 +2054,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(sam_witness.votes == alice.vesting_shares.amount);
-            BOOST_REQUIRE(
+            BOOST_CHECK_EQUAL(sam_witness.votes, alice.vesting_shares.amount);
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) !=
                     witness_vote_idx.end());
             validate_database();
@@ -2052,17 +2069,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
-            BOOST_REQUIRE(sam_witness.votes.value == 0);
-            BOOST_REQUIRE(
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            BOOST_CHECK_EQUAL(sam_witness.votes.value, 0);
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) ==
                     witness_vote_idx.end());
 
             BOOST_TEST_MESSAGE("--- Test failure when attempting to revoke a non-existent vote");
 
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), fc::exception);
-            BOOST_REQUIRE(sam_witness.votes.value == 0);
-            BOOST_REQUIRE(
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::witness_vote_does_not_exist)));
+
+            BOOST_CHECK_EQUAL(sam_witness.votes.value, 0);
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) ==
                     witness_vote_idx.end());
 
@@ -2075,13 +2095,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(sam_witness.votes == (bob.proxied_vsf_votes_total() + bob.vesting_shares.amount));
-            BOOST_REQUIRE(
+            BOOST_CHECK_EQUAL(sam_witness.votes, (bob.proxied_vsf_votes_total() + bob.vesting_shares.amount));
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, bob.id)) !=
                     witness_vote_idx.end());
-            BOOST_REQUIRE(
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) ==
                     witness_vote_idx.end());
 
@@ -2091,13 +2111,15 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.account = "alice";
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::cannot_vote_when_route_are_set)));
 
-            BOOST_REQUIRE(sam_witness.votes == (bob.proxied_vsf_votes_total() + bob.vesting_shares.amount));
-            BOOST_REQUIRE(
+            BOOST_CHECK_EQUAL(sam_witness.votes, (bob.proxied_vsf_votes_total() + bob.vesting_shares.amount));
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, bob.id)) !=
                     witness_vote_idx.end());
-            BOOST_REQUIRE(
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) ==
                     witness_vote_idx.end());
 
@@ -2109,13 +2131,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(sam_witness.votes.value == 0);
-            BOOST_REQUIRE(
+            BOOST_CHECK_EQUAL(sam_witness.votes.value, 0);
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, bob.id)) ==
                     witness_vote_idx.end());
-            BOOST_REQUIRE(
+            BOOST_CHECK(
                     witness_vote_idx.find(std::make_tuple(sam_witness.id, alice.id)) ==
                     witness_vote_idx.end());
 
@@ -2126,8 +2148,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.approve = true;
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "witness", "dave")));
 
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test failure when voting for an account that is not a witness");
@@ -2136,8 +2160,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.witness = "alice";
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "witness", "alice")));
 
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
             validate_database();
         }
         FC_LOG_AND_RETHROW()

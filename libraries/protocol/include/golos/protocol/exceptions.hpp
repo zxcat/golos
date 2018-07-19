@@ -224,6 +224,12 @@ namespace golos {
 
             // feed_publish_operation
             price_feed_must_be_for_golos_gbg_market,
+
+            // account_witness_vote_operation
+            cannot_vote_when_route_are_set,
+            witness_vote_does_not_exist,
+            witness_vote_already_exist,
+            account_has_too_many_witness_votes,
         };
     };
 
@@ -373,6 +379,12 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
 
         // feed_publis_operation
         (price_feed_must_be_for_golos_gbg_market)
+
+        // account_witness_vote_operation
+        (cannot_vote_when_route_are_set)
+        (witness_vote_does_not_exist)
+        (witness_vote_already_exist)
+        (account_has_too_many_witness_votes)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,

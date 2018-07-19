@@ -255,8 +255,8 @@ namespace golos { namespace protocol {
         }
 
         void account_witness_vote_operation::validate() const {
-            validate_account_name(account);
-            validate_account_name(witness);
+            GOLOS_CHECK_PARAM_ACCOUNT(account);
+            GOLOS_CHECK_PARAM_ACCOUNT(witness);
         }
 
         void account_witness_proxy_operation::validate() const {
