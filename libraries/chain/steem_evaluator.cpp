@@ -27,8 +27,8 @@ std::string wstring_to_utf8(const std::wstring &str) {
             asset exist = get_balance(ACCOUNT, TYPE, (REQUIRED).symbol); \
             if( UNLIKELY( exist < (REQUIRED) )) { \
                 FC_THROW_EXCEPTION( golos::insufficient_funds, \
-                        "Account \"${account}\" does not have enough ${balance}: required ${required}", \
-                        ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("required",REQUIRED)); \
+                        "Account \"${account}\" does not have enough ${balance}: required ${required}, exist ${exist}", \
+                        ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("required",REQUIRED)("exist",exist)); \
             } \
         FC_MULTILINE_MACRO_END \
     )
