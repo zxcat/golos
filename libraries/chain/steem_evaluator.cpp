@@ -21,7 +21,7 @@ std::string wstring_to_utf8(const std::wstring &str) {
 
 #endif
 
-#define GOLOS_CHECK_BALANCE( ACCOUNT, TYPE, REQUIRED ...) \
+#define GOLOS_CHECK_BALANCE(ACCOUNT, TYPE, REQUIRED ...) \
     FC_EXPAND_MACRO( \
         FC_MULTILINE_MACRO_BEGIN \
             asset exist = get_balance(ACCOUNT, TYPE, (REQUIRED).symbol); \
@@ -69,16 +69,16 @@ namespace golos { namespace chain {
                     default:
                         GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
-            case VESTING: 
+            case VESTING:
                 GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.vesting_shares;
-            case EFFECTIVE_VESTING: 
+            case EFFECTIVE_VESTING:
                 GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.effective_vesting_shares();
-            case HAVING_VESTING: 
+            case HAVING_VESTING:
                 GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.available_vesting_shares(false);
-            case AVAILABLE_VESTING: 
+            case AVAILABLE_VESTING:
                 FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.available_vesting_shares(true);
             default: FC_ASSERT(false, "invalid balance type");
@@ -975,7 +975,7 @@ namespace golos { namespace chain {
             }
 
             GOLOS_CHECK_OP_PARAM(o, amount, {
-                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount); 
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount);
                 _db.adjust_balance(from_account, -o.amount);
                 _db.adjust_balance(to_account, o.amount);
             });
@@ -987,7 +987,7 @@ namespace golos { namespace chain {
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = o.to.size() ? _db.get_account(o.to)
                                                  : from_account;
-            
+
             GOLOS_CHECK_OP_PARAM(o, amount, {
                 GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount);
                 _db.adjust_balance(from_account, -o.amount);

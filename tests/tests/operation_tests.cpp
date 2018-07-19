@@ -15,6 +15,7 @@
 #include <fc/io/json.hpp>
 
 #include "database_fixture.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -27,21 +28,7 @@ using namespace golos::chain;
 using namespace golos::protocol;
 using std::string;
 
-
-namespace boost { namespace container {
-
-template<typename T>
-std::ostream &operator<<(std::ostream &out, const flat_set<T> &t) {
-    out << "(";
-    if (!t.empty()) {
-        std::for_each(t.begin(), t.end()-1, [&](const T& v) {out << v << ",";});
-        out << *t.rbegin();
-    }
-    out << ")";
-    return out;
-}
-
-} } // namespace boost::container
+using account_name_set = flat_set<account_name_type>;
 
 
 fc::variant_object make_comment_id(const std::string& author, const std::string& permlink) {
@@ -456,13 +443,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
                 CHECK_ERROR(tx_missing_posting_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.sign(alice_post_key, db->get_chain_id());
             tx.sign(alice_post_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
                 CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with post signature");
@@ -472,13 +459,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.sign(bob_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
                 CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
                 CHECK_ERROR(tx_missing_posting_auth, 0));
 
             validate_database();
@@ -545,7 +532,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.clear();
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "comment", make_comment_id("alice", "foobar"))));
 
@@ -1776,65 +1763,52 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+
     BOOST_AUTO_TEST_CASE(witness_update_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: withness_update_validate");
 
-            validate_database();
-        }
-        FC_LOG_AND_RETHROW()
-    }
-
-    BOOST_AUTO_TEST_CASE(witness_update_authorities) {
-        try {
-            BOOST_TEST_MESSAGE("Testing: witness_update_authorities");
-
-            ACTORS((alice)(bob));
-            fund("alice", 10000);
-
-            private_key_type signing_key = generate_private_key("new_key");
-
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
             witness_update_operation op;
-            op.owner = "alice";
-            op.url = "foo.bar";
-            op.fee = ASSET("1.000 GOLOS");
-            op.block_signing_key = signing_key.get_public_key();
+            op.owner = "bob";
+            op.url = "http://localhost";
+            op.fee = ASSET_GOLOS(100);
+            CHECK_OP_VALID(op);
+            CHECK_PARAM_VALID(op, url, "-");
+            CHECK_PARAM_VALID(op, url, string(STEEMIT_MAX_WITNESS_URL_LENGTH, ' '));
+            CHECK_PARAM_VALID(op, url, u8"тест");
+            CHECK_PARAM_VALID(op, fee, ASSET_GOLOS(0));
 
-            signed_transaction tx;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(op);
+            BOOST_TEST_MESSAGE("--- failure when owner is empty");
+            CHECK_PARAM_INVALID(op, owner, "");
 
-            BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            BOOST_TEST_MESSAGE("--- failure when url is empty or too long or have invalid utf8");
+            CHECK_PARAM_INVALID(op, url, "");
+            // CHECK_PARAM_INVALID(op, url, string(1+STEEMIT_MAX_WITNESS_URL_LENGTH, ' ')); // needs HF
+            CHECK_PARAM_INVALID(op, url, "\xc3\x28");
 
-            BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
-            tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            BOOST_TEST_MESSAGE("--- failure when fee in not GOLOS or negative");
+            CHECK_PARAM_INVALID(op, fee, ASSET_GBG(1));
+            CHECK_PARAM_INVALID(op, fee, ASSET_GESTS(1));
+            CHECK_PARAM_INVALID(op, fee, ASSET_GOLOS(-1));
 
-            BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
-            tx.signatures.clear();
-            tx.sign(alice_private_key, db->get_chain_id());
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
-
-            BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
-            tx.signatures.clear();
-            tx.sign(alice_private_key, db->get_chain_id());
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
-
-            BOOST_TEST_MESSAGE("--- Test success with witness signature");
-            tx.signatures.clear();
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            tx.signatures.clear();
-            tx.sign(signing_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_active_auth);
+            // TODO: chain_properties_17
             validate_database();
         }
         FC_LOG_AND_RETHROW()
     }
+
+    BOOST_AUTO_TEST_CASE(witness_update_authorities) { try {
+        BOOST_TEST_MESSAGE("Testing: witness_update_authorities");
+        witness_update_operation op;
+        op.owner = "bob";
+        op.url = "http://localhost";
+        // op.fee = ASSET_GOLOS(1);
+        // op.block_signing_key = signing_key.get_public_key();
+
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
+
+    } FC_LOG_AND_RETHROW() }
 
     BOOST_AUTO_TEST_CASE(witness_update_apply) {
         try {
@@ -1842,11 +1816,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             ACTORS((alice))
             fund("alice", 10000);
-
             private_key_type signing_key = generate_private_key("new_key");
 
             BOOST_TEST_MESSAGE("--- Test upgrading an account to a witness");
-
             signed_transaction tx;
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
@@ -1863,68 +1835,69 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op1.owner = op.owner;
             op1.props = op.props;
             tx.operations.push_back(op1);
-
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            const witness_object &alice_witness = db->get_witness("alice");
-
-            BOOST_REQUIRE(alice_witness.owner == "alice");
-            BOOST_REQUIRE(alice_witness.created == db->head_block_time());
-            BOOST_REQUIRE(to_string(alice_witness.url) == op.url);
-            BOOST_REQUIRE(alice_witness.signing_key == op.block_signing_key);
-            BOOST_REQUIRE(alice_witness.props.account_creation_fee == op.props.account_creation_fee);
-            BOOST_REQUIRE(alice_witness.props.maximum_block_size == op.props.maximum_block_size);
-            BOOST_REQUIRE(alice_witness.total_missed == 0);
-            BOOST_REQUIRE(alice_witness.last_aslot == 0);
-            BOOST_REQUIRE(alice_witness.last_confirmed_block_num == 0);
-            BOOST_REQUIRE(alice_witness.pow_worker == 0);
-            BOOST_REQUIRE(alice_witness.votes.value == 0);
-            BOOST_REQUIRE(alice_witness.virtual_last_update == 0);
-            BOOST_REQUIRE(alice_witness.virtual_position == 0);
-            BOOST_REQUIRE(alice_witness.virtual_scheduled_time == fc::uint128_t::max_value());
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value); // No fee
+            const witness_object& w = db->get_witness("alice");
+            BOOST_CHECK(w.owner == "alice");
+            BOOST_CHECK(w.created == db->head_block_time());
+            BOOST_CHECK(to_string(w.url) == op.url);
+            BOOST_CHECK(w.signing_key == op.block_signing_key);
+            BOOST_CHECK(w.props.account_creation_fee == op.props.account_creation_fee);
+            BOOST_CHECK(w.props.maximum_block_size == op.props.maximum_block_size);
+            BOOST_CHECK(w.total_missed == 0);
+            BOOST_CHECK(w.last_aslot == 0);
+            BOOST_CHECK(w.last_confirmed_block_num == 0);
+            BOOST_CHECK(w.pow_worker == 0);
+            BOOST_CHECK(w.votes.value == 0);
+            BOOST_CHECK(w.virtual_last_update == 0);
+            BOOST_CHECK(w.virtual_position == 0);
+            BOOST_CHECK(w.virtual_scheduled_time == fc::uint128_t::max_value());
+            BOOST_CHECK(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value); // No fee
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test updating a witness");
-
-            tx.signatures.clear();
-            tx.operations.clear();
+            tx.clear();
             op.url = "bar.foo";
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(alice_witness.owner == "alice");
-            BOOST_REQUIRE(alice_witness.created == db->head_block_time());
-            BOOST_REQUIRE(to_string(alice_witness.url) == "bar.foo");
-            BOOST_REQUIRE(alice_witness.signing_key == op.block_signing_key);
-            BOOST_REQUIRE(alice_witness.props.account_creation_fee == op.props.account_creation_fee);
-            BOOST_REQUIRE(alice_witness.props.maximum_block_size == op.props.maximum_block_size);
-            BOOST_REQUIRE(alice_witness.total_missed == 0);
-            BOOST_REQUIRE(alice_witness.last_aslot == 0);
-            BOOST_REQUIRE(alice_witness.last_confirmed_block_num == 0);
-            BOOST_REQUIRE(alice_witness.pow_worker == 0);
-            BOOST_REQUIRE(alice_witness.votes.value == 0);
-            BOOST_REQUIRE(alice_witness.virtual_last_update == 0);
-            BOOST_REQUIRE(alice_witness.virtual_position == 0);
-            BOOST_REQUIRE(alice_witness.virtual_scheduled_time == fc::uint128_t::max_value());
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
-            validate_database();
-
-            BOOST_TEST_MESSAGE("--- Test failure when upgrading a non-existent account");
-
-            tx.signatures.clear();
-            tx.operations.clear();
-            op.owner = "bob";
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            BOOST_CHECK(w.owner == "alice");
+            BOOST_CHECK(w.created == db->head_block_time());
+            BOOST_CHECK(to_string(w.url) == "bar.foo");
+            BOOST_CHECK(w.signing_key == op.block_signing_key);
+            BOOST_CHECK(w.props.account_creation_fee == op.props.account_creation_fee);
+            BOOST_CHECK(w.props.maximum_block_size == op.props.maximum_block_size);
+            BOOST_CHECK(w.total_missed == 0);
+            BOOST_CHECK(w.last_aslot == 0);
+            BOOST_CHECK(w.last_confirmed_block_num == 0);
+            BOOST_CHECK(w.pow_worker == 0);
+            BOOST_CHECK(w.votes.value == 0);
+            BOOST_CHECK(w.virtual_last_update == 0);
+            BOOST_CHECK(w.virtual_position == 0);
+            BOOST_CHECK(w.virtual_scheduled_time == fc::uint128_t::max_value());
+            BOOST_CHECK(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
     }
+
+    BOOST_AUTO_TEST_CASE(chain_properties_update_validate) { try {
+        BOOST_TEST_MESSAGE("!NOT READY! Testing: chain_properties_update_validate");
+        // TODO
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(chain_properties_update_authorities) { try {
+        BOOST_TEST_MESSAGE("!NOT READY! Testing: chain_properties_update_authorities");
+        // TODO
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(chain_properties_update_apply) { try {
+        BOOST_TEST_MESSAGE("!NOT READY! Testing: chain_properties_update_apply");
+        // TODO
+    } FC_LOG_AND_RETHROW() }
+
 
     BOOST_AUTO_TEST_CASE(account_witness_vote_validate) {
         try {
@@ -5572,14 +5545,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("failure when 'from' is empty");
             op.from = "";
-            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
                 CHECK_ERROR(golos::invalid_parameter, "from"));
 
 
             BOOST_TEST_MESSAGE("failure when 'to' is empty");
             op.from = "alice";
             op.to = "";
-            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
                 CHECK_ERROR(golos::invalid_parameter, "to"));
 
 
@@ -5591,7 +5564,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("failure when amount is VESTS");
             op.to = "alice";
             op.amount = ASSET("1.000 VESTS");
-            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
                 CHECK_ERROR(golos::invalid_parameter, "amount"));
 
 
@@ -5608,14 +5581,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("failure when amount is negative");
             op.memo = std::string();
             op.amount = ASSET("-1.000 GOLOS");
-            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
                 CHECK_ERROR(golos::invalid_parameter, "amount"));
 
 
             BOOST_TEST_MESSAGE("failure when memo too large");
             op.amount = ASSET("1.000 GOLOS");
             op.memo = string(STEEMIT_MAX_MEMO_SIZE, ' ');
-            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
                 CHECK_ERROR(golos::invalid_parameter, "memo"));
         }
         FC_LOG_AND_RETHROW()
@@ -5891,7 +5864,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.clear();
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "account", "sam")));
 

@@ -67,27 +67,17 @@
     } \
 }()
 
-#define GOLOS_CHECK_PARAM(PARAM, VALIDATOR) \
-    FC_MULTILINE_MACRO_BEGIN \
-        try { \
-            VALIDATOR; \
-        } catch (const golos::invalid_value& e) { \
-            FC_THROW_EXCEPTION(golos::invalid_parameter, "Invalid value \"${value}\" for parameter \"${param}\": ${errmsg}", \
-                    ("param", FC_STRINGIZE(PARAM)) \
-                    ("value", PARAM) \
-                    ("errmsg", e.to_string()) \
-                    ("error", static_cast<fc::exception>(e))); \
-        } \
-    FC_MULTILINE_MACRO_END
+#define GOLOS_CHECK_PARAM(PARAM, VALIDATOR) GOLOS_CHECK_PARAM_I(PARAM, PARAM, VALIDATOR, "")
+#define GOLOS_CHECK_OP_PARAM(OP, PARAM, VALIDATOR) GOLOS_CHECK_PARAM_I(PARAM, OP.PARAM, VALIDATOR, "operation ")
 
-#define GOLOS_CHECK_OP_PARAM(OP, PARAM, VALIDATOR) \
+#define GOLOS_CHECK_PARAM_I(PARAM, VALUE, VALIDATOR, TYPE) \
     FC_MULTILINE_MACRO_BEGIN \
         try { \
             VALIDATOR; \
         } catch (const golos::invalid_value& e) { \
-            FC_THROW_EXCEPTION(invalid_parameter, "Invalid value \"${value}\" for operation parameter \"${param}\": ${errmsg}", \
+            FC_THROW_EXCEPTION(invalid_parameter, "Invalid value \"${value}\" for " TYPE "parameter \"${param}\": ${errmsg}", \
                     ("param", FC_STRINGIZE(PARAM)) \
-                    ("value", OP.PARAM) \
+                    ("value", VALUE) \
                     ("errmsg", e.to_string()) \
                     ("error", static_cast<fc::exception>(e))); \
         } \
@@ -206,7 +196,7 @@ namespace golos {
             operation_would_not_change_vesting_withdraw_rate,
         };
     };
-    
+
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         internal_error, golos_exception,
         4000000, "internal error");
@@ -303,7 +293,7 @@ namespace golos { namespace protocol {
 
 } } // golos::protocol
 
-FC_REFLECT_ENUM(golos::logic_exception::error_types, 
+FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (reached_limit_for_pending_withdraw_requests)
         (parent_of_comment_cannot_change)
         (parent_perlink_of_comment_cannot_change)
