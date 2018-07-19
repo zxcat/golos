@@ -230,6 +230,11 @@ namespace golos {
             witness_vote_does_not_exist,
             witness_vote_already_exist,
             account_has_too_many_witness_votes,
+
+            // account_witness_proxy_operation
+            proxy_must_change,
+            proxy_would_create_loop,
+            proxy_chain_is_too_long,
         };
     };
 
@@ -385,6 +390,11 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (witness_vote_does_not_exist)
         (witness_vote_already_exist)
         (account_has_too_many_witness_votes)
+
+        // account_witness_proxy_operation
+        (proxy_must_change)
+        (proxy_would_create_loop)
+        (proxy_chain_is_too_long)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,

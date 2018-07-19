@@ -1062,9 +1062,13 @@ namespace golos { namespace chain {
         void account_witness_proxy_evaluator::do_apply(const account_witness_proxy_operation &o) {
             database &_db = db();
             const auto &account = _db.get_account(o.account);
-            FC_ASSERT(account.proxy != o.proxy, "Proxy must change.");
+            GOLOS_CHECK_LOGIC(account.proxy != o.proxy, 
+                    logic_exception::proxy_must_change,
+                    "Proxy must change.");
 
-            FC_ASSERT(account.can_vote, "Account has declined the ability to vote and cannot proxy votes.");
+            GOLOS_CHECK_LOGIC(account.can_vote,
+                    logic_exception::voter_declined_voting_rights,
+                    "Account has declined the ability to vote and cannot proxy votes.");
 
             /// remove all current votes
             std::array<share_type, STEEMIT_MAX_PROXY_RECURSION_DEPTH + 1> delta;
@@ -1084,10 +1088,13 @@ namespace golos { namespace chain {
                 auto cprox = &new_proxy;
                 while (cprox->proxy.size() != 0) {
                     const auto next_proxy = _db.get_account(cprox->proxy);
-                    FC_ASSERT(proxy_chain.insert(next_proxy.id).second, "This proxy would create a proxy loop.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.insert(next_proxy.id).second,
+                            logic_exception::proxy_would_create_loop,
+                            "This proxy would create a proxy loop.");
                     cprox = &next_proxy;
-                    FC_ASSERT(proxy_chain.size() <=
-                              STEEMIT_MAX_PROXY_RECURSION_DEPTH, "Proxy chain is too long.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.size() <= STEEMIT_MAX_PROXY_RECURSION_DEPTH,
+                            logic_exception::proxy_chain_is_too_long,
+                            "Proxy chain is too long.");
                 }
 
                 /// clear all individual vote records

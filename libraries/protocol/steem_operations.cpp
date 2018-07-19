@@ -260,11 +260,13 @@ namespace golos { namespace protocol {
         }
 
         void account_witness_proxy_operation::validate() const {
-            validate_account_name(account);
+            GOLOS_CHECK_PARAM_ACCOUNT(account);
             if (proxy.size()) {
-                validate_account_name(proxy);
+                GOLOS_CHECK_PARAM(proxy, {
+                    validate_account_name(proxy);
+                    GOLOS_CHECK_VALUE(proxy != account, "Cannot proxy to self");
+                });
             }
-            FC_ASSERT(proxy != account, "Cannot proxy to self");
         }
 
         void custom_operation::validate() const {

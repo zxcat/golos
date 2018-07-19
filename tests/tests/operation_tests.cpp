@@ -2172,6 +2172,22 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(account_witness_proxy_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: account_witness_proxy_validate");
+            account_witness_proxy_operation op;
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            op.account = "bob";
+            op.proxy = "alice";
+            CHECK_OP_VALID(op);
+
+            BOOST_TEST_MESSAGE("--- failed when 'account' is empty");
+            CHECK_PARAM_INVALID(op, account, "");
+
+            BOOST_TEST_MESSAGE("--- success when 'proxy' is empty");
+            CHECK_PARAM_VALID(op, proxy, "");
+
+            BOOST_TEST_MESSAGE("--- failed when 'proxy' not valid");
+            CHECK_PARAM_INVALID(op, proxy, "a");
+            CHECK_PARAM_INVALID(op, proxy, "bob");
 
             validate_database();
         }
@@ -2194,33 +2210,38 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
             tx.sign(bob_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with witness signature");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure with proxy signature");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             validate_database();
         }
@@ -2253,12 +2274,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(bob.proxy == "alice");
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(alice.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(alice.proxied_vsf_votes_total() ==
+            BOOST_CHECK_EQUAL(bob.proxy, "alice");
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(alice.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(alice.proxied_vsf_votes_total(),
                           bob.vesting_shares.amount);
             validate_database();
 
@@ -2271,23 +2292,25 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(bob.proxy == "sam");
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(alice.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(sam.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(sam.proxied_vsf_votes_total().value == bob.vesting_shares.amount);
+            BOOST_CHECK_EQUAL(bob.proxy, "sam");
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(alice.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(sam.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(sam.proxied_vsf_votes_total().value, bob.vesting_shares.amount);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test failure when changing proxy to existing proxy");
 
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::proxy_must_change)));
 
-            BOOST_REQUIRE(bob.proxy == "sam");
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(sam.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(sam.proxied_vsf_votes_total() == bob.vesting_shares.amount);
+            BOOST_CHECK_EQUAL(bob.proxy, "sam");
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(sam.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(sam.proxied_vsf_votes_total(), bob.vesting_shares.amount);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test adding a grandparent proxy");
@@ -2300,14 +2323,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(sam_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(bob.proxy == "sam");
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(sam.proxy == "dave");
-            BOOST_REQUIRE(sam.proxied_vsf_votes_total() == bob.vesting_shares.amount);
-            BOOST_REQUIRE(dave.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(dave.proxied_vsf_votes_total() ==
+            BOOST_CHECK_EQUAL(bob.proxy, "sam");
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(sam.proxy, "dave");
+            BOOST_CHECK_EQUAL(sam.proxied_vsf_votes_total(), bob.vesting_shares.amount);
+            BOOST_CHECK_EQUAL(dave.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(dave.proxied_vsf_votes_total(),
                           (sam.vesting_shares + bob.vesting_shares).amount);
             validate_database();
 
@@ -2322,17 +2345,17 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(alice.proxy == "sam");
-            BOOST_REQUIRE(alice.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(bob.proxy == "sam");
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(sam.proxy == "dave");
-            BOOST_REQUIRE(sam.proxied_vsf_votes_total() ==
+            BOOST_CHECK_EQUAL(alice.proxy, "sam");
+            BOOST_CHECK_EQUAL(alice.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(bob.proxy, "sam");
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(sam.proxy, "dave");
+            BOOST_CHECK_EQUAL(sam.proxied_vsf_votes_total(),
                           (bob.vesting_shares + alice.vesting_shares).amount);
-            BOOST_REQUIRE(dave.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(dave.proxied_vsf_votes_total() ==
+            BOOST_CHECK_EQUAL(dave.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(dave.proxied_vsf_votes_total(),
                           (sam.vesting_shares + bob.vesting_shares +
                            alice.vesting_shares).amount);
             validate_database();
@@ -2347,16 +2370,16 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(alice.proxy == "sam");
-            BOOST_REQUIRE(alice.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(bob.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(bob.proxied_vsf_votes_total().value == 0);
-            BOOST_REQUIRE(sam.proxy == "dave");
-            BOOST_REQUIRE(sam.proxied_vsf_votes_total() == alice.vesting_shares.amount);
-            BOOST_REQUIRE(dave.proxy == STEEMIT_PROXY_TO_SELF_ACCOUNT);
-            BOOST_REQUIRE(dave.proxied_vsf_votes_total() ==
+            BOOST_CHECK_EQUAL(alice.proxy, "sam");
+            BOOST_CHECK_EQUAL(alice.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(bob.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(bob.proxied_vsf_votes_total().value, 0);
+            BOOST_CHECK_EQUAL(sam.proxy, "dave");
+            BOOST_CHECK_EQUAL(sam.proxied_vsf_votes_total(), alice.vesting_shares.amount);
+            BOOST_CHECK_EQUAL(dave.proxy, STEEMIT_PROXY_TO_SELF_ACCOUNT);
+            BOOST_CHECK_EQUAL(dave.proxied_vsf_votes_total(),
                           (sam.vesting_shares + alice.vesting_shares).amount);
             validate_database();
 
@@ -2369,7 +2392,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(vote);
             tx.sign(bob_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             tx.operations.clear();
             tx.signatures.clear();
@@ -2378,9 +2401,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_witness(STEEMIT_INIT_MINER_NAME).votes ==
+            BOOST_CHECK_EQUAL(db->get_witness(STEEMIT_INIT_MINER_NAME).votes,
                           (alice.vesting_shares + bob.vesting_shares).amount);
             validate_database();
 
@@ -2391,9 +2414,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
 
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_witness(STEEMIT_INIT_MINER_NAME).votes == bob.vesting_shares.amount);
+            BOOST_CHECK_EQUAL(db->get_witness(STEEMIT_INIT_MINER_NAME).votes, bob.vesting_shares.amount);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
