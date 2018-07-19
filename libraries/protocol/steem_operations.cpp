@@ -170,7 +170,7 @@ namespace golos { namespace protocol {
                 GOLOS_CHECK_PARAM(from, validate_account_name(from));
                 GOLOS_CHECK_PARAM(to, validate_account_name(to));
                 GOLOS_CHECK_PARAM(amount, {
-                    GOLOS_CHECK_VALUE(amount.symbol != VESTS_SYMBOL, "transferring of Golos Power (STMP) is not allowed.");
+                    GOLOS_CHECK_VALUE(amount.symbol != VESTS_SYMBOL, "transferring of Golos Power (GESTS) is not allowed.");
                     GOLOS_CHECK_VALUE(amount.amount > 0, "Cannot transfer a negative amount (aka: stealing)");
                 });
                 GOLOS_CHECK_PARAM(memo, {
