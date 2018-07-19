@@ -523,15 +523,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(alice_comment.cashout_time,
                           fc::time_point_sec(db->head_block_time() + fc::seconds(STEEMIT_CASHOUT_WINDOW_SECONDS)));
 
-#ifndef IS_LOW_MEM
             BOOST_CHECK_EQUAL( to_string( alice_content.title ), op.title );
             BOOST_CHECK_EQUAL( to_string( alice_content.body ), op.body );
             //BOOST_CHECK_EQUAL( alice_content.json_metadata, op.json_metadata );
-#else
-            BOOST_CHECK_EQUAL(to_string(alice_content.title), "");
-            BOOST_CHECK_EQUAL(to_string(alice_content.body), "");
-            //BOOST_CHECK_EQUAL( alice_content.json_metadata, "" );
-#endif
 
             validate_database();
 
