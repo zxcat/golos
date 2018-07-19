@@ -1169,13 +1169,16 @@ namespace golos { namespace chain {
                 const auto &voter = _db.get_account(o.voter);
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    FC_ASSERT(!(voter.owner_challenged ||
-                                voter.active_challenged), "Operation cannot be processed because the account is currently challenged.");
+                    GOLOS_CHECK_LOGIC(!(voter.owner_challenged || voter.active_challenged), 
+                            logic_exception::account_is_currently_challenged,
+                            "Account \"${account}\" is currently challenged", ("account", voter.name));
 
-                FC_ASSERT(voter.can_vote, "Voter has declined their voting rights.");
+                GOLOS_CHECK_LOGIC(voter.can_vote, logic_exception::voter_declined_voting_rights,
+                        "Voter has declined their voting rights");
 
                 if (o.weight > 0)
-                    FC_ASSERT(comment.allow_votes, "Votes are not allowed on the comment.");
+                    GOLOS_CHECK_LOGIC(comment.allow_votes, logic_exception::votes_are_not_allowed,
+                            "Votes are not allowed on the comment.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
                     _db.calculate_discussion_payout_time(comment) ==
@@ -1208,16 +1211,16 @@ namespace golos { namespace chain {
                                            voter.last_vote_time).to_seconds();
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    FC_ASSERT(elapsed_seconds >=
-                              STEEMIT_MIN_VOTE_INTERVAL_SEC, "Can only vote once every 3 seconds.");
+                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
+                            bandwidth_exception::vote_bandwidth, "Can only vote once every 3 seconds.");
 
                 int64_t regenerated_power =
                         (STEEMIT_100_PERCENT * elapsed_seconds) /
                         STEEMIT_VOTE_REGENERATION_SECONDS;
                 int64_t current_power = std::min(int64_t(voter.voting_power +
                                                          regenerated_power), int64_t(STEEMIT_100_PERCENT));
-                FC_ASSERT(current_power >
-                          0, "Account currently does not have voting power.");
+                GOLOS_CHECK_LOGIC(current_power > 0, logic_exception::does_not_have_voting_power,
+                        "Account currently does not have voting power.");
 
                 int64_t abs_weight = abs(o.weight);
                 int64_t used_power =
@@ -1230,7 +1233,7 @@ namespace golos { namespace chain {
                 int64_t max_vote_denom = dgpo.vote_regeneration_per_day *
                                          STEEMIT_VOTE_REGENERATION_SECONDS /
                                          (60 * 60 * 24);
-                FC_ASSERT(max_vote_denom > 0);
+                GOLOS_ASSERT(max_vote_denom > 0, golos::internal_error, "max_vote_denom is too small");
 
                 if (!_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
                     used_power = (used_power / max_vote_denom) + 1;
@@ -1238,8 +1241,8 @@ namespace golos { namespace chain {
                     used_power =
                             (used_power + max_vote_denom - 1) / max_vote_denom;
                 }
-                FC_ASSERT(used_power <=
-                          current_power, "Account does not have enough power to vote.");
+                GOLOS_CHECK_LOGIC(used_power <= current_power, logic_exception::does_not_have_voting_power,
+                        "Account does not have enough power to vote.");
 
                 int64_t abs_rshares = (
                     (uint128_t(voter.effective_vesting_shares().amount.value) * used_power) /
@@ -1249,11 +1252,13 @@ namespace golos { namespace chain {
                 }
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
-                    FC_ASSERT(abs_rshares > 30000000 || o.weight ==
-                                                        0, "Voting weight is too small, please accumulate more voting power or steem power.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || o.weight == 0, 
+                            logic_exception::voting_weight_is_too_small,
+                            "Voting weight is too small, please accumulate more voting power or steem power.");
                 } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_13__248)) {
-                    FC_ASSERT(abs_rshares > 30000000 || abs_rshares ==
-                                                        1, "Voting weight is too small, please accumulate more voting power or steem power.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || abs_rshares == 1, 
+                            logic_exception::voting_weight_is_too_small,
+                            "Voting weight is too small, please accumulate more voting power or steem power.");
                 }
 
 
@@ -1262,21 +1267,23 @@ namespace golos { namespace chain {
                 if (itr != comment_vote_idx.end() && itr->num_changes == -1) {
                     if (_db.is_producing() ||
                         _db.has_hardfork(STEEMIT_HARDFORK_0_12__177))
-                        FC_ASSERT(false, "Cannot vote again on a comment after payout.");
+                        GOLOS_CHECK_LOGIC(false, logic_exception::cannot_vote_after_payout,
+                                "Cannot vote again on a comment after payout.");
 
                     _db.remove(*itr);
                     itr = comment_vote_idx.end();
                 }
 
                 if (itr == comment_vote_idx.end()) {
-                    FC_ASSERT(o.weight != 0, "Vote weight cannot be 0.");
+                    GOLOS_CHECK_OP_PARAM(o, weight, GOLOS_CHECK_VALUE(o.weight != 0, "Vote weight cannot be 0"));
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
 
                     if (rshares > 0) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            FC_ASSERT(_db.head_block_time() <
+                            GOLOS_CHECK_LOGIC(_db.head_block_time() <
                                       _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                                      logic_exception::cannot_vote_within_last_minute_before_payout,
                                       "Cannot increase reward of post within the last minute before payout.");
                         }
                     }
@@ -1313,7 +1320,8 @@ namespace golos { namespace chain {
                     }
 
 
-                    FC_ASSERT(abs_rshares > 0, "Cannot vote with 0 rshares.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 0, logic_exception::cannot_vote_with_zero_rshares,
+                            "Cannot vote with 0 rshares.");
 
                     auto old_vote_rshares = comment.vote_rshares;
 
@@ -1330,8 +1338,7 @@ namespace golos { namespace chain {
                         }
                         if (!_db.has_hardfork(STEEMIT_HARDFORK_0_6__114) &&
                             c.net_rshares == -c.abs_rshares)
-                            FC_ASSERT(c.net_votes <
-                                      0, "Comment has negative network votes?");
+                            GOLOS_ASSERT(c.net_votes < 0, golos::internal_error, "Comment has negative network votes?");
                     });
 
                     _db.modify(root, [&](comment_object &c) {
@@ -1467,21 +1474,24 @@ namespace golos { namespace chain {
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 } else {
-                    FC_ASSERT(itr->num_changes <
-                              STEEMIT_MAX_VOTE_CHANGES, "Voter has used the maximum number of vote changes on this comment.");
+                    GOLOS_CHECK_LOGIC(itr->num_changes < STEEMIT_MAX_VOTE_CHANGES, 
+                            logic_exception::voter_has_used_maximum_vote_changes,
+                            "Voter has used the maximum number of vote changes on this comment.");
 
                     if (_db.is_producing() ||
                         _db.has_hardfork(STEEMIT_HARDFORK_0_6__112))
-                        FC_ASSERT(itr->vote_percent !=
-                                  o.weight, "You have already voted in a similar way.");
+                        GOLOS_CHECK_LOGIC(itr->vote_percent != o.weight, 
+                                logic_exception::already_voted_in_similar_way,
+                                "You have already voted in a similar way.");
 
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
 
                     if (itr->rshares < rshares) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            FC_ASSERT(_db.head_block_time() <
+                            GOLOS_CHECK_LOGIC(_db.head_block_time() <
                                       _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                                      logic_exception::cannot_vote_within_last_minute_before_payout,
                                       "Cannot increase reward of post within the last minute before payout.");
                         }
                     }

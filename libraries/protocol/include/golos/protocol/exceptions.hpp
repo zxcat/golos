@@ -163,6 +163,7 @@ namespace golos {
         enum bandwidth_types {
             post_bandwidth,
             comment_bandwidth,
+            vote_bandwidth,
         };
     };
 
@@ -179,6 +180,18 @@ namespace golos {
             reached_limit_for_pending_withdraw_requests    = 1,
             parent_of_comment_cannot_change,
             parent_perlink_of_comment_cannot_change,
+
+            // Vote operation
+            voter_declined_voting_rights,
+            account_is_currently_challenged,
+            votes_are_not_allowed,
+            does_not_have_voting_power,
+            voting_weight_is_too_small,
+            cannot_vote_after_payout,
+            cannot_vote_within_last_minute_before_payout,
+            cannot_vote_with_zero_rshares,
+            voter_has_used_maximum_vote_changes,
+            already_voted_in_similar_way,
         };
     };
     
@@ -277,9 +290,22 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (reached_limit_for_pending_withdraw_requests)
         (parent_of_comment_cannot_change)
         (parent_perlink_of_comment_cannot_change)
+
+        // Vote operation
+        (voter_declined_voting_rights)
+        (account_is_currently_challenged)
+        (votes_are_not_allowed)
+        (does_not_have_voting_power)
+        (voting_weight_is_too_small)
+        (cannot_vote_after_payout)
+        (cannot_vote_within_last_minute_before_payout)
+        (cannot_vote_with_zero_rshares)
+        (voter_has_used_maximum_vote_changes)
+        (already_voted_in_similar_way)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
         (post_bandwidth)
         (comment_bandwidth)
+        (vote_bandwidth)
 );

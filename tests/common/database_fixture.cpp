@@ -29,11 +29,6 @@ std::ostream& operator<<(std::ostream& out, const fc::time_point& v) {
     return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const fc::uint128_t v) {
-    out << static_cast<std::string>(v);
-    return out;
-}
-
 std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v) {
     out << static_cast<std::string>(v);
     return out;
@@ -42,6 +37,43 @@ std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v) {
 std::ostream& operator<<(std::ostream& out, const fc::fixed_string<fc::uint128_t>& v) {
     out << static_cast<std::string>(v);
     return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::variant_object &v) {
+    out << fc::json::to_string(v);
+    return out;
+}
+
+bool compare(const fc::variant &left, const fc::variant &right) {
+    if (left.get_type() != right.get_type()) return false;
+    switch (left.get_type()) {
+        case variant::null_type:   return true;
+        case variant::int64_type:  return left.as_int64() == right.as_int64();
+        case variant::uint64_type: return left.as_uint64() == right.as_uint64();
+        case variant::double_type: return left.as_double() == right.as_double();
+        case variant::bool_type:   return left.as_bool() == right.as_bool();
+        case variant::string_type: return left.get_string() == right.get_string();
+        case variant::array_type:
+            {
+                const variants &l = left.get_array();
+                const variants &r = right.get_array();
+                if (l.size() != r.size()) return false;
+                return std::equal(l.begin(), l.end(), r.begin(), compare);
+            }
+        case variant::object_type: return left.get_object() == right.get_object();
+        case variant::blob_type:   return left.get_string() == right.get_string();
+        default: return false;
+    }
+}
+
+bool operator==(const fc::variant_object &left, const fc::variant_object &right) {
+    if (left.size() != right.size()) return false;
+    for (const auto &v: left) {
+        const auto &ptr = right.find(v.key());
+        if (ptr == right.end()) return false;
+        if (false == compare(v.value(), ptr->value())) return false;
+    }
+    return true;
 }
 
 } // namespace fc
