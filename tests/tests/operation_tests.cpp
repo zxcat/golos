@@ -1154,6 +1154,43 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: transfer_validate");
 
+            transfer_operation op;
+            op.from = "alice";
+            op.to = "bob";
+            op.amount = ASSET("10.000 GOLOS");
+            op.memo = "memo string";
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- failure when 'from' is empty");
+            op.from = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "from"));
+
+            BOOST_TEST_MESSAGE("--- failure when 'to' is empty");
+            op.from = "alice";
+            op.to = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "to"));
+
+            BOOST_TEST_MESSAGE("--- failure when 'amount' is negative");
+            op.to = "bob";
+            op.amount = ASSET("-10.000 GOLOS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "amount"));
+
+            BOOST_TEST_MESSAGE("--- failure when 'amount' in GESTS");
+            op.amount = ASSET("10.000000 GESTS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "amount"));
+
+            BOOST_TEST_MESSAGE("--- failure when 'memo' too large");
+            op.amount = ASSET("10.000 GOLOS");
+            op.memo = std::string(STEEMIT_MAX_MEMO_SIZE, ' ');
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "memo"));
+
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -1177,28 +1214,32 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the account's authority");
             tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with witness signature");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             validate_database();
         }
@@ -1223,7 +1264,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(update_op);
 
             tx.sign(corp_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             tx.operations.clear();
             tx.signatures.clear();
@@ -1237,22 +1278,26 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             tx.sign(alice_private_key, db->get_chain_id());
             signature_type alice_sig = tx.signatures.back();
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
+
             tx.sign(bob_private_key, db->get_chain_id());
             signature_type bob_sig = tx.signatures.back();
             tx.sign(sam_private_key, db->get_chain_id());
             signature_type sam_sig = tx.signatures.back();
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             tx.signatures.clear();
             tx.signatures.push_back(alice_sig);
             tx.signatures.push_back(bob_sig);
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             tx.signatures.clear();
             tx.signatures.push_back(alice_sig);
             tx.signatures.push_back(sam_sig);
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_duplicate_transaction, 0));
         }
         FC_LOG_AND_RETHROW()
     }
@@ -1264,8 +1309,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             ACTORS((alice)(bob))
             fund("alice", 10000);
 
-            BOOST_REQUIRE(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
-            BOOST_REQUIRE(bob.balance.amount.value == ASSET(" 0.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("10.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(bob.balance.amount.value, ASSET(" 0.000 GOLOS").amount.value);
 
             signed_transaction tx;
             transfer_operation op;
@@ -1278,12 +1323,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(alice.balance.amount.value ==
-                          ASSET("5.000 GOLOS").amount.value);
-            BOOST_REQUIRE(bob.balance.amount.value ==
-                          ASSET("5.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(alice.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(bob.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Generating a block");
@@ -1292,20 +1335,36 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             const auto &new_alice = db->get_account("alice");
             const auto &new_bob = db->get_account("bob");
 
-            BOOST_REQUIRE(new_alice.balance.amount.value == ASSET("5.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("5.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_alice.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
+            validate_database();
+
+            BOOST_TEST_MESSAGE("--- Test invalid amount (less digits after dot)");
+            tx.signatures.clear();
+            tx.operations.clear();
+            op.amount = ASSET("2.00 GOLOS");
+            tx.operations.push_back(op);
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.sign(alice_private_key, db->get_chain_id());
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "amount")));
+
+            BOOST_CHECK_EQUAL(new_alice.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value,  ASSET("5.000 GOLOS").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test emptying an account");
             tx.signatures.clear();
             tx.operations.clear();
+            op.amount = ASSET("5.000 GOLOS");
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, database::skip_transaction_dupe_check);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check));
 
-            BOOST_REQUIRE(new_alice.balance.amount.value == ASSET("0.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_alice.balance.amount.value,  ASSET("0.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value,  ASSET("10.000 GOLOS").amount.value);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test transferring non-existent funds");
@@ -1314,11 +1373,24 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(insufficient_funds, "alice", "fund", "5.000 GOLOS")));
 
-            BOOST_REQUIRE(new_alice.balance.amount.value == ASSET("0.000 GOLOS").amount.value);
-            BOOST_REQUIRE(new_bob.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_alice.balance.amount.value,  ASSET("0.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(new_bob.balance.amount.value,  ASSET("10.000 GOLOS").amount.value);
             validate_database();
+
+            BOOST_TEST_MESSAGE("--- Test transferring to non-existent account");
+            tx.signatures.clear();
+            tx.operations.clear();
+            op.to = "sam";
+            tx.operations.push_back(op);
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.sign(alice_private_key, db->get_chain_id());
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "account", "sam")));
 
         }
         FC_LOG_AND_RETHROW()
@@ -6465,7 +6537,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.extensions.clear();
             op.extensions.insert(b);
             tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), fc::assert_exception, {});
+            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx), tx_duplicate_transaction, {});
         }
         FC_LOG_AND_RETHROW()
     }

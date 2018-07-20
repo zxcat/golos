@@ -3642,9 +3642,11 @@ namespace golos { namespace chain {
                 auto &trx_idx = get_index<transaction_index>();
                 auto trx_id = trx.id();
                 // idump((trx_id)(skip&skip_transaction_dupe_check));
-                FC_ASSERT((skip & skip_transaction_dupe_check) ||
-                          trx_idx.indices().get<by_trx_id>().find(trx_id) == trx_idx.indices().get<by_trx_id>().end(),
+                if (!(skip & skip_transaction_dupe_check) &&
+                          trx_idx.indices().get<by_trx_id>().find(trx_id) != trx_idx.indices().get<by_trx_id>().end()) {
+                    FC_THROW_EXCEPTION(tx_duplicate_transaction,
                           "Duplicate transaction check failed", ("trx_ix", trx_id));
+                }
 
                 _validate_transaction(trx, skip);
 
@@ -3678,14 +3680,16 @@ namespace golos { namespace chain {
                 _current_op_in_trx = 0;
                 for (const auto &op : trx.operations) {
                     try {
-                        apply_operation(op);
-                        ++_current_op_in_trx;
-                    } catch(const fc::exception& e) {
-                        FC_THROW_EXCEPTION(tx_invalid_operation,
-                                "Invalid operation ${index} in transaction: ${errmsg}",
-                                ("index", _current_op_in_trx)
-                                ("errmsg", e.to_string())
-                                ("error", e));
+                        try {
+                            apply_operation(op);
+                            ++_current_op_in_trx;
+                        } catch(const fc::exception& e) {
+                            FC_THROW_EXCEPTION(tx_invalid_operation,
+                                    "Invalid operation ${index} in transaction: ${errmsg}",
+                                    ("index", _current_op_in_trx)
+                                    ("errmsg", e.to_string())
+                                    ("error", e));
+                        } 
                     } FC_CAPTURE_AND_RETHROW((op));
                 }
                 _current_trx_id = transaction_id_type();
@@ -4200,7 +4204,7 @@ namespace golos { namespace chain {
                         acnt.sbd_balance += delta;
                         break;
                     default:
-                        FC_ASSERT(false, "invalid symbol");
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
             });
         }
@@ -4246,7 +4250,7 @@ namespace golos { namespace chain {
                         acnt.savings_sbd_balance += delta;
                         break;
                     default:
-                        FC_ASSERT(!"invalid symbol");
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
             });
         }
@@ -4278,7 +4282,7 @@ namespace golos { namespace chain {
                         assert(props.current_sbd_supply.amount.value >= 0);
                         break;
                     default:
-                        FC_ASSERT(false, "invalid symbol");
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
                 }
             });
         }
@@ -4291,7 +4295,7 @@ namespace golos { namespace chain {
                 case SBD_SYMBOL:
                     return a.sbd_balance;
                 default:
-                    FC_ASSERT(false, "invalid symbol");
+                    GOLOS_CHECK_VALUE(false, "invalid symbol");
             }
         }
 
@@ -4302,7 +4306,7 @@ namespace golos { namespace chain {
                 case SBD_SYMBOL:
                     return a.savings_sbd_balance;
                 default:
-                    FC_ASSERT(!"invalid symbol");
+                    GOLOS_CHECK_VALUE(false, "invalid symbol");
             }
         }
 

@@ -114,7 +114,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
         S;                                                                                              \
     } catch( fc::exception const& ex ) {                                                                \
         BOOST_##TL("no exception expected, but '" << ex.name() << "' thrown: \n" <<                     \
-            ex.to_string());                                                                     \
+            ex.to_detail_string());                                                                     \
     } catch ( ... ) {                                                                                   \
         BOOST_##TL("no exception expected, but unknown exception thrown");                              \
     }
@@ -222,9 +222,23 @@ struct ErrorValidator<golos::protocol::tx_duplicate_sig> {
 };
 
 template<>
+struct ErrorValidator<golos::protocol::tx_duplicate_transaction> {
+    void validate(const std::string& name, const fc::variant& props, int) {
+        BOOST_CHECK_EQUAL(name, "tx_duplicate_transaction");
+    }
+};
+
+template<>
 struct ErrorValidator<golos::protocol::tx_missing_posting_auth> {
     void validate(const std::string& name, const fc::variant& props, int) {
         BOOST_CHECK_EQUAL(name, "tx_missing_posting_auth");
+    }
+};
+
+template<>
+struct ErrorValidator<golos::protocol::tx_missing_active_auth> {
+    void validate(const std::string& name, const fc::variant& props, int) {
+        BOOST_CHECK_EQUAL(name, "tx_missing_active_auth");
     }
 };
 
