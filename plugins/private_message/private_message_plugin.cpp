@@ -106,7 +106,7 @@ namespace golos { namespace plugins { namespace private_message {
         FC_ASSERT(pm.from != pm.to);
         FC_ASSERT(pm.from_memo_key != pm.to_memo_key);
         FC_ASSERT(pm.sent_time != 0);
-        FC_ASSERT(pm.encrypted_message.size() >= 32);
+        FC_ASSERT(pm.encrypted_message.size() >= 16);
 
         if (!tracked_accounts.size() ||
             (to_itr != tracked_accounts.end() && pm.to >= to_itr->first &&
