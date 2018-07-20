@@ -97,33 +97,41 @@ namespace golos { namespace chain {
         : evaluator_impl<proposal_create_evaluator>(db) {
     }
 
-    void proposal_create_evaluator::do_apply(const proposal_create_operation& o) { try {
-        ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__542, "Proposal transaction creating"); // remove after hf
+#define CHECK_ALREADY_EXIST(OP, N, X, Y) \
+    if (_db.find_##N(o.X, o.Y)) { \
+        GOLOS_THROW_OBJECT_ALREADY_EXIST(#N, fc::mutable_variant_object()(#X,o.X)(#Y,o.Y)); \
+    }
 
+    void proposal_create_evaluator::do_apply(const proposal_create_operation& o) { try {
         safe_int_increment depth_increment(depth_);
 
         if (_db.is_producing()) {
-            FC_ASSERT(
+            GOLOS_CHECK_LOGIC(
                 depth_ <= STEEMIT_MAX_PROPOSAL_DEPTH,
+                logic_exception::proposal_depth_too_high,
                 "You can't create more than ${depth} nested proposals",
                 ("depth", STEEMIT_MAX_PROPOSAL_DEPTH));
         }
 
-        FC_ASSERT(nullptr == _db.find_proposal(o.author, o.title), "Proposal already exists.");
+        CHECK_ALREADY_EXIST(o, proposal, author, title);
+        // if (nullptr == _db.find_proposal(o.author, o.title)) {
+        //     GOLOS_THROW_OBJECT_ALREADY_EXIST("Proposal", fc::mutable_variant_object()("author",o.author)("title",o.title));
+        // }
 
         const auto now = _db.head_block_time();
-        FC_ASSERT(
-            o.expiration_time > now,
-            "Proposal has already expired on creation.");
-        FC_ASSERT(
-            o.expiration_time <= now + STEEMIT_MAX_PROPOSAL_LIFETIME_SEC,
-            "Proposal expiration time is too far in the future.");
-        FC_ASSERT(
-            !o.review_period_time || *o.review_period_time > now,
-            "Proposal review period has expired on creation.");
-        FC_ASSERT(
-            !o.review_period_time || *o.review_period_time < o.expiration_time,
-            "Proposal review period must be less than its overall lifetime.");
+        GOLOS_CHECK_OP_PARAM(o, expiration_time, {
+            GOLOS_CHECK_VALUE(o.expiration_time > now, "Proposal has already expired on creation.");
+            GOLOS_CHECK_VALUE(o.expiration_time <= now + STEEMIT_MAX_PROPOSAL_LIFETIME_SEC,
+                "Proposal expiration time is too far i  n the future.");
+        });
+        if (o.review_period_time) {
+            GOLOS_CHECK_OP_PARAM(o, review_period_time, {
+                GOLOS_CHECK_VALUE(*o.review_period_time > now,
+                    "Proposal review period has expired on creation.");
+                GOLOS_CHECK_VALUE(*o.review_period_time < o.expiration_time,
+                    "Proposal review period must be less than its overall lifetime.");
+            });
+        }
 
         //Populate the required approval sets
         flat_set<account_name_type> required_owner;
@@ -135,7 +143,7 @@ namespace golos { namespace chain {
         for (const auto& op : o.proposed_operations) {
             operation_get_required_authorities(op.op, required_active, required_owner, required_posting, other);
         }
-        FC_ASSERT(other.size() == 0); // TODO: what about other???
+        GOLOS_ASSERT(other.size() == 0, golos::internal_error, "other size > 0"); // TODO: what about other???
 
         // All accounts which must provide both owner and active authority should be omitted from
         // the active authority set. Owner authority approval implies active authority approval.
@@ -144,20 +152,21 @@ namespace golos { namespace chain {
         required_total.insert(required_active.begin(), required_active.end());
 
         // For more information, see transaction.cpp
-        FC_ASSERT(
+        GOLOS_CHECK_LOGIC(
             required_posting.empty() != required_total.empty(),
+            logic_exception::tx_with_both_posting_active_ops,
             "Can't combine operations required posting authority and active or owner authority");
         required_total.insert(required_posting.begin(), required_posting.end());
 
         // Doesn't allow proposal with combination of create_account() + some_operation()
         //  because it will be never approved.
         for (const auto& account: required_total) {
-            FC_ASSERT(
-                nullptr != _db.find_account(account),
-                "Account '${account}' for proposed operation doesn't exist", ("account", account));
+            _db.get_account(account); // will throw if no account
+            // "Account '${account}' for proposed operation doesn't exist", ("account", account));
         }
 
-        FC_ASSERT(required_total.size(), "No operations require approvals");
+        // Looks like it's impossible to fail because other = 0 and proposed_ops.size > 0
+        GOLOS_ASSERT(required_total.size(), golos::internal_error, "No operations require approvals");
 
         transaction trx;
         for (const auto& op : o.proposed_operations) {

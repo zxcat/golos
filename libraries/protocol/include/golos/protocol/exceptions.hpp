@@ -203,6 +203,9 @@ namespace golos {
 
 
             //proposals
+            proposal_depth_too_high,
+            tx_with_both_posting_active_ops,
+
             empty_approvals,
             add_and_remove_same_approval,
             cannot_add_approval_in_review_period,
@@ -341,6 +344,9 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
 
 
         //proposals
+        (proposal_depth_too_high)
+        (tx_with_both_posting_active_ops)
+
         (empty_approvals)
         (add_and_remove_same_approval)
         (cannot_add_approval_in_review_period)

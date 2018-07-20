@@ -36,11 +36,61 @@ BOOST_FIXTURE_TEST_SUITE(proposal_tests, clean_database_fixture)
 BOOST_AUTO_TEST_CASE(proposal_create_validate) { try {
     BOOST_TEST_MESSAGE("Testing: proposal_create_validate");
 
+    BOOST_TEST_MESSAGE("--- success on valid parameters");
+    transfer_operation top;
+    top.from = "alice";
+    top.to = "bob";
+    top.amount = ASSET_GBG(1.0);
+
+    proposal_create_operation op;
+    op.author = "alice";
+    op.title = "test";
+    op.expiration_time = db->head_block_time() + fc::hours(6);
+    op.review_period_time = db->head_block_time() + fc::hours(3);
+    op.proposed_operations.push_back(operation_wrapper(top));
+
+    CHECK_OP_VALID(op);
+    CHECK_PARAM_VALID(op, title, "-");
+    CHECK_PARAM_VALID(op, title, string(GOLOS_PROPOSAL_MAX_TITLE_SIZE, ' '));
+    CHECK_PARAM_VALID(op, title, u8"тест");
+    CHECK_PARAM_VALID(op, memo, string(GOLOS_PROPOSAL_MAX_MEMO_SIZE, ' '));
+    CHECK_PARAM_VALID(op, memo, u8"тест");
+
+    BOOST_TEST_MESSAGE("--- failure when author is empty");
+    CHECK_PARAM_INVALID(op, author, "");
+
+    BOOST_TEST_MESSAGE("--- failure when title is not valid");
+    CHECK_PARAM_INVALID(op, title, "");
+    CHECK_PARAM_INVALID(op, title, string(1+GOLOS_PROPOSAL_MAX_TITLE_SIZE, ' '));
+    CHECK_PARAM_INVALID(op, title, "\xc3\x28");
+
+    BOOST_TEST_MESSAGE("--- failure when memo is not valid");
+    CHECK_PARAM_INVALID(op, memo, string(1+GOLOS_PROPOSAL_MAX_MEMO_SIZE, ' '));
+    CHECK_PARAM_INVALID(op, memo, "\xc3\x28");
+
+    BOOST_TEST_MESSAGE("--- failure when proposed_operations is empty");
+    proposal_create_operation e;
+    CHECK_PARAM_INVALID(op, proposed_operations, e.proposed_operations);
+
+    BOOST_TEST_MESSAGE("--- failure when proposed_operations contains invalid op");
+    auto ops = op.proposed_operations;
+    transfer_operation t2;
+    t2.from = "alice";
+    t2.to = "bob";
+    t2.amount = ASSET_GESTS(1.0);
+    ops.push_back(operation_wrapper(t2));
+    // validation fails inside internal transaction, so error contains "amount" field
+    CHECK_PARAM_VALIDATION_FAIL(op, proposed_operations, ops, invalid_parameter, "amount");
 
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE(proposal_create_authorities) { try {
     BOOST_TEST_MESSAGE("Testing: proposal_create_authorities");
+    proposal_create_operation op;
+    op.author = "bob";
+    op.title = "test";
+    using account_name_set = flat_set<account_name_type>;
+    CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
 
 } FC_LOG_AND_RETHROW() }
 

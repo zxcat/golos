@@ -19,22 +19,31 @@ namespace golos { namespace protocol {
         GOLOS_CHECK_VALUE(is_valid_account_name(name), "Account name ${name} is invalid", ("name", name));
     }
 
+
     void proposal_create_operation::validate() const {
-        validate_account_name(author);
+        GOLOS_CHECK_PARAM_ACCOUNT(author);
+        GOLOS_CHECK_PARAM(title, {
+            GOLOS_CHECK_VALUE_NOT_EMPTY(title);
+            GOLOS_CHECK_VALUE_MAX_SIZE(title, GOLOS_PROPOSAL_MAX_TITLE_SIZE);
+            GOLOS_CHECK_VALUE_UTF8(title);
+        });
 
-        FC_ASSERT(!title.empty(), "Title is empty");
-        FC_ASSERT(title.size() < 256, "Title larger than size limit");
-        FC_ASSERT(fc::is_utf8(title), "Title not formatted in UTF8");
+        GOLOS_CHECK_PARAM(proposed_operations, {
+            GOLOS_CHECK_VALUE(!proposed_operations.empty(), "proposed_operations can't be empty");
+            for (const auto& op : proposed_operations) {
+                operation_validate(op.op);
+            }
+        });
 
-        FC_ASSERT(!proposed_operations.empty());
-        for (const auto& op : proposed_operations) {
-            operation_validate(op.op);
-        }
+        GOLOS_CHECK_PARAM(memo, {
+            if (memo.size() > 0) {
+                GOLOS_CHECK_VALUE_MAX_SIZE(memo, GOLOS_PROPOSAL_MAX_MEMO_SIZE); // "Memo larger than size limit"
+                GOLOS_CHECK_VALUE_UTF8(memo);
+            }
+        });
 
-        if (memo.size() > 0) {
-            FC_ASSERT(memo.size() < 4096, "Memo larger than size limit");
-            FC_ASSERT(fc::is_utf8(memo), "Memo not formatted in UTF8");
-        }
+        // TODO: time in past can be validated (expiration_time and review_period_time)
+        // TODO: combination of posting+active ops van be validated
     }
 
     void proposal_update_operation::validate() const {
