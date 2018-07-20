@@ -58,10 +58,6 @@ namespace golos { namespace plugins { namespace private_message {
 } } } //golos::plugins::private_message
 
 FC_REFLECT(
-    (golos::plugins::private_message::message_body),
-    (subject)(body));
-
-FC_REFLECT(
     (golos::plugins::private_message::message_object),
     (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
 CHAINBASE_SET_INDEX_TYPE(
@@ -70,8 +66,3 @@ CHAINBASE_SET_INDEX_TYPE(
 FC_REFLECT(
     (golos::plugins::private_message::message_api_obj),
     (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
-
-FC_REFLECT_DERIVED(
-    (golos::plugins::private_message::extended_message_object),
-    ((golos::plugins::private_message::message_api_obj)),
-    (message));

@@ -44,6 +44,21 @@ namespace golos { namespace wallet {
             fc::optional<asset> min_delegation;
         };
 
+        struct message_body {
+            std::string subject;
+            std::string body;
+        };
+
+        struct extended_message_object: public message_api_obj {
+            extended_message_object() = default;
+
+            extended_message_object(const message_api_obj& o)
+                : message_api_obj(o) {
+            }
+
+            message_body message;
+        };
+
         struct memo_data {
 
             static optional<memo_data> from_string( string str ) {
@@ -1258,3 +1273,12 @@ FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)
     (create_account_min_golos_fee)(create_account_min_delegation)
     (create_account_delegation_time)(min_delegation))
+
+FC_REFLECT(
+    (golos::wallet::message_body),
+    (subject)(body));
+
+FC_REFLECT_DERIVED(
+    (golos::wallet::extended_message_object),
+    ((golos::plugins::private_message::message_api_obj)),
+    (message));

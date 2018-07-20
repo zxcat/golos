@@ -24,11 +24,6 @@ namespace golos { namespace plugins { namespace private_message {
         message_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8)
     };
 
-    struct message_body {
-        std::string subject;
-        std::string body;
-    };
-
     class message_object:
         public object<message_object_type, message_object> {
     public:
@@ -76,16 +71,6 @@ namespace golos { namespace plugins { namespace private_message {
         time_point_sec receive_time;
         uint32_t checksum;
         std::vector<char> encrypted_message;
-    };
-
-    struct extended_message_object: public message_api_obj {
-        extended_message_object() = default;
-
-        extended_message_object(const message_api_obj& o)
-            : message_api_obj(o) {
-        }
-
-        message_body message;
     };
 
     struct by_to_date;

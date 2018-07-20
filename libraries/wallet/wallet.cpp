@@ -2562,6 +2562,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             auto encrypt_key = enc.result();
 
             auto msg_json = fc::json::to_string(message);
+            auto msg_data = std::vector<char>(msg_json.begin(), msg_json.end());
 
             private_message_operation op;
 
@@ -2570,7 +2571,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.to                = to;
             op.to_memo_key       = to_account.memo_key;
             op.sent_time         = sent_time;
-            op.encrypted_message = fc::aes_encrypt(encrypt_key, std::vector<char>(msg_json.begin(), msg_json.end()));
+            op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
             op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
 
             private_message_plugin_operation pop = op;
@@ -2596,7 +2597,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             if (it == my->_keys.end()) {
                 it = my->_keys.find(mo.to_memo_key);
                 if (it == my->_keys.end()) {
-                    wlog( "unable to find keys" );
+                    wlog("unable to find keys");
                     return result;
                 }
                 auto priv_key = wif_to_key(it->second);
@@ -2620,16 +2621,18 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             uint32_t check = fc::sha256::hash(encrypt_key)._hash[0];
 
             if (mo.checksum != check) {
+                wlog("wrong checksum");
                 return result;
             }
 
             auto decrypt_data = fc::aes_decrypt(encrypt_key, mo.encrypted_message);
             auto msg_json = std::string(decrypt_data.begin(), decrypt_data.end());
             try {
-                return fc::json::from_string(msg_json).as<message_body>();
+                result = fc::json::from_string(msg_json).as<message_body>();
             } catch (...) {
-                return result;
+                result.body = msg_json;
             }
+            return result;
         }
 
         annotated_signed_transaction wallet_api::follow(
