@@ -25,11 +25,8 @@ namespace golos { namespace plugins { namespace private_message {
     };
 
     struct message_body {
-        fc::time_point thread_start; /// the sent_time of the original message, if any
         std::string subject;
         std::string body;
-        std::string json_meta;
-        flat_set<std::string> cc;
     };
 
     class message_object:

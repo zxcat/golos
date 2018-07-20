@@ -59,7 +59,7 @@ namespace golos { namespace plugins { namespace private_message {
 
 FC_REFLECT(
     (golos::plugins::private_message::message_body),
-    (thread_start)(subject)(body)(json_meta)(cc));
+    (subject)(body));
 
 FC_REFLECT(
     (golos::plugins::private_message::message_object),
