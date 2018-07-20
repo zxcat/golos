@@ -105,6 +105,11 @@
     FC_THROW_EXCEPTION(golos::missing_object, "Missing ${type} with id \"${id}\"", \
             ("type",type)("id",id) __VA_ARGS__)
 
+#define GOLOS_THROW_OBJECT_ALREADY_EXIST(type, id, ...) \
+    FC_THROW_EXCEPTION(golos::object_already_exist, "Object ${type} with id \"${id}\" already exists", \
+            ("type",type)("id",id) __VA_ARGS__)
+
+
 #define GOLOS_THROW_INTERNAL_ERROR(MSG, ...) \
     FC_THROW_EXCEPTION(golos::internal_error, MSG, __VA_ARGS__)
 
@@ -194,6 +199,17 @@ namespace golos {
             // withdraw_vesting
             insufficient_fee_for_powerdown_registered_account,
             operation_would_not_change_vesting_withdraw_rate,
+
+
+
+            //proposals
+            empty_approvals,
+            add_and_remove_same_approval,
+            cannot_add_approval_in_review_period,
+            non_existing_approval,
+            already_existing_approval,
+
+            proposal_delete_not_allowed
         };
     };
 
@@ -321,6 +337,17 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
+
+
+
+        //proposals
+        (empty_approvals)
+        (add_and_remove_same_approval)
+        (cannot_add_approval_in_review_period)
+        (non_existing_approval)
+        (already_existing_approval)
+
+        (proposal_delete_not_allowed)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
