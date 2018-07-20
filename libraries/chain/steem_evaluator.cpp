@@ -398,7 +398,6 @@ namespace golos { namespace chain {
         }
 
         void account_metadata_evaluator::do_apply(const account_metadata_operation& o) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__196, "account_metadata_operation"); //TODO: Delete after hardfork
             const auto& account = _db.get_account(o.account);
             _db.modify(account, [&](account_object& a) {
                 a.last_account_update = _db.head_block_time();
