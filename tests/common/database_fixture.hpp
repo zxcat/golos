@@ -349,11 +349,24 @@ std::ostream& operator<<(std::ostream& out, const object_id<T> &v) {
 
 } // namespace chainbase
 
+
+namespace std {
+
+template<typename T1, typename T2>
+std::ostream& operator<<(std::ostream& out, const std::pair<T1,T2> &v) {
+    out << "<" << v.first << ":" << v.second << ">";
+    return out;
+}
+
+} // namespace std
+
+
 namespace golos { namespace protocol {
 
 std::ostream& operator<<(std::ostream& out, const asset& v);
 std::ostream& operator<<(std::ostream& out, const public_key_type& v);
 std::ostream& operator<<(std::ostream& out, const authority& v);
+std::ostream& operator<<(std::ostream& out, const price& v);
 
 } } // namespace golos::protocol
 

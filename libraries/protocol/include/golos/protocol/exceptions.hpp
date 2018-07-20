@@ -202,8 +202,6 @@ namespace golos {
             insufficient_fee_for_powerdown_registered_account,
             operation_would_not_change_vesting_withdraw_rate,
 
-
-
             //account_create_with_delegation
             not_enough_delegation,
 
@@ -217,7 +215,14 @@ namespace golos {
             non_existing_approval,
             already_existing_approval,
 
-            proposal_delete_not_allowed
+            proposal_delete_not_allowed,
+
+            // limit order
+            limit_order_must_be_for_golos_gbg_market,
+            cancelling_not_filled_order,
+
+            // feed_publish_operation
+            price_feed_must_be_for_golos_gbg_market,
         };
     };
 
@@ -346,8 +351,6 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
 
-
-
         //account_create_with_delegation
         (not_enough_delegation)
 
@@ -362,6 +365,13 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (already_existing_approval)
 
         (proposal_delete_not_allowed)
+
+        // limit order
+        (limit_order_must_be_for_golos_gbg_market)
+        (cancelling_not_filled_order)
+
+        // feed_publis_operation
+        (price_feed_must_be_for_golos_gbg_market)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
