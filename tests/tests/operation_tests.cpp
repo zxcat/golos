@@ -45,6 +45,12 @@ std::ostream &operator<<(std::ostream &out, const flat_set<T> &t) {
 } } // namespace boost::container
 
 
+fc::variant_object make_comment_id(const std::string& author, const std::string& permlink) {
+    auto res = fc::mutable_variant_object()("account",author)("permlink",permlink);
+    return fc::variant_object(res);
+}
+
+
 BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_CASE(account_create_validate) {
@@ -378,6 +384,52 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: comment_validate");
 
+            comment_operation op;
+            op.author = "alice";
+            op.permlink = "lorem";
+            op.parent_author = "";
+            op.parent_permlink = "ipsum";
+            op.title = "Lorem Ipsum";
+            op.body = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+            op.json_metadata = "{\"foo\":\"bar\"}";
+
+            BOOST_TEST_MESSAGE("--- success on valid operation");
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- failed when 'title' too large");
+            op.title = std::string(256, ' ');
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "title"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'body' is empty");
+            op.title = "Lorem Ipsum";
+            op.body = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "body"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'author' is empty");
+            op.body = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+            op.author = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "author"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'permlink' too large");
+            op.author = "alice";
+            op.permlink = std::string(STEEMIT_MAX_PERMLINK_LENGTH, ' ');
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "permlink"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'parent_permlink' too large");
+            op.permlink = "lorem";
+            op.parent_permlink = std::string(STEEMIT_MAX_PERMLINK_LENGTH, ' ');
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "parent_permlink"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'json_metadata' is not valid json");
+            op.parent_permlink = "ipsum";
+            op.json_metadata = "{1:\"string\"}";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "json_metadata"));
 
             validate_database();
         }
@@ -405,26 +457,30 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signatures");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_missing_posting_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_missing_posting_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when duplicate signatures");
             tx.sign(alice_post_key, db->get_chain_id());
             tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with post signature");
             tx.signatures.clear();
             tx.sign(alice_post_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by an additional signature not in the creator's authority");
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure when signed by a signature not in the creator's authority");
             tx.signatures.clear();
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_posting_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+                CHECK_ERROR(tx_missing_posting_auth, 0));
 
             validate_database();
         }
@@ -453,30 +509,24 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("--- Test Alice posting a root comment");
             tx.operations.push_back(op);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             const comment_object &alice_comment = db->get_comment("alice", string("lorem"));
             const comment_content_object& alice_content = sn_plugin->get_comment_content(alice_comment.id);
 
-            BOOST_REQUIRE(alice_comment.author == op.author);
-            BOOST_REQUIRE(to_string(alice_comment.permlink) == op.permlink);
-            BOOST_REQUIRE(to_string(alice_comment.parent_permlink) == op.parent_permlink);
-            BOOST_REQUIRE(alice_comment.last_update == db->head_block_time());
-            BOOST_REQUIRE(alice_comment.created == db->head_block_time());
-            BOOST_REQUIRE(alice_comment.net_rshares.value == 0);
-            BOOST_REQUIRE(alice_comment.abs_rshares.value == 0);
-            BOOST_REQUIRE(alice_comment.cashout_time ==
+            BOOST_CHECK_EQUAL(alice_comment.author, op.author);
+            BOOST_CHECK_EQUAL(to_string(alice_comment.permlink), op.permlink);
+            BOOST_CHECK_EQUAL(to_string(alice_comment.parent_permlink), op.parent_permlink);
+            BOOST_CHECK_EQUAL(alice_comment.last_update, db->head_block_time());
+            BOOST_CHECK_EQUAL(alice_comment.created, db->head_block_time());
+            BOOST_CHECK_EQUAL(alice_comment.net_rshares.value, 0);
+            BOOST_CHECK_EQUAL(alice_comment.abs_rshares.value, 0);
+            BOOST_CHECK_EQUAL(alice_comment.cashout_time,
                           fc::time_point_sec(db->head_block_time() + fc::seconds(STEEMIT_CASHOUT_WINDOW_SECONDS)));
 
-#ifndef IS_LOW_MEM
-            BOOST_REQUIRE( to_string( alice_content.title ) == op.title );
-            BOOST_REQUIRE( to_string( alice_content.body ) == op.body );
-            //BOOST_REQUIRE( alice_content.json_metadata == op.json_metadata );
-#else
-            BOOST_REQUIRE(to_string(alice_content.title) == "");
-            BOOST_REQUIRE(to_string(alice_content.body) == "");
-            //BOOST_REQUIRE( alice_content.json_metadata == "" );
-#endif
+            BOOST_CHECK_EQUAL( to_string( alice_content.title ), op.title );
+            BOOST_CHECK_EQUAL( to_string( alice_content.body ), op.body );
+            //BOOST_CHECK_EQUAL( alice_content.json_metadata, op.json_metadata );
 
             validate_database();
 
@@ -490,7 +540,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.clear();
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), 
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "comment", make_comment_id("alice", "foobar"))));
 
             BOOST_TEST_MESSAGE("--- Test Bob posting a comment on Alice's comment");
             op.parent_permlink = "lorem";
@@ -499,20 +551,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.clear();
             tx.operations.push_back(op);
             tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             const comment_object &bob_comment = db->get_comment("bob", string("ipsum"));
 
-            BOOST_REQUIRE(bob_comment.author == op.author);
-            BOOST_REQUIRE(to_string(bob_comment.permlink) == op.permlink);
-            BOOST_REQUIRE(bob_comment.parent_author == op.parent_author);
-            BOOST_REQUIRE(to_string(bob_comment.parent_permlink) == op.parent_permlink);
-            BOOST_REQUIRE(bob_comment.last_update == db->head_block_time());
-            BOOST_REQUIRE(bob_comment.created == db->head_block_time());
-            BOOST_REQUIRE(bob_comment.net_rshares.value == 0);
-            BOOST_REQUIRE(bob_comment.abs_rshares.value == 0);
-            BOOST_REQUIRE(bob_comment.cashout_time == bob_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
-            BOOST_REQUIRE(bob_comment.root_comment == alice_comment.id);
+            BOOST_CHECK_EQUAL(bob_comment.author, op.author);
+            BOOST_CHECK_EQUAL(to_string(bob_comment.permlink), op.permlink);
+            BOOST_CHECK_EQUAL(bob_comment.parent_author, op.parent_author);
+            BOOST_CHECK_EQUAL(to_string(bob_comment.parent_permlink), op.parent_permlink);
+            BOOST_CHECK_EQUAL(bob_comment.last_update, db->head_block_time());
+            BOOST_CHECK_EQUAL(bob_comment.created, db->head_block_time());
+            BOOST_CHECK_EQUAL(bob_comment.net_rshares.value, 0);
+            BOOST_CHECK_EQUAL(bob_comment.abs_rshares.value, 0);
+            BOOST_CHECK_EQUAL(bob_comment.cashout_time, bob_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+            BOOST_CHECK_EQUAL(bob_comment.root_comment, alice_comment.id);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test Sam posting a comment on Bob's comment");
@@ -526,20 +578,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.clear();
             tx.operations.push_back(op);
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             const comment_object &sam_comment = db->get_comment("sam", string("dolor"));
 
-            BOOST_REQUIRE(sam_comment.author == op.author);
-            BOOST_REQUIRE(to_string(sam_comment.permlink) == op.permlink);
-            BOOST_REQUIRE(sam_comment.parent_author == op.parent_author);
-            BOOST_REQUIRE(to_string(sam_comment.parent_permlink) == op.parent_permlink);
-            BOOST_REQUIRE(sam_comment.last_update == db->head_block_time());
-            BOOST_REQUIRE(sam_comment.created == db->head_block_time());
-            BOOST_REQUIRE(sam_comment.net_rshares.value == 0);
-            BOOST_REQUIRE(sam_comment.abs_rshares.value == 0);
-            BOOST_REQUIRE(sam_comment.cashout_time == sam_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
-            BOOST_REQUIRE(sam_comment.root_comment == alice_comment.id);
+            BOOST_CHECK_EQUAL(sam_comment.author, op.author);
+            BOOST_CHECK_EQUAL(to_string(sam_comment.permlink), op.permlink);
+            BOOST_CHECK_EQUAL(sam_comment.parent_author, op.parent_author);
+            BOOST_CHECK_EQUAL(to_string(sam_comment.parent_permlink), op.parent_permlink);
+            BOOST_CHECK_EQUAL(sam_comment.last_update, db->head_block_time());
+            BOOST_CHECK_EQUAL(sam_comment.created, db->head_block_time());
+            BOOST_CHECK_EQUAL(sam_comment.net_rshares.value, 0);
+            BOOST_CHECK_EQUAL(sam_comment.abs_rshares.value, 0);
+            BOOST_CHECK_EQUAL(sam_comment.cashout_time, sam_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+            BOOST_CHECK_EQUAL(sam_comment.root_comment, alice_comment.id);
             validate_database();
 
             generate_blocks(60 * 5 / STEEMIT_BLOCK_INTERVAL + 1);
@@ -576,15 +628,15 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(mod_sam_comment.author == op.author);
-            BOOST_REQUIRE(to_string(mod_sam_comment.permlink) == op.permlink);
-            BOOST_REQUIRE(mod_sam_comment.parent_author == op.parent_author);
-            BOOST_REQUIRE(to_string(mod_sam_comment.parent_permlink) == op.parent_permlink);
-            BOOST_REQUIRE(mod_sam_comment.last_update == db->head_block_time());
-            BOOST_REQUIRE(mod_sam_comment.created == created);
-            BOOST_REQUIRE(mod_sam_comment.cashout_time == mod_sam_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+            BOOST_CHECK_EQUAL(mod_sam_comment.author, op.author);
+            BOOST_CHECK_EQUAL(to_string(mod_sam_comment.permlink), op.permlink);
+            BOOST_CHECK_EQUAL(mod_sam_comment.parent_author, op.parent_author);
+            BOOST_CHECK_EQUAL(to_string(mod_sam_comment.parent_permlink), op.parent_permlink);
+            BOOST_CHECK_EQUAL(mod_sam_comment.last_update, db->head_block_time());
+            BOOST_CHECK_EQUAL(mod_sam_comment.created, created);
+            BOOST_CHECK_EQUAL(mod_sam_comment.cashout_time, mod_sam_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test failure posting withing 1 minute");
@@ -597,7 +649,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.operations.push_back(op);
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             generate_blocks(60 * 5 / STEEMIT_BLOCK_INTERVAL);
 
@@ -614,7 +666,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             validate_database();
 
             generate_block();
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -699,11 +751,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     }
 
     BOOST_AUTO_TEST_CASE(vote_apply) {
-        auto make_comment_id = [](const std::string& author, const std::string& permlink) {
-            auto res = fc::mutable_variant_object()("account",author)("permlink",permlink);
-            return fc::variant_object(res);
-        };
-
         try {
             BOOST_TEST_MESSAGE("Testing: vote_apply");
 
@@ -6842,7 +6889,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("--- Test failure when json_metadata is invalid JSON");
             op.json_metadata = "{test:fail}";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::parse_error_exception);
+            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
 
             BOOST_TEST_MESSAGE("--- Test success under normal conditions");
             op.json_metadata = "{}";

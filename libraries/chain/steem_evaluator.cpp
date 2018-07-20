@@ -535,8 +535,9 @@ namespace golos { namespace chain {
 
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__55))
-                    FC_ASSERT(o.title.size() + o.body.size() +
-                              o.json_metadata.size(), "Cannot update comment because nothing appears to be changing.");
+                    GOLOS_CHECK_LOGIC(o.title.size() + o.body.size() + o.json_metadata.size(), 
+                            logic_exception::cannot_update_comment_because_nothing_changed,
+                            "Cannot update comment because nothing appears to be changing.");
 
                 const auto &by_permlink_idx = _db.get_index<comment_index>().indices().get<by_permlink>();
                 auto itr = by_permlink_idx.find(boost::make_tuple(o.author, o.permlink));
@@ -544,8 +545,9 @@ namespace golos { namespace chain {
                 const auto &auth = _db.get_account(o.author); /// prove it exists
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    FC_ASSERT(!(auth.owner_challenged ||
-                                auth.active_challenged), "Operation cannot be processed because account is currently challenged.");
+                    GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged), 
+                            logic_exception::account_is_currently_challenged,
+                            "Operation cannot be processed because account is currently challenged.");
 
                 comment_id_type id;
 
@@ -558,19 +560,25 @@ namespace golos { namespace chain {
                     } else if (_db.is_producing()) {
                         max_depth = STEEMIT_SOFT_MAX_COMMENT_DEPTH;
                     }
-                    FC_ASSERT(parent->depth < max_depth,
-                              "Comment is nested ${x} posts deep, maximum depth is ${y}.",
-                              ("x", parent->depth)("y", max_depth));
+                    GOLOS_CHECK_LOGIC(parent->depth < max_depth,
+                            logic_exception::reached_comment_max_depth,
+                            "Comment is nested ${x} posts deep, maximum depth is ${y}.",
+                            ("x", parent->depth)("y", max_depth));
                 }
                 auto now = _db.head_block_time();
 
                 if (itr == by_permlink_idx.end()) {
                     if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
-                        FC_ASSERT(_db.get(parent->root_comment).allow_replies, "The parent comment has disabled replies.");
+                        GOLOS_CHECK_LOGIC(_db.get(parent->root_comment).allow_replies, 
+                                logic_exception::replies_are_not_allowed,
+                                "The parent comment has disabled replies.");
+
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) && !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536) ) {
-                            FC_ASSERT(
+                            GOLOS_CHECK_LOGIC(
                                     _db.calculate_discussion_payout_time(*parent) !=
-                                    fc::time_point_sec::maximum(), "Discussion is frozen.");
+                                    fc::time_point_sec::maximum(), 
+                                    logic_exception::discussion_is_frozen,
+                                    "Discussion is frozen.");
                         }
                     }
 
@@ -585,7 +593,7 @@ namespace golos { namespace chain {
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
                             GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
-                                    golos::bandwidth_exception::post_bandwidth,
+                                    bandwidth_exception::post_bandwidth,
                                     "You may only post once every 5 minutes.");
                         else
                             GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL, 
@@ -593,14 +601,17 @@ namespace golos { namespace chain {
                                     "You may only comment once every 20 seconds.");
                     } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            FC_ASSERT((now - auth.last_post) >
-                                      STEEMIT_MIN_ROOT_COMMENT_INTERVAL, "You may only post once every 5 minutes.", ("now", now)("auth.last_post", auth.last_post));
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL, 
+                                    bandwidth_exception::post_bandwidth,
+                                    "You may only post once every 5 minutes.");
                         else
-                            FC_ASSERT((now - auth.last_post) >
-                                      STEEMIT_MIN_REPLY_INTERVAL, "You may only comment once every 20 seconds.", ("now", now)("auth.last_post", auth.last_post));
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL, 
+                                bandwidth_exception::comment_bandwidth,
+                                "You may only comment once every 20 seconds.");
                     } else {
-                        FC_ASSERT((now - auth.last_post) >
-                                  fc::seconds(60), "You may only post once per minute.", ("now", now)("auth.last_post", auth.last_post));
+                        GOLOS_CHECK_BANDWIDTH(now, auth.last_post + 60,
+                                bandwidth_exception::post_bandwidth,
+                                "You may only post once per minute.");
                     }
 
                     uint16_t reward_weight = STEEMIT_100_PERCENT;
@@ -692,11 +703,13 @@ namespace golos { namespace chain {
                     const auto &comment = *itr;
                     if ( !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536 ) ) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__306)) {
-                            FC_ASSERT(_db.calculate_discussion_payout_time(comment) != fc::time_point_sec::maximum(),
-                                      "The comment is archived.");
+                            GOLOS_CHECK_LOGIC(_db.calculate_discussion_payout_time(comment) != fc::time_point_sec::maximum(),
+                                    logic_exception::comment_is_archived,
+                                    "The comment is archived.");
                         } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
-                            FC_ASSERT(comment.last_payout == fc::time_point_sec::min(),
-                                      "Can only edit during the first 24 hours.");
+                            GOLOS_CHECK_LOGIC(comment.last_payout == fc::time_point_sec::min(),
+                                    logic_exception::comment_editable_during_first_24_hours,
+                                    "Can only edit during the first 24 hours.");
                         }
                     }
 

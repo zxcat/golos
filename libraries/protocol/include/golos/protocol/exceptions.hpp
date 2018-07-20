@@ -192,6 +192,14 @@ namespace golos {
             cannot_vote_with_zero_rshares,
             voter_has_used_maximum_vote_changes,
             already_voted_in_similar_way,
+
+            // Comment operation
+            cannot_update_comment_because_nothing_changed,
+            reached_comment_max_depth,
+            replies_are_not_allowed,
+            discussion_is_frozen,
+            comment_is_archived,
+            comment_editable_during_first_24_hours,
         };
     };
     
@@ -302,6 +310,14 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (cannot_vote_with_zero_rshares)
         (voter_has_used_maximum_vote_changes)
         (already_voted_in_similar_way)
+
+        // Comment operation
+        (cannot_update_comment_because_nothing_changed)
+        (reached_comment_max_depth)
+        (replies_are_not_allowed)
+        (discussion_is_frozen)
+        (comment_is_archived)
+        (comment_editable_during_first_24_hours)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
