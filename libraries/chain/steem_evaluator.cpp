@@ -187,14 +187,15 @@ namespace golos { namespace chain {
         void account_create_evaluator::do_apply(const account_create_operation &o) {
             const auto& creator = _db.get_account(o.creator);
 
-            FC_ASSERT(creator.balance >= o.fee,
-                "Insufficient balance to create account.", ("creator.balance", creator.balance)("required", o.fee));
+            GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
 
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                 const auto& median_props = _db.get_witness_schedule_object().median_props;
                 auto min_fee = median_props.account_creation_fee;
-                FC_ASSERT(o.fee >= min_fee,
-                    "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                GOLOS_CHECK_OP_PARAM(o, fee,
+                    GOLOS_CHECK_VALUE(o.fee >= min_fee,
+                        "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                );
             }
 
             if (_db.is_producing() ||
@@ -215,6 +216,8 @@ namespace golos { namespace chain {
             _db.modify(creator, [&](account_object &c) {
                 c.balance -= o.fee;
             });
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, account, o.new_account_name);
 
             const auto& props = _db.get_dynamic_global_properties();
             const auto& new_account = _db.create<account_object>([&](account_object& acc) {
