@@ -202,6 +202,9 @@ namespace golos {
 
 
 
+            //account_create_with_delegation
+            not_enough_delegation,
+
             //proposals
             proposal_depth_too_high,
             tx_with_both_posting_active_ops,
@@ -342,6 +345,9 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (operation_would_not_change_vesting_withdraw_rate)
 
 
+
+        //account_create_with_delegation
+        (not_enough_delegation)
 
         //proposals
         (proposal_depth_too_high)

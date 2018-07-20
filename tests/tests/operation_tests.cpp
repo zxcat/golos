@@ -6589,8 +6589,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_CASE(account_create_with_delegation_validate) {
         try {
+            BOOST_TEST_MESSAGE("Testing: account_create_with_delegation_validate");
+
+            BOOST_TEST_MESSAGE("--- Test valid operation");
             account_create_with_delegation_operation op;
             private_key_type priv_key = generate_private_key("temp_key");
+            op.fee = ASSET_GOLOS(10);
             op.delegation = ASSET_GESTS(100);
             op.creator = "alice";
             op.new_account_name = "bob";
@@ -6598,28 +6602,30 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.active = authority(1, priv_key.get_public_key(), 1);
             op.memo_key = priv_key.get_public_key();
             op.json_metadata = "{\"foo\":\"bar\"}";
+            CHECK_OP_VALID(op);
+            CHECK_PARAM_VALID(op, json_metadata, "");
+            CHECK_PARAM_VALID(op, json_metadata, "{\"a\":\"тест\"}");
 
             BOOST_TEST_MESSAGE("--- Test failing on negative fee");
-            op.fee = ASSET_GOLOS(-1);
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
-
-            BOOST_TEST_MESSAGE("--- Test failing on negative delegation");
-            op.fee = ASSET_GOLOS(10);
-            op.delegation = ASSET_GESTS(-1);
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
-
-            BOOST_TEST_MESSAGE("--- Test failing when delegation is not VESTS");
-            op.delegation = ASSET_GOLOS(100);
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
+            CHECK_PARAM_INVALID(op, fee, ASSET_GOLOS(-1));
 
             BOOST_TEST_MESSAGE("--- Test failing when fee is not GOLOS");
-            op.fee = ASSET_GBG(10);
-            op.delegation = ASSET_GESTS(100);
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
+            CHECK_PARAM_INVALID(op, fee, ASSET_GBG(10));
 
-            BOOST_TEST_MESSAGE("--- Test valid operation");
-            op.fee = ASSET_GOLOS(10);
-            op.validate();
+            BOOST_TEST_MESSAGE("--- Test failing on negative delegation");
+            CHECK_PARAM_INVALID(op, delegation, ASSET_GESTS(-1));
+
+            BOOST_TEST_MESSAGE("--- Test failing when delegation is not VESTS");
+            CHECK_PARAM_INVALID(op, delegation, ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test failing when account empty");
+            CHECK_PARAM_INVALID(op, creator, "");
+            CHECK_PARAM_INVALID(op, new_account_name, "");
+
+            BOOST_TEST_MESSAGE("--- Test failing when json_metadata invalid");
+            CHECK_PARAM_INVALID(op, json_metadata, "{a:b}");
+
+            // TODO: owner/active/posting
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6628,21 +6634,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: account_create_with_delegation_authorities");
             account_create_with_delegation_operation op;
-            op.creator = "alice";
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            expected.insert("alice");
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            expected.clear();
-            auths.clear();
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
+            op.creator = "bob";
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6688,22 +6681,22 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             const account_object& bob_acc = db->get_account("bob");
             const account_object& alice_acc = db->get_account("alice");
-            BOOST_REQUIRE(alice_acc.delegated_vesting_shares == ASSET_GESTS(1e7));
-            BOOST_REQUIRE(bob_acc.received_vesting_shares == ASSET_GESTS(1e7));
-            BOOST_REQUIRE(bob_acc.available_vesting_shares(true) ==
+            BOOST_CHECK(alice_acc.delegated_vesting_shares == ASSET_GESTS(1e7));
+            BOOST_CHECK(bob_acc.received_vesting_shares == ASSET_GESTS(1e7));
+            BOOST_CHECK(bob_acc.available_vesting_shares(true) ==
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares);
-            BOOST_REQUIRE(bob_acc.available_vesting_shares() ==
+            BOOST_CHECK(bob_acc.available_vesting_shares() ==
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares);
-            BOOST_REQUIRE(bob_acc.effective_vesting_shares() ==
+            BOOST_CHECK(bob_acc.effective_vesting_shares() ==
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares + bob_acc.received_vesting_shares);
 
             BOOST_TEST_MESSAGE("--- Test delegation object integrity");
             auto delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.creator, op.new_account_name));
-            BOOST_REQUIRE(delegation != nullptr);
-            BOOST_REQUIRE(delegation->delegator == op.creator);
-            BOOST_REQUIRE(delegation->delegatee == op.new_account_name);
-            BOOST_REQUIRE(delegation->vesting_shares == ASSET_GESTS(1e7));
-            BOOST_REQUIRE(delegation->min_delegation_time == db->head_block_time() + GOLOS_CREATE_ACCOUNT_DELEGATION_TIME);
+            BOOST_CHECK(delegation != nullptr);
+            BOOST_CHECK(delegation->delegator == op.creator);
+            BOOST_CHECK(delegation->delegatee == op.new_account_name);
+            BOOST_CHECK(delegation->vesting_shares == ASSET_GESTS(1e7));
+            BOOST_CHECK(delegation->min_delegation_time == db->head_block_time() + GOLOS_CREATE_ACCOUNT_DELEGATION_TIME);
 
             auto delegated = delegation->vesting_shares;
             auto exp_time = delegation->min_delegation_time;
@@ -6759,10 +6752,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto itr = db->get_index<vesting_delegation_expiration_index, by_id>().begin();
             auto end = db->get_index<vesting_delegation_expiration_index, by_id>().end();
-            BOOST_REQUIRE(itr != end);
-            BOOST_REQUIRE(itr->delegator == "alice");
-            BOOST_REQUIRE(itr->vesting_shares == delegated);
-            BOOST_REQUIRE(itr->expiration == exp_time);
+            BOOST_CHECK(itr != end);
+            BOOST_CHECK(itr->delegator == "alice");
+            BOOST_CHECK(itr->vesting_shares == delegated);
+            BOOST_CHECK(itr->expiration == exp_time);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
