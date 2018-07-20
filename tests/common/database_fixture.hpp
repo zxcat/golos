@@ -185,6 +185,23 @@ struct ErrorValidator<golos::missing_object> {
 };
 
 template<>
+struct ErrorValidator<golos::object_already_exist> {
+    void validate(const std::string& name, const fc::variant& props,
+            const std::string& type, const std::string& id) {
+        BOOST_CHECK_EQUAL(name, "object_already_exist");
+        BOOST_CHECK_EQUAL(props["type"].get_string(), type);
+        BOOST_CHECK_EQUAL(props["id"].get_string(), id);
+    }
+
+    void validate(const std::string& name, const fc::variant& props,
+            const std::string& type, const fc::variant_object& id) {
+        BOOST_CHECK_EQUAL(name, "object_already_exist");
+        BOOST_CHECK_EQUAL(props["type"].get_string(), type);
+        BOOST_CHECK_EQUAL(props["id"].get_object(), id);
+    }
+};
+
+template<>
 struct ErrorValidator<golos::logic_exception> {
     void validate(const std::string& name, const fc::variant& props,
             golos::logic_exception::error_types err) {

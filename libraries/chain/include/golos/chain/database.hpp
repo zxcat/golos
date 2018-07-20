@@ -151,6 +151,7 @@ namespace golos { namespace chain {
 
             chain_id_type get_chain_id() const;
 
+            void throw_if_exists_limit_order(const account_name_type &account, uint32_t id) const;
 
             const witness_object &get_witness(const account_name_type &name) const;
 
