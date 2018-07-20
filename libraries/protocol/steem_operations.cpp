@@ -19,8 +19,8 @@ namespace golos { namespace protocol {
 
         inline void validate_account_json_metadata(const string& json_metadata) {
             if (json_metadata.size() > 0) {
-                FC_ASSERT(fc::is_utf8(json_metadata), "JSON Metadata not formatted in UTF8");
-                FC_ASSERT(fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON");
+                GOLOS_CHECK_VALUE_UTF8(json_metadata);
+                GOLOS_CHECK_VALUE(fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON");
             }
         }
 
@@ -62,9 +62,11 @@ namespace golos { namespace protocol {
         }
 
         void account_metadata_operation::validate() const {
-            validate_account_name(account);
-            FC_ASSERT(json_metadata.size() > 0, "json_metadata can't be empty");
-            validate_account_json_metadata(json_metadata);
+            GOLOS_CHECK_PARAM_ACCOUNT(account);
+            GOLOS_CHECK_PARAM(json_metadata, {
+                GOLOS_CHECK_VALUE_NOT_EMPTY(json_metadata);
+                validate_account_json_metadata(json_metadata);
+            });
         }
 
         void comment_operation::validate() const {

@@ -6986,24 +6986,22 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(account_metadata_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: account_metadata_validate");
-            account_metadata_operation op;
-            BOOST_TEST_MESSAGE("--- Test failure when bad account name passed");
-            op.account = "-bad-";
-            op.json_metadata = "{}";
-            STEEMIT_REQUIRE_THROW(op.validate(), invalid_value);
-
-            BOOST_TEST_MESSAGE("--- Test failure when json_metadata is empty");
-            op.account = "alice";
-            op.json_metadata = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
-
-            BOOST_TEST_MESSAGE("--- Test failure when json_metadata is invalid JSON");
-            op.json_metadata = "{test:fail}";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::assert_exception);
 
             BOOST_TEST_MESSAGE("--- Test success under normal conditions");
+            account_metadata_operation op;
+            op.account = "bob";
             op.json_metadata = "{}";
-            op.validate();
+            CHECK_OP_VALID(op);
+            CHECK_PARAM_VALID(op, json_metadata, "{\"a\":\"тест\"}")
+
+            BOOST_TEST_MESSAGE("--- Test failure when bad account name passed");
+            CHECK_PARAM_INVALID(op, account, "-bad-");
+
+            BOOST_TEST_MESSAGE("--- Test failure when json_metadata is empty");
+            CHECK_PARAM_INVALID(op, json_metadata, "");
+
+            BOOST_TEST_MESSAGE("--- Test failure when json_metadata is invalid JSON");
+            CHECK_PARAM_INVALID(op, json_metadata, "{test:fail}");
         }
         FC_LOG_AND_RETHROW()
     }
@@ -7012,20 +7010,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: account_metadata_authorities");
             account_metadata_operation op;
-            op.account = "alice";
+            op.account = "bob";
             op.json_metadata = "{}";
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            expected.insert("alice");
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set(), account_name_set({"bob"}));
         }
         FC_LOG_AND_RETHROW()
     }
@@ -7053,21 +7040,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto alice_acc = db->get_account("alice");
             auto meta = db->get<account_metadata_object, by_account>("alice");
-            BOOST_REQUIRE(meta.account == "alice");
-            BOOST_REQUIRE(meta.json_metadata == json);
-            BOOST_REQUIRE(alice_acc.last_account_update == now);
+            BOOST_CHECK(meta.account == "alice");
+            BOOST_CHECK(meta.json_metadata == json);
+            BOOST_CHECK(alice_acc.last_account_update == now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_REQUIRE(alice_api.json_metadata == json);
+            BOOST_CHECK(alice_api.json_metadata == json);
 
             BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create");
             // bob is created before all metadata storing settings
             // therefore it should have account_metadata_object
             ACTOR(bob);                                             // create_account with json_metadata = ""
             meta = db->get<account_metadata_object, by_account>("bob"); // just checks presence, throws on fail
-            BOOST_REQUIRE(meta.account == "bob");
-            BOOST_REQUIRE(meta.json_metadata == "");
+            BOOST_CHECK(meta.account == "bob");
+            BOOST_CHECK(meta.json_metadata == "");
 
             BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create_with_delegation");
             generate_blocks(1);
@@ -7084,8 +7071,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             push_tx_with_ops(tx, bob_private_key, cr);
 
             meta = db->get<account_metadata_object, by_account>("sam");
-            BOOST_REQUIRE(meta.account == "sam");
-            BOOST_REQUIRE(meta.json_metadata == "");
+            BOOST_CHECK(meta.account == "sam");
+            BOOST_CHECK(meta.json_metadata == "");
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -7117,12 +7104,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto alice_acc = db->get_account("alice");
             auto meta = db->find<account_metadata_object, by_account>("alice");
-            BOOST_REQUIRE(meta == nullptr);
-            BOOST_REQUIRE(alice_acc.last_account_update == now);
+            BOOST_CHECK(meta == nullptr);
+            BOOST_CHECK(alice_acc.last_account_update == now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_REQUIRE(alice_api.json_metadata == "");
+            BOOST_CHECK(alice_api.json_metadata == "");
 
             ACTOR(bob);                                             // create_account with json_metadata = ""
 
@@ -7141,7 +7128,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             push_tx_with_ops(tx, bob_private_key, cr);
 
             meta = db->find<account_metadata_object, by_account>("sam");
-            BOOST_REQUIRE(meta == nullptr);
+            BOOST_CHECK(meta == nullptr);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -7172,12 +7159,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto alice_acc = db->get_account("alice");
             auto meta = db->find<account_metadata_object, by_account>("alice");
-            BOOST_REQUIRE(meta == nullptr);
-            BOOST_REQUIRE(alice_acc.last_account_update == now);
+            BOOST_CHECK(meta == nullptr);
+            BOOST_CHECK(alice_acc.last_account_update == now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_REQUIRE(alice_api.json_metadata == "");
+            BOOST_CHECK(alice_api.json_metadata == "");
 
             ACTOR(bob);                                             // create_account with json_metadata = ""
 
@@ -7196,7 +7183,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             push_tx_with_ops(tx, bob_private_key, cr);
 
             meta = db->find<account_metadata_object, by_account>("sam");
-            BOOST_REQUIRE(meta != nullptr);
+            BOOST_CHECK(meta != nullptr);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
