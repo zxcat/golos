@@ -52,36 +52,3 @@
     CHECK; \
     OP.NAME = t; \
 }
-
-
-// boost::container <<
-//-------------------------------------------------------------
-namespace boost { namespace container {
-
-template<typename T>
-std::ostream &operator<<(std::ostream &out, const flat_set<T> &t) {
-    out << "(";
-    if (!t.empty()) {
-        std::for_each(t.begin(), t.end()-1, [&](const T& v) {out << v << ",";});
-        out << *t.rbegin();
-    }
-    out << ")";
-    return out;
-}
-
-template<typename T, typename... V>
-std::ostream &operator<<(std::ostream &out, const flat_map<T,V...> &t) {
-    out << "(";
-    if (!t.empty()) {
-        std::for_each(t.begin(), t.end()-1, 
-                [&](const typename flat_map<T,V...>::value_type& v) {
-                    out << v.first << ":" << v.second << ",";
-                });
-        auto last = *t.rbegin();
-        out << last.first << ":" << last.second;
-    }
-    out << ")";
-    return out;
-}
-
-} } // namespace boost::container
