@@ -647,7 +647,7 @@ namespace golos { namespace chain {
                         a.post_count++;
                     });
 
-                    const auto &new_comment = _db.create<comment_object>([&](comment_object &com) {
+                    _db.create<comment_object>([&](comment_object &com) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                             GOLOS_CHECK_OP_PARAM(o, parent_permlink, validate_permlink_0_1(o.parent_permlink));
                             GOLOS_CHECK_OP_PARAM(o, permlink,        validate_permlink_0_1(o.permlink));

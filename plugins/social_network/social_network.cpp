@@ -42,21 +42,21 @@ struct content_depth_params {
     content_depth_params() {
     }
 
-    inline bool miss_content() const {
+    bool miss_content() const {
         return has_comment_title_depth && !comment_title_depth &&
                has_comment_body_depth && !comment_body_depth &&
                has_comment_json_metadata_depth && !comment_json_metadata_depth;
     }
 
-    inline bool need_clear() const {
+    bool need_clear() const {
         return has_comment_title_depth || has_comment_body_depth || has_comment_json_metadata_depth;
     }
 
-    inline bool should_delete_whole_content_object(const uint32_t delta) const {
+    bool should_delete_whole_content_object(const uint32_t delta) const {
         return delta > comment_title_depth && delta > comment_body_depth && delta > comment_json_metadata_depth;
     }
 
-    inline bool should_delete_part_of_content_object(const uint32_t delta) const {
+    bool should_delete_part_of_content_object(const uint32_t delta) const {
         return delta > comment_title_depth || delta > comment_body_depth || delta > comment_json_metadata_depth;
     }
 
@@ -79,19 +79,11 @@ namespace golos { namespace plugins { namespace social_network {
     using boost::locale::conv::utf_to_utf;
 
     struct social_network::impl final {
-        impl(): database_(appbase::app().get_plugin<chain::plugin>().db()) {
-            helper = std::make_unique<discussion_helper>(database_, follow::fill_account_reputation, fill_promoted, fill_comment_content);
+        impl(): db(appbase::app().get_plugin<chain::plugin>().db()) {
+            helper = std::make_unique<discussion_helper>(db, follow::fill_account_reputation, fill_promoted, fill_comment_content);
         }
 
         ~impl() = default;
-
-        golos::chain::database& database() {
-            return database_;
-        }
-
-        golos::chain::database& database() const {
-            return database_;
-        }
 
         void select_active_votes (
             std::vector<vote_state>& result, uint32_t& total_count,
@@ -122,27 +114,27 @@ namespace golos { namespace plugins { namespace social_network {
         void set_depth_parameters(const content_depth_params& params);
 
         // Looks for a comment_operation, fills the comment_content state objects.
+        void pre_operation(const operation_notification& o);
+
         void post_operation(const operation_notification& o);
 
         void on_block(const signed_block& b);
 
         comment_api_object create_comment_api_object(const comment_object& o) const ;
 
-        const comment_content_object &get_comment_content(const comment_id_type& comment) const ;
+        const comment_content_object& get_comment_content(const comment_id_type& comment) const ;
 
-        const comment_content_object *find_comment_content(const comment_id_type& comment) const ;
+        const comment_content_object* find_comment_content(const comment_id_type& comment) const ;
 
 
-    private:
-        golos::chain::database& database_;
+        golos::chain::database& db;
         std::unique_ptr<discussion_helper> helper;
         content_depth_params depth_parameters;
     };
 
-
     const comment_content_object& social_network::impl::get_comment_content(const comment_id_type& comment) const {
         try {
-            return database().get<comment_content_object, by_comment>(comment);
+            return db.get<comment_content_object, by_comment>(comment);
         } catch(const std::out_of_range &e) {
             GOLOS_THROW_MISSING_OBJECT("comment_content", comment);
         } FC_CAPTURE_AND_RETHROW((comment))
@@ -152,9 +144,8 @@ namespace golos { namespace plugins { namespace social_network {
         return pimpl->get_comment_content(comment);
     }
 
-
     const comment_content_object* social_network::impl::find_comment_content(const comment_id_type& comment) const {
-        return database().find<comment_content_object, by_comment>(comment);
+        return db.find<comment_content_object, by_comment>(comment);
     }
      
     const comment_content_object* social_network::find_comment_content(const comment_id_type& comment) const {
@@ -172,17 +163,40 @@ namespace golos { namespace plugins { namespace social_network {
         helper->select_active_votes(result, total_count, author, permlink, limit);
     }
 
-    void social_network::impl::set_depth_parameters(const content_depth_params& params) {
-        depth_parameters = params;
-    }
+    template <typename TImpl>
+    struct delete_visitor {
+        using result_type = void;
 
+        TImpl& impl;
+
+        delete_visitor(TImpl& impl) : impl(impl) {
+        }
+
+        template<class T>
+        void operator()(const T& o) const {
+        }
+
+        void operator()(const delete_comment_operation& o) const {
+            const auto& comment = impl.db.get_comment(o.author, o.permlink);
+            const auto content = impl.find_comment_content(comment.id);
+
+            if (content == nullptr) {
+                return;
+            }
+
+            impl.db.remove(*content);
+        }
+    };
+
+    template <typename TImpl>
     struct operation_visitor {
         using result_type = void;
 
+        TImpl& impl;
         golos::chain::database& db;
-        content_depth_params depth_parameters;
+        content_depth_params& depth_parameters;
 
-        operation_visitor(golos::chain::database& db, const content_depth_params& params) : db(db), depth_parameters(params) {
+        operation_visitor(TImpl& p): impl(p), db(p.db), depth_parameters(p.depth_parameters) {
         }
 
         std::wstring utf8_to_wstring(const std::string& str) const {
@@ -193,25 +207,8 @@ namespace golos { namespace plugins { namespace social_network {
             return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
         }
 
-        const comment_content_object& get_comment_content(const comment_id_type& comment) const {
-            return db.get<comment_content_object, by_comment>(comment);
-        }
-
-        const comment_content_object* find_comment_content(const comment_id_type& comment) const {
-            return db.find<comment_content_object, by_comment>(comment);
-        }
-
         template<class T>
         void operator()(const T& o) const {
-        }
-
-        void operator()(const delete_comment_operation& o) const {
-            const auto& comment = db.get_comment(o.author, o.permlink);
-            if (find_comment_content(comment.id) == nullptr) {
-                return;
-            }
-            auto& content = get_comment_content(comment.id);
-            db.remove(content);
         }
 
         void operator()(const golos::protocol::comment_operation& o) const {
@@ -220,7 +217,7 @@ namespace golos { namespace plugins { namespace social_network {
             }
 
             const auto& comment = db.get_comment(o.author, o.permlink);
-            const auto comment_content = db.find<comment_content_object, by_comment>(comment.id);
+            const auto comment_content = impl.find_comment_content(comment.id);
 
             if ( comment_content != nullptr) {
                 // Edit case
@@ -265,10 +262,8 @@ namespace golos { namespace plugins { namespace social_network {
             }
             else {
                 // Creation case
-                comment_id_type id = comment.id;
-
                 db.create<comment_content_object>([&](comment_content_object& con) {
-                    con.comment = id;
+                    con.comment = comment.id;
                     if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
                         from_string(con.title, o.title);
                     }
@@ -290,40 +285,38 @@ namespace golos { namespace plugins { namespace social_network {
         
     };
 
-    void social_network::impl::post_operation(const operation_notification& o) {
+    void social_network::impl::pre_operation(const operation_notification& o) {
         try {
-            auto& db = database();
-
-            operation_visitor ovisit(db, depth_parameters);
-
+            delete_visitor<social_network::impl> ovisit(*this);
             o.op.visit(ovisit);
         } FC_CAPTURE_AND_RETHROW()
     }
+
+    void social_network::impl::post_operation(const operation_notification& o) {
+        try {
+            operation_visitor<social_network::impl> ovisit(*this);
+            o.op.visit(ovisit);
+        } FC_CAPTURE_AND_RETHROW()
+    }
+
     void social_network::impl::on_block(const signed_block& b) {
         try {
-            auto& db = database();
-
             const auto& idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
 
             for (auto itr = idx.begin(); itr != idx.end();) {
                 auto& content = *itr;
                 ++itr;
 
-                const auto&cidx = db.get_index<comment_index>().indices().get<by_id>();
-            
-                auto comment = cidx.find(content.comment);
+                auto& comment = db.get(content.comment);
+
                 
                 auto delta = db.head_block_num() - content.block_number;
-
-                if (comment->mode == archived && depth_parameters.should_delete_part_of_content_object(delta)) {
+                if (comment.mode == archived && depth_parameters.should_delete_part_of_content_object(delta)) {
                     if (depth_parameters.should_delete_whole_content_object(delta)) {
-                        db.modify(content, [&](comment_content_object& con) {
-                            con.title.clear();
-                            con.body.clear();
-                            con.json_metadata.clear();
-                        });
+                        db.remove(content);
                         continue;
                     }
+
                     db.modify(content, [&](comment_content_object& con) {
                         if (delta > depth_parameters.comment_title_depth) {
                             con.title.clear();
@@ -345,7 +338,6 @@ namespace golos { namespace plugins { namespace social_network {
             }
         } FC_CAPTURE_AND_RETHROW()
     }
-
 
     void social_network::plugin_startup() {
         wlog("social_network plugin: plugin_startup()");
@@ -386,9 +378,13 @@ namespace golos { namespace plugins { namespace social_network {
         pimpl = std::make_unique<impl>();
         JSON_RPC_REGISTER_API(name());
 
-        auto& db = pimpl->database();
+        auto& db = pimpl->db;
 
         add_plugin_index<comment_content_index>(db);
+
+        db.pre_apply_operation.connect([&](const operation_notification &o) {
+            pimpl->pre_operation(o);
+        });
 
         db.post_apply_operation.connect([&](const operation_notification &o) {
             pimpl->post_operation(o);
@@ -398,7 +394,7 @@ namespace golos { namespace plugins { namespace social_network {
             pimpl->on_block(b);
         });
 
-        content_depth_params params;
+        content_depth_params& params = pimpl->depth_parameters;
 
         if (options.count("comment-title-depth")) {
             params.comment_title_depth = options.at("comment-title-depth").as<uint32_t>();
@@ -418,8 +414,6 @@ namespace golos { namespace plugins { namespace social_network {
         if (options.count("set-content-storing-depth-null-after-update")) {
             params.set_null_after_update = options.at("set-content-storing-depth-null-after-update").as<bool>();
         }
-
-        pimpl->set_depth_parameters(params);
     }
 
     social_network::~social_network() = default;
@@ -436,7 +430,7 @@ namespace golos { namespace plugins { namespace social_network {
         std::vector<discussion>& result, std::string author, std::string permlink, uint32_t limit
     ) const {
         account_name_type acc_name = account_name_type(author);
-        const auto& by_permlink_idx = database().get_index<comment_index>().indices().get<by_parent>();
+        const auto& by_permlink_idx = db.get_index<comment_index>().indices().get<by_parent>();
         auto itr = by_permlink_idx.find(std::make_tuple(acc_name, permlink));
         while (
             itr != by_permlink_idx.end() &&
@@ -461,7 +455,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto author = args.args->at(0).as<string>();
         auto permlink = args.args->at(1).as<string>();
         auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
-        return pimpl->database().with_weak_read_lock([&]() {
+        return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_content_replies(author, permlink, vote_limit);
         });
     }
@@ -488,7 +482,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto author = args.args->at(0).as<string>();
         auto permlink = args.args->at(1).as<string>();
         auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
-        return pimpl->database().with_weak_read_lock([&]() {
+        return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_all_content_replies(author, permlink, vote_limit);
         });
     }
@@ -499,7 +493,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto from = GET_OPTIONAL_ARG(1, uint32_t, 0);
         auto limit = GET_OPTIONAL_ARG(2, uint64_t, DEFAULT_VOTE_LIMIT);
 
-        auto& db = pimpl->database();
+        auto& db = pimpl->db;
         return db.with_weak_read_lock([&]() {
             std::vector<account_vote> result;
 
@@ -530,7 +524,7 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     discussion social_network::impl::get_content(std::string author, std::string permlink, uint32_t limit) const {
-        const auto& by_permlink_idx = database().get_index<comment_index>().indices().get<by_permlink>();
+        const auto& by_permlink_idx = db.get_index<comment_index>().indices().get<by_permlink>();
         auto itr = by_permlink_idx.find(std::make_tuple(author, permlink));
         if (itr != by_permlink_idx.end()) {
             return get_discussion(*itr, limit);
@@ -543,7 +537,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto author = args.args->at(0).as<account_name_type>();
         auto permlink = args.args->at(1).as<string>();
         auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
-        return pimpl->database().with_weak_read_lock([&]() {
+        return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_content(author, permlink, vote_limit);
         });
     }
@@ -553,7 +547,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto author = args.args->at(0).as<string>();
         auto permlink = args.args->at(1).as<string>();
         auto limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
-        return pimpl->database().with_weak_read_lock([&]() {
+        return pimpl->db.with_weak_read_lock([&]() {
             std::vector<vote_state> result;
             uint32_t total_count;
             pimpl->select_active_votes(result, total_count, author, permlink, limit);
@@ -569,15 +563,17 @@ namespace golos { namespace plugins { namespace social_network {
     ) const {
         std::vector<discussion> result;
 #ifndef IS_LOW_MEM
-        auto& db = database();
         const auto& last_update_idx = db.get_index<comment_index>().indices().get<by_last_update>();
         auto itr = last_update_idx.begin();
         const account_name_type* parent_author = &start_parent_author;
 
         if (start_permlink.size()) {
-            const auto& comment = db.get_comment(start_parent_author, start_permlink);
-            itr = last_update_idx.iterator_to(comment);
-            parent_author = &comment.parent_author;
+            const auto& comment = db.find_comment(start_parent_author, start_permlink);
+            if (nullptr == comment) {
+                return result;
+            }
+            itr = last_update_idx.iterator_to(*comment);
+            parent_author = &comment->parent_author;
         } else if (start_parent_author.size()) {
             itr = last_update_idx.lower_bound(start_parent_author);
         }
@@ -605,7 +601,7 @@ namespace golos { namespace plugins { namespace social_network {
         auto limit = args.args->at(2).as<uint32_t>();
         auto vote_limit = GET_OPTIONAL_ARG(3, uint32_t, DEFAULT_VOTE_LIMIT);
         FC_ASSERT(limit <= 100);
-        return pimpl->database().with_weak_read_lock([&]() {
+        return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_replies_by_last_update(start_parent_author, start_permlink, limit, vote_limit);
         });
     }
