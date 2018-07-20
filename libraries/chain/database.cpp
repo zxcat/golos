@@ -604,6 +604,12 @@ namespace golos { namespace chain {
             }
         }
 
+        void database::throw_if_exists_account(const account_name_type& account) const {
+            if (nullptr != find_account(account)) {
+                GOLOS_THROW_OBJECT_ALREADY_EXIST("account", account);
+            }
+        }
+
         const witness_object &database::get_witness(const account_name_type &name) const {
             try {
                 return get<witness_object, by_name>(name);
