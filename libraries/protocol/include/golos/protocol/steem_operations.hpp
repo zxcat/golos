@@ -442,13 +442,7 @@ namespace golos { namespace protocol {
             uint32_t maximum_block_size = STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2;
             uint16_t sbd_interest_rate = STEEMIT_DEFAULT_SBD_INTEREST_RATE;
 
-            void validate() const {
-                FC_ASSERT(account_creation_fee.symbol == STEEM_SYMBOL);
-                FC_ASSERT(account_creation_fee.amount >= STEEMIT_MIN_ACCOUNT_CREATION_FEE);
-                FC_ASSERT(maximum_block_size >= STEEMIT_MIN_BLOCK_SIZE_LIMIT);
-                FC_ASSERT(sbd_interest_rate >= 0);
-                FC_ASSERT(sbd_interest_rate <= STEEMIT_100_PERCENT);
-            }
+            void validate() const;
 
             chain_properties_17& operator=(const chain_properties_17&) = default;
 
@@ -490,16 +484,7 @@ namespace golos { namespace protocol {
                 asset(STEEMIT_MIN_ACCOUNT_CREATION_FEE * GOLOS_MIN_DELEGATION_MULTIPLIER, STEEM_SYMBOL);
 
 
-            void validate() const {
-                chain_properties_17::validate();
-                FC_ASSERT(create_account_min_golos_fee.amount > 0);
-                FC_ASSERT(create_account_min_golos_fee.symbol == STEEM_SYMBOL);
-                FC_ASSERT(create_account_min_delegation.amount > 0);
-                FC_ASSERT(create_account_min_delegation.symbol == STEEM_SYMBOL);
-                FC_ASSERT(min_delegation.amount > 0);
-                FC_ASSERT(min_delegation.symbol == STEEM_SYMBOL);
-                FC_ASSERT(create_account_delegation_time > (GOLOS_CREATE_ACCOUNT_DELEGATION_TIME).to_seconds() / 2);
-            }
+            void validate() const;
 
             chain_properties_18& operator=(const chain_properties_17& src) {
                 account_creation_fee = src.account_creation_fee;

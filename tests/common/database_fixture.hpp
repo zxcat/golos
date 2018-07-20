@@ -486,6 +486,12 @@ namespace golos { namespace chain {
             template<typename... Ops>
             void push_tx_with_ops(signed_transaction& tx, const fc::ecc::private_key& k, Ops... ops) {
                 sign_tx_with_ops(tx, k, ops...);
+                BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            }
+
+            template<typename... Ops>
+            void push_tx_with_ops_throw(signed_transaction& tx, const fc::ecc::private_key& k, Ops... ops) {
+                sign_tx_with_ops(tx, k, ops...);
                 db->push_transaction(tx, 0);
             }
         };

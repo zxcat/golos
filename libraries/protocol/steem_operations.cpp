@@ -1,5 +1,6 @@
 #include <golos/protocol/steem_operations.hpp>
 #include <golos/protocol/exceptions.hpp>
+#include <golos/protocol/validate_helper.hpp>
 #include <fc/io/json.hpp>
 
 namespace golos { namespace protocol {
@@ -208,12 +209,33 @@ namespace golos { namespace protocol {
                                       STEEMIT_100_PERCENT, "Percent must be valid golos percent");
         }
 
+
+        void chain_properties_17::validate() const {
+            GOLOS_CHECK_ASSET_GE(account_creation_fee, GOLOS, STEEMIT_MIN_ACCOUNT_CREATION_FEE);
+            GOLOS_CHECK_FIELD_GE(maximum_block_size, STEEMIT_MIN_BLOCK_SIZE_LIMIT);
+            GOLOS_CHECK_FIELD_LEGE(sbd_interest_rate, 0, STEEMIT_100_PERCENT);
+        }
+
+        void chain_properties_18::validate() const {
+            chain_properties_17::validate();
+            GOLOS_CHECK_ASSET_GT0(create_account_min_golos_fee, GOLOS);
+            GOLOS_CHECK_ASSET_GT0(create_account_min_delegation, GOLOS);
+            GOLOS_CHECK_ASSET_GT0(min_delegation, GOLOS);
+            GOLOS_CHECK_FIELD_GT(create_account_delegation_time,
+                (GOLOS_CREATE_ACCOUNT_DELEGATION_TIME).to_seconds() / 2);
+        }
+
         void witness_update_operation::validate() const {
-            validate_account_name(owner);
-            FC_ASSERT(url.size() > 0, "URL size must be greater than 0");
-            FC_ASSERT(fc::is_utf8(url), "URL is not valid UTF8");
-            FC_ASSERT(fee >= asset(0, STEEM_SYMBOL), "Fee cannot be negative");
-            props.validate();
+            GOLOS_CHECK_PARAM_ACCOUNT(owner);
+            GOLOS_CHECK_PARAM(url, {
+                GOLOS_CHECK_VALUE_NOT_EMPTY(url);
+                // GOLOS_CHECK_VALUE_MAX_SIZE(url, STEEMIT_MAX_WITNESS_URL_LENGTH);   // can't add without HF
+                GOLOS_CHECK_VALUE_UTF8(url);
+            });
+            GOLOS_CHECK_PARAM(fee, {
+                GOLOS_CHECK_ASSET_GE0(fee, GOLOS);  //"cannot be negative"
+            });
+            GOLOS_CHECK_PARAM_VALIDATE(props);
         }
 
         struct chain_properties_validator {
@@ -226,8 +248,8 @@ namespace golos { namespace protocol {
         };
 
         void chain_properties_update_operation::validate() const {
-            validate_account_name(owner);
-            props.visit(chain_properties_validator());
+            GOLOS_CHECK_PARAM_ACCOUNT(owner);
+            GOLOS_CHECK_PARAM(props, props.visit(chain_properties_validator()));
         }
 
         void account_witness_vote_operation::validate() const {
