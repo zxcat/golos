@@ -187,14 +187,15 @@ namespace golos { namespace chain {
         void account_create_evaluator::do_apply(const account_create_operation &o) {
             const auto& creator = _db.get_account(o.creator);
 
-            FC_ASSERT(creator.balance >= o.fee,
-                "Insufficient balance to create account.", ("creator.balance", creator.balance)("required", o.fee));
+            GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
 
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                 const auto& median_props = _db.get_witness_schedule_object().median_props;
                 auto min_fee = median_props.account_creation_fee;
-                FC_ASSERT(o.fee >= min_fee,
-                    "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                GOLOS_CHECK_OP_PARAM(o, fee,
+                    GOLOS_CHECK_VALUE(o.fee >= min_fee,
+                        "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                );
             }
 
             if (_db.is_producing() ||
@@ -215,6 +216,8 @@ namespace golos { namespace chain {
             _db.modify(creator, [&](account_object &c) {
                 c.balance -= o.fee;
             });
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, account, o.new_account_name);
 
             const auto& props = _db.get_dynamic_global_properties();
             const auto& new_account = _db.create<account_object>([&](account_object& acc) {
@@ -321,8 +324,9 @@ namespace golos { namespace chain {
         void account_update_evaluator::do_apply(const account_update_operation &o) {
             database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1))
-                FC_ASSERT(o.account !=
-                          STEEMIT_TEMP_ACCOUNT, "Cannot update temp account.");
+                GOLOS_CHECK_OP_PARAM(o, account,
+                    GOLOS_CHECK_VALUE(o.account != STEEMIT_TEMP_ACCOUNT,
+                          "Cannot update temp account."));
 
             if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
                  _db.is_producing()) && o.posting) { // TODO: Add HF 15
@@ -335,9 +339,10 @@ namespace golos { namespace chain {
             if (o.owner) {
 #ifndef STEEMIT_BUILD_TESTNET
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    FC_ASSERT(_db.head_block_time() -
-                              account_auth.last_owner_update >
-                              STEEMIT_OWNER_UPDATE_LIMIT, "Owner authority can only be updated once an hour.");
+                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), 
+                            account_auth.last_owner_update + STEEMIT_OWNER_UPDATE_LIMIT,
+                            bandwidth_exception::change_owner_authority_bandwidth,
+                            "Owner authority can only be updated once an hour.");
 #endif
 
                 if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||

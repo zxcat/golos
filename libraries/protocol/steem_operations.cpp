@@ -29,12 +29,14 @@ namespace golos { namespace protocol {
         }
 
         void account_create_operation::validate() const {
-            validate_account_name(new_account_name);
-            FC_ASSERT(is_asset_type(fee, STEEM_SYMBOL), "Account creation fee must be GOLOS");
-            owner.validate();
-            active.validate();
-            validate_account_json_metadata(json_metadata);
-            FC_ASSERT(fee >= asset(0, STEEM_SYMBOL), "Account creation fee cannot be negative");
+            GOLOS_CHECK_PARAM(new_account_name, validate_account_name(new_account_name));
+            GOLOS_CHECK_PARAM(owner, owner.validate());
+            GOLOS_CHECK_PARAM(active, active.validate());
+            GOLOS_CHECK_PARAM(fee, {
+                GOLOS_CHECK_VALUE(is_asset_type(fee, STEEM_SYMBOL), "Account creation fee must be GOLOS");
+                GOLOS_CHECK_VALUE(fee >= asset(0, STEEM_SYMBOL), "Account creation fee cannot be negative");
+            });
+            GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
         }
 
         void account_create_with_delegation_operation::validate() const {
@@ -49,14 +51,14 @@ namespace golos { namespace protocol {
         }
 
         void account_update_operation::validate() const {
-            validate_account_name(account);
+            GOLOS_CHECK_PARAM(account, validate_account_name(account));
             /*if( owner )
                owner->validate();
             if( active )
                active->validate();
             if( posting )
                posting->validate();*/
-            validate_account_json_metadata(json_metadata);
+            GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
         }
 
         void account_metadata_operation::validate() const {
