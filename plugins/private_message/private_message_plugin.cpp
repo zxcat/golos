@@ -60,46 +60,38 @@ namespace golos { namespace plugins { namespace private_message {
 
         std::vector<message_api_obj> result;
         const auto &idx = db_.get_index<message_index>().indices().get<by_to_date>();
+
         auto itr = idx.lower_bound(std::make_tuple(to, newest));
+        auto etr = idx.upper_bound(std::make_tuple(to, time_point::min()));
 
-        if (idx.size() > offset) {
-            while (itr != idx.end() && offset && itr->to == to) {
-                ++itr;
-                --offset;
-            }
-        }
+        for (; itr != etr && offset; ++itr, --offset);
 
-        while (itr != idx.end() && limit && itr->to == to) {
-            result.push_back(*itr);
-            ++itr;
-            --limit;
+        result.reserve(limit);
+        for (; itr != etr && limit; ++itr, --limit) {
+            result.emplace_back(*itr);
         }
 
         return result;
     }
 
-    std::vector <message_api_obj> private_message_plugin::private_message_plugin_impl::get_outbox(
+    std::vector<message_api_obj> private_message_plugin::private_message_plugin_impl::get_outbox(
         const std::string& from, time_point newest, uint16_t limit, std::uint64_t offset
     ) const {
         FC_ASSERT(limit <= 100);
 
-        vector <message_api_obj> result;
+        std::vector<message_api_obj> result;
         const auto &idx = db_.get_index<message_index>().indices().get<by_from_date>();
 
         auto itr = idx.lower_bound(std::make_tuple(from, newest));
+        auto etr = idx.upper_bound(std::make_tuple(from, time_point::min()));
 
-        if (idx.size() > offset) {
-            while (itr != idx.end() && offset && itr->from == from) {
-                ++itr;
-                --offset;
-            }
+        for (; itr != etr && offset; ++itr, --offset);
+
+        result.reserve(limit);
+        for (; itr != etr && limit; ++itr, --limit) {
+            result.emplace_back(*itr);
         }
 
-        while (itr != idx.end() && limit && itr->from == from) {
-            result.push_back(*itr);
-            ++itr;
-            --limit;
-        }
         return result;
     }
 
