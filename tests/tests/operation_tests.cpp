@@ -1563,6 +1563,29 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: withdraw_vesting_validate");
 
+            withdraw_vesting_operation op;
+
+            BOOST_TEST_MESSAGE("--- success with valid parameters");
+            op.account = "alice";
+            op.vesting_shares = ASSET("0.001000 GESTS");
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- failed when 'account' is empty");
+            op.account = "";
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), 
+                CHECK_ERROR(invalid_parameter, "account"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'vesting_shares' not in GESTS");
+            op.account = "alice";
+            op.vesting_shares = ASSET("1.000 GOLOS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "vesting_shares"));
+
+            BOOST_TEST_MESSAGE("--- failed when 'vesting_shares' is negative");
+            op.vesting_shares = ASSET("-1.000000 GESTS");
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "vesting_shares"));
+
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -1585,26 +1608,30 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
             BOOST_TEST_MESSAGE("--- Test failure when no signature.");
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check),
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             BOOST_TEST_MESSAGE("--- Test success with account signature");
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, database::skip_transaction_dupe_check);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check));
 
             BOOST_TEST_MESSAGE("--- Test failure with duplicate signature");
             tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_duplicate_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+                CHECK_ERROR(tx_duplicate_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure with additional incorrect signature");
             tx.signatures.clear();
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_irrelevant_sig);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+                CHECK_ERROR(tx_irrelevant_sig, 0));
 
             BOOST_TEST_MESSAGE("--- Test failure with incorrect signature");
             tx.signatures.clear();
             tx.sign(alice_post_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, database::skip_transaction_dupe_check), tx_missing_active_auth);
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, database::skip_transaction_dupe_check), 
+                CHECK_ERROR(tx_missing_active_auth, 0));
 
             validate_database();
         }
@@ -1634,14 +1661,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.operations.push_back(op);
                 tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
                 tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-                BOOST_REQUIRE(alice.vesting_shares.amount.value == old_vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.vesting_withdraw_rate.amount.value ==
+                BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, old_vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.vesting_withdraw_rate.amount.value,
                               (old_vesting_shares.amount /
                                (STEEMIT_VESTING_WITHDRAW_INTERVALS * 2)).value);
-                BOOST_REQUIRE(alice.to_withdraw.value == op.vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.next_vesting_withdrawal == db->head_block_time() + STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS);
+                BOOST_CHECK_EQUAL(alice.to_withdraw.value, op.vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.next_vesting_withdrawal, db->head_block_time() + STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS);
                 validate_database();
 
                 BOOST_TEST_MESSAGE("--- Test changing vesting withdrawal");
@@ -1652,14 +1679,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.operations.push_back(op);
                 tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
                 tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-                BOOST_REQUIRE(alice.vesting_shares.amount.value == old_vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.vesting_withdraw_rate.amount.value ==
+                BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, old_vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.vesting_withdraw_rate.amount.value,
                               (old_vesting_shares.amount /
                                (STEEMIT_VESTING_WITHDRAW_INTERVALS * 3)).value);
-                BOOST_REQUIRE(alice.to_withdraw.value == op.vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.next_vesting_withdrawal ==
+                BOOST_CHECK_EQUAL(alice.to_withdraw.value, op.vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.next_vesting_withdrawal,
                               db->head_block_time() +
                               STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS);
                 validate_database();
@@ -1672,13 +1699,15 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.operations.push_back(op);
                 tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
                 tx.sign(alice_private_key, db->get_chain_id());
-                STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+                GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                    CHECK_ERROR(tx_invalid_operation, 0,
+                        CHECK_ERROR(insufficient_funds, "alice", "having vesting shares", asset(alice.vesting_shares.amount * 2, VESTS_SYMBOL).to_string())));
 
-                BOOST_REQUIRE(alice.vesting_shares.amount.value == old_vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.vesting_withdraw_rate.amount.value ==
+                BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, old_vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.vesting_withdraw_rate.amount.value,
                               (old_vesting_shares.amount /
                                (STEEMIT_VESTING_WITHDRAW_INTERVALS * 3)).value);
-                BOOST_REQUIRE(alice.next_vesting_withdrawal ==
+                BOOST_CHECK_EQUAL(alice.next_vesting_withdrawal,
                               db->head_block_time() +
                               STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS);
                 validate_database();
@@ -1691,19 +1720,19 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 tx.operations.push_back(op);
                 tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
                 tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-                BOOST_REQUIRE(alice.vesting_shares.amount.value == old_vesting_shares.amount.value);
-                BOOST_REQUIRE(alice.vesting_withdraw_rate.amount.value == 0);
-                BOOST_REQUIRE(alice.to_withdraw.value == 0);
-                BOOST_REQUIRE(alice.next_vesting_withdrawal == fc::time_point_sec::maximum());
+                BOOST_CHECK_EQUAL(alice.vesting_shares.amount.value, old_vesting_shares.amount.value);
+                BOOST_CHECK_EQUAL(alice.vesting_withdraw_rate.amount.value, 0);
+                BOOST_CHECK_EQUAL(alice.to_withdraw.value, 0);
+                BOOST_CHECK_EQUAL(alice.next_vesting_withdrawal, fc::time_point_sec::maximum());
 
                 BOOST_TEST_MESSAGE("--- Test cancelling a withdraw when below the account creation fee");
                 op.vesting_shares = alice.vesting_shares;
                 tx.clear();
                 tx.operations.push_back(op);
                 tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
                 generate_block();
             }
 
@@ -1733,9 +1762,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.operations.push_back(op);
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(db->get_account("alice").vesting_withdraw_rate ==
+            BOOST_CHECK_EQUAL(db->get_account("alice").vesting_withdraw_rate,
                           ASSET("0.000000 GESTS"));
             validate_database();
         }

@@ -200,6 +200,10 @@ namespace golos {
             discussion_is_frozen,
             comment_is_archived,
             comment_editable_during_first_24_hours,
+
+            // withdraw_vesting
+            insufficient_fee_for_powerdown_registered_account,
+            operation_would_not_change_vesting_withdraw_rate,
         };
     };
     
@@ -323,6 +327,10 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (discussion_is_frozen)
         (comment_is_archived)
         (comment_editable_during_first_24_hours)
+
+        // withdraw_vesting
+        (insufficient_fee_for_powerdown_registered_account)
+        (operation_would_not_change_vesting_withdraw_rate)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
