@@ -69,4 +69,19 @@ std::ostream &operator<<(std::ostream &out, const flat_set<T> &t) {
     return out;
 }
 
+template<typename T, typename... V>
+std::ostream &operator<<(std::ostream &out, const flat_map<T,V...> &t) {
+    out << "(";
+    if (!t.empty()) {
+        std::for_each(t.begin(), t.end()-1, 
+                [&](const typename flat_map<T,V...>::value_type& v) {
+                    out << v.first << ":" << v.second << ",";
+                });
+        auto last = *t.rbegin();
+        out << last.first << ":" << last.second;
+    }
+    out << ")";
+    return out;
+}
+
 } } // namespace boost::container

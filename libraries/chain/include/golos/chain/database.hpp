@@ -153,6 +153,8 @@ namespace golos { namespace chain {
 
             void throw_if_exists_limit_order(const account_name_type &account, uint32_t id) const;
 
+            void throw_if_exists_account(const account_name_type &account) const;
+
             const witness_object &get_witness(const account_name_type &name) const;
 
             const witness_object *find_witness(const account_name_type &name) const;

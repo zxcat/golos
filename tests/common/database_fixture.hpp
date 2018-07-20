@@ -3,6 +3,7 @@
 
 #include <appbase/application.hpp>
 #include <golos/chain/database.hpp>
+#include <golos/chain/shared_authority.hpp>
 
 #include <golos/protocol/exceptions.hpp>
 
@@ -331,6 +332,13 @@ bool operator==(const fc::variant_object &left, const fc::variant_object &right)
 } // namespace fc
 
 
+namespace fc { namespace ecc {
+
+std::ostream &operator<<(std::ostream &out, const public_key &v);
+
+} } // namespace fc::ecc
+
+
 namespace chainbase {
 
 template<typename T>
@@ -356,9 +364,18 @@ std::ostream& operator<<(std::ostream& out, const std::pair<T1,T2> &v) {
 namespace golos { namespace protocol {
 
 std::ostream& operator<<(std::ostream& out, const asset& v);
+std::ostream& operator<<(std::ostream& out, const public_key_type& v);
+std::ostream& operator<<(std::ostream& out, const authority& v);
 std::ostream& operator<<(std::ostream& out, const price& v);
 
 } } // namespace golos::protocol
+
+
+namespace golos { namespace chain {
+
+std::ostream& operator<<(std::ostream& out, const shared_authority& v);
+
+} } // namespace golos::chain
 
 
 
