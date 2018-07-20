@@ -109,6 +109,8 @@
     FC_THROW_EXCEPTION(golos::object_already_exist, "Object ${type} with id \"${id}\" already exists", \
             ("type",type)("id",id) __VA_ARGS__)
 
+#define GOLOS_CHECK_OBJECT_MISSING(DB, OBJ, ...) \
+    DB.throw_if_exists_##OBJ(__VA_ARGS__)
 
 #define GOLOS_THROW_INTERNAL_ERROR(MSG, ...) \
     FC_THROW_EXCEPTION(golos::internal_error, MSG, __VA_ARGS__)

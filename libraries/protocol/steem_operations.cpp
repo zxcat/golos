@@ -212,8 +212,8 @@ namespace golos { namespace protocol {
 
         void chain_properties_17::validate() const {
             GOLOS_CHECK_ASSET_GE(account_creation_fee, GOLOS, STEEMIT_MIN_ACCOUNT_CREATION_FEE);
-            GOLOS_CHECK_FIELD_GE(maximum_block_size, STEEMIT_MIN_BLOCK_SIZE_LIMIT);
-            GOLOS_CHECK_FIELD_LEGE(sbd_interest_rate, 0, STEEMIT_100_PERCENT);
+            GOLOS_CHECK_VALUE_GE(maximum_block_size, STEEMIT_MIN_BLOCK_SIZE_LIMIT);
+            GOLOS_CHECK_VALUE_LEGE(sbd_interest_rate, 0, STEEMIT_100_PERCENT);
         }
 
         void chain_properties_18::validate() const {
@@ -221,7 +221,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_ASSET_GT0(create_account_min_golos_fee, GOLOS);
             GOLOS_CHECK_ASSET_GT0(create_account_min_delegation, GOLOS);
             GOLOS_CHECK_ASSET_GT0(min_delegation, GOLOS);
-            GOLOS_CHECK_FIELD_GT(create_account_delegation_time,
+            GOLOS_CHECK_VALUE_GT(create_account_delegation_time,
                 (GOLOS_CREATE_ACCOUNT_DELEGATION_TIME).to_seconds() / 2);
         }
 

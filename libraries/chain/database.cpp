@@ -598,6 +598,12 @@ namespace golos { namespace chain {
             return STEEMIT_CHAIN_ID;
         }
 
+        void database::throw_if_exists_limit_order(const account_name_type& owner, uint32_t id) const {
+            if (nullptr != find_limit_order(owner, id)) {
+                GOLOS_THROW_OBJECT_ALREADY_EXIST("limit_order", fc::mutable_variant_object()("account",owner)("order_id",id));
+            }
+        }
+
         const witness_object &database::get_witness(const account_name_type &name) const {
             try {
                 return get<witness_object, by_name>(name);

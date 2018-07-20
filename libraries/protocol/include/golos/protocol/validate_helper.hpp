@@ -30,12 +30,12 @@
 
 
 // compare field with value
-#define GOLOS_CHECK_FIELD_EQ(F, X) GOLOS_CHECK_FIELD_I(F, ==, X)
-#define GOLOS_CHECK_FIELD_GT(F, X) GOLOS_CHECK_FIELD_I(F, > , X)
-#define GOLOS_CHECK_FIELD_LT(F, X) GOLOS_CHECK_FIELD_I(F, < , X)
-#define GOLOS_CHECK_FIELD_GE(F, X) GOLOS_CHECK_FIELD_I(F, >=, X)
-#define GOLOS_CHECK_FIELD_LE(F, X) GOLOS_CHECK_FIELD_I(F, <=, X)
-#define GOLOS_CHECK_FIELD_LEGE(F, L, H) \
+#define GOLOS_CHECK_VALUE_EQ(F, X) GOLOS_CHECK_VALUE_I(F, ==, X)
+#define GOLOS_CHECK_VALUE_GT(F, X) GOLOS_CHECK_VALUE_I(F, > , X)
+#define GOLOS_CHECK_VALUE_LT(F, X) GOLOS_CHECK_VALUE_I(F, < , X)
+#define GOLOS_CHECK_VALUE_GE(F, X) GOLOS_CHECK_VALUE_I(F, >=, X)
+#define GOLOS_CHECK_VALUE_LE(F, X) GOLOS_CHECK_VALUE_I(F, <=, X)
+#define GOLOS_CHECK_VALUE_LEGE(F, L, H) \
     GOLOS_CHECK_VALUE(L <= F && F <= H , MUST_BE(F, "between " FC_STRINGIZE(L) " and" FC_STRINGIZE(H)))
 
 // check asset type
@@ -57,8 +57,8 @@
 //-------------------------------------------------------------
 
 // fields
-#define GOLOS_CHECK_FIELD_I(F, OP, X) GOLOS_CHECK_FIELD_II(F, OP, X, F)
-#define GOLOS_CHECK_FIELD_II(F, OP, X, N) GOLOS_CHECK_VALUE(F OP X, MUST_BE(N, "" #OP FC_STRINGIZE(X)))
+#define GOLOS_CHECK_VALUE_I(F, OP, X) GOLOS_CHECK_VALUE_II(F, OP, X, F)
+#define GOLOS_CHECK_VALUE_II(F, OP, X, N) GOLOS_CHECK_VALUE(F OP X, MUST_BE(N, "" #OP FC_STRINGIZE(X)))
 
 // asset type
 #define GOLOS_CHECK_ASSET_TYPE_I(X, SYMBOL, SNAME)  GOLOS_CHECK_VALUE(X.symbol == SYMBOL, MUST_BE(X, SNAME))
@@ -66,7 +66,7 @@
 // asset value
 #define GOLOS_CHECK_ASSET_VAL(X, OP, V, N) { \
     GOLOS_CHECK_ASSET_TYPE(X, N); \
-    GOLOS_CHECK_FIELD_II(X.amount, OP, V, X); \
+    GOLOS_CHECK_VALUE_II(X.amount, OP, V, X); \
 }
 
 // utils

@@ -80,7 +80,8 @@ BOOST_AUTO_TEST_CASE(proposal_create_validate) { try {
     t2.amount = ASSET_GESTS(1.0);
     ops.push_back(operation_wrapper(t2));
     // validation fails inside internal transaction, so error contains "amount" field
-    CHECK_PARAM_VALIDATION_FAIL(op, proposed_operations, ops, invalid_parameter, "amount");
+    CHECK_PARAM_VALIDATION_FAIL(op, proposed_operations, ops, 
+        CHECK_ERROR(invalid_parameter, "amount"));
 
 } FC_LOG_AND_RETHROW() }
 
