@@ -10,6 +10,7 @@
 #include <fc/smart_ref_impl.hpp>
 
 #include "database_fixture.hpp"
+#include "helpers.hpp"
 
 
 #define STEEM_NAMESPACE_PREFIX std::string("golos::protocol::")
@@ -79,6 +80,16 @@ bool operator==(const fc::variant_object &left, const fc::variant_object &right)
 } // namespace fc
 
 
+namespace fc { namespace ecc {
+
+std::ostream& operator<<(std::ostream& out, const public_key& v) {
+    out << v.to_base58();
+    return out;
+}
+
+} } // namespace fc::ecc
+
+
 namespace golos { namespace protocol {
 
 std::ostream& operator<<(std::ostream& out, const asset& v) {
@@ -86,7 +97,27 @@ std::ostream& operator<<(std::ostream& out, const asset& v) {
     return out;
 }
 
+std::ostream& operator<<(std::ostream& out, const public_key_type& v) {
+    out << std::string(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const authority& v) {
+    out << v.weight_threshold << " / " << v.account_auths << " / " << v.key_auths;
+    return out;
+}
+
 } } // namespace golos::protocol
+
+
+namespace golos { namespace chain {
+
+std::ostream& operator<<(std::ostream& out, const shared_authority& v) {
+    out << static_cast<golos::protocol::authority>(v);
+    return out;
+}
+
+} } // namespace golos::chain
 
 
 namespace golos { namespace chain {
