@@ -44,6 +44,21 @@ namespace golos { namespace wallet {
             fc::optional<asset> min_delegation;
         };
 
+        struct message_body {
+            std::string subject;
+            std::string body;
+        };
+
+        struct extended_message_object: public message_api_obj {
+            extended_message_object() = default;
+
+            extended_message_object(const message_api_obj& o)
+                : message_api_obj(o) {
+            }
+
+            message_body message;
+        };
+
         struct memo_data {
 
             static optional<memo_data> from_string( string str ) {
@@ -1109,9 +1124,21 @@ namespace golos { namespace wallet {
 
             // Private message
             vector<extended_message_object> get_inbox(
-                    const std::string& to, time_point newest, uint16_t limit, std::uint64_t offset);
+                    const std::string& to, const std::string& newest, uint16_t limit, std::uint64_t offset);
             vector<extended_message_object> get_outbox(
-                    const std::string& from, time_point newest, uint16_t limit, std::uint64_t offset);
+                    const std::string& from, const std::string& newest, uint16_t limit, std::uint64_t offset);
+
+            /**
+             * Send an encrypted private message from one account to other
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param message to send
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction send_private_message(
+                const std::string& from, const std::string& to, const message_body& message, bool broadcast);
 
             message_body try_decrypt_message( const message_api_obj& mo );
         };
@@ -1231,6 +1258,7 @@ FC_API( golos::wallet::wallet_api,
                 (get_transaction)
                 (get_inbox)
                 (get_outbox)
+                (send_private_message)
 )
 
 FC_REFLECT((golos::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))
@@ -1245,3 +1273,12 @@ FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)
     (create_account_min_golos_fee)(create_account_min_delegation)
     (create_account_delegation_time)(min_delegation))
+
+FC_REFLECT(
+    (golos::wallet::message_body),
+    (subject)(body));
+
+FC_REFLECT_DERIVED(
+    (golos::wallet::extended_message_object),
+    ((golos::plugins::private_message::message_api_obj)),
+    (message));

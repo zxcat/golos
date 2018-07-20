@@ -2516,70 +2516,123 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->_remote_operation_history->get_transaction( id );
         }
 
-        vector<extended_message_object> wallet_api::get_inbox(const std::string& to, time_point newest, uint16_t limit, std::uint64_t offset) {
-            FC_ASSERT( !is_locked() );
-            vector<extended_message_object> result;
+        vector<extended_message_object> wallet_api::get_inbox(
+            const std::string& to, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+        ) {
+            FC_ASSERT(!is_locked());
+            std::vector<extended_message_object> result;
+            auto newest = time_converter(newest_str, time_point::now(), time_point::now()).time();
             auto remote_result = my->_remote_private_message->get_inbox(to, newest, limit, offset);
-            for( const auto& item : remote_result ) {
-                result.emplace_back( item );
-                message_body tmp = try_decrypt_message( item );
+            result.reserve(remote_result.size());
+            for (const auto& item : remote_result) {
+                result.emplace_back(item);
+                message_body tmp = try_decrypt_message(item);
                 result.back().message = std::move(tmp);
             }
             return result;
         }
 
-        vector<extended_message_object> wallet_api::get_outbox(const std::string& from, time_point newest, uint16_t limit, std::uint64_t offset) {
-            FC_ASSERT( !is_locked() );
-            vector<extended_message_object> result;
+        vector<extended_message_object> wallet_api::get_outbox(
+            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+        ) {
+            FC_ASSERT(!is_locked());
+            std::vector<extended_message_object> result;
+            auto newest = time_converter(newest_str, time_point::now(), time_point::now()).time();
             auto remote_result = my->_remote_private_message->get_outbox(from, newest, limit, offset);
-            for( const auto& item : remote_result ) {
-                result.emplace_back( item );
-                message_body tmp = try_decrypt_message( item );
+            result.reserve(remote_result.size());
+            for (const auto& item : remote_result) {
+                result.emplace_back(item);
+                message_body tmp = try_decrypt_message(item);
                 result.back().message = std::move(tmp);
             }
             return result;
         }
 
-        message_body wallet_api::try_decrypt_message( const message_api_obj& mo ) {
+        annotated_signed_transaction wallet_api::send_private_message(
+            const std::string& from, const std::string& to, const message_body& message, bool broadcast
+        ) {
+            auto from_account  = get_account(from);
+            auto to_account    = get_account(to);
+            auto shared_secret = my->get_private_key(from_account.memo_key).get_shared_secret(to_account.memo_key);
+            auto sent_time     = fc::time_point::now().time_since_epoch().count();
+
+            fc::sha512::encoder enc;
+            fc::raw::pack(enc, sent_time);
+            fc::raw::pack(enc, shared_secret);
+            auto encrypt_key = enc.result();
+
+            auto msg_json = fc::json::to_string(message);
+            auto msg_data = std::vector<char>(msg_json.begin(), msg_json.end());
+
+            private_message_operation op;
+
+            op.from              = from;
+            op.from_memo_key     = from_account.memo_key;
+            op.to                = to;
+            op.to_memo_key       = to_account.memo_key;
+            op.sent_time         = sent_time;
+            op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
+            op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(from);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
+        message_body wallet_api::try_decrypt_message(const message_api_obj& mo) {
             message_body result;
 
             fc::sha512 shared_secret;
 
             auto it = my->_keys.find(mo.from_memo_key);
-            if( it == my->_keys.end() )
-            {
+            if (it == my->_keys.end()) {
                 it = my->_keys.find(mo.to_memo_key);
-                if( it == my->_keys.end() )
-                {
-                    wlog( "unable to find keys" );
+                if (it == my->_keys.end()) {
+                    wlog("unable to find keys");
                     return result;
                 }
-                auto priv_key = wif_to_key( it->second );
-                if( !priv_key ) return result;
-                shared_secret = priv_key->get_shared_secret( mo.from_memo_key );
+                auto priv_key = wif_to_key(it->second);
+                if (!priv_key) {
+                    return result;
+                }
+                shared_secret = priv_key->get_shared_secret(mo.from_memo_key);
             } else {
-                auto priv_key = wif_to_key( it->second );
-                if( !priv_key ) return result;
-                shared_secret = priv_key->get_shared_secret( mo.to_memo_key );
+                auto priv_key = wif_to_key(it->second);
+                if (!priv_key) {
+                    return result;
+                }
+                shared_secret = priv_key->get_shared_secret(mo.to_memo_key);
             }
-
 
             fc::sha512::encoder enc;
-            fc::raw::pack( enc, mo.sent_time );
-            fc::raw::pack( enc, shared_secret );
+            fc::raw::pack(enc, mo.sent_time);
+            fc::raw::pack(enc, shared_secret);
             auto encrypt_key = enc.result();
 
-            uint32_t check = fc::sha256::hash( encrypt_key )._hash[0];
+            uint32_t check = fc::sha256::hash(encrypt_key)._hash[0];
 
-            if( mo.checksum != check )
-                return result;
-
-            auto decrypt_data = fc::aes_decrypt( encrypt_key, mo.encrypted_message );
-            try {
-                return fc::raw::unpack<message_body>( decrypt_data );
-            } catch ( ... ) {
+            if (mo.checksum != check) {
+                wlog("wrong checksum");
                 return result;
             }
+
+            auto decrypt_data = fc::aes_decrypt(encrypt_key, mo.encrypted_message);
+            auto msg_json = std::string(decrypt_data.begin(), decrypt_data.end());
+            try {
+                result = fc::json::from_string(msg_json).as<message_body>();
+            } catch (...) {
+                result.body = msg_json;
+            }
+            return result;
         }
 
         annotated_signed_transaction wallet_api::follow(
