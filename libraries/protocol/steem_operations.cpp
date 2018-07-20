@@ -38,16 +38,14 @@ namespace golos { namespace protocol {
         }
 
         void account_create_with_delegation_operation::validate() const {
-            validate_account_name(new_account_name);
-            validate_account_name(creator);
-            FC_ASSERT(is_asset_type(fee, STEEM_SYMBOL), "Account creation fee must be GOLOS");
-            FC_ASSERT(is_asset_type(delegation, VESTS_SYMBOL), "Delegation must be GESTS");
-            FC_ASSERT(fee.amount >= 0, "Account creation fee cannot be negative");
-            FC_ASSERT(delegation.amount >= 0, "Delegation cannot be negative");
-            owner.validate();
-            active.validate();
-            posting.validate();
-            validate_account_json_metadata(json_metadata);
+            GOLOS_CHECK_PARAM_ACCOUNT(new_account_name);
+            GOLOS_CHECK_PARAM_ACCOUNT(creator);
+            GOLOS_CHECK_PARAM(fee,        {GOLOS_CHECK_ASSET_GE0(fee, GOLOS)});
+            GOLOS_CHECK_PARAM(delegation, {GOLOS_CHECK_ASSET_GE0(delegation, GESTS)});
+            GOLOS_CHECK_PARAM_VALIDATE(owner);
+            GOLOS_CHECK_PARAM_VALIDATE(active);
+            GOLOS_CHECK_PARAM_VALIDATE(posting);
+            GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
         }
 
         void account_update_operation::validate() const {

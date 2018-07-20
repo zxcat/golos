@@ -246,16 +246,9 @@ namespace golos { namespace chain {
         }
 
         void account_create_with_delegation_evaluator::do_apply(const account_create_with_delegation_operation& o) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__535, "Account creation with delegation");
-
             const auto& creator = _db.get_account(o.creator);
-            FC_ASSERT(creator.balance >= o.fee, "Insufficient balance to create account.",
-                ("creator.balance", creator.balance)("required", o.fee));
-            FC_ASSERT(creator.available_vesting_shares(true) >= o.delegation,
-                "Insufficient vesting shares to delegate to new account.",
-                ("creator.vesting_shares", creator.vesting_shares)
-                ("creator.delegated_vesting_shares", creator.delegated_vesting_shares)
-                ("required", o.delegation));
+            GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
+            GOLOS_CHECK_BALANCE(creator, AVAILABLE_VESTING, o.delegation);
 
             const auto& v_share_price = _db.get_dynamic_global_properties().get_vesting_share_price();
             const auto& median_props = _db.get_witness_schedule_object().median_props;
@@ -268,11 +261,15 @@ namespace golos { namespace chain {
 #endif
             auto current_delegation = o.fee * target.amount.value / min_fee * v_share_price + o.delegation;
 
-            FC_ASSERT(current_delegation >= target_delegation,
-                "Inssufficient Delegation ${f} required, ${p} provided.",
+            GOLOS_CHECK_LOGIC(current_delegation >= target_delegation,
+                logic_exception::not_enough_delegation,
+                "Insufficient Delegation ${f} required, ${p} provided.",
                 ("f", target_delegation)("p", current_delegation)("o.fee", o.fee) ("o.delegation", o.delegation));
-            FC_ASSERT(o.fee >= median_props.create_account_min_golos_fee,
-                "Insufficient Fee: ${f} required, ${p} provided.", ("f", median_props.create_account_min_golos_fee)("p", o.fee));
+            auto min_golos = median_props.create_account_min_golos_fee;
+            GOLOS_CHECK_OP_PARAM(o, fee, {
+                GOLOS_CHECK_VALUE(o.fee >= min_golos,
+                    "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_golos)("p", o.fee));
+            });
 
             for (auto& a : o.owner.account_auths) {
                 _db.get_account(a.first);
@@ -308,7 +305,7 @@ namespace golos { namespace chain {
                 auth.posting = o.posting;
                 auth.last_owner_update = fc::time_point_sec::min();
             });
-            if (o.delegation.amount > 0) {  // Is it needed to allow zero delegation in this method ?
+            if (o.delegation.amount > 0) {
                 _db.create<vesting_delegation_object>([&](vesting_delegation_object& d) {
                     d.delegator = o.creator;
                     d.delegatee = o.new_account_name;
