@@ -13,10 +13,17 @@
 #include <fc/crypto/digest.hpp>
 
 #include "database_fixture.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+
+
+// TODO: move somewhere globally accessible
+#define GOLOS_PROPOSAL_MAX_TITLE_SIZE   256
+#define GOLOS_PROPOSAL_MAX_MEMO_SIZE    4096
+
 
 using namespace golos;
 using namespace golos::chain;
@@ -24,6 +31,135 @@ using namespace golos::protocol;
 using std::string;
 
 BOOST_FIXTURE_TEST_SUITE(proposal_tests, clean_database_fixture)
+
+
+BOOST_AUTO_TEST_CASE(proposal_create_validate) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_create_validate");
+
+
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE(proposal_create_authorities) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_create_authorities");
+
+} FC_LOG_AND_RETHROW() }
+
+
+BOOST_AUTO_TEST_CASE(proposal_update_validate) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_update_validate");
+
+    using approvals = flat_set<account_name_type>;
+
+    BOOST_TEST_MESSAGE("--- success on valid parameters");
+    proposal_update_operation op;
+    op.author = "alice";
+    op.title = "test";
+    op.owner_approvals_to_add = approvals({"bob"});
+    CHECK_OP_VALID(op);
+    CHECK_PARAM_VALID(op, title, "-");
+    CHECK_PARAM_VALID(op, title, string(GOLOS_PROPOSAL_MAX_TITLE_SIZE, ' '));
+    CHECK_PARAM_VALID(op, title, u8"тест");
+    CHECK_PARAM_VALID(op, active_approvals_to_add, approvals({"cid", "dave"}));
+
+    BOOST_TEST_MESSAGE("--- failure when author is empty");
+    CHECK_PARAM_INVALID(op, author, "");
+
+    BOOST_TEST_MESSAGE("--- failure when title is not valid");
+    CHECK_PARAM_INVALID(op, title, "");
+    CHECK_PARAM_INVALID(op, title, string(1+GOLOS_PROPOSAL_MAX_TITLE_SIZE, ' '));
+    CHECK_PARAM_INVALID(op, title, "\xc3\x28");
+
+    BOOST_TEST_MESSAGE("--- failure when no approvals");
+    CHECK_PARAM_INVALID_LOGIC(op, owner_approvals_to_add, approvals(), empty_approvals);
+
+    BOOST_TEST_MESSAGE("--- failure when adding and deleting same approval");
+    CHECK_PARAM_INVALID_LOGIC(op, owner_approvals_to_remove, approvals({"bob"}), add_and_remove_same_approval);
+
+} FC_LOG_AND_RETHROW() }
+
+
+BOOST_AUTO_TEST_CASE(proposal_update_authorities) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_update_authorities");
+    using account_name_set = flat_set<account_name_type>;
+    account_name_set nobody;
+    account_name_set bob_acc = account_name_set({"bob"});
+    account_name_set cid_acc = account_name_set({"cid"});
+    account_name_set bob_and_cid = account_name_set({"bob", "cid"});
+
+    proposal_update_operation op;
+    op.author = "alice";
+    op.title = "test";
+
+    BOOST_TEST_MESSAGE("--- owner_approvals_to_add and owner_approvals_to_remove");
+    op.owner_approvals_to_add = bob_acc;
+    CHECK_OP_AUTHS(op, bob_acc, nobody, nobody);
+    op.owner_approvals_to_remove = cid_acc;
+    CHECK_OP_AUTHS(op, bob_and_cid, nobody, nobody);
+    op.owner_approvals_to_add = nobody;
+    CHECK_OP_AUTHS(op, cid_acc, nobody, nobody);
+    op.owner_approvals_to_remove = nobody;
+
+    BOOST_TEST_MESSAGE("--- active_approvals_to_add and active_approvals_to_remove");
+    op.active_approvals_to_add = bob_acc;
+    CHECK_OP_AUTHS(op, nobody, bob_acc, nobody);
+    op.active_approvals_to_remove = cid_acc;
+    CHECK_OP_AUTHS(op, nobody, bob_and_cid, nobody);
+    op.active_approvals_to_add = nobody;
+    CHECK_OP_AUTHS(op, nobody, cid_acc, nobody);
+    op.active_approvals_to_remove = nobody;
+
+    BOOST_TEST_MESSAGE("--- poting_approvals_to_add and poting_approvals_to_remove");
+    op.posting_approvals_to_add = bob_acc;
+    CHECK_OP_AUTHS(op, nobody, nobody, bob_acc);
+    op.posting_approvals_to_remove = cid_acc;
+    CHECK_OP_AUTHS(op, nobody, nobody, bob_and_cid);
+    op.posting_approvals_to_add = nobody;
+    CHECK_OP_AUTHS(op, nobody, nobody, cid_acc);
+    op.posting_approvals_to_remove = nobody;
+
+    // TODO: keys?
+
+} FC_LOG_AND_RETHROW() }
+
+
+BOOST_AUTO_TEST_CASE(proposal_delete_validate) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_delete_validate");
+
+    BOOST_TEST_MESSAGE("--- success on valid parameters");
+    proposal_delete_operation op;
+    op.requester = "bob";
+    op.author = "alice";
+    op.title = "test";
+    CHECK_OP_VALID(op);
+    CHECK_PARAM_VALID(op, title, "-");
+    CHECK_PARAM_VALID(op, title, string(GOLOS_PROPOSAL_MAX_TITLE_SIZE, ' '));
+    CHECK_PARAM_VALID(op, title, u8"тест");
+
+    BOOST_TEST_MESSAGE("--- failure when requester or author is empty");
+    CHECK_PARAM_INVALID(op, requester, "");
+    CHECK_PARAM_INVALID(op, author, "");
+
+    BOOST_TEST_MESSAGE("--- failure when title is not valid");
+    CHECK_PARAM_INVALID(op, title, "");
+    CHECK_PARAM_INVALID(op, title, string(GOLOS_PROPOSAL_MAX_TITLE_SIZE+1, ' '));
+    CHECK_PARAM_INVALID(op, title, "\xc3\x28");
+
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE(proposal_delete_authorities) { try {
+    BOOST_TEST_MESSAGE("Testing: proposal_delete_authorities");
+    proposal_delete_operation op;
+    op.requester = "bob";
+    op.author = "alice";
+    op.title = "test";
+
+    using account_name_set = flat_set<account_name_type>;
+    account_name_set auths;
+    CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
+
+} FC_LOG_AND_RETHROW() }
+
+
 
 BOOST_AUTO_TEST_CASE(create_proposal) { try {
     BOOST_TEST_MESSAGE("Testing: proposal_create_operation");
@@ -56,7 +192,7 @@ BOOST_AUTO_TEST_CASE(create_proposal) { try {
     cop.proposed_operations.push_back(operation_wrapper(top));
     cop.proposed_operations.push_back(operation_wrapper(vop));
 
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, bob_private_key, cop), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, bob_private_key, cop), fc::exception);
 
     BOOST_TEST_MESSAGE("--- Simple proposal with a transfer operation");
 
@@ -122,7 +258,7 @@ BOOST_AUTO_TEST_CASE(update_proposal) { try {
     uop.title = cop.title;
     uop.active_approvals_to_add.insert("alice");
 
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, bob_private_key, uop), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, bob_private_key, uop), fc::exception);
 
     proposal_update_operation uop1;
     uop1.author = cop.author;
@@ -130,14 +266,14 @@ BOOST_AUTO_TEST_CASE(update_proposal) { try {
     uop1.active_approvals_to_add.insert("alice");
     uop1.active_approvals_to_remove.insert("alice");
 
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, alice_private_key, uop1), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, alice_private_key, uop1), fc::exception);
 
     proposal_update_operation uop2;
     uop2.author = cop.author;
     uop2.title = cop.title;
     uop2.key_approvals_to_add.insert(bob_public_key);
 
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, alice_private_key, uop2), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, alice_private_key, uop2), fc::exception);
 
     BOOST_TEST_MESSAGE("--- Add an approval to a proposal");
 
@@ -245,7 +381,7 @@ BOOST_AUTO_TEST_CASE(update_proposal) { try {
     uop10.author = cop.author;
     uop10.title = cop.title;
     uop10.active_approvals_to_add.insert("bob");
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, bob_private_key, uop10), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, bob_private_key, uop10), fc::exception);
 
     BOOST_TEST_MESSAGE("--- Auto removing of a proposal if no approvals in a review period");
     proposal_update_operation uop11;
@@ -532,7 +668,7 @@ BOOST_AUTO_TEST_CASE(nested_signatures) { try {
     uop3.author = cop.author;
     uop3.title = cop.title;
     uop3.key_approvals_to_add.insert(dave_public_key);
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, dave_private_key, uop3), tx_invalid_operation);  // TODO tx_invalid_operation -> tx_irrelevant_sig
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, dave_private_key, uop3), tx_invalid_operation);  // TODO tx_invalid_operation -> tx_irrelevant_sig
 
     proposal_update_operation uop4;
     uop4.author = cop.author;
@@ -578,7 +714,7 @@ BOOST_AUTO_TEST_CASE(delete_proposal) { try {
     dop.author = cop.author;
     dop.title = cop.title;
     dop.requester = "dave";
-    BOOST_REQUIRE_THROW(push_tx_with_ops(tx, dave_private_key, dop), fc::exception);
+    BOOST_REQUIRE_THROW(push_tx_with_ops_throw(tx, dave_private_key, dop), fc::exception);
 
     BOOST_TEST_MESSAGE("--- Authorized delete of proposal");
 

@@ -86,6 +86,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
         BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected, but no exception thrown" ); }    \
     catch( E const& ex ) {                                                                              \
         const fc::variant_object &props = ex.get_log().at(0).get_data();                                \
+        (void)props; /*avoid "unused var" spam. TODO: @smedvedev, make it used?*/                       \
         try {                                                                                           \
             C;                                                                                          \
         } catch (const fc::exception& err) {                                                            \
