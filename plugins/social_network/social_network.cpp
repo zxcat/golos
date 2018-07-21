@@ -138,6 +138,13 @@ namespace golos { namespace plugins { namespace social_network {
         golos::chain::database& db;
         std::unique_ptr<discussion_helper> helper;
         comment_depth_params depth_parameters;
+
+        // variables to temporarily store values through states of operation visitor
+        asset author_gbg_payout_value{0, SBD_SYMBOL}; // part of author payout
+        asset author_golos_payout_value{0, STEEM_SYMBOL}; // part of author payout
+        asset author_gests_payout_value{0, VESTS_SYMBOL}; // part of author payout
+        asset benef_payout_gests{0, VESTS_SYMBOL}; // GESTS version of benef payout
+        asset curator_payout_gests{0, VESTS_SYMBOL}; // GESTS version of curator payout
     };
 
     const comment_content_object& social_network::impl::get_comment_content(const comment_id_type& comment) const {
@@ -265,7 +272,7 @@ namespace golos { namespace plugins { namespace social_network {
 
         template<class T>
         void operator()(const T& o) const {
-        }
+        } /// ignore all other ops
 
         void operator()(const golos::protocol::comment_operation& o) const {
             const auto& comment = db.get_comment(o.author, o.permlink);
@@ -338,6 +345,94 @@ namespace golos { namespace plugins { namespace social_network {
             }
         }
 
+        result_type operator()(const author_reward_operation& op) const {
+            if (!db.has_index<comment_reward_index>()) {
+                return;
+            }
+
+            impl.author_gbg_payout_value += op.sbd_payout;
+            impl.author_golos_payout_value += op.steem_payout;
+            impl.author_gests_payout_value += op.vesting_payout;
+        }
+
+        result_type operator()(const comment_payout_update_operation& op) const {
+            if (!db.has_index<comment_reward_index>()) {
+                return;
+            }
+
+            const auto& comment = db.get_comment(op.author, op.permlink);
+
+            const auto& cprops = db.get_dynamic_global_properties();
+            auto vesting_sp = cprops.get_vesting_share_price();
+
+            // Calculation author rewards value
+
+            auto author_rewards = impl.author_golos_payout_value.amount;
+            author_rewards += (impl.author_gests_payout_value * vesting_sp).amount;
+            author_rewards += db.to_steem(impl.author_gbg_payout_value).amount;
+
+            // Converting
+
+            asset total_payout_golos = asset(author_rewards, STEEM_SYMBOL);
+            asset total_payout_gbg = db.to_sbd(total_payout_golos);
+
+            asset benef_payout_golos = impl.benef_payout_gests * vesting_sp;
+            asset benef_payout_gbg = db.to_sbd(benef_payout_golos);
+
+            asset curator_payout_golos = impl.curator_payout_gests * vesting_sp;
+            asset curator_payout_gbg = db.to_sbd(curator_payout_golos);
+
+            const auto& cr_idx = db.get_index<comment_reward_index>().indices().get<golos::plugins::social_network::by_comment>();
+            auto cr_itr = cr_idx.find(comment.id);
+            if (cr_itr == cr_idx.end()) {
+                db.create<comment_reward_object>([&](golos::plugins::social_network::comment_reward_object& cr) {
+                    cr.comment = comment.id;
+                    cr.author_rewards = author_rewards;
+                    cr.author_gbg_payout_value = impl.author_gbg_payout_value;
+                    cr.author_golos_payout_value = impl.author_golos_payout_value;
+                    cr.author_gests_payout_value = impl.author_gests_payout_value;
+                    cr.total_payout_value = total_payout_gbg;
+                    cr.beneficiary_payout_value = benef_payout_gbg;
+                    cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
+                    cr.curator_payout_value = curator_payout_gbg;
+                    cr.curator_gests_payout_value = impl.curator_payout_gests;
+                });
+            } else {
+                db.modify(*cr_itr, [&](comment_reward_object& cr) {
+                    cr.author_rewards += author_rewards;
+                    cr.author_gbg_payout_value += impl.author_gbg_payout_value;
+                    cr.author_golos_payout_value += impl.author_golos_payout_value;
+                    cr.author_gests_payout_value += impl.author_gests_payout_value;
+                    cr.total_payout_value += total_payout_gbg;
+                    cr.beneficiary_payout_value += benef_payout_gbg;
+                    cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
+                    cr.curator_payout_value += curator_payout_gbg;
+                    cr.curator_gests_payout_value += impl.curator_payout_gests;
+                });
+            }
+
+            impl.author_gbg_payout_value.amount = 0;
+            impl.benef_payout_gests.amount = 0;
+            impl.curator_payout_gests.amount = 0;
+            impl.author_golos_payout_value.amount = 0;
+            impl.author_gests_payout_value.amount = 0;
+        }
+
+        result_type operator()(const curation_reward_operation& op) const {
+            if (!db.has_index<comment_reward_index>()) {
+                return;
+            }
+
+            impl.curator_payout_gests += op.reward;
+        }
+
+        result_type operator()(const comment_benefactor_reward_operation& op) const {
+            if (!db.has_index<comment_reward_index>()) {
+                return;
+            }
+
+            impl.benef_payout_gests += op.reward;
+        }
     };
 
     void social_network::impl::pre_operation(const operation_notification& o) { try {
@@ -446,7 +541,11 @@ namespace golos { namespace plugins { namespace social_network {
             ) (
                 "comment-last-update-depth", boost::program_options::value<uint32_t>()->default_value(std::numeric_limits<uint32_t>::max()),
                 "mode of storing records of comment.active and comment.last_update: 4294967295 = store all, 0 = do not store, N = storing N blocks depth"
+            ) (
+                "store-comment-rewards", boost::program_options::value<bool>()->default_value(true),
+                "store comment rewards"
             );
+        //  Do not use bool_switch() in cfg!
     }
 
     void social_network::plugin_initialize(const boost::program_options::variables_map& options) {
@@ -466,6 +565,10 @@ namespace golos { namespace plugins { namespace social_network {
                 params.comment_last_update_depth = comment_last_update_depth;
                 params.has_comment_last_update_depth = true;
             }
+        }
+
+        if (options.at("store-comment-rewards").as<bool>()) {
+            add_plugin_index<comment_reward_index>(db);
         }
 
         db.pre_apply_operation.connect([&](const operation_notification &o) {
@@ -731,6 +834,21 @@ namespace golos { namespace plugins { namespace social_network {
             } else {
                 con.active = time_point_sec::min();
                 con.last_update = time_point_sec::min();
+            }
+        }
+
+        if (db.has_index<comment_reward_index>()) {
+            const auto reward = db.find<comment_reward_object, by_comment>(co.id);
+            if (reward != nullptr) {
+                con.author_rewards = reward->author_rewards;
+                con.author_gbg_payout_value = reward->author_gbg_payout_value;
+                con.author_golos_payout_value = reward->author_golos_payout_value;
+                con.author_gests_payout_value = reward->author_gests_payout_value;
+                con.total_payout_value = reward->total_payout_value;
+                con.beneficiary_payout_value = reward->beneficiary_payout_value;
+                con.beneficiary_gests_payout_value = reward->beneficiary_gests_payout_value;
+                con.curator_payout_value = reward->curator_payout_value;
+                con.curator_gests_payout_value = reward->curator_gests_payout_value;
             }
         }
     }
