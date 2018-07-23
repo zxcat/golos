@@ -208,6 +208,9 @@ namespace golos {
             //account_create_with_delegation
             not_enough_delegation,
 
+            //set_reset_account_operation
+            cannot_set_same_reset_account,
+
             //delegate_vesting_shares
             cannot_delegate_to_yourself,
             delegation_difference_too_low,
@@ -375,6 +378,9 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
+
+        //set_reset_account_operation
+        (cannot_set_same_reset_account)
 
         //delegate_vesting_shares
         (cannot_delegate_to_yourself)
