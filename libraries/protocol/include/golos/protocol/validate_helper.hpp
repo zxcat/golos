@@ -21,15 +21,15 @@
 
 // size
 #define GOLOS_CHECK_VALUE_MAX_SIZE(F, M) \
-    GOLOS_CHECK_VALUE(F.size() <= M, MUST_BE2(F, "is too long", "<= " FC_STRINGIZE(M)));
+    GOLOS_CHECK_VALUE(F.size() <= (M), MUST_BE2(F, "is too long", "<= " FC_STRINGIZE(M)));
 #define GOLOS_CHECK_VALUE_NOT_EMPTY(F) \
     GOLOS_CHECK_VALUE(!F.empty(), CANNOT_BE(F, "empty"));
 // utf-8
 #define GOLOS_CHECK_VALUE_UTF8(F) \
     GOLOS_CHECK_VALUE(fc::is_utf8(F), MUST_BE(F, "valid UTF8 string"));
-// JSON
+// json
 #define GOLOS_CHECK_VALUE_JSON(F) \
-    GOLOS_CHECK_VALUE(fc::json::is_valid(json), MUST_BE(F, "valid JSON"))
+    GOLOS_CHECK_VALUE(fc::json::is_valid(F), MUST_BE(F, "valid JSON"));
 
 
 // compare field with value
@@ -39,7 +39,7 @@
 #define GOLOS_CHECK_VALUE_GE(F, X) GOLOS_CHECK_VALUE_I(F, >=, X)
 #define GOLOS_CHECK_VALUE_LE(F, X) GOLOS_CHECK_VALUE_I(F, <=, X)
 #define GOLOS_CHECK_VALUE_LEGE(F, L, H) \
-    GOLOS_CHECK_VALUE(L <= F && F <= H , MUST_BE(F, "between " FC_STRINGIZE(L) " and" FC_STRINGIZE(H)))
+    GOLOS_CHECK_VALUE((L) <= F && F <= (H) , MUST_BE(F, "between " FC_STRINGIZE(L) " and" FC_STRINGIZE(H)))
 
 // check asset type
 #define GOLOS_CHECK_ASSET_TYPE(X, NAME) GOLOS_CHECK_ASSET_##NAME(X);
@@ -61,7 +61,7 @@
 
 // fields
 #define GOLOS_CHECK_VALUE_I(F, OP, X) GOLOS_CHECK_VALUE_II(F, OP, X, F)
-#define GOLOS_CHECK_VALUE_II(F, OP, X, N) GOLOS_CHECK_VALUE(F OP X, MUST_BE(N, "" #OP FC_STRINGIZE(X)))
+#define GOLOS_CHECK_VALUE_II(F, OP, X, N) GOLOS_CHECK_VALUE(F OP (X), MUST_BE(N, "" #OP FC_STRINGIZE(X)))
 
 // asset type
 #define GOLOS_CHECK_ASSET_TYPE_I(X, SYMBOL, SNAME)  GOLOS_CHECK_VALUE(X.symbol == SYMBOL, MUST_BE(X, SNAME))

@@ -97,11 +97,6 @@ namespace golos { namespace chain {
         : evaluator_impl<proposal_create_evaluator>(db) {
     }
 
-#define CHECK_ALREADY_EXIST(OP, N, X, Y) \
-    if (_db.find_##N(o.X, o.Y)) { \
-        GOLOS_THROW_OBJECT_ALREADY_EXIST(#N, fc::mutable_variant_object()(#X,o.X)(#Y,o.Y)); \
-    }
-
     void proposal_create_evaluator::do_apply(const proposal_create_operation& o) { try {
         safe_int_increment depth_increment(depth_);
 
@@ -113,10 +108,7 @@ namespace golos { namespace chain {
                 ("depth", STEEMIT_MAX_PROPOSAL_DEPTH));
         }
 
-        CHECK_ALREADY_EXIST(o, proposal, author, title);
-        // if (nullptr == _db.find_proposal(o.author, o.title)) {
-        //     GOLOS_THROW_OBJECT_ALREADY_EXIST("Proposal", fc::mutable_variant_object()("author",o.author)("title",o.title));
-        // }
+        GOLOS_CHECK_OBJECT_MISSING(_db, proposal, o.author, o.title);
 
         const auto now = _db.head_block_time();
         GOLOS_CHECK_OP_PARAM(o, expiration_time, {
@@ -180,6 +172,7 @@ namespace golos { namespace chain {
             golos::chain::database::skip_tapos_check |
             golos::chain::database::skip_database_locking;
 
+        // This not only validates proposal operations but also pre-apply them to execute evaluators' checks
         _db.validate_transaction(trx, skip_steps);
 
         auto ops_size = fc::raw::pack_size(trx.operations);

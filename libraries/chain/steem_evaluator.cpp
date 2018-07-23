@@ -1855,18 +1855,21 @@ namespace golos { namespace chain {
         void convert_evaluator::do_apply(const convert_operation &o) {
             database &_db = db();
             const auto &owner = _db.get_account(o.owner);
-            FC_ASSERT(_db.get_balance(owner, o.amount.symbol) >=
-                      o.amount, "Account does not have sufficient balance for conversion.");
+            GOLOS_CHECK_BALANCE(owner, MAIN_BALANCE, o.amount);
 
             _db.adjust_balance(owner, -o.amount);
 
             const auto &fhistory = _db.get_feed_history();
-            FC_ASSERT(!fhistory.current_median_history.is_null(), "Cannot convert SBD because there is no price feed.");
+            GOLOS_CHECK_LOGIC(!fhistory.current_median_history.is_null(), 
+                    logic_exception::no_price_feed_yet,
+                    "Cannot convert SBD because there is no price feed.");
 
             auto steem_conversion_delay = STEEMIT_CONVERSION_DELAY_PRE_HF_16;
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
                 steem_conversion_delay = STEEMIT_CONVERSION_DELAY;
             }
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, convert_request, o.owner, o.requestid);
 
             _db.create<convert_request_object>([&](convert_request_object &obj) {
                 obj.owner = o.owner;
@@ -1946,7 +1949,9 @@ namespace golos { namespace chain {
 
         void report_over_production_evaluator::do_apply(const report_over_production_operation &o) {
             database &_db = db();
-            FC_ASSERT(!_db.has_hardfork(STEEMIT_HARDFORK_0_4), "report_over_production_operation is disabled.");
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_4)) {
+                FC_THROW_EXCEPTION(golos::unsupported_operation, "report_over_production_operation is disabled");
+            }
         }
 
         void challenge_authority_evaluator::do_apply(const challenge_authority_operation &o) {
@@ -2242,8 +2247,6 @@ namespace golos { namespace chain {
         }
 
         void delegate_vesting_shares_evaluator::do_apply(const delegate_vesting_shares_operation& op) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__535, "delegate_vesting_shares_operation"); //TODO: Delete after hardfork
-
             const auto& delegator = _db.get_account(op.delegator);
             const auto& delegatee = _db.get_account(op.delegatee);
             auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
@@ -2259,31 +2262,37 @@ namespace golos { namespace chain {
                 op.vesting_shares;
             auto increasing = delta.amount > 0;
 
-            FC_ASSERT((increasing ? delta : -delta) >= min_update,
-                "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
+            GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                GOLOS_CHECK_LOGIC((increasing ? delta : -delta) >= min_update,
+                    logic_exception::delegation_difference_too_low,
+                    "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
 #ifdef STEEMIT_BUILD_TESTNET
-            // min_update depends on account_creation_fee, which can be 0 on testnet
-            FC_ASSERT(delta.amount != 0, "Delegation difference can't be 0");
+                // min_update depends on account_creation_fee, which can be 0 on testnet
+                GOLOS_CHECK_LOGIC(delta.amount != 0,
+                    logic_exception::delegation_difference_too_low,
+                    "Delegation difference can't be 0");
 #endif
+            });
 
             if (increasing) {
                 auto delegated = delegator.delegated_vesting_shares;
-                FC_ASSERT(delegator.available_vesting_shares(true) >= delta,
-                    "Account does not have enough vesting shares to delegate.",
-                    ("available", delegator.available_vesting_shares(true))
-                    ("delta", delta)("vesting_shares", delegator.vesting_shares)("delegated", delegated)
-                    ("to_withdraw", delegator.to_withdraw)("withdrawn", delegator.withdrawn));
+                GOLOS_CHECK_BALANCE(delegator, AVAILABLE_VESTING, delta);
                 auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
                 auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
                 auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
                 auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
-                FC_ASSERT(delegated + delta <= max_allowed,
+                GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
+                    logic_exception::delegation_limited_by_voting_power,
                     "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
                     ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));
 
                 if (!delegation) {
-                    FC_ASSERT(op.vesting_shares >= min_delegation,
-                        "Account must delegate a minimum of ${v}", ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                    GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                        GOLOS_CHECK_LOGIC(op.vesting_shares >= min_delegation,
+                            logic_exception::cannot_delegate_below_minimum,
+                            "Account must delegate a minimum of ${v}",
+                            ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                    });
                     _db.create<vesting_delegation_object>([&](vesting_delegation_object& o) {
                         o.delegator = op.delegator;
                         o.delegatee = op.delegatee;
@@ -2295,9 +2304,12 @@ namespace golos { namespace chain {
                     a.delegated_vesting_shares += delta;
                 });
             } else {
-                FC_ASSERT(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
-                    "Delegation must be removed or leave minimum delegation amount of ${v}",
-                    ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                    GOLOS_CHECK_LOGIC(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
+                        logic_exception::cannot_delegate_below_minimum,
+                        "Delegation must be removed or leave minimum delegation amount of ${v}",
+                        ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                });
                 _db.create<vesting_delegation_expiration_object>([&](vesting_delegation_expiration_object& o) {
                     o.delegator = op.delegator;
                     o.vesting_shares = -delta;

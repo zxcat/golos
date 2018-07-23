@@ -164,8 +164,8 @@ namespace golos { namespace chain {
             const account_object *find_account(const account_name_type &name) const;
 
             const proposal_object& get_proposal(const account_name_type&, const std::string&) const;
-
             const proposal_object* find_proposal(const account_name_type&, const std::string&) const;
+            void        throw_if_exists_proposal(const account_name_type&, const std::string&) const;
 
             const comment_object &get_comment(const account_name_type &author, const shared_string &permlink) const;
 
@@ -184,6 +184,12 @@ namespace golos { namespace chain {
             const limit_order_object &get_limit_order(const account_name_type &owner, uint32_t id) const;
 
             const limit_order_object *find_limit_order(const account_name_type &owner, uint32_t id) const;
+
+            const convert_request_object &get_convert_request(const account_name_type &owner, uint32_t id) const;
+
+            const convert_request_object *find_convert_request(const account_name_type &owner, uint32_t id) const;
+
+            void throw_if_exists_convert_request(const account_name_type &owner, uint32_t id) const;
 
             const savings_withdraw_object &get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
 

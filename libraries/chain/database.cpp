@@ -699,6 +699,24 @@ namespace golos { namespace chain {
             return find<limit_order_object, by_account>(boost::make_tuple(name, orderid));
         }
 
+        const convert_request_object &database::get_convert_request(const account_name_type &name, uint32_t id) const {
+            try {
+                return get<convert_request_object, by_owner>(boost::make_tuple(name, id));
+            } catch(const std::out_of_range &e) {
+                GOLOS_THROW_MISSING_OBJECT("convert_request", fc::mutable_variant_object()("account",name)("request_id", id));
+            } FC_CAPTURE_AND_RETHROW((name)(id))
+        }
+
+        const convert_request_object *database::find_convert_request(const account_name_type &name, uint32_t id) const {
+            return find<convert_request_object, by_owner>(boost::make_tuple(name, id));
+        }
+
+        void database::throw_if_exists_convert_request(const account_name_type &name, uint32_t id) const {
+            if (nullptr != find_convert_request(name, id)) {
+                GOLOS_THROW_OBJECT_ALREADY_EXIST("convert_request", fc::mutable_variant_object()("account",name)("request_id",id));
+            }
+        }
+
         const savings_withdraw_object &database::get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const {
             try {
                 return get<savings_withdraw_object, by_from_rid>(boost::make_tuple(owner, request_id));
