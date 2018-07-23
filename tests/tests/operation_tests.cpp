@@ -6799,7 +6799,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("--- failed when comment missing");
             op.author = "alice";
             op.permlink = "foo";
-            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "comment", make_comment_id("alice", "foo"))));
             validate_database();
@@ -6827,7 +6827,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("--- failed when comment has replies");
             op.author = "alice";
             op.permlink = "lorem";
-            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(logic_exception, logic_exception::cannot_delete_comment_with_replies)));
             validate_database();
@@ -6835,13 +6835,13 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("--- success delete comment");
             op.author = "bob";
             op.permlink = "bar";
-            BOOST_CHECK_NO_THROW(push_tx_with_ops_throw(tx, bob_private_key, op));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, op));
             validate_database();
 
             BOOST_TEST_MESSAGE("--- success delete comment after delete replies");
             op.author = "alice";
             op.permlink = "lorem";
-            BOOST_CHECK_NO_THROW(push_tx_with_ops_throw(tx, alice_private_key, op));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
             validate_database();
         }
         FC_LOG_AND_RETHROW()
