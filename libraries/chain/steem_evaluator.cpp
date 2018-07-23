@@ -1637,7 +1637,6 @@ namespace golos { namespace chain {
 
         void custom_binary_evaluator::do_apply(const custom_binary_operation &o) {
             database &d = db();
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_14__317, "custom_binary_operation");
 
             std::shared_ptr<custom_operation_interpreter> eval = d.get_custom_json_evaluator(o.id);
             if (!eval) {
