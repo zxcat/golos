@@ -33,6 +33,7 @@ using std::string;
 BOOST_FIXTURE_TEST_SUITE(proposal_tests, clean_database_fixture)
 
 
+// validate + authority tests
 BOOST_AUTO_TEST_CASE(proposal_create_validate) { try {
     BOOST_TEST_MESSAGE("Testing: proposal_create_validate");
 
@@ -80,7 +81,7 @@ BOOST_AUTO_TEST_CASE(proposal_create_validate) { try {
     t2.amount = ASSET_GESTS(1.0);
     ops.push_back(operation_wrapper(t2));
     // validation fails inside internal transaction, so error contains "amount" field
-    CHECK_PARAM_VALIDATION_FAIL(op, proposed_operations, ops, 
+    CHECK_PARAM_VALIDATION_FAIL(op, proposed_operations, ops,
         CHECK_ERROR(invalid_parameter, "amount"));
 
 } FC_LOG_AND_RETHROW() }
@@ -92,7 +93,6 @@ BOOST_AUTO_TEST_CASE(proposal_create_authorities) { try {
     op.title = "test";
     using account_name_set = flat_set<account_name_type>;
     CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
-
 } FC_LOG_AND_RETHROW() }
 
 
@@ -203,15 +203,12 @@ BOOST_AUTO_TEST_CASE(proposal_delete_authorities) { try {
     op.requester = "bob";
     op.author = "alice";
     op.title = "test";
-
     using account_name_set = flat_set<account_name_type>;
-    account_name_set auths;
     CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
-
 } FC_LOG_AND_RETHROW() }
 
 
-
+// apply tests
 BOOST_AUTO_TEST_CASE(create_proposal) { try {
     BOOST_TEST_MESSAGE("Testing: proposal_create_operation");
 
@@ -244,7 +241,8 @@ BOOST_AUTO_TEST_CASE(create_proposal) { try {
     cop.proposed_operations.push_back(operation_wrapper(vop));
 
     GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, bob_private_key, cop),
-        CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(logic_exception, logic_exception::tx_with_both_posting_active_ops)));
+        CHECK_ERROR(tx_invalid_operation, 0,
+            CHECK_ERROR(logic_exception, logic_exception::tx_with_both_posting_active_ops)));
 
     BOOST_TEST_MESSAGE("--- Simple proposal with a transfer operation");
 
@@ -449,7 +447,7 @@ BOOST_AUTO_TEST_CASE(update_proposal) { try {
     push_tx_with_ops(tx, alice_private_key, uop11);
     generate_blocks(1);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
 
 } FC_LOG_AND_RETHROW() }
 
@@ -484,7 +482,7 @@ BOOST_AUTO_TEST_CASE(update_proposal1) { try {
     push_tx_with_ops(tx, alice_private_key, uop);
     generate_blocks(1);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
     BOOST_CHECK_EQUAL(db->get_account("alice").balance.amount.value, 7500);
     BOOST_CHECK_EQUAL(db->get_account("bob").balance.amount.value, 2500);
 
@@ -521,7 +519,7 @@ BOOST_AUTO_TEST_CASE(update_proposal2) { try {
     push_tx_with_ops(tx, alice_private_key, uop);
     generate_blocks(1);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
     BOOST_CHECK_EQUAL(db->get_account("alice").balance.amount.value, 7500);
     BOOST_CHECK_EQUAL(db->get_account("bob").balance.amount.value, 2500);
 
@@ -569,7 +567,7 @@ BOOST_AUTO_TEST_CASE(update_proposal3) { try {
 
     generate_blocks(p.expiration_time);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
     BOOST_CHECK_EQUAL(db->get_account("alice").balance.amount.value, 7500);
     BOOST_CHECK_EQUAL(db->get_account("bob").balance.amount.value, 2500);
 
@@ -608,15 +606,13 @@ BOOST_AUTO_TEST_CASE(nested_signatures) { try {
         generate_blocks(1);
     };
 
-    auto get_active = [&](const std::string& name) {
+    auto get_active = [&](const string& name) {
         return authority(db->get<account_authority_object, by_account>(name).active);
     };
-
-    auto get_owner = [&](const std::string& name) {
+    auto get_owner = [&](const string& name) {
         return authority(db->get<account_authority_object, by_account>(name).owner);
     };
-
-    auto get_posting = [&](const std::string& name) {
+    auto get_posting = [&](const string& name) {
         return authority(db->get<account_authority_object, by_account>(name).posting);
     };
 
@@ -724,7 +720,7 @@ BOOST_AUTO_TEST_CASE(nested_signatures) { try {
     uop3.title = cop.title;
     uop3.key_approvals_to_add.insert(dave_public_key);
     GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, dave_private_key, uop3),
-        CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(tx_irrelevant_sig, 0))); // !!!TODO
+        CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(tx_irrelevant_sig, 0)));
 
     proposal_update_operation uop4;
     uop4.author = cop.author;
@@ -733,7 +729,7 @@ BOOST_AUTO_TEST_CASE(nested_signatures) { try {
     push_tx_with_ops(tx, dan_private_key, uop4);
     generate_blocks(1);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
     BOOST_CHECK_EQUAL(poxx_account.balance.amount.value, 7500);
     BOOST_CHECK_EQUAL(edy_account.balance.amount.value, 2500);
 
@@ -783,7 +779,7 @@ BOOST_AUTO_TEST_CASE(delete_proposal) { try {
     push_tx_with_ops(tx, alice_private_key, dop1);
     generate_blocks(1);
 
-    GOLOS_CHECK_OBJECT_MISSING((*db), proposal, cop.author, cop.title);
+    BOOST_CHECK(nullptr == db->find_proposal(cop.author, cop.title));
 
 } FC_LOG_AND_RETHROW() }
 
