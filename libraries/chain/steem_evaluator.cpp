@@ -2215,7 +2215,7 @@ namespace golos { namespace chain {
 
             if (o.decline) {
                 if (exist) {
-                    GOLOS_THROW_OBJECT_ALREADY_EXIST("account", o.account);
+                    GOLOS_THROW_OBJECT_ALREADY_EXIST("decline_voting_rights_request", o.account);
                 }
                 _db.create<decline_voting_rights_request_object>([&](decline_voting_rights_request_object& req) {
                     req.account = account.id;
@@ -2223,7 +2223,7 @@ namespace golos { namespace chain {
                 });
             } else {
                 if (!exist) {
-                    GOLOS_THROW_MISSING_OBJECT("account", o.account);
+                    GOLOS_THROW_MISSING_OBJECT("decline_voting_rights_request", o.account);
                 }
                 _db.remove(*itr);
             }
