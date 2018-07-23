@@ -206,6 +206,12 @@ namespace golos {
             //account_create_with_delegation
             not_enough_delegation,
 
+            //delegate_vesting_shares
+            cannot_delegate_to_yourself,
+            delegation_difference_too_low,
+            delegation_limited_by_voting_power,
+            cannot_delegate_below_minimum,
+
             //proposals
             proposal_depth_too_high,
             tx_with_both_posting_active_ops,
@@ -351,6 +357,12 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
+
+        //delegate_vesting_shares
+        (cannot_delegate_to_yourself)
+        (delegation_difference_too_low)
+        (delegation_limited_by_voting_power)
+        (cannot_delegate_below_minimum)
 
         //account_create_with_delegation
         (not_enough_delegation)
