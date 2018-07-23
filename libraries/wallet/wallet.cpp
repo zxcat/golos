@@ -2588,7 +2588,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(trx, broadcast);
         }
 
-        message_body wallet_api::try_decrypt_message(const message_api_obj& mo) {
+        message_body wallet_api::try_decrypt_message(const message_api_object& mo) {
             message_body result;
 
             fc::sha512 shared_secret;

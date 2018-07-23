@@ -49,11 +49,11 @@ namespace golos { namespace wallet {
             std::string body;
         };
 
-        struct extended_message_object: public message_api_obj {
+        struct extended_message_object: public message_api_object {
             extended_message_object() = default;
 
-            extended_message_object(const message_api_obj& o)
-                : message_api_obj(o) {
+            extended_message_object(const message_api_object& o)
+                : message_api_object(o) {
             }
 
             message_body message;
@@ -1140,7 +1140,7 @@ namespace golos { namespace wallet {
             annotated_signed_transaction send_private_message(
                 const std::string& from, const std::string& to, const message_body& message, bool broadcast);
 
-            message_body try_decrypt_message( const message_api_obj& mo );
+            message_body try_decrypt_message(const message_api_object& mo);
         };
 
         struct plain_keys {
@@ -1280,5 +1280,5 @@ FC_REFLECT(
 
 FC_REFLECT_DERIVED(
     (golos::wallet::extended_message_object),
-    ((golos::plugins::private_message::message_api_obj)),
+    ((golos::plugins::private_message::message_api_object)),
     (message));

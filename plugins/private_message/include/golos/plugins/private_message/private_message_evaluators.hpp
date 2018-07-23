@@ -23,4 +23,19 @@ namespace golos { namespace plugins { namespace private_message {
         private_message_plugin* plugin_;
     };
 
+    class private_list_evaluator:
+        public golos::chain::evaluator_impl<private_list_evaluator, private_message_plugin_operation>
+    {
+    public:
+        using operation_type = private_list_operation;
+
+        private_list_evaluator(database& db, private_message_plugin* plugin)
+            : golos::chain::evaluator_impl<private_list_evaluator, private_message_plugin_operation>(db),
+              plugin_(plugin)
+        {}
+
+        void do_apply(const private_list_operation& o);
+
+        private_message_plugin* plugin_;
+    };
 } } }
