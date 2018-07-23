@@ -6443,25 +6443,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(decline_voting_rights_validate) { try {
+        BOOST_TEST_MESSAGE("Testing: decline_voting_rights_validate");
+        decline_voting_rights_operation op;
+        op.account = "alice";
+        CHECK_OP_VALID(op);
+        CHECK_PARAM_INVALID(op, account, "");
+    } FC_LOG_AND_RETHROW() }
+
     BOOST_AUTO_TEST_CASE(decline_voting_rights_authorities) {
         try {
             BOOST_TEST_MESSAGE("Testing: decline_voting_rights_authorities");
-
             decline_voting_rights_operation op;
             op.account = "alice";
-
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            expected.insert("alice");
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set({"alice"}), account_name_set(), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6481,78 +6476,49 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             proxy.proxy = "alice";
 
             signed_transaction tx;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(proxy);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
+            push_tx_with_ops(tx, bob_private_key, proxy);
 
             decline_voting_rights_operation op;
             op.account = "alice";
 
-
             BOOST_TEST_MESSAGE("--- success");
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            push_tx_with_ops(tx, alice_private_key, op);
 
-            const auto &request_idx = db->get_index<decline_voting_rights_request_index>().indices().get<by_account>();
+            const auto& request_idx = db->get_index<decline_voting_rights_request_index>().indices().get<by_account>();
             auto itr = request_idx.find(db->get_account("alice").id);
-            BOOST_REQUIRE(itr != request_idx.end());
-            BOOST_REQUIRE(itr->effective_date == db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD);
-
+            BOOST_CHECK(itr != request_idx.end());
+            BOOST_CHECK_EQUAL(itr->effective_date, db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD);
 
             BOOST_TEST_MESSAGE("--- failure revoking voting rights with existing request");
             generate_block();
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(object_already_exist, "account", "alice")));
 
             BOOST_TEST_MESSAGE("--- successs cancelling a request");
             op.decline = false;
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            push_tx_with_ops(tx, alice_private_key, op);
 
             itr = request_idx.find(db->get_account("alice").id);
-            BOOST_REQUIRE(itr == request_idx.end());
-
+            BOOST_CHECK(itr == request_idx.end());
 
             BOOST_TEST_MESSAGE("--- failure cancelling a request that doesn't exist");
             generate_block();
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(missing_object, "account", "alice")));
 
             BOOST_TEST_MESSAGE("--- check account can vote during waiting period");
             op.decline = true;
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            push_tx_with_ops(tx, alice_private_key, op);
 
             generate_blocks(
-                    db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD -
-                    fc::seconds(STEEMIT_BLOCK_INTERVAL), true);
+                db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD - fc::seconds(STEEMIT_BLOCK_INTERVAL), true);
             BOOST_REQUIRE(db->get_account("alice").can_vote);
             witness_create("alice", alice_private_key, "foo.bar", alice_private_key.get_public_key(), 0);
 
             account_witness_vote_operation witness_vote;
             witness_vote.account = "alice";
             witness_vote.witness = "alice";
-            tx.clear();
-            tx.operations.push_back(witness_vote);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            push_tx_with_ops(tx, alice_private_key, witness_vote);
 
             comment_operation comment;
             comment.author = "alice";
@@ -6565,55 +6531,45 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             vote.author = "alice";
             vote.permlink = "test";
             vote.weight = STEEMIT_100_PERCENT;
-            tx.clear();
-            tx.operations.push_back(comment);
-            tx.operations.push_back(vote);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            push_tx_with_ops(tx, alice_private_key, comment, vote);
             validate_database();
-
 
             BOOST_TEST_MESSAGE("--- check account cannot vote after request is processed");
             generate_block();
-            BOOST_REQUIRE(!db->get_account("alice").can_vote);
+            BOOST_CHECK(!db->get_account("alice").can_vote);
             validate_database();
 
             itr = request_idx.find(db->get_account("alice").id);
-            BOOST_REQUIRE(itr == request_idx.end());
+            BOOST_CHECK(itr == request_idx.end());
 
-            const auto &witness_idx = db->get_index<witness_vote_index>().indices().get<by_account_witness>();
+            const auto& witness_idx = db->get_index<witness_vote_index>().indices().get<by_account_witness>();
             auto witness_itr = witness_idx.find(
-                    boost::make_tuple(db->get_account("alice").id, db->get_witness("alice").id));
-            BOOST_REQUIRE(witness_itr == witness_idx.end());
+                boost::make_tuple(db->get_account("alice").id, db->get_witness("alice").id));
+            BOOST_CHECK(witness_itr == witness_idx.end());
 
-            tx.clear();
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(witness_vote);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, witness_vote),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::voter_declined_voting_rights)));
 
             db->get<comment_vote_object, by_comment_voter>(
                 boost::make_tuple(db->get_comment("alice", string("test")).id, db->get_account("alice").id)
             );
 
             vote.weight = 0;
-            tx.clear();
-            tx.operations.push_back(vote);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, vote),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::voter_declined_voting_rights)));
 
             vote.weight = STEEMIT_1_PERCENT * 50;
-            tx.clear();
-            tx.operations.push_back(vote);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, vote),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::voter_declined_voting_rights)));
 
             proxy.account = "alice";
             proxy.proxy = "bob";
-            tx.clear();
-            tx.operations.push_back(proxy);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, proxy),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::voter_declined_voting_rights)));
         }
         FC_LOG_AND_RETHROW()
     }

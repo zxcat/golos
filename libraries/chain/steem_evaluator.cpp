@@ -2207,35 +2207,31 @@ namespace golos { namespace chain {
             });
         }
 
-        void decline_voting_rights_evaluator::do_apply(const decline_voting_rights_operation &o) {
-            database &_db = db();
-            FC_ASSERT(_db.has_hardfork(STEEMIT_HARDFORK_0_14__324));
-
-            const auto &account = _db.get_account(o.account);
-            const auto &request_idx = _db.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
+        void decline_voting_rights_evaluator::do_apply(const decline_voting_rights_operation& o) {
+            const auto& account = _db.get_account(o.account);
+            const auto& request_idx = _db.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
             auto itr = request_idx.find(account.id);
+            auto exist = itr != request_idx.end();
 
             if (o.decline) {
-                FC_ASSERT(itr ==
-                          request_idx.end(), "Cannot create new request because one already exists.");
-
-                _db.create<decline_voting_rights_request_object>([&](decline_voting_rights_request_object &req) {
+                if (exist) {
+                    GOLOS_THROW_OBJECT_ALREADY_EXIST("account", o.account);
+                }
+                _db.create<decline_voting_rights_request_object>([&](decline_voting_rights_request_object& req) {
                     req.account = account.id;
-                    req.effective_date = _db.head_block_time() +
-                                         STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_date = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
             } else {
-                FC_ASSERT(itr !=
-                          request_idx.end(), "Cannot cancel the request because it does not exist.");
+                if (!exist) {
+                    GOLOS_THROW_MISSING_OBJECT("account", o.account);
+                }
                 _db.remove(*itr);
             }
         }
 
-        void reset_account_evaluator::do_apply(const reset_account_operation &op) {
-            FC_ASSERT(false, "Reset Account Operation is currently disabled.");
-/*
-            database& _db = db();
-            const auto& acnt = _db.get_account(op.account_to_reset);
+        void reset_account_evaluator::do_apply(const reset_account_operation& op) {
+            GOLOS_ASSERT(false,  golos::unsupported_operation, "Reset Account Operation is currently disabled.");
+/*          const auto& acnt = _db.get_account(op.account_to_reset);
             auto band = _db.find<account_bandwidth_object, by_account_bandwidth_type>(std::make_tuple(op.account_to_reset, bandwidth_type::old_forum));
             if (band != nullptr)
                 FC_ASSERT((_db.head_block_time() - band->last_bandwidth_update) > fc::days(60),
@@ -2245,11 +2241,9 @@ namespace golos { namespace chain {
 */
         }
 
-        void set_reset_account_evaluator::do_apply(const set_reset_account_operation &op) {
-            FC_ASSERT(false, "Set Reset Account Operation is currently disabled.");
-/*
-            database& _db = db();
-            const auto& acnt = _db.get_account(op.account);
+        void set_reset_account_evaluator::do_apply(const set_reset_account_operation& op) {
+            GOLOS_ASSERT(false, golos::unsupported_operation, "Set Reset Account Operation is currently disabled.");
+/*          const auto& acnt = _db.get_account(op.account);
             _db.get_account(op.reset_account);
 
             FC_ASSERT(acnt.reset_account == op.current_reset_account,

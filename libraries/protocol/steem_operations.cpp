@@ -598,25 +598,30 @@ namespace golos { namespace protocol {
         }
 
         void decline_voting_rights_operation::validate() const {
-            validate_account_name(account);
+            GOLOS_CHECK_PARAM_ACCOUNT(account);
         }
 
         void reset_account_operation::validate() const {
-            validate_account_name(reset_account);
-            validate_account_name(account_to_reset);
-            FC_ASSERT(!new_owner_authority.is_impossible(), "new owner authority cannot be impossible");
-            FC_ASSERT(new_owner_authority.weight_threshold, "new owner authority cannot be trivial");
-            new_owner_authority.validate();
+            // This op is disabled. Maybe just remove it completely?
+            GOLOS_CHECK_PARAM_ACCOUNT(reset_account);
+            GOLOS_CHECK_PARAM_ACCOUNT(account_to_reset);
+            GOLOS_CHECK_PARAM(new_owner_authority, {
+                GOLOS_CHECK_VALUE(!new_owner_authority.is_impossible(), "New owner authority cannot be impossible");
+                GOLOS_CHECK_VALUE(new_owner_authority.weight_threshold, "New owner authority cannot be trivial");
+                new_owner_authority.validate();
+            });
         }
 
         void set_reset_account_operation::validate() const {
-            validate_account_name(account);
+            // This op is disabled. Maybe just remove it completely?
+            GOLOS_CHECK_PARAM_ACCOUNT(account);
             if (current_reset_account.size()) {
-                validate_account_name(current_reset_account);
+                GOLOS_CHECK_PARAM_ACCOUNT(current_reset_account);
             }
-            validate_account_name(reset_account);
-            FC_ASSERT(current_reset_account !=
-                      reset_account, "new reset account cannot be current reset account");
+            GOLOS_CHECK_PARAM_ACCOUNT(reset_account);
+            GOLOS_CHECK_LOGIC(current_reset_account != reset_account,
+                logic_exception::cannot_set_same_reset_account,
+                "New reset account cannot be current reset account");
         }
 
         void delegate_vesting_shares_operation::validate() const {
