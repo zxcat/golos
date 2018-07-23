@@ -1950,7 +1950,9 @@ namespace golos { namespace chain {
 
         void report_over_production_evaluator::do_apply(const report_over_production_operation &o) {
             database &_db = db();
-            FC_ASSERT(!_db.has_hardfork(STEEMIT_HARDFORK_0_4), "report_over_production_operation is disabled.");
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_4)) {
+                FC_THROW_EXCEPTION(golos::unsupported_operation, "report_over_production_operation is disabled");
+            }
         }
 
         void challenge_authority_evaluator::do_apply(const challenge_authority_operation &o) {
