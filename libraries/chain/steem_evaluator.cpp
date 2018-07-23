@@ -2153,10 +2153,9 @@ namespace golos { namespace chain {
             }
         }
 
-        void transfer_to_savings_evaluator::do_apply(const transfer_to_savings_operation &op) {
-            database &_db = db();
-            const auto &from = _db.get_account(op.from);
-            const auto &to = _db.get_account(op.to);
+        void transfer_to_savings_evaluator::do_apply(const transfer_to_savings_operation& op) {
+            const auto& from = _db.get_account(op.from);
+            const auto& to = _db.get_account(op.to);
 
             GOLOS_CHECK_BALANCE(from, MAIN_BALANCE, op.amount);
 
@@ -2164,21 +2163,21 @@ namespace golos { namespace chain {
             _db.adjust_savings_balance(to, op.amount);
         }
 
-        void transfer_from_savings_evaluator::do_apply(const transfer_from_savings_operation &op) {
-            database &_db = db();
-            const auto &from = _db.get_account(op.from);
-            _db.get_account(op.to); // Verify to account exists
+        void transfer_from_savings_evaluator::do_apply(const transfer_from_savings_operation& op) {
+            const auto& from = _db.get_account(op.from);
+            _db.get_account(op.to); // Verify `to` account exists
 
-            GOLOS_CHECK_LOGIC(from.savings_withdraw_requests < STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT, 
-                    golos::logic_exception::reached_limit_for_pending_withdraw_requests,
-                    "Account has reached limit for pending withdraw requests.",
-                    ("limit",STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT));
+            GOLOS_CHECK_LOGIC(from.savings_withdraw_requests < STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT,
+                golos::logic_exception::reached_limit_for_pending_withdraw_requests,
+                "Account has reached limit for pending withdraw requests.",
+                ("limit",STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT));
 
             GOLOS_CHECK_BALANCE(from, SAVINGS, op.amount);
-
             _db.adjust_savings_balance(from, -op.amount);
 
-            _db.create<savings_withdraw_object>([&](savings_withdraw_object &s) {
+            GOLOS_CHECK_OBJECT_MISSING(_db, savings_withdraw, op.from, op.request_id);
+
+            _db.create<savings_withdraw_object>([&](savings_withdraw_object& s) {
                 s.from = op.from;
                 s.to = op.to;
                 s.amount = op.amount;
@@ -2186,11 +2185,9 @@ namespace golos { namespace chain {
                     from_string(s.memo, op.memo);
                 }
                 s.request_id = op.request_id;
-                s.complete =
-                        _db.head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME;
+                s.complete = _db.head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME;
             });
-
-            _db.modify(from, [&](account_object &a) {
+            _db.modify(from, [&](account_object& a) {
                 a.savings_withdraw_requests++;
             });
         }
