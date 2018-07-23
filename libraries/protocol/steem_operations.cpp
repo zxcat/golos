@@ -107,26 +107,22 @@ namespace golos { namespace protocol {
         };
 
         void comment_payout_beneficiaries::validate() const {
-            fc::safe<uint32_t> sum = 0;
+            fc::safe<uint32_t> sum = 0;  // avoid overflow
 
             GOLOS_CHECK_PARAM(beneficiaries, {
                 GOLOS_CHECK_VALUE(beneficiaries.size(), "Must specify at least one beneficiary");
                 GOLOS_CHECK_VALUE(beneficiaries.size() < 128,
                           "Cannot specify more than 127 beneficiaries."); // Require size serializtion fits in one byte.
 
-                try {
-                    for (auto beneficiar: beneficiaries) {
-                        validate_account_name(beneficiaries[0].account);
-                        GOLOS_CHECK_VALUE(beneficiar.weight <= STEEMIT_100_PERCENT,
-                                "Cannot allocate more than 100% of rewards to one account");
-                        sum += beneficiar.weight;
-                    }
-
-                    GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
-                            "Cannot allocate more than 100% of rewards to a comment");
-                } catch(const fc::overflow_exception& e) {
-                    GOLOS_CHECK_VALUE(false, "Cannot allocate more than 100% of rewards to a comment"); // Have to check incrementally to avoid overflow
+                for (auto beneficiar: beneficiaries) {
+                    validate_account_name(beneficiaries[0].account);
+                    GOLOS_CHECK_VALUE(beneficiar.weight <= STEEMIT_100_PERCENT,
+                            "Cannot allocate more than 100% of rewards to one account");
+                    sum += beneficiar.weight;
                 }
+
+                GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
+                        "Cannot allocate more than 100% of rewards to a comment");
 
                 for (size_t i = 1; i < beneficiaries.size(); i++) {
                     GOLOS_CHECK_VALUE(beneficiaries[i - 1] < beneficiaries[i],

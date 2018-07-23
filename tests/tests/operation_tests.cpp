@@ -6703,7 +6703,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.permlink = "test";
             op.allow_curation_rewards = false;
             op.extensions.insert(b);
-            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(logic_exception, logic_exception::cannot_specify_more_beneficiaries)));
 
@@ -6713,7 +6713,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             b.beneficiaries.push_back(beneficiary_route_type(account_name_type("dave"), STEEMIT_1_PERCENT));
             op.extensions.clear();
             op.extensions.insert(b);
-            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "account", "dave")));
 
@@ -6748,7 +6748,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             b.beneficiaries.push_back(beneficiary_route_type(account_name_type("sam"), 25 * STEEMIT_1_PERCENT));
             op.extensions.clear();
             op.extensions.insert(b);
-            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(logic_exception, logic_exception::comment_already_has_beneficiaries)));
         }
