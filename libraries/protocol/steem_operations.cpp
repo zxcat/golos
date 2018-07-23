@@ -614,11 +614,11 @@ namespace golos { namespace protocol {
         }
 
         void delegate_vesting_shares_operation::validate() const {
-            validate_account_name(delegator);
-            validate_account_name(delegatee);
-            FC_ASSERT(delegator != delegatee, "You cannot delegate GESTS to yourself");
-            FC_ASSERT(is_asset_type(vesting_shares, VESTS_SYMBOL), "Delegation must be GESTS");
-            FC_ASSERT(vesting_shares.amount >= 0, "Delegation cannot be negative");
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
+            GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
+                "You cannot delegate GESTS to yourself");
+            GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
         }
 
 } } // golos::protocol

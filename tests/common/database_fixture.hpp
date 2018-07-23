@@ -4,17 +4,14 @@
 #include <appbase/application.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/shared_authority.hpp>
-
 #include <golos/protocol/exceptions.hpp>
-
-#include <fc/io/json.hpp>
-#include <fc/smart_ref_impl.hpp>
-
 #include <golos/plugins/debug_node/plugin.hpp>
 #include <golos/plugins/account_history/plugin.hpp>
 #include <golos/plugins/social_network/social_network.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
+#include <fc/io/json.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 #include <iostream>
 
@@ -80,7 +77,7 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
          << req_throw_info << std::endl;                  \
 }
 
-#define GOLOS_CHECK_THROW_PROPS_IMPL( S, E, C, TL )                                                     \
+#define GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, TL)                                                       \
     try {                                                                                               \
         BOOST_TEST_PASSPOINT();                                                                         \
         S;                                                                                              \
@@ -98,10 +95,10 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
         try {                                                                                           \
             throw;                                                                                      \
         } catch (const fc::exception& ex) {                                                             \
-            BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected, "                      \
+            BOOST_##TL( "exception '" BOOST_STRINGIZE( E ) "' is expected, "                            \
                 "but '" << ex.name() << "' is caught");                                                 \
         } catch (...) {                                                                                 \
-            BOOST_##TL( "exception " BOOST_STRINGIZE( E ) " is expected, "                        \
+            BOOST_##TL( "exception " BOOST_STRINGIZE( E ) " is expected, "                              \
                 "but unknown is caught");                                                               \
         }                                                                                               \
     }                                                                                                   \
@@ -110,14 +107,14 @@ extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
 #define GOLOS_CHECK_THROW_PROPS(S, E, C)         GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, ERROR)
 #define GOLOS_REQUIRE_THROW_PROPS(S, E, C)       GOLOS_CHECK_THROW_PROPS_IMPL(S, E, C, FAIL)
 
-#define GOLOS_CHECK_NO_THROW_IMPL( S, TL )                                                              \
+#define GOLOS_CHECK_NO_THROW_IMPL(S, TL)                                                                \
     try {                                                                                               \
         BOOST_TEST_PASSPOINT();                                                                         \
         S;                                                                                              \
-    } catch( fc::exception const& ex ) {                                                                \
+    } catch(fc::exception const& ex) {                                                                  \
         BOOST_##TL("no exception expected, but '" << ex.name() << "' thrown: \n" <<                     \
             ex.to_detail_string());                                                                     \
-    } catch ( ... ) {                                                                                   \
+    } catch (...) {                                                                                     \
         BOOST_##TL("no exception expected, but unknown exception thrown");                              \
     }
 
@@ -130,11 +127,10 @@ struct ErrorValidator {};
 
 using ErrorValidateFunc = std::function<void(const std::string&, const fc::variant& props)>;
 
-#define CHECK_ERROR(exception, ...) [&](const std::string& name, const fc::variant& props) \
-    {\
-        ErrorValidator<exception> v; \
-        v.validate(name, props, __VA_ARGS__); \
-    }
+#define CHECK_ERROR(exception, ...) [&](const std::string& name, const fc::variant& props) {\
+    ErrorValidator<exception> v; \
+    v.validate(name, props, __VA_ARGS__); \
+}
 
 template<>
 struct ErrorValidator<golos::invalid_parameter> {
@@ -153,6 +149,13 @@ struct ErrorValidator<golos::insufficient_funds> {
         BOOST_CHECK_EQUAL(props["account"].get_string(), account);
         BOOST_CHECK_EQUAL(props["balance"].get_string(), balance);
         BOOST_CHECK_EQUAL(props["required"].get_string(), amount);
+    }
+    void validate(const std::string& name, const fc::variant& props,
+            const std::string& account, const std::string& balance, const golos::protocol::asset& amount) {
+        BOOST_CHECK_EQUAL(name, "insufficient_funds");
+        BOOST_CHECK_EQUAL(props["account"].get_string(), account);
+        BOOST_CHECK_EQUAL(props["balance"].get_string(), balance);
+        BOOST_CHECK_EQUAL(props["required"].get_string(), amount.to_string());
     }
 };
 
@@ -243,7 +246,7 @@ SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_owner_auth);
 SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_other_auth);
 
 
-#define GOLOS_CHECK_ERROR_PROPS_IMPL( S, C, TL ) \
+#define GOLOS_CHECK_ERROR_PROPS_IMPL(S, C, TL) \
     GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C(ex.name(), ex.get_log().at(0).get_data()), TL)
 
 #define GOLOS_WARN_ERROR_PROPS(S, C)          GOLOS_CHECK_ERROR_PROPS_IMPL(S, C, WARN)
@@ -602,7 +605,6 @@ namespace golos { namespace chain {
 
             plugin_type* _plg;
             fc::flat_set<golos::chain::account_name_type> _account_names;
-            //fc::flat_map<std::string, std::string> _added_accounts;
         };
 
         namespace test {
