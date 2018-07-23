@@ -175,8 +175,11 @@ struct remote_market_history {
  * Class is used by wallet to send formatted API calls to market_history plugin on remote node.
  */
 struct remote_private_message {
-    vector <message_api_object> get_inbox(const std::string& to, time_point newest, uint16_t limit, std::uint32_t offset) const;
-    vector <message_api_object> get_outbox(const std::string& from, time_point newest, uint16_t limit, std::uint32_t offset) const;
+    vector <message_api_object> get_inbox(const std::string& to, time_point newest, uint16_t limit, uint32_t offset) const;
+    vector <message_api_object> get_outbox(const std::string& from, time_point newest, uint16_t limit, uint32_t offset) const;
+    list_size_api_object get_list_size(const std::string& owner) const;
+    list_api_object get_list_info(const std::string& owner, const std::string& contact) const;
+    std::vector<list_api_object> get_list(const std::string& owner, private_list_type, uint16_t limit, uint32_t offset) const;
 };
 
 /**
@@ -324,6 +327,9 @@ FC_API( golos::wallet::remote_market_history,
 FC_API( golos::wallet::remote_private_message,
         (get_inbox)
         (get_outbox)
+        (get_list_size)
+        (get_list_info)
+        (get_list)
 )
 
 /**

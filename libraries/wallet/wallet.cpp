@@ -2517,7 +2517,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         vector<extended_message_object> wallet_api::get_inbox(
-            const std::string& to, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+            const std::string& to, const std::string& newest_str, uint16_t limit, std::uint32_t offset
         ) {
             FC_ASSERT(!is_locked());
             std::vector<extended_message_object> result;
@@ -2533,7 +2533,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         vector<extended_message_object> wallet_api::get_outbox(
-            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint32_t offset
         ) {
             FC_ASSERT(!is_locked());
             std::vector<extended_message_object> result;
@@ -2548,9 +2548,42 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return result;
         }
 
+        annotated_signed_transaction wallet_api::add_private_contact(
+            const std::string& owner, const std::string& contact, private_list_type type, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+
+            private_list_operation op;
+
+            op.owner = owner;
+            op.contact = contact;
+            op.type = type;
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(owner);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
+        vector<list_api_object> wallet_api::get_private_list(
+            const std::string& owner, private_list_type type, uint16_t limit, uint32_t offset
+        ) {
+            return my->_remote_private_message->get_list(owner, type, limit, offset);
+        }
+
         annotated_signed_transaction wallet_api::send_private_message(
             const std::string& from, const std::string& to, const message_body& message, bool broadcast
         ) {
+            FC_ASSERT(!is_locked());
+
             auto from_account  = get_account(from);
             auto to_account    = get_account(to);
             auto shared_secret = my->get_private_key(from_account.memo_key).get_shared_secret(to_account.memo_key);
