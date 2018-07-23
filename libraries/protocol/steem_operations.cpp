@@ -271,29 +271,32 @@ namespace golos { namespace protocol {
 
         void custom_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT(required_auths.size() >
-                      0, "at least on account must be specified");
+            GOLOS_CHECK_PARAM(required_auths, 
+                GOLOS_CHECK_VALUE(required_auths.size() > 0, "at least one account must be specified"));
         }
 
         void custom_json_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT((required_auths.size() + required_posting_auths.size()) >
-                      0, "at least on account must be specified");
-            FC_ASSERT(id.size() <= 32, "id is too long");
-            FC_ASSERT(fc::is_utf8(json), "JSON Metadata not formatted in UTF8");
-            FC_ASSERT(fc::json::is_valid(json), "JSON Metadata not valid JSON");
+            GOLOS_CHECK_PARAM(required_auths, 
+                GOLOS_CHECK_VALUE((required_auths.size() + required_posting_auths.size()) > 0, "at least on account must be specified"));
+            GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
+            GOLOS_CHECK_PARAM(json, {
+                GOLOS_CHECK_VALUE_UTF8(json);
+                GOLOS_CHECK_VALUE_JSON(json);
+            });
         }
 
         void custom_binary_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT((required_owner_auths.size() +
-                       required_active_auths.size() +
-                       required_posting_auths.size()) >
-                      0, "at least on account must be specified");
-            FC_ASSERT(id.size() <= 32, "id is too long");
-            for (const auto &a : required_auths) {
-                a.validate();
-            }
+            GOLOS_CHECK_PARAM(required_owner_auths,
+                GOLOS_CHECK_VALUE((required_owner_auths.size() + required_active_auths.size() + required_posting_auths.size()) > 0, 
+                    "at least one account must be specified"));
+            GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
+            GOLOS_CHECK_PARAM(required_auths, {
+                for (const auto &a : required_auths) {
+                    a.validate();
+                }
+            });
         }
 
 
@@ -463,20 +466,21 @@ namespace golos { namespace protocol {
         }
 
         void convert_operation::validate() const {
-            validate_account_name(owner);
+            GOLOS_CHECK_PARAM_ACCOUNT(owner);
             /// only allow conversion from GBG to GOLOS, allowing the opposite can enable traders to abuse
             /// market fluxuations through converting large quantities without moving the price.
-            FC_ASSERT(is_asset_type(amount, SBD_SYMBOL), "Can only convert GBG to GOLOS");
-            FC_ASSERT(amount.amount > 0, "Must convert some GBG");
+            GOLOS_CHECK_PARAM(amount, GOLOS_CHECK_ASSET_GT0(amount, GBG));
         }
 
         void report_over_production_operation::validate() const {
-            validate_account_name(reporter);
-            validate_account_name(first_block.witness);
-            FC_ASSERT(first_block.witness == second_block.witness);
-            FC_ASSERT(first_block.timestamp == second_block.timestamp);
-            FC_ASSERT(first_block.signee() == second_block.signee());
-            FC_ASSERT(first_block.id() != second_block.id());
+            GOLOS_CHECK_PARAM_ACCOUNT(reporter);
+            GOLOS_CHECK_PARAM_ACCOUNT(first_block.witness);
+            GOLOS_CHECK_PARAM(first_block, {
+                GOLOS_CHECK_VALUE(first_block.witness == second_block.witness, "Witness for first and second blocks must be equal");
+                GOLOS_CHECK_VALUE(first_block.timestamp == second_block.timestamp, "Timestamp for first and second blocks must be equal");
+                GOLOS_CHECK_VALUE(first_block.signee() == second_block.signee(), "Signee for first and second blocks must be equal");
+                GOLOS_CHECK_VALUE(first_block.id() != second_block.id(), "ID for first and second blocks must be different");
+            });
         }
 
         void escrow_transfer_operation::validate() const {
@@ -616,11 +620,11 @@ namespace golos { namespace protocol {
         }
 
         void delegate_vesting_shares_operation::validate() const {
-            validate_account_name(delegator);
-            validate_account_name(delegatee);
-            FC_ASSERT(delegator != delegatee, "You cannot delegate GESTS to yourself");
-            FC_ASSERT(is_asset_type(vesting_shares, VESTS_SYMBOL), "Delegation must be GESTS");
-            FC_ASSERT(vesting_shares.amount >= 0, "Delegation cannot be negative");
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
+            GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
+                "You cannot delegate GESTS to yourself");
+            GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
         }
 
 } } // golos::protocol
