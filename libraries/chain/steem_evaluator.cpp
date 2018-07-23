@@ -1626,7 +1626,7 @@ namespace golos { namespace chain {
             }
             catch (const fc::exception &e) {
                 if (d.is_producing()) {
-                    throw e;
+                    throw;
                 }
             }
             catch (...) {
@@ -1637,7 +1637,6 @@ namespace golos { namespace chain {
 
         void custom_binary_evaluator::do_apply(const custom_binary_operation &o) {
             database &d = db();
-            FC_ASSERT(d.has_hardfork(STEEMIT_HARDFORK_0_14__317));
 
             std::shared_ptr<custom_operation_interpreter> eval = d.get_custom_json_evaluator(o.id);
             if (!eval) {
@@ -1649,7 +1648,7 @@ namespace golos { namespace chain {
             }
             catch (const fc::exception &e) {
                 if (d.is_producing()) {
-                    throw e;
+                    throw;
                 }
             }
             catch (...) {

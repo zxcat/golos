@@ -2382,77 +2382,67 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         custom_operation op;
         op.required_auths.insert("alice");
         op.required_auths.insert("bob");
-
-        flat_set<account_name_type> auths;
-        flat_set<account_name_type> expected;
-
-        op.get_required_owner_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
-
-        op.get_required_posting_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
-
-        expected.insert("alice");
-        expected.insert("bob");
-        op.get_required_active_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice","bob"}), account_name_set());
     }
 
     BOOST_AUTO_TEST_CASE(custom_json_authorities) {
         custom_json_operation op;
         op.required_auths.insert("alice");
         op.required_posting_auths.insert("bob");
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice"}), account_name_set({"bob"}));
+    }
 
-        flat_set<account_name_type> auths;
-        flat_set<account_name_type> expected;
+    BOOST_AUTO_TEST_CASE(custom_json_validate) {
+        custom_json_operation op;
 
-        op.get_required_owner_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
+        GOLOS_CHECK_ERROR_PROPS(op.validate(),
+            CHECK_ERROR(invalid_parameter, "required_auths"));
 
-        expected.insert("alice");
-        op.get_required_active_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
+        op.required_auths.insert("alice");
+        op.id = "id";
+        op.json = "{}";
+        CHECK_OP_VALID(op);
 
-        auths.clear();
-        expected.clear();
-        expected.insert("bob");
-        op.get_required_posting_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
+        CHECK_PARAM_INVALID(op, id, std::string(33, 's'));
+        CHECK_PARAM_INVALID(op, json, "{]");
     }
 
     BOOST_AUTO_TEST_CASE(custom_binary_authorities) {
         ACTORS((alice))
 
+        auto alice_authority = db->get<account_authority_object, by_account>("alice").posting;
+
         custom_binary_operation op;
         op.required_owner_auths.insert("alice");
         op.required_active_auths.insert("bob");
         op.required_posting_auths.insert("sam");
-        op.required_auths.push_back(db->get<account_authority_object, by_account>("alice").posting);
+        op.required_auths.push_back(alice_authority);
 
-        flat_set<account_name_type> acc_auths;
-        flat_set<account_name_type> acc_expected;
+        CHECK_OP_AUTHS(op, account_name_set({"alice"}), account_name_set({"bob"}), account_name_set({"sam"}));
+
+        vector<authority> expected = {alice_authority};
         vector<authority> auths;
-        vector<authority> expected;
-
-        acc_expected.insert("alice");
-        op.get_required_owner_authorities(acc_auths);
-        BOOST_REQUIRE(acc_auths == acc_expected);
-
-        acc_auths.clear();
-        acc_expected.clear();
-        acc_expected.insert("bob");
-        op.get_required_active_authorities(acc_auths);
-        BOOST_REQUIRE(acc_auths == acc_expected);
-
-        acc_auths.clear();
-        acc_expected.clear();
-        acc_expected.insert("sam");
-        op.get_required_posting_authorities(acc_auths);
-        BOOST_REQUIRE(acc_auths == acc_expected);
-
-        expected.push_back(db->get<account_authority_object, by_account>("alice").posting);
         op.get_required_authorities(auths);
-        BOOST_REQUIRE(auths == expected);
+        BOOST_CHECK_EQUAL(auths, expected);
+    }
+
+    BOOST_AUTO_TEST_CASE(custom_binary_validate) {
+        custom_binary_operation op;
+
+        GOLOS_CHECK_ERROR_PROPS(op.validate(),
+            CHECK_ERROR(invalid_parameter, "required_owner_auths"));
+
+        op.required_active_auths.insert("alice");
+        op.id = "id";
+        CHECK_OP_VALID(op);
+
+        CHECK_PARAM_INVALID(op, id, std::string(33, 's'));
+        
+        authority auth;
+        auth.add_authority("a", 1);
+        op.required_auths.push_back(auth);
+        GOLOS_CHECK_ERROR_PROPS(op.validate(),
+            CHECK_ERROR(invalid_parameter, "required_auths"));
     }
 
     BOOST_AUTO_TEST_CASE(feed_publish_validate) {

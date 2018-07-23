@@ -346,6 +346,17 @@ std::ostream& operator<<(std::ostream& out, const std::pair<T1,T2>& v) {
     return out;
 }
 
+template<typename T>
+std::ostream& operator<<(std::ostream& out, const std::vector<T> &vec) {
+    out << "(";
+    if (!vec.empty()) {
+        std::for_each(vec.begin(), vec.end()-1, [&](const T& v) {out << v << ",";});
+        out << *vec.rbegin();
+    }
+    out << ")";
+    return out;
+}
+
 } // std
 
 
