@@ -1889,21 +1889,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             const witness_object& w = db->get_witness("alice");
-            BOOST_CHECK(w.owner == "alice");
-            BOOST_CHECK(w.created == db->head_block_time());
-            BOOST_CHECK(to_string(w.url) == op.url);
-            BOOST_CHECK(w.signing_key == op.block_signing_key);
-            BOOST_CHECK(w.props.account_creation_fee == op.props.account_creation_fee);
-            BOOST_CHECK(w.props.maximum_block_size == op.props.maximum_block_size);
-            BOOST_CHECK(w.total_missed == 0);
-            BOOST_CHECK(w.last_aslot == 0);
-            BOOST_CHECK(w.last_confirmed_block_num == 0);
-            BOOST_CHECK(w.pow_worker == 0);
-            BOOST_CHECK(w.votes.value == 0);
-            BOOST_CHECK(w.virtual_last_update == 0);
-            BOOST_CHECK(w.virtual_position == 0);
-            BOOST_CHECK(w.virtual_scheduled_time == fc::uint128_t::max_value());
-            BOOST_CHECK(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value); // No fee
+            BOOST_CHECK_EQUAL(w.owner, "alice");
+            BOOST_CHECK_EQUAL(w.created, db->head_block_time());
+            BOOST_CHECK_EQUAL(to_string(w.url), op.url);
+            BOOST_CHECK_EQUAL(w.signing_key, op.block_signing_key);
+            BOOST_CHECK_EQUAL(w.props.account_creation_fee, op.props.account_creation_fee);
+            BOOST_CHECK_EQUAL(w.props.maximum_block_size, op.props.maximum_block_size);
+            BOOST_CHECK_EQUAL(w.total_missed, 0);
+            BOOST_CHECK_EQUAL(w.last_aslot, 0);
+            BOOST_CHECK_EQUAL(w.last_confirmed_block_num, 0);
+            BOOST_CHECK_EQUAL(w.pow_worker, 0);
+            BOOST_CHECK_EQUAL(w.votes.value, 0);
+            BOOST_CHECK_EQUAL(w.virtual_last_update, 0);
+            BOOST_CHECK_EQUAL(w.virtual_position, 0);
+            BOOST_CHECK_EQUAL(w.virtual_scheduled_time, fc::uint128_t::max_value());
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("10.000 GOLOS").amount.value); // No fee
             validate_database();
 
             BOOST_TEST_MESSAGE("--- Test updating a witness");
@@ -1913,21 +1913,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(alice_private_key, db->get_chain_id());
             BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_CHECK(w.owner == "alice");
-            BOOST_CHECK(w.created == db->head_block_time());
-            BOOST_CHECK(to_string(w.url) == "bar.foo");
-            BOOST_CHECK(w.signing_key == op.block_signing_key);
-            BOOST_CHECK(w.props.account_creation_fee == op.props.account_creation_fee);
-            BOOST_CHECK(w.props.maximum_block_size == op.props.maximum_block_size);
-            BOOST_CHECK(w.total_missed == 0);
-            BOOST_CHECK(w.last_aslot == 0);
-            BOOST_CHECK(w.last_confirmed_block_num == 0);
-            BOOST_CHECK(w.pow_worker == 0);
-            BOOST_CHECK(w.votes.value == 0);
-            BOOST_CHECK(w.virtual_last_update == 0);
-            BOOST_CHECK(w.virtual_position == 0);
-            BOOST_CHECK(w.virtual_scheduled_time == fc::uint128_t::max_value());
-            BOOST_CHECK(alice.balance.amount.value == ASSET("10.000 GOLOS").amount.value);
+            BOOST_CHECK_EQUAL(w.owner, "alice");
+            BOOST_CHECK_EQUAL(w.created, db->head_block_time());
+            BOOST_CHECK_EQUAL(to_string(w.url), "bar.foo");
+            BOOST_CHECK_EQUAL(w.signing_key, op.block_signing_key);
+            BOOST_CHECK_EQUAL(w.props.account_creation_fee, op.props.account_creation_fee);
+            BOOST_CHECK_EQUAL(w.props.maximum_block_size, op.props.maximum_block_size);
+            BOOST_CHECK_EQUAL(w.total_missed, 0);
+            BOOST_CHECK_EQUAL(w.last_aslot, 0);
+            BOOST_CHECK_EQUAL(w.last_confirmed_block_num, 0);
+            BOOST_CHECK_EQUAL(w.pow_worker, 0);
+            BOOST_CHECK_EQUAL(w.votes.value, 0);
+            BOOST_CHECK_EQUAL(w.virtual_last_update, 0);
+            BOOST_CHECK_EQUAL(w.virtual_position, 0);
+            BOOST_CHECK_EQUAL(w.virtual_scheduled_time, fc::uint128_t::max_value());
+            BOOST_CHECK_EQUAL(alice.balance.amount.value, ASSET("10.000 GOLOS").amount.value);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -6861,22 +6861,22 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             const account_object& bob_acc = db->get_account("bob");
             const account_object& alice_acc = db->get_account("alice");
-            BOOST_CHECK(alice_acc.delegated_vesting_shares == ASSET_GESTS(1e7));
-            BOOST_CHECK(bob_acc.received_vesting_shares == ASSET_GESTS(1e7));
-            BOOST_CHECK(bob_acc.available_vesting_shares(true) ==
+            BOOST_CHECK_EQUAL(alice_acc.delegated_vesting_shares, ASSET_GESTS(1e7));
+            BOOST_CHECK_EQUAL(bob_acc.received_vesting_shares, ASSET_GESTS(1e7));
+            BOOST_CHECK_EQUAL(bob_acc.available_vesting_shares(true),
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares);
-            BOOST_CHECK(bob_acc.available_vesting_shares() ==
+            BOOST_CHECK_EQUAL(bob_acc.available_vesting_shares(),
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares);
-            BOOST_CHECK(bob_acc.effective_vesting_shares() ==
+            BOOST_CHECK_EQUAL(bob_acc.effective_vesting_shares(),
                 bob_acc.vesting_shares - bob_acc.delegated_vesting_shares + bob_acc.received_vesting_shares);
 
             BOOST_TEST_MESSAGE("--- Test delegation object integrity");
             auto delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.creator, op.new_account_name));
             BOOST_CHECK(delegation != nullptr);
-            BOOST_CHECK(delegation->delegator == op.creator);
-            BOOST_CHECK(delegation->delegatee == op.new_account_name);
-            BOOST_CHECK(delegation->vesting_shares == ASSET_GESTS(1e7));
-            BOOST_CHECK(delegation->min_delegation_time == db->head_block_time() + GOLOS_CREATE_ACCOUNT_DELEGATION_TIME);
+            BOOST_CHECK_EQUAL(delegation->delegator, op.creator);
+            BOOST_CHECK_EQUAL(delegation->delegatee, op.new_account_name);
+            BOOST_CHECK_EQUAL(delegation->vesting_shares, ASSET_GESTS(1e7));
+            BOOST_CHECK_EQUAL(delegation->min_delegation_time, db->head_block_time() + GOLOS_CREATE_ACCOUNT_DELEGATION_TIME);
 
             auto delegated = delegation->vesting_shares;
             auto exp_time = delegation->min_delegation_time;
@@ -6933,9 +6933,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             auto itr = db->get_index<vesting_delegation_expiration_index, by_id>().begin();
             auto end = db->get_index<vesting_delegation_expiration_index, by_id>().end();
             BOOST_CHECK(itr != end);
-            BOOST_CHECK(itr->delegator == "alice");
-            BOOST_CHECK(itr->vesting_shares == delegated);
-            BOOST_CHECK(itr->expiration == exp_time);
+            BOOST_CHECK_EQUAL(itr->delegator, "alice");
+            BOOST_CHECK_EQUAL(itr->vesting_shares, delegated);
+            BOOST_CHECK_EQUAL(itr->expiration, exp_time);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -7218,21 +7218,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto alice_acc = db->get_account("alice");
             auto meta = db->get<account_metadata_object, by_account>("alice");
-            BOOST_CHECK(meta.account == "alice");
-            BOOST_CHECK(meta.json_metadata == json);
-            BOOST_CHECK(alice_acc.last_account_update == now);
+            BOOST_CHECK_EQUAL(meta.account, "alice");
+            BOOST_CHECK_EQUAL(meta.json_metadata, json);
+            BOOST_CHECK_EQUAL(alice_acc.last_account_update, now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_CHECK(alice_api.json_metadata == json);
+            BOOST_CHECK_EQUAL(alice_api.json_metadata, json);
 
             BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create");
             // bob is created before all metadata storing settings
             // therefore it should have account_metadata_object
             ACTOR(bob);                                             // create_account with json_metadata = ""
             meta = db->get<account_metadata_object, by_account>("bob"); // just checks presence, throws on fail
-            BOOST_CHECK(meta.account == "bob");
-            BOOST_CHECK(meta.json_metadata == "");
+            BOOST_CHECK_EQUAL(meta.account, "bob");
+            BOOST_CHECK_EQUAL(meta.json_metadata, "");
 
             BOOST_TEST_MESSAGE("--- Test existance of account_metadata_object after account_create_with_delegation");
             generate_blocks(1);
@@ -7249,8 +7249,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             push_tx_with_ops(tx, bob_private_key, cr);
 
             meta = db->get<account_metadata_object, by_account>("sam");
-            BOOST_CHECK(meta.account == "sam");
-            BOOST_CHECK(meta.json_metadata == "");
+            BOOST_CHECK_EQUAL(meta.account, "sam");
+            BOOST_CHECK_EQUAL(meta.json_metadata, "");
             validate_database();
         }
         FC_LOG_AND_RETHROW()
@@ -7283,11 +7283,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             auto alice_acc = db->get_account("alice");
             auto meta = db->find<account_metadata_object, by_account>("alice");
             BOOST_CHECK(meta == nullptr);
-            BOOST_CHECK(alice_acc.last_account_update == now);
+            BOOST_CHECK_EQUAL(alice_acc.last_account_update, now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_CHECK(alice_api.json_metadata == "");
+            BOOST_CHECK_EQUAL(alice_api.json_metadata, "");
 
             ACTOR(bob);                                             // create_account with json_metadata = ""
 
@@ -7338,11 +7338,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             auto alice_acc = db->get_account("alice");
             auto meta = db->find<account_metadata_object, by_account>("alice");
             BOOST_CHECK(meta == nullptr);
-            BOOST_CHECK(alice_acc.last_account_update == now);
+            BOOST_CHECK_EQUAL(alice_acc.last_account_update, now);
 
             BOOST_TEST_MESSAGE("----- Test API");
             account_api_object alice_api(alice_acc, *db);
-            BOOST_CHECK(alice_api.json_metadata == "");
+            BOOST_CHECK_EQUAL(alice_api.json_metadata, "");
 
             ACTOR(bob);                                             // create_account with json_metadata = ""
 

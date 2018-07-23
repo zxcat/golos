@@ -164,8 +164,8 @@ namespace golos { namespace chain {
             const account_object *find_account(const account_name_type &name) const;
 
             const proposal_object& get_proposal(const account_name_type&, const std::string&) const;
-
             const proposal_object* find_proposal(const account_name_type&, const std::string&) const;
+            void        throw_if_exists_proposal(const account_name_type&, const std::string&) const;
 
             const comment_object &get_comment(const account_name_type &author, const shared_string &permlink) const;
 

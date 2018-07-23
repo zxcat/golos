@@ -21,6 +21,18 @@ namespace golos { namespace chain {
         return find<proposal_object, by_account>(std::make_tuple(author, title));
     }
 
+// Yet another temporary PoC
+// TODO: This can be generalized to generate all 3: get_, find_ and throw_if_exists_
+// methods with variable number of params (like DEFINE_/DECLARE_API + PLUGIN_API_VALIDATE_ARGS)
+#define DB_DEFINE_THROW_IF_EXIST(O, T1, N1, T2, N2) \
+    void database::throw_if_exists_##O(T1 N1, T2 N2) const { \
+        if (nullptr != find_##O(N1, N2)) { \
+            GOLOS_THROW_OBJECT_ALREADY_EXIST(#O, fc::mutable_variant_object()(#N1,N1)(#N2,N2)); \
+        } \
+    }
+
+    DB_DEFINE_THROW_IF_EXIST(proposal, const account_name_type&, author, const std::string&, title);
+
     void database::push_proposal(const proposal_object& proposal) { try {
         auto ops = proposal.operations();
         auto session = start_undo_session();
