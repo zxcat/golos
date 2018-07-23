@@ -171,8 +171,13 @@ namespace golos { namespace plugins { namespace private_message {
             return;
         }
 
+        auto& idx = d.get_index<list_index>().indices().get<by_contact>();
+        auto gitr = idx.find(std::make_tuple(pm.to, pm.from));
+
         GOLOS_CHECK_OP_PARAM(pm, to, {
-            GOLOS_CHECK_VALUE(d.find_account(pm.to) != nullptr, "Account doesn't exist");
+            d.get_account(pm.to);
+            // TODO: fix exception type
+            GOLOS_CHECK_VALUE(gitr == idx.end() || gitr->type != ignored, "Sender is in ignored list of receiver");
         });
 
         d.create<message_object>([&](message_object& pmo) {
@@ -192,7 +197,6 @@ namespace golos { namespace plugins { namespace private_message {
 
         // Ok, now update contact lists and counters in them
 
-        auto& idx = d.get_index<list_index>().indices().get<by_contact>();
         auto& sidx = d.get_index<list_size_index>().indices().get<by_owner>();
 
         // Increment counters depends on side of communication
