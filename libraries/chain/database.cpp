@@ -717,10 +717,10 @@ namespace golos { namespace chain {
             }
         }
 
-        const savings_withdraw_object &database::get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const {
+        const savings_withdraw_object& database::get_savings_withdraw(const account_name_type& owner, uint32_t request_id) const {
             try {
                 return get<savings_withdraw_object, by_from_rid>(boost::make_tuple(owner, request_id));
-            } catch(const std::out_of_range &e) {
+            } catch(const std::out_of_range& e) {
                 GOLOS_THROW_MISSING_OBJECT("savings_withdraw", fc::mutable_variant_object()("account",owner)("request_id", request_id));
             } FC_CAPTURE_AND_RETHROW((owner)(request_id))
         }

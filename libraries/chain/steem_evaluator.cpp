@@ -2198,14 +2198,13 @@ namespace golos { namespace chain {
             });
         }
 
-        void cancel_transfer_from_savings_evaluator::do_apply(const cancel_transfer_from_savings_operation &op) {
-            database &_db = db();
-            const auto &swo = _db.get_savings_withdraw(op.from, op.request_id);
-            _db.adjust_savings_balance(_db.get_account(swo.from), swo.amount);
+        void cancel_transfer_from_savings_evaluator::do_apply(const cancel_transfer_from_savings_operation& op) {
+            const auto& name = op.from;
+            const auto& from = _db.get_account(name);
+            const auto& swo = _db.get_savings_withdraw(name, op.request_id);
+            _db.adjust_savings_balance(from, swo.amount);
             _db.remove(swo);
-
-            const auto &from = _db.get_account(op.from);
-            _db.modify(from, [&](account_object &a) {
+            _db.modify(from, [&](account_object& a) {
                 a.savings_withdraw_requests--;
             });
         }
