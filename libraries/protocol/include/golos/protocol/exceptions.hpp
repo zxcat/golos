@@ -204,6 +204,9 @@ namespace golos {
             // withdraw_vesting
             insufficient_fee_for_powerdown_registered_account,
             operation_would_not_change_vesting_withdraw_rate,
+            cannot_create_zero_percent_destination,
+            reached_maxumum_number_of_routes,
+            more_100percent_allocated_to_destinations,
 
             //account_create_with_delegation
             not_enough_delegation,
@@ -378,6 +381,9 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
+        (cannot_create_zero_percent_destination)
+        (reached_maxumum_number_of_routes)
+        (more_100percent_allocated_to_destinations)
 
         //set_reset_account_operation
         (cannot_set_same_reset_account)

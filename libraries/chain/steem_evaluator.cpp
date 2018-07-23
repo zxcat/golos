@@ -1017,10 +1017,13 @@ namespace golos { namespace chain {
                 auto itr = wd_idx.find(boost::make_tuple(from_account.id, to_account.id));
 
                 if (itr == wd_idx.end()) {
-                    FC_ASSERT(
-                            o.percent != 0, "Cannot create a 0% destination.");
-                    FC_ASSERT(from_account.withdraw_routes <
-                              STEEMIT_MAX_WITHDRAW_ROUTES, "Account already has the maximum number of routes.");
+                    GOLOS_CHECK_LOGIC(o.percent != 0,
+                            logic_exception::cannot_create_zero_percent_destination,
+                            "Cannot create a 0% destination.");
+                    GOLOS_CHECK_LOGIC(from_account.withdraw_routes < STEEMIT_MAX_WITHDRAW_ROUTES, 
+                            logic_exception::reached_maxumum_number_of_routes,
+                            "Account already has the maximum number of routes (${max}).",
+                            ("max",STEEMIT_MAX_WITHDRAW_ROUTES));
 
                     _db.create<withdraw_vesting_route_object>([&](withdraw_vesting_route_object &wvdo) {
                         wvdo.from_account = from_account.id;
@@ -1048,7 +1051,7 @@ namespace golos { namespace chain {
                 }
 
                 itr = wd_idx.upper_bound(boost::make_tuple(from_account.id, account_id_type()));
-                uint16_t total_percent = 0;
+                fc::safe<uint32_t> total_percent = 0;
 
                 while (itr->from_account == from_account.id &&
                        itr != wd_idx.end()) {
@@ -1056,8 +1059,9 @@ namespace golos { namespace chain {
                     ++itr;
                 }
 
-                FC_ASSERT(total_percent <=
-                          STEEMIT_100_PERCENT, "More than 100% of vesting withdrawals allocated to destinations.");
+                GOLOS_CHECK_LOGIC(total_percent <= STEEMIT_100_PERCENT, 
+                        logic_exception::more_100percent_allocated_to_destinations,
+                        "More than 100% of vesting withdrawals allocated to destinations.");
             }
             FC_CAPTURE_AND_RETHROW()
         }
