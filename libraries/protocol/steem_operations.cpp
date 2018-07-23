@@ -594,7 +594,7 @@ namespace golos { namespace protocol {
         }
 
         void cancel_transfer_from_savings_operation::validate() const {
-            validate_account_name(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
         }
 
         void decline_voting_rights_operation::validate() const {

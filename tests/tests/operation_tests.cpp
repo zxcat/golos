@@ -6329,20 +6329,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(cancel_transfer_from_savings_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: cancel_transfer_from_savings_validate");
-
             cancel_transfer_from_savings_operation op;
             op.from = "alice";
             op.request_id = 0;
+            BOOST_TEST_MESSAGE("--- sucess on valid params");
+            CHECK_OP_VALID(op);
+            BOOST_TEST_MESSAGE("--- failure when 'from' is invalid");
+            CHECK_PARAM_INVALID(op, from, "");
 
-
-            BOOST_TEST_MESSAGE("--- failure when 'from' is empty");
-            op.from = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
-
-            BOOST_TEST_MESSAGE("--- sucess when 'from' is not empty");
-            op.from = "alice";
-            op.validate();
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6350,29 +6344,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(cancel_transfer_from_savings_authorities) {
         try {
             BOOST_TEST_MESSAGE("Testing: cancel_transfer_from_savings_authorities");
-
             cancel_transfer_from_savings_operation op;
             op.from = "alice";
-
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_active_authorities(auths);
-            expected.insert("alice");
-            BOOST_REQUIRE(auths == expected);
-
-            auths.clear();
-            expected.clear();
-            op.from = "bob";
-            op.get_required_active_authorities(auths);
-            expected.insert("bob");
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice"}), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6398,46 +6372,34 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             withdraw.amount = ASSET("3.000 GOLOS");
 
             signed_transaction tx;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(save);
-            tx.operations.push_back(withdraw);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, save, withdraw));
             validate_database();
-
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 1);
-            BOOST_REQUIRE(db->get_account("bob").savings_withdraw_requests == 0);
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 1);
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_withdraw_requests, 0);
 
             BOOST_TEST_MESSAGE("--- Failure when there is no pending request");
             cancel_transfer_from_savings_operation op;
             op.from = "alice";
             op.request_id = 0;
 
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "savings_withdraw",
+                        fc::mutable_variant_object()("account","alice")("request_id",op.request_id))));
             validate_database();
-
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 1);
-            BOOST_REQUIRE(db->get_account("bob").savings_withdraw_requests == 0);
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 1);
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_withdraw_requests, 0);
 
             BOOST_TEST_MESSAGE("--- Success");
             op.request_id = 1;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_balance == ASSET("10.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("alice").savings_withdraw_requests == 0);
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").savings_balance == ASSET("0.000 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").savings_withdraw_requests == 0);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("10.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 0);
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_balance, ASSET("0.000 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").savings_withdraw_requests, 0);
             validate_database();
         }
         FC_LOG_AND_RETHROW()
