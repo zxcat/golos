@@ -27,6 +27,9 @@
 // utf-8
 #define GOLOS_CHECK_VALUE_UTF8(F) \
     GOLOS_CHECK_VALUE(fc::is_utf8(F), MUST_BE(F, "valid UTF8 string"));
+// JSON
+#define GOLOS_CHECK_VALUE_JSON(F) \
+    GOLOS_CHECK_VALUE(fc::json::is_valid(json), MUST_BE(F, "valid JSON"))
 
 
 // compare field with value

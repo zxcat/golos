@@ -1,4 +1,5 @@
 #include <golos/protocol/authority.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 namespace golos {
     namespace protocol {
@@ -43,7 +44,7 @@ namespace golos {
 
         void authority::validate() const {
             for (const auto &item : account_auths) {
-                FC_ASSERT(is_valid_account_name(item.first));
+                GOLOS_CHECK_VALUE(is_valid_account_name(item.first), "Account name \"${account}\" is invalid", ("account",item.first));
             }
         }
 

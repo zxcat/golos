@@ -269,29 +269,32 @@ namespace golos { namespace protocol {
 
         void custom_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT(required_auths.size() >
-                      0, "at least on account must be specified");
+            GOLOS_CHECK_PARAM(required_auths, 
+                GOLOS_CHECK_VALUE(required_auths.size() > 0, "at least one account must be specified"));
         }
 
         void custom_json_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT((required_auths.size() + required_posting_auths.size()) >
-                      0, "at least on account must be specified");
-            FC_ASSERT(id.size() <= 32, "id is too long");
-            FC_ASSERT(fc::is_utf8(json), "JSON Metadata not formatted in UTF8");
-            FC_ASSERT(fc::json::is_valid(json), "JSON Metadata not valid JSON");
+            GOLOS_CHECK_PARAM(required_auths, 
+                GOLOS_CHECK_VALUE((required_auths.size() + required_posting_auths.size()) > 0, "at least on account must be specified"));
+            GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
+            GOLOS_CHECK_PARAM(json, {
+                GOLOS_CHECK_VALUE_UTF8(json);
+                GOLOS_CHECK_VALUE_JSON(json);
+            });
         }
 
         void custom_binary_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            FC_ASSERT((required_owner_auths.size() +
-                       required_active_auths.size() +
-                       required_posting_auths.size()) >
-                      0, "at least on account must be specified");
-            FC_ASSERT(id.size() <= 32, "id is too long");
-            for (const auto &a : required_auths) {
-                a.validate();
-            }
+            GOLOS_CHECK_PARAM(required_owner_auths,
+                GOLOS_CHECK_VALUE((required_owner_auths.size() + required_active_auths.size() + required_posting_auths.size()) > 0, 
+                    "at least one account must be specified"));
+            GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
+            GOLOS_CHECK_PARAM(required_auths, {
+                for (const auto &a : required_auths) {
+                    a.validate();
+                }
+            });
         }
 
 
