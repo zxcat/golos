@@ -45,6 +45,8 @@ namespace golos { namespace plugins { namespace private_message {
         std::vector<message_api_object> get_outbox(
             const std::string& from, time_point newest, uint16_t limit, std::uint32_t offset) const;
 
+        list_api_object get_list_item(const list_object& o) const;
+
         list_api_object get_list_info(const std::string& owner, const std::string& contact) const;
 
         list_size_api_object get_list_size(const std::string& owner) const;
@@ -101,6 +103,19 @@ namespace golos { namespace plugins { namespace private_message {
         return result;
     }
 
+    list_api_object private_message_plugin::private_message_plugin_impl::get_list_item(const list_object& o) const {
+        list_api_object result(o);
+
+        const auto& idx = db_.get_index<list_index>().indices().get<by_contact>();
+        auto ritr = idx.find(std::make_tuple(o.contact, o.owner));
+
+        if (idx.end() != ritr) {
+            result.remote_type = ritr->type;
+        }
+
+        return result;
+    }
+
     list_api_object private_message_plugin::private_message_plugin_impl::get_list_info(
         const std::string& owner, const std::string& contact
     ) const {
@@ -108,12 +123,7 @@ namespace golos { namespace plugins { namespace private_message {
         auto itr = idx.find(std::make_tuple(owner, contact));
 
         if (itr != idx.end()) {
-            list_api_object result(*itr);
-            auto ritr = idx.find(std::make_tuple(contact, owner));
-            if (idx.end() != ritr) {
-                result.contact_type = ritr->type;
-            }
-            return result;
+            return get_list_item(*itr);
         }
         return list_api_object();
     }
@@ -147,19 +157,13 @@ namespace golos { namespace plugins { namespace private_message {
         result.reserve(limit);
 
         const auto& idx = db_.get_index<list_index>().indices().get<by_owner>();
-        const auto& ridx = db_.get_index<list_index>().indices().get<by_contact>();
         auto itr = idx.lower_bound(std::make_tuple(owner, type));
         auto etr = idx.upper_bound(std::make_tuple(owner, type));
 
         for (; itr != etr && offset; ++itr, --offset);
 
         for (; itr != etr; ++itr) {
-            result.emplace_back(*itr);
-
-            auto ritr = ridx.find(std::make_tuple(itr->contact, itr->owner));
-            if (ritr != ridx.end()) {
-                result.back().contact_type = ritr->type;
-            }
+            result.push_back(get_list_item(*itr));
         }
         return result;
     }
@@ -277,51 +281,50 @@ namespace golos { namespace plugins { namespace private_message {
         auto ditr = sidx.find(std::make_tuple(pl.owner, pl.type));
 
         if (idx.end() != itr) {
-            GOLOS_CHECK_OP_PARAM(pl, type, {
-                GOLOS_CHECK_VALUE(pl.type != itr->type, "Contact already has requested type");
-            });
-
             auto sitr = sidx.find(std::make_tuple(pl.owner, itr->type));
+            if (itr->type != pl.type) {
+                // last contact
+                if (sitr->info.total_contacts == 1) {
+                    d.remove(*sitr);
+                } else {
+                    d.modify(*sitr, [&](list_size_object& src) {
+                        src.info.total_contacts--;
+                        src.info.total_send_messages -= itr->total_send_messages;
+                        src.info.unread_send_messages -= itr->unread_send_messages;
+                        src.info.total_recv_messages -= itr->total_recv_messages;
+                        src.info.unread_recv_messages -= itr->unread_recv_messages;
+                    });
+                }
 
-            d.modify(*sitr, [&](list_size_object& src) {
-                src.info.total_contacts--;
-                src.info.total_send_messages -= itr->total_send_messages;
-                src.info.unread_send_messages -= itr->unread_send_messages;
-                src.info.total_recv_messages -= itr->total_recv_messages;
-                src.info.unread_recv_messages -= itr->unread_recv_messages;
-            });
+                // has messages or type is not undefined
+                if (itr->total_send_messages || itr->total_recv_messages || pl.type != undefined) {
+                    auto modify_counters = [&](list_size_object& dst) {
+                        dst.info.total_contacts++;
+                        dst.info.total_send_messages += itr->total_send_messages;
+                        dst.info.unread_send_messages += itr->unread_send_messages;
+                        dst.info.total_recv_messages += itr->total_recv_messages;
+                        dst.info.unread_recv_messages += itr->unread_recv_messages;
+                    };
 
-            // if contact is undefined and no messages then remove statistic about it
-            if (!sitr->info.total_contacts ||
-                (sitr->type == undefined && !sitr->info.total_send_messages && !sitr->info.total_recv_messages)
-            ) {
-                d.remove(*sitr);
+                    if (sidx.end() == ditr) {
+                        d.create<list_size_object>([&](list_size_object& dst) {
+                            dst.owner = pl.owner;
+                            dst.type = pl.type;
+                            modify_counters(dst);
+                        });
+                    } else {
+                        d.modify(*ditr, modify_counters);
+                    }
+                }
             }
 
-            auto modify_counters = [&](list_size_object& dst) {
-                dst.info.total_contacts++;
-                dst.info.total_send_messages += itr->total_send_messages;
-                dst.info.unread_send_messages += itr->unread_send_messages;
-                dst.info.total_recv_messages += itr->total_recv_messages;
-                dst.info.unread_recv_messages += itr->unread_recv_messages;
-            };
-
-            if (sidx.end() == ditr) {
-                d.create<list_size_object>([&](list_size_object& dst) {
-                    dst.owner = pl.owner;
-                    dst.type = pl.type;
-                    modify_counters(dst);
-                });
-            } else {
-                d.modify(*ditr, modify_counters);
-            }
-
-            // if contact is undefined and no messages then remove it
+            // contact is undefined and no messages
             if (pl.type == undefined && !itr->total_send_messages && !itr->total_recv_messages) {
                 d.remove(*itr);
             } else {
                 d.modify(*itr, [&](list_object& plo) {
                     plo.type = pl.type;
+                    from_string(plo.json_metadata, pl.json_metadata);
                 });
             }
         } else if (pl.type != undefined) {
@@ -329,6 +332,7 @@ namespace golos { namespace plugins { namespace private_message {
                 plo.owner = pl.owner;
                 plo.contact = pl.contact;
                 plo.type = pl.type;
+                from_string(plo.json_metadata, pl.json_metadata);
             });
 
             if (sidx.end() == ditr) {

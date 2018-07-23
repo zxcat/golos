@@ -2,6 +2,7 @@
 #include <golos/protocol/operation_util_impl.hpp>
 #include <golos/protocol/exceptions.hpp>
 #include <golos/protocol/validate_helper.hpp>
+#include <fc/io/json.hpp>
 
 namespace golos { namespace plugins { namespace private_message {
 
@@ -26,7 +27,8 @@ namespace golos { namespace plugins { namespace private_message {
     list_api_object::list_api_object(const list_object& o)
         : owner(o.owner),
           contact(o.contact),
-          owner_type(o.type),
+          json_metadata(o.json_metadata.begin(), o.json_metadata.end()),
+          local_type(o.type),
           total_send_messages(o.total_send_messages),
           unread_send_messages(o.unread_send_messages),
           total_recv_messages(o.total_recv_messages),
@@ -89,6 +91,13 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_PARAM(type, {
             GOLOS_CHECK_VALUE(is_valid_list_type(type), "Unknown list type");
         });
+
+        if (json_metadata.size() > 0) {
+            GOLOS_CHECK_PARAM(json_metadata, {
+                GOLOS_CHECK_VALUE(fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON");
+                GOLOS_CHECK_VALUE(type != undefined, "JSON Metadata can't be set for undefined contact");
+            });
+        }
     }
 
     void private_list_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {

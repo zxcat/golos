@@ -2549,15 +2549,25 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         annotated_signed_transaction wallet_api::add_private_contact(
-            const std::string& owner, const std::string& contact, private_list_type type, bool broadcast
+            const std::string& owner, const std::string& contact,
+            private_list_type type, fc::optional<std::string> json_metadata, bool broadcast
         ) {
             FC_ASSERT(!is_locked());
+            FC_ASSERT(type != golos::plugins::private_message::undefined || !json_metadata);
 
             private_list_operation op;
 
             op.owner = owner;
             op.contact = contact;
             op.type = type;
+
+            if (type == golos::plugins::private_message::undefined) {
+                // op.json_metadata.clear();
+            } else if (!json_metadata) {
+                op.json_metadata = my->_remote_private_message->get_list_info(owner, contact).json_metadata;
+            } else {
+                op.json_metadata = *json_metadata;
+            }
 
             private_message_plugin_operation pop = op;
 

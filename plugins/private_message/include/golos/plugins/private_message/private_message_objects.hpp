@@ -122,7 +122,7 @@ namespace golos { namespace plugins { namespace private_message {
     class list_object: public object<list_object_type, list_object> {
     public:
         template<typename Constructor, typename Allocator>
-        list_object(Constructor&& c, allocator <Allocator> a) {
+        list_object(Constructor&& c, allocator <Allocator> a): json_metadata(a) {
             c(*this);
         }
 
@@ -131,6 +131,7 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type owner;
         account_name_type contact;
         private_list_type type;
+        shared_string json_metadata;
         uint32_t total_send_messages = 0;
         uint32_t unread_send_messages = 0;
         uint32_t total_recv_messages = 0;
@@ -145,8 +146,9 @@ namespace golos { namespace plugins { namespace private_message {
 
         account_name_type owner;
         account_name_type contact;
-        private_list_type owner_type = undefined;
-        private_list_type contact_type = undefined;
+        std::string json_metadata;
+        private_list_type local_type = undefined;
+        private_list_type remote_type = undefined;
         uint32_t total_send_messages = 0;
         uint32_t unread_send_messages = 0;
         uint32_t total_recv_messages = 0;
@@ -233,6 +235,7 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type owner;
         account_name_type contact;
         private_list_type type;
+        std::string json_metadata;
 
         void validate() const;
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
@@ -267,7 +270,7 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::list_api_object),
-    (owner)(contact)(owner_type)(contact_type)
+    (owner)(contact)(json_metadata)(local_type)(remote_type)
     (total_send_messages)(unread_send_messages)(total_recv_messages)(unread_recv_messages))
 
 FC_REFLECT(
@@ -280,7 +283,7 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::private_list_operation),
-    (owner)(contact)(type))
+    (owner)(contact)(type)(json_metadata))
 
 FC_REFLECT_TYPENAME((golos::plugins::private_message::private_message_plugin_operation))
 

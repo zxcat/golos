@@ -1134,11 +1134,13 @@ namespace golos { namespace wallet {
              * @param owner
              * @param contact
              * @param type (undefined, pinned, ignore)
+             * @param json_metadata
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
             annotated_signed_transaction add_private_contact(
-                const std::string& owner, const std::string& contact, private_list_type, bool broadcast);
+                const std::string& owner, const std::string& contact, private_list_type,
+                fc::optional<std::string> json_metadata, bool broadcast);
 
             /**
              * Get contact list
