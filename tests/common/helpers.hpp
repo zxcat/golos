@@ -28,17 +28,14 @@
 
 
 // Check operation authorities
-#define CHECK_OP_AUTHS(OP, OWNER, ACTIVE, POSTING) {\
-    account_name_set auths;                         \
-    OP.get_required_owner_authorities(auths);       \
-    BOOST_CHECK_EQUAL(auths, OWNER);                \
-    auths.clear();                                  \
-    OP.get_required_active_authorities(auths);      \
-    BOOST_CHECK_EQUAL(auths, ACTIVE);               \
-    auths.clear();                                  \
-    OP.get_required_posting_authorities(auths);     \
-    BOOST_CHECK_EQUAL(auths, POSTING);              \
-    auths.clear();                                  \
+#define CHECK_OP_AUTHS(OP, OWNER, ACTIVE, POSTING) {               \
+    account_name_set owner_auths, active_auths, posting_auths;     \
+    OP.get_required_owner_authorities(owner_auths);                \
+    BOOST_CHECK_EQUAL(owner_auths, OWNER);                         \
+    OP.get_required_active_authorities(active_auths);              \
+    BOOST_CHECK_EQUAL(active_auths, ACTIVE);                       \
+    OP.get_required_posting_authorities(posting_auths);            \
+    BOOST_CHECK_EQUAL(posting_auths, POSTING);                     \
 }
 
 

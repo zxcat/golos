@@ -6765,6 +6765,97 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(delete_comment_validate) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: delete_comment_validate");
+
+            delete_comment_operation op;
+
+            BOOST_TEST_MESSAGE("--- success on valid parameters");
+            op.author = "alice";
+            op.permlink = "foo";
+            CHECK_OP_VALID(op);
+
+            BOOST_TEST_MESSAGE("--- failed when 'author' is invalid");
+            CHECK_PARAM_INVALID(op, author, "");
+            CHECK_PARAM_INVALID(op, author, "a");
+
+            BOOST_TEST_MESSAGE("--- failed when 'permlink' is invalid");
+            CHECK_PARAM_INVALID(op, permlink, std::string(STEEMIT_MAX_PERMLINK_LENGTH, ' '));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(delete_comment_authorities) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: delete_comment_authorities");
+            delete_comment_operation op;
+            op.author = "alice";
+            op.permlink = "foo";
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set(), account_name_set({"alice"}));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(delete_comment_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: delete_comment_apply");
+            ACTORS((alice)(bob))
+
+            signed_transaction tx;
+            delete_comment_operation op;
+
+            BOOST_TEST_MESSAGE("--- failed when comment missing");
+            op.author = "alice";
+            op.permlink = "foo";
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "comment", make_comment_id("alice", "foo"))));
+            validate_database();
+
+            BOOST_TEST_MESSAGE("--- prepare testing comments");
+            {
+                comment_operation op;
+                op.author = "alice";
+                op.permlink = "lorem";
+                op.parent_author = "";
+                op.parent_permlink = "ipsum";
+                op.title = "Lorem Ipsum";
+                op.body = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+                op.json_metadata = "{\"foo\":\"bar\"}";
+                BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+
+                op.author = "bob";
+                op.permlink = "bar";
+                op.parent_author = "alice";
+                op.parent_permlink = "lorem";
+                BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, op));
+                validate_database();
+            }
+
+            BOOST_TEST_MESSAGE("--- failed when comment has replies");
+            op.author = "alice";
+            op.permlink = "lorem";
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops_throw(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::cannot_delete_comment_with_replies)));
+            validate_database();
+
+            BOOST_TEST_MESSAGE("--- success delete comment");
+            op.author = "bob";
+            op.permlink = "bar";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops_throw(tx, bob_private_key, op));
+            validate_database();
+
+            BOOST_TEST_MESSAGE("--- success delete comment after delete replies");
+            op.author = "alice";
+            op.permlink = "lorem";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops_throw(tx, alice_private_key, op));
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
     BOOST_AUTO_TEST_SUITE(delegation)
 
     BOOST_AUTO_TEST_CASE(account_create_with_delegation_validate) {
