@@ -230,6 +230,9 @@ namespace golos {
 
             // feed_publish_operation
             price_feed_must_be_for_golos_gbg_market,
+
+            // convert operation
+            no_price_feed_yet,
         };
     };
 
@@ -385,6 +388,9 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
 
         // feed_publis_operation
         (price_feed_must_be_for_golos_gbg_market)
+
+        // convert operation
+        (no_price_feed_yet)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
