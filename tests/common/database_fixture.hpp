@@ -224,49 +224,24 @@ struct ErrorValidator<golos::bandwidth_exception> {
     }
 };
 
-
-template<>
-struct ErrorValidator<golos::protocol::tx_irrelevant_sig> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_irrelevant_sig");
-    }
+#define SIMPLE_PROTOCOL_ERROR_VALIDATOR(E) SIMPLE_ERROR_VALIDATOR(golos::protocol, E)
+#define SIMPLE_ERROR_VALIDATOR(NS, E)   \
+template<>                              \
+struct ErrorValidator<NS::E> {          \
+    void validate(const std::string& name, const fc::variant& props, int) { \
+        BOOST_CHECK_EQUAL(name, #E);    \
+    }                                   \
 };
 
+// Auto-generate trivial ErrorValidators
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_irrelevant_sig);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_duplicate_sig);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_duplicate_transaction);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_posting_auth);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_active_auth);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_owner_auth);
+SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_other_auth);
 
-template<>
-struct ErrorValidator<golos::protocol::tx_duplicate_sig> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_duplicate_sig");
-    }
-};
-
-template<>
-struct ErrorValidator<golos::protocol::tx_duplicate_transaction> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_duplicate_transaction");
-    }
-};
-
-template<>
-struct ErrorValidator<golos::protocol::tx_missing_posting_auth> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_missing_posting_auth");
-    }
-};
-
-template<>
-struct ErrorValidator<golos::protocol::tx_missing_active_auth> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_missing_active_auth");
-    }
-};
-
-template<>
-struct ErrorValidator<golos::protocol::tx_missing_owner_auth> {
-    void validate(const std::string& name, const fc::variant& props, int) {
-        BOOST_CHECK_EQUAL(name, "tx_missing_owner_auth");
-    }
-};
 
 #define GOLOS_CHECK_ERROR_PROPS_IMPL( S, C, TL ) \
     GOLOS_CHECK_THROW_PROPS_IMPL(S, golos::golos_exception, C(ex.name(), ex.get_log().at(0).get_data()), TL)
@@ -320,30 +295,33 @@ struct ErrorValidator<golos::protocol::tx_missing_owner_auth> {
     )
 
 
+// ostream <<
+//-------------------------------------------------------------
+
 namespace fc {
 
 std::ostream& operator<<(std::ostream& out, const fc::exception& e);
 std::ostream& operator<<(std::ostream& out, const fc::time_point& v);
 std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v);
 std::ostream& operator<<(std::ostream& out, const fc::fixed_string<fc::uint128_t>& v);
-std::ostream& operator<<(std::ostream &out, const fc::variant_object &v);
+std::ostream& operator<<(std::ostream& out, const fc::variant_object& v);
 
 template<typename T>
-std::ostream& operator<<(std::ostream& out, const fc::safe<T> &v) {
+std::ostream& operator<<(std::ostream& out, const fc::safe<T>& v) {
     out << v.value;
     return out;
 }
 
-bool operator==(const fc::variant_object &left, const fc::variant_object &right);
+bool operator==(const fc::variant_object& left, const fc::variant_object& right);
 
-} // namespace fc
+} // fc
 
 
 namespace fc { namespace ecc {
 
-std::ostream &operator<<(std::ostream &out, const public_key &v);
+std::ostream& operator<<(std::ostream& out, const public_key& v);
 
-} } // namespace fc::ecc
+} } // fc::ecc
 
 
 namespace chainbase {
@@ -354,18 +332,49 @@ std::ostream& operator<<(std::ostream& out, const object_id<T> &v) {
     return out;
 }
 
-} // namespace chainbase
+} // chainbase
 
 
 namespace std {
 
 template<typename T1, typename T2>
-std::ostream& operator<<(std::ostream& out, const std::pair<T1,T2> &v) {
+std::ostream& operator<<(std::ostream& out, const std::pair<T1,T2>& v) {
     out << "<" << v.first << ":" << v.second << ">";
     return out;
 }
 
-} // namespace std
+} // std
+
+
+namespace boost { namespace container {
+
+template<typename T>
+std::ostream& operator<<(std::ostream& out, const flat_set<T>& t) {
+    out << "(";
+    if (!t.empty()) {
+        std::for_each(t.begin(), t.end()-1, [&](const T& v) {out << v << ",";});
+        out << *t.rbegin();
+    }
+    out << ")";
+    return out;
+}
+
+template<typename T, typename... V>
+std::ostream& operator<<(std::ostream& out, const flat_map<T,V...>& t) {
+    out << "(";
+    if (!t.empty()) {
+        std::for_each(t.begin(), t.end()-1,
+            [&](const typename flat_map<T,V...>::value_type& v) {
+                out << v.first << ":" << v.second << ",";
+            });
+        auto last = *t.rbegin();
+        out << last.first << ":" << last.second;
+    }
+    out << ")";
+    return out;
+}
+
+} } // boost::container
 
 
 namespace golos { namespace protocol {
@@ -375,15 +384,19 @@ std::ostream& operator<<(std::ostream& out, const public_key_type& v);
 std::ostream& operator<<(std::ostream& out, const authority& v);
 std::ostream& operator<<(std::ostream& out, const price& v);
 
-} } // namespace golos::protocol
+} } // golos::protocol
 
 
 namespace golos { namespace chain {
 
 std::ostream& operator<<(std::ostream& out, const shared_authority& v);
 
-} } // namespace golos::chain
+} } // golos::chain
 
+
+///////////////////////////////////////////////////////////////
+// database_fixture
+///////////////////////////////////////////////////////////////
 
 
 #ifndef STEEMIT_INIT_PRIVATE_KEY
