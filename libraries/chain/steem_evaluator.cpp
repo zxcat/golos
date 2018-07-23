@@ -413,17 +413,20 @@ namespace golos { namespace chain {
             database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                 const auto &auth = _db.get_account(o.author);
-                FC_ASSERT(!(auth.owner_challenged ||
-                            auth.active_challenged), "Operation cannot be processed because account is currently challenged.");
+                GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
+                        logic_exception::account_is_currently_challenged,
+                        "Operation cannot be processed because account is currently challenged.");
             }
 
             const auto &comment = _db.get_comment(o.author, o.permlink);
-            FC_ASSERT(comment.children ==
-                      0, "Cannot delete a comment with replies.");
+            GOLOS_CHECK_LOGIC(comment.children == 0,
+                    logic_exception::cannot_delete_comment_with_replies,
+                    "Cannot delete a comment with replies.");
 
             if (_db.is_producing()) {
-                FC_ASSERT(comment.net_rshares <=
-                          0, "Cannot delete a comment with network positive votes.");
+                GOLOS_CHECK_LOGIC(comment.net_rshares <= 0,
+                        logic_exception::cannot_delete_comment_with_positive_votes,
+                        "Cannot delete a comment with network positive votes.");
             }
             if (comment.net_rshares > 0) {
                 return;

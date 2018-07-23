@@ -144,8 +144,8 @@ namespace golos { namespace protocol {
         }
 
         void delete_comment_operation::validate() const {
-            validate_permlink(permlink);
-            validate_account_name(author);
+            GOLOS_CHECK_PARAM_ACCOUNT(author);
+            GOLOS_CHECK_PARAM(permlink, validate_permlink(permlink));
         }
 
         void challenge_authority_operation::validate() const {

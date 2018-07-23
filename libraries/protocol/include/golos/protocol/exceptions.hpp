@@ -198,6 +198,8 @@ namespace golos {
             discussion_is_frozen,
             comment_is_archived,
             comment_editable_during_first_24_hours,
+            cannot_delete_comment_with_replies,
+            cannot_delete_comment_with_positive_votes,
 
             // withdraw_vesting
             insufficient_fee_for_powerdown_registered_account,
@@ -367,6 +369,8 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (discussion_is_frozen)
         (comment_is_archived)
         (comment_editable_during_first_24_hours)
+        (cannot_delete_comment_with_replies)
+        (cannot_delete_comment_with_positive_votes)
 
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
