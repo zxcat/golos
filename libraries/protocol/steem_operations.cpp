@@ -149,13 +149,15 @@ namespace golos { namespace protocol {
         }
 
         void challenge_authority_operation::validate() const {
-            validate_account_name(challenger);
-            validate_account_name(challenged);
-            FC_ASSERT(challenged != challenger, "cannot challenge yourself");
+            GOLOS_CHECK_PARAM_ACCOUNT(challenger);
+            GOLOS_CHECK_PARAM_ACCOUNT(challenged);
+            GOLOS_CHECK_LOGIC(challenged != challenger,
+                logic_exception::cannot_challenge_yourself,
+                "cannot challenge yourself");
         }
 
         void prove_authority_operation::validate() const {
-            validate_account_name(challenged);
+            GOLOS_CHECK_PARAM_ACCOUNT(challenged);
         }
 
         void vote_operation::validate() const {

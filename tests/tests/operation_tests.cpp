@@ -4441,6 +4441,41 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+
+    BOOST_AUTO_TEST_SUITE(prove_authority)
+    // Technically it can be called, but will fail early due disabled challenge_authority_operation
+    BOOST_AUTO_TEST_CASE(prove_authority_validate) { try {
+        BOOST_TEST_MESSAGE("Testing: prove_authority_validate");
+        prove_authority_operation op;
+        op.challenged = "bob";
+        CHECK_OP_VALID(op);
+        CHECK_PARAM_INVALID(op, challenged, "");
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(prove_authority_authorities) { try {
+        BOOST_TEST_MESSAGE("Testing: prove_authority_authorities");
+        prove_authority_operation op;
+        op.challenged = "bob";
+        op.require_owner = true;
+        CHECK_OP_AUTHS(op, account_name_set({"bob"}), account_name_set(), account_name_set());
+        op.require_owner = false;
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"bob"}), account_name_set());
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(prove_authority_apply) { try {
+        BOOST_TEST_MESSAGE("Testing: prove_authority_apply");
+        ACTOR(bob)
+        prove_authority_operation op;
+        op.challenged = "bob";
+        signed_transaction tx;
+        GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, op),
+            CHECK_ERROR(tx_invalid_operation, 0,
+                CHECK_ERROR(logic_exception, logic_exception::account_is_not_challeneged)));
+        validate_database();
+    } FC_LOG_AND_RETHROW() }
+    BOOST_AUTO_TEST_SUITE_END() // prove_authority
+
+
     BOOST_AUTO_TEST_CASE(escrow_transfer_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: escrow_transfer_validate");
