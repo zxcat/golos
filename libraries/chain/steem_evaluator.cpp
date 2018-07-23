@@ -1062,9 +1062,13 @@ namespace golos { namespace chain {
         void account_witness_proxy_evaluator::do_apply(const account_witness_proxy_operation &o) {
             database &_db = db();
             const auto &account = _db.get_account(o.account);
-            FC_ASSERT(account.proxy != o.proxy, "Proxy must change.");
+            GOLOS_CHECK_LOGIC(account.proxy != o.proxy, 
+                    logic_exception::proxy_must_change,
+                    "Proxy must change.");
 
-            FC_ASSERT(account.can_vote, "Account has declined the ability to vote and cannot proxy votes.");
+            GOLOS_CHECK_LOGIC(account.can_vote,
+                    logic_exception::voter_declined_voting_rights,
+                    "Account has declined the ability to vote and cannot proxy votes.");
 
             /// remove all current votes
             std::array<share_type, STEEMIT_MAX_PROXY_RECURSION_DEPTH + 1> delta;
@@ -1084,10 +1088,13 @@ namespace golos { namespace chain {
                 auto cprox = &new_proxy;
                 while (cprox->proxy.size() != 0) {
                     const auto next_proxy = _db.get_account(cprox->proxy);
-                    FC_ASSERT(proxy_chain.insert(next_proxy.id).second, "This proxy would create a proxy loop.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.insert(next_proxy.id).second,
+                            logic_exception::proxy_would_create_loop,
+                            "This proxy would create a proxy loop.");
                     cprox = &next_proxy;
-                    FC_ASSERT(proxy_chain.size() <=
-                              STEEMIT_MAX_PROXY_RECURSION_DEPTH, "Proxy chain is too long.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.size() <= STEEMIT_MAX_PROXY_RECURSION_DEPTH,
+                            logic_exception::proxy_chain_is_too_long,
+                            "Proxy chain is too long.");
                 }
 
                 /// clear all individual vote records
@@ -1113,11 +1120,14 @@ namespace golos { namespace chain {
         void account_witness_vote_evaluator::do_apply(const account_witness_vote_operation &o) {
             database &_db = db();
             const auto &voter = _db.get_account(o.account);
-            FC_ASSERT(voter.proxy.size() ==
-                      0, "A proxy is currently set, please clear the proxy before voting for a witness.");
+            GOLOS_CHECK_LOGIC(voter.proxy.size() == 0, 
+                    logic_exception::cannot_vote_when_route_are_set,
+                    "A proxy is currently set, please clear the proxy before voting for a witness.");
 
             if (o.approve)
-                FC_ASSERT(voter.can_vote, "Account has declined its voting rights.");
+                GOLOS_CHECK_LOGIC(voter.can_vote, 
+                        logic_exception::voter_declined_voting_rights,
+                        "Account has declined its voting rights.");
 
             const auto &witness = _db.get_witness(o.witness);
 
@@ -1125,11 +1135,15 @@ namespace golos { namespace chain {
             auto itr = by_account_witness_idx.find(boost::make_tuple(voter.id, witness.id));
 
             if (itr == by_account_witness_idx.end()) {
-                FC_ASSERT(o.approve, "Vote doesn't exist, user must indicate a desire to approve witness.");
+                GOLOS_CHECK_LOGIC(o.approve, 
+                        logic_exception::witness_vote_does_not_exist,
+                        "Vote doesn't exist, user must indicate a desire to approve witness.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_2)) {
-                    FC_ASSERT(voter.witnesses_voted_for <
-                              STEEMIT_MAX_ACCOUNT_WITNESS_VOTES, "Account has voted for too many witnesses."); // TODO: Remove after hardfork 2
+                    GOLOS_CHECK_LOGIC(voter.witnesses_voted_for < STEEMIT_MAX_ACCOUNT_WITNESS_VOTES, 
+                            logic_exception::account_has_too_many_witness_votes,
+                            "Account has voted for too many witnesses.",
+                            ("max_votes", STEEMIT_MAX_ACCOUNT_WITNESS_VOTES)); // TODO: Remove after hardfork 2
 
                     _db.create<witness_vote_object>([&](witness_vote_object &v) {
                         v.witness = witness.id;
@@ -1158,7 +1172,9 @@ namespace golos { namespace chain {
                 });
 
             } else {
-                FC_ASSERT(!o.approve, "Vote currently exists, user must indicate a desire to reject witness.");
+                GOLOS_CHECK_LOGIC(!o.approve, 
+                        logic_exception::witness_vote_already_exist,
+                        "Vote currently exists, user must indicate a desire to reject witness.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_2)) {
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_3)) {

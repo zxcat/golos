@@ -231,7 +231,18 @@ namespace golos {
             // feed_publish_operation
             price_feed_must_be_for_golos_gbg_market,
 
-            // convert operation
+            // account_witness_vote_operation
+            cannot_vote_when_route_are_set,
+            witness_vote_does_not_exist,
+            witness_vote_already_exist,
+            account_has_too_many_witness_votes,
+
+            // account_witness_proxy_operation
+            proxy_must_change,
+            proxy_would_create_loop,
+            proxy_chain_is_too_long,
+
+          // convert operation
             no_price_feed_yet,
         };
     };
@@ -388,6 +399,17 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
 
         // feed_publis_operation
         (price_feed_must_be_for_golos_gbg_market)
+
+        // account_witness_vote_operation
+        (cannot_vote_when_route_are_set)
+        (witness_vote_does_not_exist)
+        (witness_vote_already_exist)
+        (account_has_too_many_witness_votes)
+
+        // account_witness_proxy_operation
+        (proxy_must_change)
+        (proxy_would_create_loop)
+        (proxy_chain_is_too_long)
 
         // convert operation
         (no_price_feed_yet)
