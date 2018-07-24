@@ -699,15 +699,15 @@ namespace golos { namespace chain {
             return find<limit_order_object, by_account>(boost::make_tuple(name, orderid));
         }
 
-        const convert_request_object &database::get_convert_request(const account_name_type &name, uint32_t id) const {
+        const convert_request_object& database::get_convert_request(const account_name_type& name, uint32_t id) const {
             try {
                 return get<convert_request_object, by_owner>(boost::make_tuple(name, id));
-            } catch(const std::out_of_range &e) {
+            } catch(const std::out_of_range& e) {
                 GOLOS_THROW_MISSING_OBJECT("convert_request", fc::mutable_variant_object()("account",name)("request_id", id));
             } FC_CAPTURE_AND_RETHROW((name)(id))
         }
 
-        const convert_request_object *database::find_convert_request(const account_name_type &name, uint32_t id) const {
+        const convert_request_object* database::find_convert_request(const account_name_type& name, uint32_t id) const {
             return find<convert_request_object, by_owner>(boost::make_tuple(name, id));
         }
 
@@ -733,16 +733,23 @@ namespace golos { namespace chain {
             } FC_CAPTURE_AND_RETHROW((name))
         }
 
-        const savings_withdraw_object *database::find_savings_withdraw(const account_name_type &owner, uint32_t request_id) const {
+        const savings_withdraw_object* database::find_savings_withdraw(const account_name_type& owner, uint32_t request_id) const {
             return find<savings_withdraw_object, by_from_rid>(boost::make_tuple(owner, request_id));
         }
 
-        const dynamic_global_property_object &database::get_dynamic_global_properties() const {
+        const dynamic_global_property_object& database::get_dynamic_global_properties() const {
             try {
                 return get<dynamic_global_property_object>();
-            } catch(const std::out_of_range &e) {
+            } catch(const std::out_of_range& e) {
                 GOLOS_THROW_INTERNAL_ERROR("Missing dynamic_global_properties");
             } FC_CAPTURE_AND_RETHROW()
+        }
+
+        void database::throw_if_exists_savings_withdraw(const account_name_type& owner, uint32_t request_id) const {
+            if (nullptr != find_savings_withdraw(owner, request_id)) {
+                GOLOS_THROW_OBJECT_ALREADY_EXIST("savings_withdraw",
+                    fc::mutable_variant_object()("owner",owner)("request_id",request_id));
+            }
         }
 
         const feed_history_object &database::get_feed_history() const {

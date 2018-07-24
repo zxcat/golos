@@ -570,27 +570,23 @@ namespace golos { namespace protocol {
         }
 
         void transfer_to_savings_operation::validate() const {
-            GOLOS_CHECK_PARAM(from, validate_account_name(from));
-            GOLOS_CHECK_PARAM(to, validate_account_name(to));
-            GOLOS_CHECK_PARAM(amount, {
-                GOLOS_CHECK_VALUE(amount.amount > 0, "Amount must be positive");
-                GOLOS_CHECK_VALUE(amount.symbol == STEEM_SYMBOL ||
-                          amount.symbol == SBD_SYMBOL, "Available currency GOLOS or GBG");
-            });
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM(amount, GOLOS_CHECK_ASSET_GT0(amount, GOLOS_OR_GBG));
             GOLOS_CHECK_PARAM(memo, {
-                GOLOS_CHECK_VALUE(memo.size() < STEEMIT_MAX_MEMO_SIZE, "Memo is too large");
-                GOLOS_CHECK_VALUE(fc::is_utf8(memo), "Memo is not UTF8");
+                GOLOS_CHECK_VALUE_MAX_SIZE(memo, STEEMIT_MAX_MEMO_SIZE - 1); //-1 to satisfy <= check (vs <)
+                GOLOS_CHECK_VALUE_UTF8(memo);
             });
         }
 
         void transfer_from_savings_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            FC_ASSERT(amount.amount > 0);
-            FC_ASSERT(amount.symbol == STEEM_SYMBOL ||
-                      amount.symbol == SBD_SYMBOL);
-            FC_ASSERT(memo.size() < STEEMIT_MAX_MEMO_SIZE, "Memo is too large");
-            FC_ASSERT(fc::is_utf8(memo), "Memo is not UTF8");
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM(amount, GOLOS_CHECK_ASSET_GT0(amount, GOLOS_OR_GBG));
+            GOLOS_CHECK_PARAM(memo, {
+                GOLOS_CHECK_VALUE_MAX_SIZE(memo, STEEMIT_MAX_MEMO_SIZE - 1); //-1 to satisfy <= check. TODO: unify <=/<
+                GOLOS_CHECK_VALUE_UTF8(memo);
+            });
         }
 
         void cancel_transfer_from_savings_operation::validate() const {

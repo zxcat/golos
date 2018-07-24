@@ -31,6 +31,8 @@ using std::string;
 
 using account_name_set = flat_set<account_name_type>;
 
+#define BAD_UTF8_STRING "\xc3\x28"
+
 
 fc::variant_object make_comment_id(const std::string& author, const std::string& permlink) {
     auto res = fc::mutable_variant_object()("account",author)("permlink",permlink);
@@ -1839,8 +1841,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("--- failure when url is empty or too long or have invalid utf8");
             CHECK_PARAM_INVALID(op, url, "");
-            // CHECK_PARAM_INVALID(op, url, string(1+STEEMIT_MAX_WITNESS_URL_LENGTH, ' ')); // needs HF
-            CHECK_PARAM_INVALID(op, url, "\xc3\x28");
+            // CHECK_PARAM_INVALID(op, url, string(1+STEEMIT_MAX_WITNESS_URL_LENGTH, ' '));
+            CHECK_PARAM_INVALID(op, url, BAD_UTF8_STRING);
 
             BOOST_TEST_MESSAGE("--- failure when fee in not GOLOS or negative");
             CHECK_PARAM_INVALID(op, fee, ASSET_GBG(1));
@@ -5784,6 +5786,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+
+    BOOST_AUTO_TEST_SUITE(transfer_to_savings)
+
     BOOST_AUTO_TEST_CASE(transfer_to_savings_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: transfer_to_savings_validate");
@@ -5793,54 +5798,27 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
 
+            BOOST_TEST_MESSAGE("--- success with valid parameters");
+            CHECK_OP_VALID(op);
+            CHECK_PARAM_VALID(op, amount, ASSET_GBG(1));
+            CHECK_PARAM_VALID(op, memo, string(STEEMIT_MAX_MEMO_SIZE-1, ' '));  // valid is < MAX_SIZE
+            CHECK_PARAM_VALID(op, memo, u8"тест");
 
-            BOOST_TEST_MESSAGE("failure when 'from' is empty");
-            op.from = "";
-            GOLOS_CHECK_ERROR_PROPS(op.validate(),
-                CHECK_ERROR(golos::invalid_parameter, "from"));
+            BOOST_TEST_MESSAGE("--- failure when 'from' or `to` is empty");
+            CHECK_PARAM_INVALID(op, from, "");
+            CHECK_PARAM_INVALID(op, to, "");
 
+            BOOST_TEST_MESSAGE("--- failure when amount is GESTS");
+            CHECK_PARAM_INVALID(op, amount, ASSET("1.000 GESTS"));  // unsupported asset
+            CHECK_PARAM_INVALID(op, amount, ASSET_GESTS(1));        // gests
 
-            BOOST_TEST_MESSAGE("failure when 'to' is empty");
-            op.from = "alice";
-            op.to = "";
-            GOLOS_CHECK_ERROR_PROPS(op.validate(),
-                CHECK_ERROR(golos::invalid_parameter, "to"));
+            BOOST_TEST_MESSAGE("--- failure when amount is negative");
+            CHECK_PARAM_INVALID(op, amount, ASSET_GOLOS(-1));
+            CHECK_PARAM_INVALID(op, amount, ASSET_GBG(-1));
 
-
-            BOOST_TEST_MESSAGE("sucess when 'to' is not empty");
-            op.to = "bob";
-            BOOST_CHECK_NO_THROW(op.validate());
-
-
-            BOOST_TEST_MESSAGE("failure when amount is VESTS");
-            op.to = "alice";
-            op.amount = ASSET("1.000 VESTS");
-            GOLOS_CHECK_ERROR_PROPS(op.validate(),
-                CHECK_ERROR(golos::invalid_parameter, "amount"));
-
-
-            BOOST_TEST_MESSAGE("success when amount is SBD");
-            op.amount = ASSET("1.000 GBG");
-            BOOST_CHECK_NO_THROW(op.validate());
-
-
-            BOOST_TEST_MESSAGE("success when amount is STEEM");
-            op.amount = ASSET("1.000 GOLOS");
-            BOOST_CHECK_NO_THROW(op.validate());
-
-
-            BOOST_TEST_MESSAGE("failure when amount is negative");
-            op.memo = std::string();
-            op.amount = ASSET("-1.000 GOLOS");
-            GOLOS_CHECK_ERROR_PROPS(op.validate(),
-                CHECK_ERROR(golos::invalid_parameter, "amount"));
-
-
-            BOOST_TEST_MESSAGE("failure when memo too large");
-            op.amount = ASSET("1.000 GOLOS");
-            op.memo = string(STEEMIT_MAX_MEMO_SIZE, ' ');
-            GOLOS_CHECK_ERROR_PROPS(op.validate(),
-                CHECK_ERROR(golos::invalid_parameter, "memo"));
+            BOOST_TEST_MESSAGE("--- failure when memo invalid");
+            CHECK_PARAM_INVALID(op, memo, string(STEEMIT_MAX_MEMO_SIZE, ' '));
+            CHECK_PARAM_INVALID(op, memo, BAD_UTF8_STRING);
         }
         FC_LOG_AND_RETHROW()
     }
@@ -5848,31 +5826,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(transfer_to_savings_authorities) {
         try {
             BOOST_TEST_MESSAGE("Testing: transfer_to_savings_authorities");
-
             transfer_to_savings_operation op;
             op.from = "alice";
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
-
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_active_authorities(auths);
-            expected.insert("alice");
-            BOOST_REQUIRE(auths == expected);
-
-            auths.clear();
-            expected.clear();
-            op.from = "bob";
-            op.get_required_active_authorities(auths);
-            expected.insert("bob");
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice"}), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -5883,10 +5841,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             ACTORS((alice)(bob));
             generate_block();
-
             fund("alice", ASSET("10.000 GOLOS"));
             fund("alice", ASSET("10.000 GBG"));
-
             BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("10.000 GOLOS"));
             BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("10.000 GBG"));
 
@@ -5897,96 +5853,62 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.from = "alice";
             op.to = "alice";
             op.amount = ASSET("20.000 GOLOS");
-
-            tx.operations.push_back(op);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(insufficient_funds, "alice", "fund", "20.000 GOLOS")));
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- failure when transferring to non-existent account");
             op.to = "sam";
             op.amount = ASSET("1.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "account", "sam")));
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success transferring STEEM to self");
             op.to = "alice";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
             BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.000 GOLOS"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("1.000 GOLOS"));
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success transferring SBD to self");
             op.amount = ASSET("1.000 GBG");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
             BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("9.000 GBG"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("1.000 GBG"));
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success transferring STEEM to other");
             op.to = "bob";
             op.amount = ASSET("1.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
             BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("8.000 GOLOS"));
             BOOST_CHECK_EQUAL(db->get_account("bob").savings_balance, ASSET("1.000 GOLOS"));
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success transferring SBD to other");
             op.amount = ASSET("1.000 GBG");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
             BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("8.000 GBG"));
             BOOST_CHECK_EQUAL(db->get_account("bob").savings_sbd_balance, ASSET("1.000 GBG"));
             validate_database();
-
 
 
             BOOST_TEST_MESSAGE("--- failure when transferring without authorities");
             op.from = "bob";
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_THROW_PROPS(db->push_transaction(tx, 0), tx_missing_active_auth, {});
+            GOLOS_CHECK_THROW_PROPS(push_tx_with_ops(tx, alice_private_key, op), tx_missing_active_auth, {});
             validate_database();
         }
         FC_LOG_AND_RETHROW()
     }
+    BOOST_AUTO_TEST_SUITE_END() // transfer_to_savings
+
+
+    BOOST_AUTO_TEST_SUITE(transfer_from_savings)
 
     BOOST_AUTO_TEST_CASE(transfer_from_savings_validate) {
         try {
@@ -5997,38 +5919,27 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.request_id = 0;
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
+            BOOST_TEST_MESSAGE("--- success with valid parameters");
+            CHECK_OP_VALID(op);
+            CHECK_PARAM_VALID(op, amount, ASSET_GBG(1));
+            CHECK_PARAM_VALID(op, memo, string(STEEMIT_MAX_MEMO_SIZE-1, ' '));  // valid is < MAX_SIZE
+            CHECK_PARAM_VALID(op, memo, u8"тест");
 
+            BOOST_TEST_MESSAGE("--- failure when 'from' or 'to' is empty");
+            CHECK_PARAM_INVALID(op, from, "");
+            CHECK_PARAM_INVALID(op, to, "");
 
-            BOOST_TEST_MESSAGE("failure when 'from' is empty");
-            op.from = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
+            BOOST_TEST_MESSAGE("--- failure when amount is GESTS");
+            CHECK_PARAM_INVALID(op, amount, ASSET("1.000 GESTS"));  // unsupported asset
+            CHECK_PARAM_INVALID(op, amount, ASSET_GESTS(1));        // gests
 
+            BOOST_TEST_MESSAGE("--- failure when amount is negative");
+            CHECK_PARAM_INVALID(op, amount, ASSET_GOLOS(-1));
+            CHECK_PARAM_INVALID(op, amount, ASSET_GBG(-1));
 
-            BOOST_TEST_MESSAGE("failure when 'to' is empty");
-            op.from = "alice";
-            op.to = "";
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
-
-            BOOST_TEST_MESSAGE("sucess when 'to' is not empty");
-            op.to = "bob";
-            op.validate();
-
-
-            BOOST_TEST_MESSAGE("failure when amount is VESTS");
-            op.to = "alice";
-            op.amount = ASSET("1.000 VESTS");
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
-
-            BOOST_TEST_MESSAGE("success when amount is SBD");
-            op.amount = ASSET("1.000 GBG");
-            op.validate();
-
-
-            BOOST_TEST_MESSAGE("success when amount is STEEM");
-            op.amount = ASSET("1.000 GOLOS");
-            op.validate();
+            BOOST_TEST_MESSAGE("--- failure when memo invalid");
+            CHECK_PARAM_INVALID(op, memo, string(STEEMIT_MAX_MEMO_SIZE, ' '));
+            CHECK_PARAM_INVALID(op, memo, BAD_UTF8_STRING);
         }
         FC_LOG_AND_RETHROW()
     }
@@ -6036,42 +5947,21 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(transfer_from_savings_authorities) {
         try {
             BOOST_TEST_MESSAGE("Testing: transfer_from_savings_authorities");
-
             transfer_from_savings_operation op;
             op.from = "alice";
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
-
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_active_authorities(auths);
-            expected.insert("alice");
-            BOOST_REQUIRE(auths == expected);
-
-            auths.clear();
-            expected.clear();
-            op.from = "bob";
-            op.get_required_active_authorities(auths);
-            expected.insert("bob");
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice"}), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
 
     BOOST_AUTO_TEST_CASE(transfer_from_savings_apply) {
-         try {
+        try {
             BOOST_TEST_MESSAGE("Testing: transfer_from_savings_apply");
 
             ACTORS((alice)(bob));
             generate_block();
-
             fund("alice", ASSET("10.000 GOLOS"));
             fund("alice", ASSET("10.000 GBG"));
 
@@ -6081,17 +5971,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             save.amount = ASSET("10.000 GOLOS");
 
             signed_transaction tx;
-            tx.operations.push_back(save);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, save));
             save.amount = ASSET("10.000 GBG");
-            tx.clear();
-            tx.operations.push_back(save);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, save));
 
             BOOST_TEST_MESSAGE("--- failure when account has insufficient funds");
             transfer_from_savings_operation op;
@@ -6099,34 +5981,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.to = "bob";
             op.amount = ASSET("20.000 GOLOS");
             op.request_id = 0;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(insufficient_funds, "alice", "savings", "20.000 GOLOS")));
-
 
             BOOST_TEST_MESSAGE("--- failure withdrawing to non-existant account");
             op.to = "sam";
             op.amount = ASSET("1.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
                     CHECK_ERROR(missing_object, "account", "sam")));
 
-
             BOOST_TEST_MESSAGE("--- success withdrawing GOLOS to self");
             op.to = "alice";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
             BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("9.000 GOLOS"));
@@ -6139,15 +6007,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success withdrawing GBG to self");
             op.amount = ASSET("1.000 GBG");
             op.request_id = 1;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
             BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("0.000 GBG"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("9.000 GBG"));
@@ -6160,27 +6023,18 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- failure withdrawing with repeat request id");
             op.amount = ASSET("2.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-
-            // TODO try to add dublicate transaction throws logic_error
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(object_already_exist, "savings_withdraw",
+                        fc::mutable_variant_object()("owner","alice")("request_id",op.request_id))));
 
             BOOST_TEST_MESSAGE("--- success withdrawing GOLOS to other");
             op.to = "bob";
             op.amount = ASSET("1.000 GOLOS");
             op.request_id = 3;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
             BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("0.000 GOLOS"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_balance, ASSET("8.000 GOLOS"));
@@ -6193,15 +6047,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- success withdrawing GBG to other");
             op.amount = ASSET("1.000 GBG");
             op.request_id = 4;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
             BOOST_CHECK_EQUAL(db->get_account("alice").sbd_balance, ASSET("0.000 GBG"));
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_sbd_balance, ASSET("8.000 GBG"));
@@ -6213,7 +6062,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).amount, op.amount);
             BOOST_CHECK_EQUAL(db->get_savings_withdraw("alice", op.request_id).complete, db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME);
             validate_database();
-
 
             BOOST_TEST_MESSAGE("--- withdraw on timeout");
             generate_blocks(db->head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME - fc::seconds(STEEMIT_BLOCK_INTERVAL), true);
@@ -6234,7 +6082,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, 0);
             validate_database();
 
-
             BOOST_TEST_MESSAGE("--- savings withdraw request limit");
             tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             op.to = "alice";
@@ -6242,20 +6089,14 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             for (int i = 0; i < STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT; i++) {
                 op.request_id = i;
-                tx.clear();
-                tx.operations.push_back(op);
-                tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
                 BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, i + 1);
             }
 
             op.request_id = STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT;
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
                 CHECK_ERROR(tx_invalid_operation, 0,
-                    CHECK_ERROR(logic_exception, golos::logic_exception::reached_limit_for_pending_withdraw_requests)));
+                    CHECK_ERROR(logic_exception, logic_exception::reached_limit_for_pending_withdraw_requests)));
 
             BOOST_CHECK_EQUAL(db->get_account("alice").savings_withdraw_requests, STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT);
             validate_database();
@@ -6264,67 +6105,46 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     }
 
     BOOST_AUTO_TEST_CASE(transfer_from_savings_memo_storing_flag) {
-         try {
+        try {
             BOOST_TEST_MESSAGE("Testing: transfer_from_savings_memo_storing_flag");
 
             ACTORS((alice)(bob));
             generate_block();
-
             fund("alice", ASSET("10.000 GOLOS"));
 
             transfer_to_savings_operation save;
             save.from = "alice";
             save.to = "alice";
             save.amount = ASSET("10.000 GOLOS");
-
             signed_transaction tx;
-            tx.operations.push_back(save);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, save));
 
             // Default is true
-
             transfer_from_savings_operation op;
             op.from = "alice";
             op.to = "alice";
             op.amount = ASSET("1.000 GOLOS");
             op.request_id = 1;
             op.memo = "{\"test\":123}";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
 
             db->set_store_memo_in_savings_withdraws(true);
-
             op.request_id = 2;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == op.memo);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), op.memo);
 
             db->set_store_memo_in_savings_withdraws(false);
-
             op.request_id = 3;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(to_string(db->get_savings_withdraw("alice", op.request_id).memo) == "");
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+            BOOST_CHECK_EQUAL(to_string(db->get_savings_withdraw("alice", op.request_id).memo), "");
 
             validate_database();
         }
         FC_LOG_AND_RETHROW()
     }
+    BOOST_AUTO_TEST_SUITE_END() // transfer_from_savings
+
 
     BOOST_AUTO_TEST_CASE(cancel_transfer_from_savings_validate) {
         try {

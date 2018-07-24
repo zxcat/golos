@@ -191,9 +191,9 @@ namespace golos { namespace chain {
 
             void throw_if_exists_convert_request(const account_name_type &owner, uint32_t id) const;
 
-            const savings_withdraw_object &get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
-
-            const savings_withdraw_object *find_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
+            const savings_withdraw_object& get_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
+            const savings_withdraw_object* find_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
+            void                throw_if_exists_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
 
             const account_authority_object &get_authority(const account_name_type &name) const;
 
