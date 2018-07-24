@@ -4,12 +4,10 @@
 #include <golos/plugins/operation_history/history_object.hpp>
 
 #include <golos/chain/operation_notification.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 #include <boost/algorithm/string.hpp>
 #define STEEM_NAMESPACE_PREFIX "golos::protocol::"
-
-#define CHECK_ARG_SIZE(s) \
-   FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
 
 namespace golos { namespace plugins { namespace account_history {
 
@@ -113,8 +111,8 @@ if (options.count(name)) { \
             uint64_t from,
             uint32_t limit
         ) {
-            FC_ASSERT(limit <= 10000, "Limit of ${l} is greater than maxmimum allowed", ("l", limit));
-            FC_ASSERT(from >= limit, "From must be greater than limit");
+            GOLOS_CHECK_PARAM(limit, GOLOS_CHECK_LIMIT(limit, 10000));
+            GOLOS_CHECK_PARAM(from, GOLOS_CHECK_VALUE(from >= limit, "From must be greater then limit"));
             //   idump((account)(from)(limit));
             const auto& idx = database.get_index<account_history_index>().indices().get<by_account>();
             auto itr = idx.lower_bound(std::make_tuple(account, from));
@@ -135,10 +133,10 @@ if (options.count(name)) { \
     };
 
     DEFINE_API(plugin, get_account_history) {
-        CHECK_ARG_SIZE(3)
-        auto account = args.args->at(0).as<std::string>();
-        auto from = args.args->at(1).as<uint64_t>();
-        auto limit = args.args->at(2).as<uint32_t>();
+        GOLOS_CHECK_ARGS_COUNT(args.args, 3);
+        GOLOS_DECLARE_PARAM(account, args.args->at(0).as<std::string>());
+        GOLOS_DECLARE_PARAM(from, args.args->at(1).as<uint64_t>());
+        GOLOS_DECLARE_PARAM(limit, args.args->at(2).as<uint32_t>());
 
         return pimpl->database.with_weak_read_lock([&]() {
             return pimpl->get_account_history(account, from, limit);
