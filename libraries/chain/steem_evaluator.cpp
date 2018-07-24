@@ -2025,130 +2025,129 @@ namespace golos { namespace chain {
             });
         }
 
-        void request_account_recovery_evaluator::do_apply(const request_account_recovery_operation &o) {
-            database &_db = db();
-            const auto &account_to_recover = _db.get_account(o.account_to_recover);
+        void request_account_recovery_evaluator::do_apply(const request_account_recovery_operation& o) {
+            const auto& account_to_recover = _db.get_account(o.account_to_recover);
+            if (account_to_recover.recovery_account.length()) {
+                // Make sure recovery matches expected recovery account
+                GOLOS_CHECK_LOGIC(account_to_recover.recovery_account == o.recovery_account,
+                    logic_exception::cannot_recover_if_not_partner,
+                    "Cannot recover an account that does not have you as there recovery partner.");
+            } else {
+                // Empty string recovery account defaults to top witness
+                GOLOS_CHECK_LOGIC(
+                    _db.get_index<witness_index>().indices().get<by_vote_name>().begin()->owner == o.recovery_account,
+                    logic_exception::must_be_recovered_by_top_witness,
+                    "Top witness must recover an account with no recovery partner.");
+            }
 
-            if (account_to_recover.recovery_account.length())   // Make sure recovery matches expected recovery account
-                FC_ASSERT(account_to_recover.recovery_account ==
-                          o.recovery_account, "Cannot recover an account that does not have you as there recovery partner.");
-            else                                                  // Empty string recovery account defaults to top witness
-                FC_ASSERT(
-                        _db.get_index<witness_index>().indices().get<by_vote_name>().begin()->owner ==
-                        o.recovery_account, "Top witness must recover an account with no recovery partner.");
-
-            const auto &recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
+            const auto& recovery_request_idx =
+                _db.get_index<account_recovery_request_index>().indices().get<by_account>();
             auto request = recovery_request_idx.find(o.account_to_recover);
 
-            if (request == recovery_request_idx.end()) // New Request
-            {
-                FC_ASSERT(!o.new_owner_authority.is_impossible(), "Cannot recover using an impossible authority.");
-                FC_ASSERT(o.new_owner_authority.weight_threshold, "Cannot recover using an open authority.");
-
+            if (request == recovery_request_idx.end()) {
+                // New Request
+                GOLOS_CHECK_OP_PARAM(o, new_owner_authority, {
+                    GOLOS_CHECK_VALUE(!o.new_owner_authority.is_impossible(),
+                        "Cannot recover using an impossible authority.");
+                    GOLOS_CHECK_VALUE(o.new_owner_authority.weight_threshold,
+                        "Cannot recover using an open authority.");
+                });
                 // Check accounts in the new authority exist
-                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
-                     _db.is_producing())) {
-                    for (auto &a : o.new_owner_authority.account_auths) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) || _db.is_producing()) {
+                    for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
                 }
-
-                _db.create<account_recovery_request_object>([&](account_recovery_request_object &req) {
+                _db.create<account_recovery_request_object>([&](account_recovery_request_object& req) {
                     req.account_to_recover = o.account_to_recover;
                     req.new_owner_authority = o.new_owner_authority;
-                    req.expires = _db.head_block_time() +
-                                  STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
+                    req.expires = _db.head_block_time() + STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
                 });
-            } else if (o.new_owner_authority.weight_threshold ==
-                       0) // Cancel Request if authority is open
-            {
+            } else if (o.new_owner_authority.weight_threshold == 0) {
+                // Cancel Request if authority is open
                 _db.remove(*request);
-            } else // Change Request
-            {
-                FC_ASSERT(!o.new_owner_authority.is_impossible(), "Cannot recover using an impossible authority.");
-
+            } else {
+                // Change Request
+                GOLOS_CHECK_OP_PARAM(o, new_owner_authority, {
+                    GOLOS_CHECK_VALUE(!o.new_owner_authority.is_impossible(),
+                    "Cannot recover using an impossible authority.");
+                });
                 // Check accounts in the new authority exist
-                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
-                     _db.is_producing())) {
-                    for (auto &a : o.new_owner_authority.account_auths) {
+                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) || _db.is_producing())) {
+                    for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
                 }
-
-                _db.modify(*request, [&](account_recovery_request_object &req) {
+                _db.modify(*request, [&](account_recovery_request_object& req) {
                     req.new_owner_authority = o.new_owner_authority;
-                    req.expires = _db.head_block_time() +
-                                  STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
+                    req.expires = _db.head_block_time() + STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
                 });
             }
         }
 
-        void recover_account_evaluator::do_apply(const recover_account_operation &o) {
-            database &_db = db();
-            const auto &account = _db.get_account(o.account_to_recover);
+        void recover_account_evaluator::do_apply(const recover_account_operation& o) {
+            const auto& account = _db.get_account(o.account_to_recover);
+            const auto now = _db.head_block_time();
 
-            if (_db.has_hardfork(STEEMIT_HARDFORK_0_12))
-                FC_ASSERT(
-                        _db.head_block_time() - account.last_account_recovery >
-                        STEEMIT_OWNER_UPDATE_LIMIT, "Owner authority can only be updated once an hour.");
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_12)) {
+                GOLOS_CHECK_BANDWIDTH(now, account.last_account_recovery + STEEMIT_OWNER_UPDATE_LIMIT,
+                    bandwidth_exception::change_owner_authority_bandwidth,
+                    "Owner authority can only be updated once an hour.");
+            }
 
-            const auto &recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
+            const auto& recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
             auto request = recovery_request_idx.find(o.account_to_recover);
 
-            FC_ASSERT(request !=
-                      recovery_request_idx.end(), "There are no active recovery requests for this account.");
-            FC_ASSERT(request->new_owner_authority ==
-                      o.new_owner_authority, "New owner authority does not match recovery request.");
+            GOLOS_CHECK_LOGIC(request != recovery_request_idx.end(),
+                logic_exception::no_active_recovery_request,
+                "There are no active recovery requests for this account.");
+            GOLOS_CHECK_LOGIC(request->new_owner_authority == o.new_owner_authority,
+                logic_exception::authority_does_not_match_request,
+                "New owner authority does not match recovery request.");
 
-            const auto &recent_auth_idx = _db.get_index<owner_authority_history_index>().indices().get<by_account>();
+            const auto& recent_auth_idx = _db.get_index<owner_authority_history_index>().indices().get<by_account>();
             auto hist = recent_auth_idx.lower_bound(o.account_to_recover);
             bool found = false;
 
-            while (hist != recent_auth_idx.end() &&
-                   hist->account == o.account_to_recover && !found) {
-                found = hist->previous_owner_authority ==
-                        o.recent_owner_authority;
+            while (hist != recent_auth_idx.end() && hist->account == o.account_to_recover && !found) {
+                found = hist->previous_owner_authority == o.recent_owner_authority;
                 if (found) {
                     break;
                 }
                 ++hist;
             }
-
-            FC_ASSERT(found, "Recent authority not found in authority history.");
+            GOLOS_CHECK_LOGIC(found, logic_exception::no_recent_authority_in_history,
+                "Recent authority not found in authority history.");
 
             _db.remove(*request); // Remove first, update_owner_authority may invalidate iterator
             _db.update_owner_authority(account, o.new_owner_authority);
-            _db.modify(account, [&](account_object &a) {
-                a.last_account_recovery = _db.head_block_time();
+            _db.modify(account, [&](account_object& a) {
+                a.last_account_recovery = now;
             });
         }
 
-        void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation &o) {
-            database &_db = db();
+        void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {
             _db.get_account(o.new_recovery_account); // Simply validate account exists
-            const auto &account_to_recover = _db.get_account(o.account_to_recover);
-
-            const auto &change_recovery_idx = _db.get_index<change_recovery_account_request_index>().indices().get<by_account>();
+            const auto& account_to_recover = _db.get_account(o.account_to_recover);
+            const auto& change_recovery_idx =
+                _db.get_index<change_recovery_account_request_index>().indices().get<by_account>();
             auto request = change_recovery_idx.find(o.account_to_recover);
 
-            if (request == change_recovery_idx.end()) // New request
-            {
-                _db.create<change_recovery_account_request_object>([&](change_recovery_account_request_object &req) {
+            if (request == change_recovery_idx.end()) {
+                // New request
+                _db.create<change_recovery_account_request_object>([&](change_recovery_account_request_object& req) {
                     req.account_to_recover = o.account_to_recover;
                     req.recovery_account = o.new_recovery_account;
-                    req.effective_on = _db.head_block_time() +
-                                       STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_on = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
-            } else if (account_to_recover.recovery_account !=
-                       o.new_recovery_account) // Change existing request
-            {
-                _db.modify(*request, [&](change_recovery_account_request_object &req) {
+            } else if (account_to_recover.recovery_account != o.new_recovery_account) {
+                // Change existing request
+                _db.modify(*request, [&](change_recovery_account_request_object& req) {
                     req.recovery_account = o.new_recovery_account;
-                    req.effective_on = _db.head_block_time() +
-                                       STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_on = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
-            } else // Request exists and changing back to current recovery account
-            {
+            } else {
+                // Request exists and changing back to current recovery account
                 _db.remove(*request);
             }
         }

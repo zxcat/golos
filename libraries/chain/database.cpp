@@ -2832,36 +2832,34 @@ namespace golos { namespace chain {
 
         void database::account_recovery_processing() {
             // Clear expired recovery requests
-            const auto &rec_req_idx = get_index<account_recovery_request_index>().indices().get<by_expiration>();
+            const auto& rec_req_idx = get_index<account_recovery_request_index>().indices().get<by_expiration>();
             auto rec_req = rec_req_idx.begin();
 
-            while (rec_req != rec_req_idx.end() &&
-                   rec_req->expires <= head_block_time()) {
+            while (rec_req != rec_req_idx.end() && rec_req->expires <= head_block_time()) {
                 remove(*rec_req);
                 rec_req = rec_req_idx.begin();
             }
 
             // Clear invalid historical authorities
-            const auto &hist_idx = get_index<owner_authority_history_index>().indices(); //by id
+            const auto& hist_idx = get_index<owner_authority_history_index>().indices(); //by id
             auto hist = hist_idx.begin();
 
-            while (hist != hist_idx.end() && time_point_sec(
-                    hist->last_valid_time +
-                    STEEMIT_OWNER_AUTH_RECOVERY_PERIOD) < head_block_time()) {
+            while (
+                hist != hist_idx.end() &&
+                time_point_sec(hist->last_valid_time + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD) < head_block_time()
+            ) {
                 remove(*hist);
                 hist = hist_idx.begin();
             }
 
             // Apply effective recovery_account changes
-            const auto &change_req_idx = get_index<change_recovery_account_request_index>().indices().get<by_effective_date>();
+            const auto& change_req_idx = get_index<change_recovery_account_request_index>().indices().get<by_effective_date>();
             auto change_req = change_req_idx.begin();
 
-            while (change_req != change_req_idx.end() &&
-                   change_req->effective_on <= head_block_time()) {
-                modify(get_account(change_req->account_to_recover), [&](account_object &a) {
+            while (change_req != change_req_idx.end() && change_req->effective_on <= head_block_time()) {
+                modify(get_account(change_req->account_to_recover), [&](account_object& a) {
                     a.recovery_account = change_req->recovery_account;
                 });
-
                 remove(*change_req);
                 change_req = change_req_idx.begin();
             }
