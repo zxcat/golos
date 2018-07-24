@@ -257,6 +257,18 @@ namespace golos {
 
             // convert operation
             no_price_feed_yet,
+
+            // pow operation
+            duplicate_work_discovered,
+            miners_can_only_have_one_key_authority,
+            work_must_be_performed_by_signed_key,
+            work_not_for_last_block,
+            work_for_block_older_last_irreversible_block,
+            account_must_not_be_updated_in_this_block,
+            insufficient_work_difficalty,
+            account_already_scheduled_for_work,
+            cannot_specify_owner_key_unless_creating_account,
+            witness_must_be_created_before_minning,
         };
     };
 
@@ -439,6 +451,18 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
 
         // convert operation
         (no_price_feed_yet)
+
+        // pow operation
+        (duplicate_work_discovered)
+        (miners_can_only_have_one_key_authority)
+        (work_must_be_performed_by_signed_key)
+        (work_not_for_last_block)
+        (work_for_block_older_last_irreversible_block)
+        (account_must_not_be_updated_in_this_block)
+        (insufficient_work_difficalty)
+        (account_already_scheduled_for_work)
+        (cannot_specify_owner_key_unless_creating_account)
+        (witness_must_be_created_before_minning)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
