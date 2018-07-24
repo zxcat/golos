@@ -2613,7 +2613,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from_memo_key     = from_account.memo_key;
             op.to                = to;
             op.to_memo_key       = to_account.memo_key;
-            op.sent_time         = sent_time;
+            op.nonce             = sent_time;
             op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
             op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
 
@@ -2657,7 +2657,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             }
 
             fc::sha512::encoder enc;
-            fc::raw::pack(enc, mo.sent_time);
+            fc::raw::pack(enc, mo.nonce);
             fc::raw::pack(enc, shared_secret);
             auto encrypt_key = enc.result();
 

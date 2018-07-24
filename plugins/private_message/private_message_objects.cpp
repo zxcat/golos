@@ -15,7 +15,7 @@ namespace golos { namespace plugins { namespace private_message {
           to(o.to),
           from_memo_key(o.from_memo_key),
           to_memo_key(o.to_memo_key),
-          sent_time(o.sent_time),
+          nonce(o.nonce),
           receive_time(o.receive_time),
           checksum(o.checksum),
           read_time(o.read_time),
@@ -29,10 +29,7 @@ namespace golos { namespace plugins { namespace private_message {
           contact(o.contact),
           json_metadata(o.json_metadata.begin(), o.json_metadata.end()),
           local_type(o.type),
-          total_send_messages(o.total_send_messages),
-          unread_send_messages(o.unread_send_messages),
-          total_recv_messages(o.total_recv_messages),
-          unread_recv_messages(o.unread_recv_messages) {
+          size(o.size) {
     }
 
     list_api_object::list_api_object() = default;
@@ -54,8 +51,8 @@ namespace golos { namespace plugins { namespace private_message {
             GOLOS_CHECK_VALUE(from_memo_key != to_memo_key, "From_key can't be equal to to_key");
         });
 
-        GOLOS_CHECK_PARAM(sent_time, {
-            GOLOS_CHECK_VALUE(sent_time != 0, "Send time can't be zero");
+        GOLOS_CHECK_PARAM(nonce, {
+            GOLOS_CHECK_VALUE(nonce != 0, "Nonce can't be zero");
         });
 
         GOLOS_CHECK_PARAM(encrypted_message, {

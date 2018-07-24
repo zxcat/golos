@@ -27,6 +27,9 @@ namespace golos { namespace plugins { namespace private_message {
         list_size_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 2,
     };
 
+    /**
+     * Message
+     */
     class message_object: public object<message_object_type, message_object> {
     public:
         template<typename Constructor, typename Allocator>
@@ -41,7 +44,7 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type to;
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        uint64_t sent_time = 0; /// used as seed to secret generation
+        uint64_t nonce = 0; /// used as seed to secret generation
         time_point_sec receive_time; /// time received by blockchain
         uint32_t checksum = 0;
         time_point_sec read_time;
@@ -58,7 +61,7 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type to;
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        uint64_t sent_time = 0;
+        uint64_t nonce = 0;
         time_point_sec receive_time;
         uint32_t checksum = 0;
         time_point_sec read_time;
@@ -101,9 +104,9 @@ namespace golos { namespace plugins { namespace private_message {
     struct private_message_operation: public base_operation {
         account_name_type from;
         account_name_type to;
+        uint64_t nonce = 0; /// used as seed to secret generation
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        uint64_t sent_time = 0; /// used as seed to secret generation
         uint32_t checksum = 0;
         std::vector<char> encrypted_message;
 
@@ -111,6 +114,9 @@ namespace golos { namespace plugins { namespace private_message {
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
     };
 
+    /**
+     * Types of contact list
+     */
     enum private_list_type: uint8_t {
         undefined = 1,
         pinned = 2,
@@ -119,6 +125,36 @@ namespace golos { namespace plugins { namespace private_message {
 
     constexpr auto private_list_type_size = ignored + 1;
 
+    struct list_size_info {
+        fc::safe<uint32_t> total_send_messages = 0;
+        fc::safe<uint32_t> unread_send_messages = 0;
+        fc::safe<uint32_t> total_recv_messages = 0;
+        fc::safe<uint32_t> unread_recv_messages = 0;
+
+        bool empty() const {
+            return !total_send_messages.value && !total_recv_messages.value;
+        }
+
+        list_size_info& operator-=(const list_size_info& s) {
+            total_send_messages -= s.total_send_messages;
+            unread_send_messages -= s.unread_send_messages;
+            total_recv_messages -= s.total_recv_messages;
+            unread_recv_messages -= s.unread_send_messages;
+            return *this;
+        }
+
+        list_size_info& operator+=(const list_size_info& s) {
+            total_send_messages += s.total_send_messages;
+            unread_send_messages += s.unread_send_messages;
+            total_recv_messages += s.total_recv_messages;
+            unread_recv_messages += s.unread_send_messages;
+            return *this;
+        }
+    };
+
+    /**
+     * Contact item
+     */
     class list_object: public object<list_object_type, list_object> {
     public:
         template<typename Constructor, typename Allocator>
@@ -132,10 +168,7 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type contact;
         private_list_type type;
         shared_string json_metadata;
-        uint32_t total_send_messages = 0;
-        uint32_t unread_send_messages = 0;
-        uint32_t total_recv_messages = 0;
-        uint32_t unread_recv_messages = 0;
+        list_size_info size;
     };
 
     using list_id_type = list_object::id_type;
@@ -149,10 +182,7 @@ namespace golos { namespace plugins { namespace private_message {
         std::string json_metadata;
         private_list_type local_type = undefined;
         private_list_type remote_type = undefined;
-        uint32_t total_send_messages = 0;
-        uint32_t unread_send_messages = 0;
-        uint32_t total_recv_messages = 0;
-        uint32_t unread_recv_messages = 0;
+        list_size_info size;
     };
 
     struct by_owner;
@@ -186,12 +216,11 @@ namespace golos { namespace plugins { namespace private_message {
                     string_less>>>,
         allocator<list_object>>;
 
-    struct list_size_info {
-        uint32_t total_contacts = 0;
-        uint32_t total_send_messages = 0;
-        uint32_t unread_send_messages = 0;
-        uint32_t total_recv_messages = 0;
-        uint32_t unread_recv_messages = 0;
+    /**
+     *
+     */
+    struct contact_list_size_info: public list_size_info {
+        uint32_t total_contacts;
     };
 
     struct list_size_object: public object<list_size_object_type, list_size_object> {
@@ -204,14 +233,14 @@ namespace golos { namespace plugins { namespace private_message {
 
         account_name_type owner;
         private_list_type type;
-        list_size_info info;
+        contact_list_size_info size;
     };
 
     using list_size_id_type = list_size_object::id_type;
 
     struct list_size_api_object {
         account_name_type owner;
-        fc::flat_map<private_list_type, list_size_info> info;
+        fc::flat_map<private_list_type, contact_list_size_info> size;
     };
 
     using list_size_index = multi_index_container<
@@ -258,7 +287,7 @@ CHAINBASE_SET_INDEX_TYPE(
 
 FC_REFLECT(
     (golos::plugins::private_message::message_api_object),
-    (from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(read_time)(checksum)(encrypted_message))
+    (from)(to)(from_memo_key)(to_memo_key)(nonce)(receive_time)(read_time)(checksum)(encrypted_message))
 
 FC_REFLECT_ENUM(
     golos::plugins::private_message::private_list_type,
@@ -266,20 +295,23 @@ FC_REFLECT_ENUM(
 
 FC_REFLECT(
     (golos::plugins::private_message::list_size_info),
-    (total_contacts)(total_send_messages)(unread_send_messages)(total_recv_messages)(unread_recv_messages))
+    (total_send_messages)(unread_send_messages)(total_recv_messages)(unread_recv_messages))
+
+FC_REFLECT_DERIVED(
+    (golos::plugins::private_message::contact_list_size_info), ((golos::plugins::private_message::list_size_info)),
+    (total_contacts))
 
 FC_REFLECT(
     (golos::plugins::private_message::list_api_object),
-    (owner)(contact)(json_metadata)(local_type)(remote_type)
-    (total_send_messages)(unread_send_messages)(total_recv_messages)(unread_recv_messages))
+    (owner)(contact)(json_metadata)(local_type)(remote_type)(size))
 
 FC_REFLECT(
     (golos::plugins::private_message::list_size_api_object),
-    (owner)(info))
+    (owner)(size))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_message_operation),
-    (from)(to)(from_memo_key)(to_memo_key)(sent_time)(checksum)(encrypted_message))
+    (from)(to)(from_memo_key)(to_memo_key)(nonce)(checksum)(encrypted_message))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_list_operation),

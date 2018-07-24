@@ -140,9 +140,9 @@ namespace golos { namespace plugins { namespace private_message {
             auto t = static_cast<private_list_type>(i);
             auto itr = idx.find(std::make_tuple(owner, t));
             if (idx.end() != itr) {
-                result.info[t] = itr->info;
+                result.size[t] = itr->size;
             } else {
-                result.info[t] = list_size_info();
+                result.size[t] = contact_list_size_info();
             }
         }
 
@@ -181,16 +181,16 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_OP_PARAM(pm, to, {
             d.get_account(pm.to);
             // TODO: fix exception type
-            GOLOS_CHECK_VALUE(gitr == idx.end() || gitr->type != ignored, "Sender is in ignored list of receiver");
+            GOLOS_CHECK_VALUE(gitr == idx.end() || gitr->type != ignored, "Sender is in ignore list of receiver");
         });
 
         d.create<message_object>([&](message_object& pmo) {
             pmo.from = pm.from;
             pmo.to = pm.to;
+            pmo.nonce = pm.nonce;
             pmo.from_memo_key = pm.from_memo_key;
             pmo.to_memo_key = pm.to_memo_key;
             pmo.checksum = pm.checksum;
-            pmo.sent_time = pm.sent_time;
             pmo.read_time = time_point_sec::min();
             pmo.receive_time = d.head_block_time();
             pmo.encrypted_message.resize(pm.encrypted_message.size());
@@ -204,7 +204,7 @@ namespace golos { namespace plugins { namespace private_message {
         auto& sidx = d.get_index<list_size_index>().indices().get<by_owner>();
 
         // Increment counters depends on side of communication
-        auto modify_counters = [&](auto& o, const bool is_send) {
+        auto inc_counters = [&](auto& o, const bool is_send) {
             if (is_send) {
                 o.total_send_messages++;
                 o.unread_send_messages++;
@@ -217,10 +217,10 @@ namespace golos { namespace plugins { namespace private_message {
         // Update global counters by type of contact
 
         auto modify_size = [&](auto& owner, auto type, const bool is_new_contact, const bool is_send) {
-            auto func = [&](list_size_object& plso) {
-                modify_counters(plso.info, is_send);
+            auto modify_counters = [&](list_size_object& plso) {
+                inc_counters(plso.size, is_send);
                 if (is_new_contact) {
-                    plso.info.total_contacts++;
+                    plso.size.total_contacts++;
                 }
             };
 
@@ -229,10 +229,10 @@ namespace golos { namespace plugins { namespace private_message {
                 d.create<list_size_object>([&](list_size_object& plso){
                     plso.owner = owner;
                     plso.type = type;
-                    func(plso);
+                    modify_counters(plso);
                 });
             } else {
-                d.modify(*itr, func);
+                d.modify(*itr, modify_counters);
             }
         };
 
@@ -243,7 +243,7 @@ namespace golos { namespace plugins { namespace private_message {
             auto itr = idx.find(std::make_tuple(owner, contact));
             if (idx.end() != itr) {
                 d.modify(*itr, [&](list_object& plo) {
-                    modify_counters(plo, is_send);
+                    inc_counters(plo.size, is_send);
                 });
                 is_new_contact = false;
                 type = itr->type;
@@ -252,7 +252,7 @@ namespace golos { namespace plugins { namespace private_message {
                     plo.owner = owner;
                     plo.contact = contact;
                     plo.type = type;
-                    modify_counters(plo, is_send);
+                    inc_counters(plo.size, is_send);
                 });
                 is_new_contact = true;
             }
@@ -270,12 +270,25 @@ namespace golos { namespace plugins { namespace private_message {
             return;
         }
 
-        GOLOS_CHECK_OP_PARAM(pl, contact, {
-            GOLOS_CHECK_VALUE(d.find_account(pl.contact) != nullptr, "Account doesn't exist");
-        });
-
         auto& idx = d.get_index<list_index>().indices().get<by_contact>();
         auto itr = idx.find(std::make_tuple(pl.owner, pl.contact));
+
+        GOLOS_CHECK_OP_PARAM(pl, contact, {
+            d.get_account(pl.contact);
+
+            if (d.is_producing()) {
+                // TODO: fix exception type
+                GOLOS_CHECK_VALUE(
+                    idx.end() != itr || pl.type != undefined,
+                    "Can't add undefined contact");
+
+                // TODO: fix exception type
+                std::string json_metadata(itr->json_metadata.begin(), itr->json_metadata.end());
+                GOLOS_CHECK_VALUE(
+                    itr->type != pl.type || pl.json_metadata != json_metadata,
+                    "Contact has the same type");
+            }
+        });
 
         auto& sidx = d.get_index<list_size_index>().indices().get<by_owner>();
         auto ditr = sidx.find(std::make_tuple(pl.owner, pl.type));
@@ -284,26 +297,20 @@ namespace golos { namespace plugins { namespace private_message {
             auto sitr = sidx.find(std::make_tuple(pl.owner, itr->type));
             if (itr->type != pl.type) {
                 // last contact
-                if (sitr->info.total_contacts == 1) {
+                if (sitr->size.total_contacts == 1) {
                     d.remove(*sitr);
                 } else {
                     d.modify(*sitr, [&](list_size_object& src) {
-                        src.info.total_contacts--;
-                        src.info.total_send_messages -= itr->total_send_messages;
-                        src.info.unread_send_messages -= itr->unread_send_messages;
-                        src.info.total_recv_messages -= itr->total_recv_messages;
-                        src.info.unread_recv_messages -= itr->unread_recv_messages;
+                        src.size.total_contacts--;
+                        src.size -= itr->size;
                     });
                 }
 
                 // has messages or type is not undefined
-                if (itr->total_send_messages || itr->total_recv_messages || pl.type != undefined) {
+                if (!itr->size.empty() || pl.type != undefined) {
                     auto modify_counters = [&](list_size_object& dst) {
-                        dst.info.total_contacts++;
-                        dst.info.total_send_messages += itr->total_send_messages;
-                        dst.info.unread_send_messages += itr->unread_send_messages;
-                        dst.info.total_recv_messages += itr->total_recv_messages;
-                        dst.info.unread_recv_messages += itr->unread_recv_messages;
+                        dst.size.total_contacts++;
+                        dst.size += itr->size;
                     };
 
                     if (sidx.end() == ditr) {
@@ -319,7 +326,7 @@ namespace golos { namespace plugins { namespace private_message {
             }
 
             // contact is undefined and no messages
-            if (pl.type == undefined && !itr->total_send_messages && !itr->total_recv_messages) {
+            if (pl.type == undefined && itr->size.empty()) {
                 d.remove(*itr);
             } else {
                 d.modify(*itr, [&](list_object& plo) {
@@ -339,11 +346,11 @@ namespace golos { namespace plugins { namespace private_message {
                 d.create<list_size_object>([&](list_size_object& plso) {
                     plso.owner = pl.owner;
                     plso.type = pl.type;
-                    plso.info.total_contacts = 1;
+                    plso.size.total_contacts = 1;
                 });
             } else {
                 d.modify(*ditr, [&](list_size_object& plso) {
-                    plso.info.total_contacts++;
+                    plso.size.total_contacts++;
                 });
             }
         }
