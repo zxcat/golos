@@ -1,6 +1,6 @@
 #pragma once
-#include <golos/plugins/private_message/private_message_objects.hpp>
-
+#include <golos/plugins/private_message/private_message_operations.hpp>
+#include <golos/plugins/private_message/private_message_api_objects.hpp>
 
 #include <appbase/plugin.hpp>
 #include <golos/chain/database.hpp>
@@ -16,12 +16,12 @@
 namespace golos { namespace plugins { namespace private_message {
     using namespace golos::chain;
 
-    DEFINE_API_ARGS(get_inbox,     json_rpc::msg_pack, std::vector<message_api_object>)
-    DEFINE_API_ARGS(get_outbox,    json_rpc::msg_pack, std::vector<message_api_object>)
-    DEFINE_API_ARGS(get_settings , json_rpc::msg_pack, settings_api_object)
-    DEFINE_API_ARGS(get_list_size, json_rpc::msg_pack, list_size_api_object)
-    DEFINE_API_ARGS(get_list_info, json_rpc::msg_pack, list_api_object)
-    DEFINE_API_ARGS(get_list,      json_rpc::msg_pack, std::vector<list_api_object>)
+    DEFINE_API_ARGS(get_inbox,         json_rpc::msg_pack, std::vector<message_api_object>)
+    DEFINE_API_ARGS(get_outbox,        json_rpc::msg_pack, std::vector<message_api_object>)
+    DEFINE_API_ARGS(get_settings ,     json_rpc::msg_pack, settings_api_object)
+    DEFINE_API_ARGS(get_contact_info,  json_rpc::msg_pack, contact_api_object)
+    DEFINE_API_ARGS(get_contacts_size, json_rpc::msg_pack, contacts_size_api_object)
+    DEFINE_API_ARGS(get_contacts,      json_rpc::msg_pack, std::vector<contact_api_object>)
 
     /**
      *   This plugin scans the blockchain for custom operations containing a valid message and authorized
@@ -50,7 +50,14 @@ namespace golos { namespace plugins { namespace private_message {
 
         static const std::string& name();
 
-        DECLARE_API((get_inbox)(get_outbox)(get_settings)(get_list_size)(get_list_info)(get_list))
+        DECLARE_API(
+            (get_inbox)
+            (get_outbox)
+            (get_settings)
+            (get_contact_info)
+            (get_contacts_size)
+            (get_contacts)
+        )
 
     private:
         class private_message_plugin_impl;

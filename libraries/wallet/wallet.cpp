@@ -2571,14 +2571,18 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(trx, broadcast);
         }
 
+        settings_api_object wallet_api::get_private_settings(const std::string& owner) {
+            return my->_remote_private_message->get_settings(owner);
+        }
+
         annotated_signed_transaction wallet_api::add_private_contact(
             const std::string& owner, const std::string& contact,
-            private_list_type type, fc::optional<std::string> json_metadata, bool broadcast
+            private_contact_type type, fc::optional<std::string> json_metadata, bool broadcast
         ) {
             FC_ASSERT(!is_locked());
             FC_ASSERT(type != golos::plugins::private_message::undefined || !json_metadata);
 
-            private_list_operation op;
+            private_contact_operation op;
 
             op.owner = owner;
             op.contact = contact;
@@ -2587,7 +2591,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             if (type == golos::plugins::private_message::undefined) {
                 // op.json_metadata.clear();
             } else if (!json_metadata) {
-                op.json_metadata = my->_remote_private_message->get_list_info(owner, contact).json_metadata;
+                op.json_metadata = my->_remote_private_message->get_contact_info(owner, contact).json_metadata;
             } else {
                 op.json_metadata = *json_metadata;
             }
@@ -2606,10 +2610,16 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(trx, broadcast);
         }
 
-        vector<list_api_object> wallet_api::get_private_list(
-            const std::string& owner, private_list_type type, uint16_t limit, uint32_t offset
+        vector<contact_api_object> wallet_api::get_private_contacts(
+            const std::string& owner, private_contact_type type, uint16_t limit, uint32_t offset
         ) {
-            return my->_remote_private_message->get_list(owner, type, limit, offset);
+            return my->_remote_private_message->get_contacts(owner, type, limit, offset);
+        }
+
+        contact_api_object wallet_api::get_private_contact(
+            const std::string& owner, const std::string& contact
+        ) {
+            return my->_remote_private_message->get_contact_info(owner, contact);
         }
 
         annotated_signed_transaction wallet_api::send_private_message(

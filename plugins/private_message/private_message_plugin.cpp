@@ -1,5 +1,6 @@
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 #include <golos/plugins/private_message/private_message_evaluators.hpp>
+#include <golos/plugins/private_message/private_message_objects.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 #include <appbase/application.hpp>
 
@@ -35,7 +36,7 @@ namespace golos { namespace plugins { namespace private_message {
 
             custom_operation_interpreter_->register_evaluator<private_message_evaluator>(&plugin);
             custom_operation_interpreter_->register_evaluator<private_settings_evaluator>(&plugin);
-            custom_operation_interpreter_->register_evaluator<private_list_evaluator>(&plugin);
+            custom_operation_interpreter_->register_evaluator<private_contact_evaluator>(&plugin);
 
             db_.set_custom_operation_interpreter(plugin.name(), custom_operation_interpreter_);
         }
@@ -48,14 +49,14 @@ namespace golos { namespace plugins { namespace private_message {
 
         settings_api_object get_settings(const std::string& owner) const;
 
-        list_api_object get_list_item(const list_object& o) const;
+        contact_api_object get_contact_item(const contact_object& o) const;
 
-        list_api_object get_list_info(const std::string& owner, const std::string& contact) const;
+        contact_api_object get_contact_info(const std::string& owner, const std::string& contact) const;
 
-        list_size_api_object get_list_size(const std::string& owner) const;
+        contacts_size_api_object get_contacts_size(const std::string& owner) const;
 
-        std::vector<list_api_object> get_list(
-            const std::string& owner, const private_list_type type, uint16_t limit, uint32_t offset) const;
+        std::vector<contact_api_object> get_contacts(
+            const std::string& owner, const private_contact_type, uint16_t limit, uint32_t offset) const;
 
         ~private_message_plugin_impl() = default;
 
@@ -118,10 +119,12 @@ namespace golos { namespace plugins { namespace private_message {
         return settings_api_object();
     }
 
-    list_api_object private_message_plugin::private_message_plugin_impl::get_list_item(const list_object& o) const {
-        list_api_object result(o);
+    contact_api_object private_message_plugin::private_message_plugin_impl::get_contact_item(
+        const contact_object& o
+    ) const {
+        contact_api_object result(o);
 
-        const auto& idx = db_.get_index<list_index>().indices().get<by_contact>();
+        const auto& idx = db_.get_index<contact_index>().indices().get<by_contact>();
         auto ritr = idx.find(std::make_tuple(o.contact, o.owner));
 
         if (idx.end() != ritr) {
@@ -131,54 +134,53 @@ namespace golos { namespace plugins { namespace private_message {
         return result;
     }
 
-    list_api_object private_message_plugin::private_message_plugin_impl::get_list_info(
+    contact_api_object private_message_plugin::private_message_plugin_impl::get_contact_info(
         const std::string& owner, const std::string& contact
     ) const {
-        const auto& idx = db_.get_index<list_index>().indices().get<by_contact>();
+        const auto& idx = db_.get_index<contact_index>().indices().get<by_contact>();
         auto itr = idx.find(std::make_tuple(owner, contact));
 
         if (itr != idx.end()) {
-            return get_list_item(*itr);
+            return get_contact_item(*itr);
         }
-        return list_api_object();
+        return contact_api_object();
     }
 
-    list_size_api_object private_message_plugin::private_message_plugin_impl::get_list_size(
+    contacts_size_api_object private_message_plugin::private_message_plugin_impl::get_contacts_size(
         const std::string& owner
     ) const {
-        list_size_api_object result;
+        contacts_size_api_object result;
 
-        const auto& idx = db_.get_index<list_size_index>().indices().get<by_owner>();
+        const auto& idx = db_.get_index<contact_size_index>().indices().get<by_owner>();
 
-        result.owner = owner;
-        for (uint8_t i = undefined; i < private_list_type_size; ++i) {
-            auto t = static_cast<private_list_type>(i);
+        for (uint8_t i = undefined; i < private_contact_type_size; ++i) {
+            auto t = static_cast<private_contact_type>(i);
             auto itr = idx.find(std::make_tuple(owner, t));
             if (idx.end() != itr) {
                 result.size[t] = itr->size;
             } else {
-                result.size[t] = contact_list_size_info();
+                result.size[t] = contacts_size_info();
             }
         }
 
         return result;
     }
 
-    std::vector<list_api_object> private_message_plugin::private_message_plugin_impl::get_list(
-        const std::string& owner, const private_list_type type, uint16_t limit, uint32_t offset
+    std::vector<contact_api_object> private_message_plugin::private_message_plugin_impl::get_contacts(
+        const std::string& owner, const private_contact_type type, uint16_t limit, uint32_t offset
     ) const {
-        std::vector<list_api_object> result;
+        std::vector<contact_api_object> result;
 
         result.reserve(limit);
 
-        const auto& idx = db_.get_index<list_index>().indices().get<by_owner>();
+        const auto& idx = db_.get_index<contact_index>().indices().get<by_owner>();
         auto itr = idx.lower_bound(std::make_tuple(owner, type));
         auto etr = idx.upper_bound(std::make_tuple(owner, type));
 
         for (; itr != etr && offset; ++itr, --offset);
 
         for (; itr != etr; ++itr) {
-            result.push_back(get_list_item(*itr));
+            result.push_back(get_contact_item(*itr));
         }
         return result;
     }
@@ -190,7 +192,7 @@ namespace golos { namespace plugins { namespace private_message {
             return;
         }
 
-        auto& idx = d.get_index<list_index>().indices().get<by_contact>();
+        auto& idx = d.get_index<contact_index>().indices().get<by_contact>();
         auto gitr = idx.find(std::make_tuple(pm.to, pm.from));
 
         auto& tidx = d.get_index<settings_index>().indices().get<by_owner>();
@@ -225,7 +227,7 @@ namespace golos { namespace plugins { namespace private_message {
 
         // Ok, now update contact lists and counters in them
 
-        auto& sidx = d.get_index<list_size_index>().indices().get<by_owner>();
+        auto& sidx = d.get_index<contact_size_index>().indices().get<by_owner>();
 
         // Increment counters depends on side of communication
         auto inc_counters = [&](auto& o, const bool is_send) {
@@ -241,7 +243,7 @@ namespace golos { namespace plugins { namespace private_message {
         // Update global counters by type of contact
 
         auto modify_size = [&](auto& owner, auto type, const bool is_new_contact, const bool is_send) {
-            auto modify_counters = [&](list_size_object& plso) {
+            auto modify_counters = [&](auto& plso) {
                 inc_counters(plso.size, is_send);
                 if (is_new_contact) {
                     plso.size.total_contacts++;
@@ -250,7 +252,7 @@ namespace golos { namespace plugins { namespace private_message {
 
             auto itr = sidx.find(std::make_tuple(owner, type));
             if (sidx.end() == itr) {
-                d.create<list_size_object>([&](list_size_object& plso){
+                d.create<contact_size_object>([&](auto& plso){
                     plso.owner = owner;
                     plso.type = type;
                     modify_counters(plso);
@@ -266,13 +268,13 @@ namespace golos { namespace plugins { namespace private_message {
             bool is_new_contact;
             auto itr = idx.find(std::make_tuple(owner, contact));
             if (idx.end() != itr) {
-                d.modify(*itr, [&](list_object& plo) {
+                d.modify(*itr, [&](auto& plo) {
                     inc_counters(plo.size, is_send);
                 });
                 is_new_contact = false;
                 type = itr->type;
             } else {
-                d.create<list_object>([&](list_object& plo) {
+                d.create<contact_object>([&](auto& plo) {
                     plo.owner = owner;
                     plo.contact = contact;
                     plo.type = type;
@@ -305,14 +307,14 @@ namespace golos { namespace plugins { namespace private_message {
         }
     }
 
-    void private_list_evaluator::do_apply(const private_list_operation& pl) {
+    void private_contact_evaluator::do_apply(const private_contact_operation& pl) {
         database& d = db();
 
         if (!plugin_->is_tracked_account(pl.owner) && !plugin_->is_tracked_account(pl.contact)) {
             return;
         }
 
-        auto& idx = d.get_index<list_index>().indices().get<by_contact>();
+        auto& idx = d.get_index<contact_index>().indices().get<by_contact>();
         auto itr = idx.find(std::make_tuple(pl.owner, pl.contact));
 
         GOLOS_CHECK_OP_PARAM(pl, contact, {
@@ -332,7 +334,7 @@ namespace golos { namespace plugins { namespace private_message {
             }
         });
 
-        auto& sidx = d.get_index<list_size_index>().indices().get<by_owner>();
+        auto& sidx = d.get_index<contact_size_index>().indices().get<by_owner>();
         auto ditr = sidx.find(std::make_tuple(pl.owner, pl.type));
 
         if (idx.end() != itr) {
@@ -342,7 +344,7 @@ namespace golos { namespace plugins { namespace private_message {
                 if (sitr->size.total_contacts == 1) {
                     d.remove(*sitr);
                 } else {
-                    d.modify(*sitr, [&](list_size_object& src) {
+                    d.modify(*sitr, [&](auto& src) {
                         src.size.total_contacts--;
                         src.size -= itr->size;
                     });
@@ -350,13 +352,13 @@ namespace golos { namespace plugins { namespace private_message {
 
                 // has messages or type is not undefined
                 if (!itr->size.empty() || pl.type != undefined) {
-                    auto modify_counters = [&](list_size_object& dst) {
+                    auto modify_counters = [&](auto& dst) {
                         dst.size.total_contacts++;
                         dst.size += itr->size;
                     };
 
                     if (sidx.end() == ditr) {
-                        d.create<list_size_object>([&](list_size_object& dst) {
+                        d.create<contact_size_object>([&](auto& dst) {
                             dst.owner = pl.owner;
                             dst.type = pl.type;
                             modify_counters(dst);
@@ -371,13 +373,13 @@ namespace golos { namespace plugins { namespace private_message {
             if (pl.type == undefined && itr->size.empty()) {
                 d.remove(*itr);
             } else {
-                d.modify(*itr, [&](list_object& plo) {
+                d.modify(*itr, [&](auto& plo) {
                     plo.type = pl.type;
                     from_string(plo.json_metadata, pl.json_metadata);
                 });
             }
         } else if (pl.type != undefined) {
-            d.create<list_object>([&](list_object& plo){
+            d.create<contact_object>([&](auto& plo){
                 plo.owner = pl.owner;
                 plo.contact = pl.contact;
                 plo.type = pl.type;
@@ -385,13 +387,13 @@ namespace golos { namespace plugins { namespace private_message {
             });
 
             if (sidx.end() == ditr) {
-                d.create<list_size_object>([&](list_size_object& plso) {
+                d.create<contact_size_object>([&](auto& plso) {
                     plso.owner = pl.owner;
                     plso.type = pl.type;
                     plso.size.total_contacts = 1;
                 });
             } else {
-                d.modify(*ditr, [&](list_size_object& plso) {
+                d.modify(*ditr, [&](auto& plso) {
                     plso.size.total_contacts++;
                 });
             }
@@ -424,8 +426,8 @@ namespace golos { namespace plugins { namespace private_message {
 
         add_plugin_index<message_index>(my->db_);
         add_plugin_index<settings_index>(my->db_);
-        add_plugin_index<list_index>(my->db_);
-        add_plugin_index<list_size_index>(my->db_);
+        add_plugin_index<contact_index>(my->db_);
+        add_plugin_index<contact_size_index>(my->db_);
 
         using pairstring = std::pair<std::string, std::string>;
         LOAD_VALUE_SET(options, "pm-accounts", my->tracked_accounts_, pairstring);
@@ -498,18 +500,18 @@ namespace golos { namespace plugins { namespace private_message {
         });
     }
 
-    DEFINE_API(private_message_plugin, get_list_size) {
+    DEFINE_API(private_message_plugin, get_contacts_size) {
         GOLOS_CHECK_ARGS_COUNT(args.args, 1)
 
         auto owner = args.args->at(0).as<std::string>();
         auto& db = my->db_;
 
         return db.with_weak_read_lock([&](){
-            return my->get_list_size(owner);
+            return my->get_contacts_size(owner);
         });
     }
 
-    DEFINE_API(private_message_plugin, get_list_info) {
+    DEFINE_API(private_message_plugin, get_contact_info) {
         GOLOS_CHECK_ARGS_COUNT(args.args, 2)
 
         auto owner = args.args->at(0).as<std::string>();
@@ -517,15 +519,15 @@ namespace golos { namespace plugins { namespace private_message {
         auto& db = my->db_;
 
         return db.with_weak_read_lock([&](){
-            return my->get_list_info(owner, contact);
+            return my->get_contact_info(owner, contact);
         });
     }
 
-    DEFINE_API(private_message_plugin, get_list) {
+    DEFINE_API(private_message_plugin, get_contacts) {
         GOLOS_CHECK_ARGS_COUNT(args.args, 4)
 
         auto owner = args.args->at(0).as<std::string>();
-        auto type = args.args->at(1).as<private_list_type>();
+        auto type = args.args->at(1).as<private_contact_type>();
         auto limit = args.args->at(2).as<uint16_t>();
         auto offset = args.args->at(3).as<uint32_t>();
         auto& db = my->db_;
@@ -533,7 +535,7 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_LIMIT(limit, 100);
 
         return db.with_weak_read_lock([&](){
-            return my->get_list(owner, type, limit, offset);
+            return my->get_contacts(owner, type, limit, offset);
         });
     }
 

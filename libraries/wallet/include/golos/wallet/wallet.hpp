@@ -1140,17 +1140,25 @@ namespace golos { namespace wallet {
                 const std::string& owner, const settings_api_object& s, bool broadcast);
 
             /**
+             * Get settings for private messages
+             *
+             * @param owner
+             * @return the settings for private messages
+             */
+            settings_api_object get_private_settings(const std::string& owner);
+
+            /**
              * Add/modify contact list
              *
              * @param owner
              * @param contact
-             * @param type (undefined, pinned, ignore)
+             * @param type (undefined - remove it if no messages, pinned, ignore)
              * @param json_metadata
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
             annotated_signed_transaction add_private_contact(
-                const std::string& owner, const std::string& contact, private_list_type,
+                const std::string& owner, const std::string& contact, private_contact_type,
                 fc::optional<std::string> json_metadata, bool broadcast);
 
             /**
@@ -1160,11 +1168,19 @@ namespace golos { namespace wallet {
              * @param type (undefined, pinned, ignore)
              * @param limit
              * @param offset
-             * @return the signed version of the transaction
+             * @return List of contacts
              */
-            vector<list_api_object> get_private_list(
-                const std::string& owner, private_list_type type, uint16_t limit, uint32_t offset);
+            vector<contact_api_object> get_private_contacts(
+                const std::string& owner, private_contact_type type, uint16_t limit, uint32_t offset);
 
+            /**
+             * Get contact info
+             *
+             * @param owner
+             * @param contact
+             * @return Contact
+             */
+            contact_api_object get_private_contact(const std::string& owner, const std::string& contact);
             /**
              * Send an encrypted private message from one account to other
              *
@@ -1296,7 +1312,9 @@ FC_API( golos::wallet::wallet_api,
                 (get_inbox)
                 (get_outbox)
                 (set_private_settings)
-                (get_private_list)
+                (get_private_settings)
+                (get_private_contacts)
+                (get_private_contact)
                 (add_private_contact)
                 (send_private_message)
 )

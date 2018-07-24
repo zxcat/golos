@@ -2,13 +2,16 @@ set(CURRENT_TARGET private_message)
 
 list(APPEND CURRENT_TARGET_HEADERS
         include/golos/plugins/private_message/private_message_plugin.hpp
+        include/golos/plugins/private_message/private_message_api_objects.hpp
         include/golos/plugins/private_message/private_message_objects.hpp
+        include/golos/plugins/private_message/private_message_operations.hpp
         include/golos/plugins/private_message/private_message_evaluators.hpp
         )
 
 list(APPEND CURRENT_TARGET_SOURCES
         private_message_plugin.cpp
-        private_message_objects.cpp
+        private_message_api_objects.cpp
+        private_message_operations.cpp
         )
 
 if(BUILD_SHARED_LIBRARIES)

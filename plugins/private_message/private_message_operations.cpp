@@ -1,4 +1,4 @@
-#include <golos/plugins/private_message/private_message_objects.hpp>
+#include <golos/plugins/private_message/private_message_operations.hpp>
 #include <golos/protocol/operation_util_impl.hpp>
 #include <golos/protocol/exceptions.hpp>
 #include <golos/protocol/validate_helper.hpp>
@@ -10,35 +10,18 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_VALUE(is_valid_account_name(name), "Account name ${name} is invalid", ("name", name));
     }
 
-    message_api_object::message_api_object(const message_object& o)
-        : from(o.from),
-          to(o.to),
-          from_memo_key(o.from_memo_key),
-          to_memo_key(o.to_memo_key),
-          nonce(o.nonce),
-          receive_time(o.receive_time),
-          checksum(o.checksum),
-          read_time(o.read_time),
-          encrypted_message(o.encrypted_message.begin(), o.encrypted_message.end()) {
+    static inline bool is_valid_contact_type(private_contact_type type) {
+        switch(type) {
+            case undefined:
+            case pinned:
+            case ignored:
+                return true;
+
+            default:
+                break;
+        }
+        return false;
     }
-
-    message_api_object::message_api_object() = default;
-
-    settings_api_object::settings_api_object(const settings_object& o)
-        : ignore_messages_from_undefined_contact(o.ignore_messages_from_undefined_contact) {
-    }
-
-    settings_api_object::settings_api_object() = default;
-
-    list_api_object::list_api_object(const list_object& o)
-        : owner(o.owner),
-          contact(o.contact),
-          json_metadata(o.json_metadata.begin(), o.json_metadata.end()),
-          local_type(o.type),
-          size(o.size) {
-    }
-
-    list_api_object::list_api_object() = default;
 
     void private_settings_operation::validate() const {
         GOLOS_CHECK_PARAM_ACCOUNT(owner);
@@ -46,6 +29,7 @@ namespace golos { namespace plugins { namespace private_message {
     void private_settings_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
         a.insert(owner);
     }
+
 
     void private_message_operation::validate() const {
         GOLOS_CHECK_PARAM_ACCOUNT(to);
@@ -73,24 +57,13 @@ namespace golos { namespace plugins { namespace private_message {
         });
     }
 
+
     void private_message_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
         a.insert(from);
     }
 
-    bool is_valid_list_type(private_list_type type) {
-        switch(type) {
-            case undefined:
-            case pinned:
-            case ignored:
-                return true;
 
-            default:
-                break;
-        }
-        return false;
-    }
-
-    void private_list_operation::validate() const {
+    void private_contact_operation::validate() const {
         GOLOS_CHECK_PARAM_ACCOUNT(contact);
 
         GOLOS_CHECK_PARAM(owner, {
@@ -99,7 +72,7 @@ namespace golos { namespace plugins { namespace private_message {
         });
 
         GOLOS_CHECK_PARAM(type, {
-            GOLOS_CHECK_VALUE(is_valid_list_type(type), "Unknown list type");
+            GOLOS_CHECK_VALUE(is_valid_contact_type(type), "Unknown contact type");
         });
 
         if (json_metadata.size() > 0) {
@@ -110,7 +83,7 @@ namespace golos { namespace plugins { namespace private_message {
         }
     }
 
-    void private_list_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
+    void private_contact_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
         a.insert(owner);
     }
 
