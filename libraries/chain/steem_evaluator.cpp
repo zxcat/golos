@@ -1684,9 +1684,9 @@ namespace golos { namespace chain {
                 db.has_hardfork(STEEMIT_HARDFORK_0_5__59)) {
                 const auto &witness_by_work = db.get_index<witness_index>().indices().get<by_work>();
                 auto work_itr = witness_by_work.find(o.work.work);
-                if (work_itr != witness_by_work.end()) {
-                    FC_ASSERT(!"DUPLICATE WORK DISCOVERED", "${w}  ${witness}", ("w", o)("witness", *work_itr));
-                }
+                GOLOS_CHECK_LOGIC(work_itr == witness_by_work.end(),
+                        logic_exception::duplicate_work_discovered,
+                        "Duplicate work discovered (${work} ${witness})", ("work", o)("witness", *work_itr));
             }
 
             const auto& name = o.get_worker_account();
@@ -1717,22 +1717,29 @@ namespace golos { namespace chain {
 
             const auto &worker_account = db.get_account(name); // verify it exists
             const auto &worker_auth = db.get_authority(name);
-            FC_ASSERT(worker_auth.active.num_auths() ==
-                      1, "Miners can only have one key authority. ${a}", ("a", worker_auth.active));
-            FC_ASSERT(worker_auth.active.key_auths.size() ==
-                      1, "Miners may only have one key authority.");
-            FC_ASSERT(worker_auth.active.key_auths.begin()->first ==
-                      o.work.worker, "Work must be performed by key that signed the work.");
-            FC_ASSERT(
-                    o.block_id == db.head_block_id(), "pow not for last block");
+            GOLOS_CHECK_LOGIC(worker_auth.active.num_auths() == 1,
+                    logic_exception::miners_can_only_have_one_key_authority,
+                    "Miners can only have one key authority. ${a}", ("a", worker_auth.active));
+            GOLOS_CHECK_LOGIC(worker_auth.active.key_auths.size() == 1,
+                    logic_exception::miners_can_only_have_one_key_authority,
+                    "Miners may only have one key authority.");
+            GOLOS_CHECK_LOGIC(worker_auth.active.key_auths.begin()->first == o.work.worker,
+                    logic_exception::work_must_be_performed_by_signed_key,
+                    "Work must be performed by key that signed the work.");
+            GOLOS_CHECK_LOGIC(o.block_id == db.head_block_id(),
+                    logic_exception::work_not_for_last_block,
+                    "pow not for last block");
+
             if (db.has_hardfork(STEEMIT_HARDFORK_0_13__256))
-                FC_ASSERT(worker_account.last_account_update <
-                          db.head_block_time(), "Worker account must not have updated their account this block.");
+                GOLOS_CHECK_LOGIC(worker_account.last_account_update < db.head_block_time(),
+                        logic_exception::account_must_not_be_updated_in_this_block,
+                        "Worker account must not have updated their account this block.");
 
             fc::sha256 target = db.get_pow_target();
 
-            FC_ASSERT(
-                    o.work.work < target, "Work lacks sufficient difficulty.");
+            GOLOS_CHECK_LOGIC(o.work.work < target,
+                    logic_exception::insufficient_work_difficalty,
+                    "Work lacks sufficient difficulty.");
 
             db.modify(dgp, [&](dynamic_global_property_object &p) {
                 p.total_pow++; // make sure this doesn't break anything...
@@ -1742,8 +1749,9 @@ namespace golos { namespace chain {
 
             const witness_object *cur_witness = db.find_witness(worker_account.name);
             if (cur_witness) {
-                FC_ASSERT(cur_witness->pow_worker ==
-                          0, "This account is already scheduled for pow block production.");
+                GOLOS_CHECK_LOGIC(cur_witness->pow_worker == 0,
+                        logic_exception::account_already_scheduled_for_work,
+                        "This account is already scheduled for pow block production.");
                 db.modify(*cur_witness, [&](witness_object &w) {
                     w.props = o.props;
                     w.pow_worker = dgp.total_pow;
@@ -1775,7 +1783,9 @@ namespace golos { namespace chain {
         }
 
         void pow_evaluator::do_apply(const pow_operation &o) {
-            FC_ASSERT(!db().has_hardfork(STEEMIT_HARDFORK_0_13__256), "pow is deprecated. Use pow2 instead");
+            if (db().has_hardfork(STEEMIT_HARDFORK_0_13__256)) {
+                FC_THROW_EXCEPTION(golos::unsupported_operation, "pow is deprecated. Use pow2 instead");
+            }
             pow_apply(db(), o);
         }
 
@@ -1788,26 +1798,32 @@ namespace golos { namespace chain {
 
             if (db.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
                 const auto &work = o.work.get<equihash_pow>();
-                FC_ASSERT(work.prev_block ==
-                          db.head_block_id(), "Equihash pow op not for last block");
+                GOLOS_CHECK_LOGIC(work.prev_block == db.head_block_id(),
+                        logic_exception::work_not_for_last_block,
+                        "Equihash pow op not for last block");
                 auto recent_block_num = protocol::block_header::num_from_id(work.input.prev_block);
-                FC_ASSERT(recent_block_num > dgp.last_irreversible_block_num,
+                GOLOS_CHECK_LOGIC(recent_block_num > dgp.last_irreversible_block_num,
+                        logic_exception::work_for_block_older_last_irreversible_block,
                         "Equihash pow done for block older than last irreversible block num");
-                FC_ASSERT(work.pow_summary <
-                          target_pow, "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
+                GOLOS_CHECK_LOGIC(work.pow_summary < target_pow,
+                        logic_exception::insufficient_work_difficalty,
+                        "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
                 worker_account = work.input.worker_account;
             } else {
                 const auto &work = o.work.get<pow2>();
-                FC_ASSERT(work.input.prev_block ==
-                          db.head_block_id(), "Work not for last block");
-                FC_ASSERT(work.pow_summary <
-                          target_pow, "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
+                GOLOS_CHECK_LOGIC(work.input.prev_block == db.head_block_id(),
+                        logic_exception::work_not_for_last_block,
+                        "Work not for last block");
+                GOLOS_CHECK_LOGIC(work.pow_summary < target_pow,
+                        logic_exception::insufficient_work_difficalty,
+                        "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
                 worker_account = work.input.worker_account;
             }
 
-            FC_ASSERT(o.props.maximum_block_size >=
-                      STEEMIT_MIN_BLOCK_SIZE_LIMIT *
-                      2, "Voted maximum block size is too small.");
+            GOLOS_CHECK_OP_PARAM(o, props.maximum_block_size,
+                GOLOS_CHECK_VALUE(o.props.maximum_block_size >= STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2,
+                    "Voted maximum block size is too small. Must be more then ${max} bytes.",
+                    ("max", STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2)));
 
             db.modify(dgp, [&](dynamic_global_property_object &p) {
                 p.total_pow++;
@@ -1817,7 +1833,8 @@ namespace golos { namespace chain {
             const auto &accounts_by_name = db.get_index<account_index>().indices().get<by_name>();
             auto itr = accounts_by_name.find(worker_account);
             if (itr == accounts_by_name.end()) {
-                FC_ASSERT(o.new_owner_key.valid(), "New owner key is not valid.");
+                GOLOS_CHECK_OP_PARAM(o, new_owner_key,
+                    GOLOS_CHECK_VALUE(o.new_owner_key.valid(), "Key is not valid."));
                 db.create<account_object>([&](account_object &acc) {
                     acc.name = worker_account;
                     acc.memo_key = *o.new_owner_key;
@@ -1841,11 +1858,16 @@ namespace golos { namespace chain {
                     w.pow_worker = dgp.total_pow;
                 });
             } else {
-                FC_ASSERT(!o.new_owner_key.valid(), "Cannot specify an owner key unless creating account.");
+                GOLOS_CHECK_LOGIC(!o.new_owner_key.valid(),
+                        logic_exception::cannot_specify_owner_key_unless_creating_account,
+                        "Cannot specify an owner key unless creating account.");
                 const witness_object *cur_witness = db.find_witness(worker_account);
-                FC_ASSERT(cur_witness, "Witness must be created for existing account before mining.");
-                FC_ASSERT(cur_witness->pow_worker ==
-                          0, "This account is already scheduled for pow block production.");
+                GOLOS_CHECK_LOGIC(cur_witness,
+                        logic_exception::witness_must_be_created_before_minning,
+                        "Witness must be created for existing account before mining.");
+                GOLOS_CHECK_LOGIC(cur_witness->pow_worker == 0,
+                        logic_exception::account_already_scheduled_for_work,
+                        "This account is already scheduled for pow block production.");
                 db.modify(*cur_witness, [&](witness_object &w) {
                     w.props = o.props;
                     w.pow_worker = dgp.total_pow;

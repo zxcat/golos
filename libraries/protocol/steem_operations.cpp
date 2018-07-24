@@ -308,10 +308,11 @@ namespace golos { namespace protocol {
 
         void pow_operation::validate() const {
             props.validate();
-            validate_account_name(worker_account);
-            FC_ASSERT(work_input() ==
-                      work.input, "Determninistic input does not match recorded input");
-            work.validate();
+            GOLOS_CHECK_PARAM_ACCOUNT(worker_account);
+            GOLOS_CHECK_PARAM(work, {
+                GOLOS_CHECK_VALUE(work_input() == work.input, "Determninistic input does not match recorded input");
+                work.validate();
+            });
         }
 
         struct pow2_operation_validate_visitor {
@@ -387,35 +388,33 @@ namespace golos { namespace protocol {
         }
 
         void pow::validate() const {
-            FC_ASSERT(work != fc::sha256());
-            FC_ASSERT(
-                    public_key_type(fc::ecc::public_key(signature, input, false)) ==
-                    worker);
+            GOLOS_CHECK_VALUE(work != fc::sha256(), "Work must not equal empty hash value");
+            GOLOS_CHECK_VALUE(worker == public_key_type(fc::ecc::public_key(signature, input, false)),
+                    "Work doesn't match to worker");
             auto sig_hash = fc::sha256::hash(signature);
             public_key_type recover = fc::ecc::public_key(signature, sig_hash, false);
-            FC_ASSERT(work == fc::sha256::hash(recover));
+            GOLOS_CHECK_VALUE(work == fc::sha256::hash(recover), "Invalid work result");
         }
 
         void pow2::validate() const {
-            validate_account_name(input.worker_account);
+            GOLOS_CHECK_PARAM_ACCOUNT(input.worker_account);
             pow2 tmp;
             tmp.create(input.prev_block, input.worker_account, input.nonce);
-            FC_ASSERT(pow_summary ==
-                      tmp.pow_summary, "reported work does not match calculated work");
+            GOLOS_CHECK_PARAM(pow_summary,
+                GOLOS_CHECK_VALUE(pow_summary == tmp.pow_summary, "reported work does not match calculated work"));
         }
 
         void equihash_pow::validate() const {
-            validate_account_name(input.worker_account);
+            GOLOS_CHECK_PARAM_ACCOUNT(input.worker_account);
             auto seed = fc::sha256::hash(input);
-            FC_ASSERT(proof.n ==
-                      STEEMIT_EQUIHASH_N, "proof of work 'n' value is incorrect");
-            FC_ASSERT(proof.k ==
-                      STEEMIT_EQUIHASH_K, "proof of work 'k' value is incorrect");
-            FC_ASSERT(proof.seed ==
-                      seed, "proof of work seed does not match expected seed");
-            FC_ASSERT(proof.is_valid(), "proof of work is not a solution", ("block_id", input.prev_block)("worker_account", input.worker_account)("nonce", input.nonce));
-            FC_ASSERT(pow_summary ==
-                      fc::sha256::hash(proof.inputs).approx_log_32());
+            GOLOS_CHECK_PARAM(proof, {
+                    GOLOS_CHECK_VALUE(proof.n == STEEMIT_EQUIHASH_N, "proof of work 'n' value is incorrect");
+                    GOLOS_CHECK_VALUE(proof.k == STEEMIT_EQUIHASH_K, "proof of work 'k' value is incorrect");
+                    GOLOS_CHECK_VALUE(proof.seed == seed, "proof of work seed does not match expected seed");
+                    GOLOS_CHECK_VALUE(proof.is_valid(), "proof of work is not a solution", ("block_id", input.prev_block)("worker_account", input.worker_account)("nonce", input.nonce));
+            });
+            GOLOS_CHECK_PARAM(pow_summary,
+                    GOLOS_CHECK_VALUE_EQ(pow_summary, fc::sha256::hash(proof.inputs).approx_log_32()));
         }
 
         void feed_publish_operation::validate() const {
