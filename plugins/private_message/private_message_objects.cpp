@@ -24,6 +24,12 @@ namespace golos { namespace plugins { namespace private_message {
 
     message_api_object::message_api_object() = default;
 
+    settings_api_object::settings_api_object(const settings_object& o)
+        : ignore_messages_from_undefined_contact(o.ignore_messages_from_undefined_contact) {
+    }
+
+    settings_api_object::settings_api_object() = default;
+
     list_api_object::list_api_object(const list_object& o)
         : owner(o.owner),
           contact(o.contact),
@@ -33,6 +39,13 @@ namespace golos { namespace plugins { namespace private_message {
     }
 
     list_api_object::list_api_object() = default;
+
+    void private_settings_operation::validate() const {
+        GOLOS_CHECK_PARAM_ACCOUNT(owner);
+    }
+    void private_settings_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
+        a.insert(owner);
+    }
 
     void private_message_operation::validate() const {
         GOLOS_CHECK_PARAM_ACCOUNT(to);

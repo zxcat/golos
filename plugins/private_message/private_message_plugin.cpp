@@ -34,6 +34,7 @@ namespace golos { namespace plugins { namespace private_message {
                     <generic_custom_operation_interpreter<private_message::private_message_plugin_operation>>(db_);
 
             custom_operation_interpreter_->register_evaluator<private_message_evaluator>(&plugin);
+            custom_operation_interpreter_->register_evaluator<private_settings_evaluator>(&plugin);
             custom_operation_interpreter_->register_evaluator<private_list_evaluator>(&plugin);
 
             db_.set_custom_operation_interpreter(plugin.name(), custom_operation_interpreter_);
@@ -44,6 +45,8 @@ namespace golos { namespace plugins { namespace private_message {
 
         std::vector<message_api_object> get_outbox(
             const std::string& from, time_point newest, uint16_t limit, std::uint32_t offset) const;
+
+        settings_api_object get_settings(const std::string& owner) const;
 
         list_api_object get_list_item(const list_object& o) const;
 
@@ -101,6 +104,18 @@ namespace golos { namespace plugins { namespace private_message {
         }
 
         return result;
+    }
+
+    settings_api_object private_message_plugin::private_message_plugin_impl::get_settings(
+        const std::string& owner
+    ) const {
+        const auto& idx = db_.get_index<settings_index>().indices().get<by_owner>();
+        auto itr = idx.find(owner);
+        if (itr != idx.end()) {
+            return settings_api_object(*itr);
+        }
+
+        return settings_api_object();
     }
 
     list_api_object private_message_plugin::private_message_plugin_impl::get_list_item(const list_object& o) const {
@@ -178,10 +193,19 @@ namespace golos { namespace plugins { namespace private_message {
         auto& idx = d.get_index<list_index>().indices().get<by_contact>();
         auto gitr = idx.find(std::make_tuple(pm.to, pm.from));
 
+        auto& tidx = d.get_index<settings_index>().indices().get<by_owner>();
+        auto titr = tidx.find(pm.to);
+
         GOLOS_CHECK_OP_PARAM(pm, to, {
             d.get_account(pm.to);
             // TODO: fix exception type
-            GOLOS_CHECK_VALUE(gitr == idx.end() || gitr->type != ignored, "Sender is in ignore list of receiver");
+            GOLOS_CHECK_VALUE(
+                gitr == idx.end() || gitr->type != ignored,
+                "Sender is in ignore list of receiver");
+            // TODO: fix exception type
+            GOLOS_CHECK_VALUE(
+                titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
+                "Recipient accept messages only from his contact list");
         });
 
         d.create<message_object>([&](message_object& pmo) {
@@ -261,6 +285,24 @@ namespace golos { namespace plugins { namespace private_message {
 
         modify_contact(pm.from, pm.to, pinned, true);
         modify_contact(pm.to, pm.from, undefined, false);
+    }
+
+    void private_settings_evaluator::do_apply(const private_settings_operation& ps) {
+        database& d = db();
+
+        auto& idx = d.get_index<settings_index>().indices().get<by_owner>();
+        auto itr = idx.find(ps.owner);
+
+        auto set_settings = [&](settings_object& pso) {
+            pso.owner = ps.owner;
+            pso.ignore_messages_from_undefined_contact = ps.ignore_messages_from_undefined_contact;
+        };
+
+        if (idx.end() != itr) {
+            d.modify(*itr, set_settings);
+        } else {
+            d.create<settings_object>(set_settings);
+        }
     }
 
     void private_list_evaluator::do_apply(const private_list_operation& pl) {
@@ -381,6 +423,7 @@ namespace golos { namespace plugins { namespace private_message {
         my = std::make_unique<private_message_plugin::private_message_plugin_impl>(*this);
 
         add_plugin_index<message_index>(my->db_);
+        add_plugin_index<settings_index>(my->db_);
         add_plugin_index<list_index>(my->db_);
         add_plugin_index<list_size_index>(my->db_);
 
@@ -441,6 +484,17 @@ namespace golos { namespace plugins { namespace private_message {
 
         return db.with_weak_read_lock([&]() {
             return my->get_outbox(from, newest, limit, offset);
+        });
+    }
+
+    DEFINE_API(private_message_plugin, get_settings) {
+        GOLOS_CHECK_ARGS_COUNT(args.args, 1)
+
+        auto owner = args.args->at(0).as<std::string>();
+        auto& db = my->db_;
+
+        return db.with_weak_read_lock([&](){
+            return my->get_settings(owner);
         });
     }
 

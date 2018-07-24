@@ -29,14 +29,14 @@ namespace golos { namespace plugins { namespace private_message {
         public evaluator_impl<private_settings_evaluator, private_message_plugin_operation>
     {
     public:
-        using operation_type = private_list_operation;
+        using operation_type = private_settings_operation;
 
         private_settings_evaluator(database& db, private_message_plugin* plugin)
             : evaluator_impl<private_settings_evaluator, private_message_plugin_operation>(db),
               plugin_(plugin)
         {}
 
-        void do_apply(const private_list_operation& o);
+        void do_apply(const private_settings_operation& o);
 
         private_message_plugin* plugin_;
     };

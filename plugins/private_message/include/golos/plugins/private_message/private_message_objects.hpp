@@ -23,8 +23,9 @@ namespace golos { namespace plugins { namespace private_message {
 
     enum private_message_object_type {
         message_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8),
-        list_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 1,
-        list_size_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 2,
+        settings_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 1,
+        list_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 2,
+        list_size_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 3,
     };
 
     /**
@@ -70,6 +71,8 @@ namespace golos { namespace plugins { namespace private_message {
 
     struct by_to_date;
     struct by_from_date;
+    struct by_owner;
+    struct by_contact;
 
     using message_index = multi_index_container<
         message_object,
@@ -114,6 +117,49 @@ namespace golos { namespace plugins { namespace private_message {
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
     };
 
+    /**
+     * Settings
+     */
+    class settings_object: public object<settings_object_type, settings_object> {
+    public:
+        template<typename Constructor, typename Allocator>
+        settings_object(Constructor&& c, allocator <Allocator> a) {
+            c(*this);
+        }
+
+        id_type id;
+
+        account_name_type owner;
+        bool ignore_messages_from_undefined_contact = false;
+    };
+
+    using settings_id_type = settings_object::id_type;
+
+    struct settings_api_object {
+        settings_api_object(const settings_object& o);
+        settings_api_object();
+
+        bool ignore_messages_from_undefined_contact = false;
+    };
+
+    using settings_index = multi_index_container<
+        settings_object,
+        indexed_by<
+            ordered_unique<
+                tag<by_id>,
+                member<settings_object, settings_id_type, &settings_object::id>>,
+            ordered_unique<
+                tag<by_owner>,
+                member<settings_object, account_name_type, &settings_object::owner>>>,
+        allocator<settings_object>>;
+
+    struct private_settings_operation: public base_operation {
+        account_name_type owner;
+        bool ignore_messages_from_undefined_contact = false;
+
+        void validate() const;
+        void get_required_posting_authorities(flat_set<account_name_type>& a) const;
+    };
     /**
      * Types of contact list
      */
@@ -185,9 +231,6 @@ namespace golos { namespace plugins { namespace private_message {
         list_size_info size;
     };
 
-    struct by_owner;
-    struct by_contact;
-
     using list_index = multi_index_container<
         list_object,
         indexed_by<
@@ -216,13 +259,13 @@ namespace golos { namespace plugins { namespace private_message {
                     string_less>>>,
         allocator<list_object>>;
 
-    /**
-     *
-     */
     struct contact_list_size_info: public list_size_info {
         uint32_t total_contacts;
     };
 
+    /**
+     * Counters for account contact lists
+     */
     struct list_size_object: public object<list_size_object_type, list_size_object> {
         template<typename Constructor, typename Allocator>
         list_size_object(Constructor&& c, allocator <Allocator> a) {
@@ -272,12 +315,16 @@ namespace golos { namespace plugins { namespace private_message {
 
     using private_message_plugin_operation = fc::static_variant<
         private_message_operation,
+        private_settings_operation,
         private_list_operation>;
 
 } } } // golos::plugins::private_message
 
 CHAINBASE_SET_INDEX_TYPE(
     golos::plugins::private_message::message_object, golos::plugins::private_message::message_index)
+
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::private_message::settings_object, golos::plugins::private_message::settings_index)
 
 CHAINBASE_SET_INDEX_TYPE(
     golos::plugins::private_message::list_object, golos::plugins::private_message::list_index)
@@ -288,6 +335,10 @@ CHAINBASE_SET_INDEX_TYPE(
 FC_REFLECT(
     (golos::plugins::private_message::message_api_object),
     (from)(to)(from_memo_key)(to_memo_key)(nonce)(receive_time)(read_time)(checksum)(encrypted_message))
+
+FC_REFLECT(
+    (golos::plugins::private_message::settings_api_object),
+    (ignore_messages_from_undefined_contact))
 
 FC_REFLECT_ENUM(
     golos::plugins::private_message::private_list_type,
@@ -311,7 +362,11 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::private_message_operation),
-    (from)(to)(from_memo_key)(to_memo_key)(nonce)(checksum)(encrypted_message))
+    (from)(to)(nonce)(from_memo_key)(to_memo_key)(checksum)(encrypted_message))
+
+FC_REFLECT(
+    (golos::plugins::private_message::private_settings_operation),
+    (owner)(ignore_messages_from_undefined_contact))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_list_operation),

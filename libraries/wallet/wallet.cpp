@@ -2548,6 +2548,29 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return result;
         }
 
+        annotated_signed_transaction wallet_api::set_private_settings(
+            const std::string& owner, const settings_api_object& s, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+            private_settings_operation op;
+
+            op.owner = owner;
+            op.ignore_messages_from_undefined_contact = s.ignore_messages_from_undefined_contact;
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(owner);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
         annotated_signed_transaction wallet_api::add_private_contact(
             const std::string& owner, const std::string& contact,
             private_list_type type, fc::optional<std::string> json_metadata, bool broadcast

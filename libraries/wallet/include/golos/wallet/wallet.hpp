@@ -1129,6 +1129,17 @@ namespace golos { namespace wallet {
                 const std::string& from, const std::string& newest, uint16_t limit, std::uint32_t offset);
 
             /**
+             * Change settings for private messages
+             *
+             * @param owner
+             * @param settings
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction set_private_settings(
+                const std::string& owner, const settings_api_object& s, bool broadcast);
+
+            /**
              * Add/modify contact list
              *
              * @param owner
@@ -1284,6 +1295,7 @@ FC_API( golos::wallet::wallet_api,
                 (get_transaction)
                 (get_inbox)
                 (get_outbox)
+                (set_private_settings)
                 (get_private_list)
                 (add_private_contact)
                 (send_private_message)

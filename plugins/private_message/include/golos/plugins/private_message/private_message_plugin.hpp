@@ -18,6 +18,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     DEFINE_API_ARGS(get_inbox,     json_rpc::msg_pack, std::vector<message_api_object>)
     DEFINE_API_ARGS(get_outbox,    json_rpc::msg_pack, std::vector<message_api_object>)
+    DEFINE_API_ARGS(get_settings , json_rpc::msg_pack, settings_api_object)
     DEFINE_API_ARGS(get_list_size, json_rpc::msg_pack, list_size_api_object)
     DEFINE_API_ARGS(get_list_info, json_rpc::msg_pack, list_api_object)
     DEFINE_API_ARGS(get_list,      json_rpc::msg_pack, std::vector<list_api_object>)
@@ -49,7 +50,7 @@ namespace golos { namespace plugins { namespace private_message {
 
         static const std::string& name();
 
-        DECLARE_API((get_inbox)(get_outbox)(get_list_size)(get_list_info)(get_list))
+        DECLARE_API((get_inbox)(get_outbox)(get_settings)(get_list_size)(get_list_info)(get_list))
 
     private:
         class private_message_plugin_impl;
