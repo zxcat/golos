@@ -1,22 +1,22 @@
 #include <golos/protocol/authority.hpp>
 #include <golos/protocol/exceptions.hpp>
 
-namespace golos {
-    namespace protocol {
+
+namespace golos { namespace protocol {
 
 // authority methods
-        void authority::add_authority(const public_key_type &k, weight_type w) {
+        void authority::add_authority(const public_key_type& k, weight_type w) {
             key_auths[k] = w;
         }
 
-        void authority::add_authority(const account_name_type &k, weight_type w) {
+        void authority::add_authority(const account_name_type& k, weight_type w) {
             account_auths[k] = w;
         }
 
         vector<public_key_type> authority::get_keys() const {
             vector<public_key_type> result;
             result.reserve(key_auths.size());
-            for (const auto &k : key_auths) {
+            for (const auto& k : key_auths) {
                 result.push_back(k.first);
             }
             return result;
@@ -24,10 +24,10 @@ namespace golos {
 
         bool authority::is_impossible() const {
             uint64_t auth_weights = 0;
-            for (const auto &item : account_auths) {
+            for (const auto& item : account_auths) {
                 auth_weights += item.second;
             }
-            for (const auto &item : key_auths) {
+            for (const auto& item : key_auths) {
                 auth_weights += item.second;
             }
             return auth_weights < weight_threshold;
@@ -49,7 +49,11 @@ namespace golos {
         }
 
 
-        bool is_valid_account_name(const string &name) {
+// local inlines to simplify validation checks
+inline bool is_letter(char x) { return 'a' <= x && x <= 'z'; }  // lowercase only
+inline bool is_digit (char x) { return '0' <= x && x <= '9'; }
+
+        bool is_valid_account_name(const string& name) {
 #if STEEMIT_MIN_ACCOUNT_NAME_LENGTH < 3
 #error This is_valid_account_name implementation implicitly enforces minimum name length of 3.
 #endif
@@ -72,121 +76,18 @@ namespace golos {
                 if (end - begin < 3) {
                     return false;
                 }
-                switch (name[begin]) {
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'd':
-                    case 'e':
-                    case 'f':
-                    case 'g':
-                    case 'h':
-                    case 'i':
-                    case 'j':
-                    case 'k':
-                    case 'l':
-                    case 'm':
-                    case 'n':
-                    case 'o':
-                    case 'p':
-                    case 'q':
-                    case 'r':
-                    case 's':
-                    case 't':
-                    case 'u':
-                    case 'v':
-                    case 'w':
-                    case 'x':
-                    case 'y':
-                    case 'z':
-                        break;
-                    default:
-                        return false;
+                if (!is_letter(name[begin])) {
+                    return false;
                 }
-                switch (name[end - 1]) {
-                    case 'a':
-                    case 'b':
-                    case 'c':
-                    case 'd':
-                    case 'e':
-                    case 'f':
-                    case 'g':
-                    case 'h':
-                    case 'i':
-                    case 'j':
-                    case 'k':
-                    case 'l':
-                    case 'm':
-                    case 'n':
-                    case 'o':
-                    case 'p':
-                    case 'q':
-                    case 'r':
-                    case 's':
-                    case 't':
-                    case 'u':
-                    case 'v':
-                    case 'w':
-                    case 'x':
-                    case 'y':
-                    case 'z':
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                        break;
-                    default:
-                        return false;
+                auto t = name[end - 1];
+                if (!is_letter(t) && !is_digit(t)) {
+                    return false;
                 }
                 for (size_t i = begin + 1; i < end - 1; i++) {
-                    switch (name[i]) {
-                        case 'a':
-                        case 'b':
-                        case 'c':
-                        case 'd':
-                        case 'e':
-                        case 'f':
-                        case 'g':
-                        case 'h':
-                        case 'i':
-                        case 'j':
-                        case 'k':
-                        case 'l':
-                        case 'm':
-                        case 'n':
-                        case 'o':
-                        case 'p':
-                        case 'q':
-                        case 'r':
-                        case 's':
-                        case 't':
-                        case 'u':
-                        case 'v':
-                        case 'w':
-                        case 'x':
-                        case 'y':
-                        case 'z':
-                        case '0':
-                        case '1':
-                        case '2':
-                        case '3':
-                        case '4':
-                        case '5':
-                        case '6':
-                        case '7':
-                        case '8':
-                        case '9':
-                        case '-':
-                            break;
-                        default:
-                            return false;
-                    }
+                    t = name[i];
+                    if (is_letter(t) || is_digit(t) || t == '-')
+                        continue;
+                    return false;
                 }
                 if (end == len) {
                     break;
@@ -196,11 +97,10 @@ namespace golos {
             return true;
         }
 
-        bool operator==(const authority &a, const authority &b) {
+        bool operator==(const authority& a, const authority& b) {
             return (a.weight_threshold == b.weight_threshold) &&
                    (a.account_auths == b.account_auths) &&
                    (a.key_auths == b.key_auths);
         }
 
-    }
-} // golos::protocol
+} } // golos::protocol

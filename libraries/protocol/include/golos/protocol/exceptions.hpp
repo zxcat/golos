@@ -208,6 +208,11 @@ namespace golos {
             //account_create_with_delegation
             not_enough_delegation,
 
+            // challenge_authority_operation
+            cannot_challenge_yourself,
+            // prove_authority_evaluator
+            account_is_not_challeneged,
+
             //set_reset_account_operation
             cannot_set_same_reset_account,
 
@@ -247,7 +252,7 @@ namespace golos {
             proxy_would_create_loop,
             proxy_chain_is_too_long,
 
-          // convert operation
+            // convert operation
             no_price_feed_yet,
         };
     };
@@ -378,6 +383,11 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         // withdraw_vesting
         (insufficient_fee_for_powerdown_registered_account)
         (operation_would_not_change_vesting_withdraw_rate)
+
+        //challenge_authority_operation
+        (cannot_challenge_yourself)
+        //prove_authority_evaluator
+        (account_is_not_challeneged)
 
         //set_reset_account_operation
         (cannot_set_same_reset_account)
