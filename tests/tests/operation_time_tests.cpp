@@ -939,29 +939,23 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             wv.vesting_shares = withdraw_amount;
 
             signed_transaction tx;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(wv);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            tx.operations.clear();
-            tx.signatures.clear();
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, wv));
 
             BOOST_TEST_MESSAGE("Setting up bob destination");
-            set_withdraw_vesting_route_operation op;
-            op.from_account = "alice";
-            op.to_account = "bob";
-            op.percent = STEEMIT_1_PERCENT * 50;
-            op.auto_vest = true;
-            tx.operations.push_back(op);
+            set_withdraw_vesting_route_operation op_bob;
+            op_bob.from_account = "alice";
+            op_bob.to_account = "bob";
+            op_bob.percent = STEEMIT_1_PERCENT * 50;
+            op_bob.auto_vest = true;
 
             BOOST_TEST_MESSAGE("Setting up sam destination");
-            op.to_account = "sam";
-            op.percent = STEEMIT_1_PERCENT * 30;
-            op.auto_vest = false;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            set_withdraw_vesting_route_operation op_sam;
+            op_sam.from_account = "alice";
+            op_sam.to_account = "sam";
+            op_sam.percent = STEEMIT_1_PERCENT * 30;
+            op_sam.auto_vest = false;
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op_bob, op_sam));
 
             BOOST_TEST_MESSAGE("Setting up first withdraw");
 
@@ -986,16 +980,16 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                         (vesting_withdraw_rate.amount * STEEMIT_1_PERCENT * 20) / STEEMIT_100_PERCENT,
                         VESTS_SYMBOL) *
                     gpo.get_vesting_share_price();
-                BOOST_REQUIRE(alice.balance == alice_total);
-                BOOST_REQUIRE(alice.vesting_shares == old_alice_vesting - vesting_withdraw_rate);
+                BOOST_CHECK_EQUAL(alice.balance, alice_total);
+                BOOST_CHECK_EQUAL(alice.vesting_shares, old_alice_vesting - vesting_withdraw_rate);
 
                 auto bob_total =
                     old_bob_vesting +
                     asset(
                         (vesting_withdraw_rate.amount * STEEMIT_1_PERCENT * 50) / STEEMIT_100_PERCENT,
                         VESTS_SYMBOL);
-                BOOST_REQUIRE(bob.vesting_shares == bob_total);
-                BOOST_REQUIRE(bob.balance == old_bob_balance);
+                BOOST_CHECK_EQUAL(bob.vesting_shares, bob_total);
+                BOOST_CHECK_EQUAL(bob.balance, old_bob_balance);
 
                 auto sam_total =
                     old_sam_balance +
@@ -1003,8 +997,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                         (vesting_withdraw_rate.amount * STEEMIT_1_PERCENT * 30) / STEEMIT_100_PERCENT,
                         VESTS_SYMBOL) *
                     gpo.get_vesting_share_price();
-                BOOST_REQUIRE(sam.balance == sam_total);
-                BOOST_REQUIRE(sam.vesting_shares == old_sam_vesting);
+                BOOST_CHECK_EQUAL(sam.balance, sam_total);
+                BOOST_CHECK_EQUAL(sam.vesting_shares, old_sam_vesting);
 
                 old_alice_balance = alice.balance;
                 old_alice_vesting = alice.vesting_shares;
@@ -1016,26 +1010,20 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("Test failure with greater than 100% destination assignment");
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            set_withdraw_vesting_route_operation op;
+            op.from_account = "alice";
             op.to_account = "sam";
             op.percent = STEEMIT_1_PERCENT * 50 + 1;
-            tx.operations.push_back(op);
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            op.auto_vest = false;
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::more_100percent_allocated_to_destinations)));
 
             BOOST_TEST_MESSAGE("Test from_account receiving no withdraw");
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
             op.to_account = "sam";
             op.percent = STEEMIT_1_PERCENT * 50;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
             generate_blocks(db->get_account("alice").next_vesting_withdrawal, true);
             {
@@ -1044,25 +1032,25 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                 const auto& sam = db->get_account("sam");
                 auto& gpo = db->get_dynamic_global_properties();
 
-                BOOST_REQUIRE(alice.vesting_shares == old_alice_vesting - vesting_withdraw_rate);
-                BOOST_REQUIRE(alice.balance == old_alice_balance);
+                BOOST_CHECK_EQUAL(alice.vesting_shares, old_alice_vesting - vesting_withdraw_rate);
+                BOOST_CHECK_EQUAL(alice.balance, old_alice_balance);
 
                 auto bob_vesting =
                     old_bob_vesting +
                     asset(
                         (vesting_withdraw_rate.amount * STEEMIT_1_PERCENT * 50) / STEEMIT_100_PERCENT,
                         VESTS_SYMBOL);
-                BOOST_REQUIRE(bob.vesting_shares == bob_vesting);
-                BOOST_REQUIRE(bob.balance == old_bob_balance);
+                BOOST_CHECK_EQUAL(bob.vesting_shares, bob_vesting);
+                BOOST_CHECK_EQUAL(bob.balance, old_bob_balance);
 
-                BOOST_REQUIRE(sam.vesting_shares == old_sam_vesting);
+                BOOST_CHECK_EQUAL(sam.vesting_shares, old_sam_vesting);
                 auto sam_total =
                     old_sam_balance +
                     asset(
                         (vesting_withdraw_rate.amount * STEEMIT_1_PERCENT * 50) / STEEMIT_100_PERCENT,
                         VESTS_SYMBOL) *
                     gpo.get_vesting_share_price();
-                BOOST_REQUIRE(sam.balance == sam_total);
+                BOOST_CHECK_EQUAL(sam.balance, sam_total);
             }
         }
         FC_LOG_AND_RETHROW()
