@@ -219,7 +219,8 @@ namespace golos { namespace plugins { namespace social_network {
         }
 
         void operator()(const golos::protocol::comment_operation& o) const {
-            if (depth_parameters.miss_content()) {
+            const auto& dp = depth_parameters;
+            if (dp.miss_content()) {
                 return;
             }
 
@@ -229,17 +230,17 @@ namespace golos { namespace plugins { namespace social_network {
             if ( comment_content != nullptr) {
                 // Edit case
                 db.modify(*comment_content, [&]( comment_content_object& con ) {
-                    if (o.title.size() && (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0)) {
+                    if (o.title.size() && (!dp.has_comment_title_depth || dp.comment_title_depth > 0)) {
                         from_string(con.title, o.title);
                     }
                     if (o.json_metadata.size()) {
-                        if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                        if ((!dp.has_comment_json_metadata_depth || dp.comment_json_metadata_depth > 0) &&
                             fc::is_utf8(o.json_metadata)
                         ) {
                             from_string(con.json_metadata, o.json_metadata );
                         }
                     }
-                    if (o.body.size() && (!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0)) {
+                    if (o.body.size() && (!dp.has_comment_body_depth || dp.comment_body_depth > 0)) {
                         try {
                             diff_match_patch<std::wstring> dmp;
                             auto patch = dmp.patch_fromText(utf8_to_wstring(o.body));
@@ -248,12 +249,10 @@ namespace golos { namespace plugins { namespace social_network {
                                 auto patched_body = wstring_to_utf8(result.first);
                                 if(!fc::is_utf8(patched_body)) {
                                     from_string(con.body, fc::prune_invalid_utf8(patched_body));
-                                }
-                                else {
+                                } else {
                                     from_string(con.body, patched_body);
                                 }
-                            }
-                            else { // replace
+                            } else { // replace
                                 from_string(con.body, o.body);
                             }
                         } catch ( ... ) {
@@ -261,25 +260,24 @@ namespace golos { namespace plugins { namespace social_network {
                         }
                     }
                     // Set depth null if needed (this parameter is given in config)
-                    if (depth_parameters.set_null_after_update) {
+                    if (dp.set_null_after_update) {
                         con.block_number = db.head_block_num();
                     } 
                 });
 
-            }
-            else {
+            } else {
                 // Creation case
                 db.create<comment_content_object>([&](comment_content_object& con) {
                     con.comment = comment.id;
-                    if (!depth_parameters.has_comment_title_depth || depth_parameters.comment_title_depth > 0) {
+                    if (!dp.has_comment_title_depth || dp.comment_title_depth > 0) {
                         from_string(con.title, o.title);
                     }
                     
-                    if ((!depth_parameters.has_comment_body_depth || depth_parameters.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
+                    if ((!dp.has_comment_body_depth || dp.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
                         from_string(con.body, o.body);
                     }
 
-                    if ((!depth_parameters.has_comment_json_metadata_depth || depth_parameters.comment_json_metadata_depth > 0) &&
+                    if ((!dp.has_comment_json_metadata_depth || dp.comment_json_metadata_depth > 0) &&
                         fc::is_utf8(o.json_metadata)
                     ) {
                         from_string(con.json_metadata, o.json_metadata);
@@ -292,19 +290,15 @@ namespace golos { namespace plugins { namespace social_network {
         
     };
 
-    void social_network::impl::pre_operation(const operation_notification& o) {
-        try {
-            delete_visitor<social_network::impl> ovisit(*this);
-            o.op.visit(ovisit);
-        } FC_CAPTURE_AND_RETHROW()
-    }
+    void social_network::impl::pre_operation(const operation_notification& o) { try {
+        delete_visitor<social_network::impl> ovisit(*this);
+        o.op.visit(ovisit);
+    } FC_CAPTURE_AND_RETHROW() }
 
-    void social_network::impl::post_operation(const operation_notification& o) {
-        try {
-            operation_visitor<social_network::impl> ovisit(*this);
-            o.op.visit(ovisit);
-        } FC_CAPTURE_AND_RETHROW()
-    }
+    void social_network::impl::post_operation(const operation_notification& o) { try {
+        operation_visitor<social_network::impl> ovisit(*this);
+        o.op.visit(ovisit);
+    } FC_CAPTURE_AND_RETHROW() }
 
     void social_network::impl::on_block(const signed_block& b) { try {
         const auto& dp = depth_parameters;
@@ -621,14 +615,14 @@ namespace golos { namespace plugins { namespace social_network {
         }
         const auto content = db.find<comment_content_object, by_comment>(co.id);
         if (content != nullptr) {
-            con.title = std::string(content->title.begin(), content->title.end());
-            con.body = std::string(content->body.begin(), content->body.end());
-            con.json_metadata = std::string(content->json_metadata.begin(), content->json_metadata.end());
+            con.title = to_string(content->title);
+            con.body = to_string(content->body);
+            con.json_metadata = to_string(content->json_metadata);
         }
 
         const auto root_content = db.find<comment_content_object, by_comment>(co.root_comment);
         if (root_content != nullptr) {
-            con.root_title = std::string(root_content->title.begin(), root_content->title.end());
+            con.root_title = to_string(root_content->title);
         }
     }
 
