@@ -322,7 +322,6 @@ namespace golos { namespace chain {
         }
 
         void account_update_evaluator::do_apply(const account_update_operation &o) {
-            database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1))
                 GOLOS_CHECK_OP_PARAM(o, account,
                     GOLOS_CHECK_VALUE(o.account != STEEMIT_TEMP_ACCOUNT,
@@ -339,7 +338,7 @@ namespace golos { namespace chain {
             if (o.owner) {
 #ifndef STEEMIT_BUILD_TESTNET
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), 
+                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(),
                             account_auth.last_owner_update + STEEMIT_OWNER_UPDATE_LIMIT,
                             bandwidth_exception::change_owner_authority_bandwidth,
                             "Owner authority can only be updated once an hour.");
@@ -410,7 +409,6 @@ namespace golos { namespace chain {
  *  Because net_rshares is 0 there is no need to update any pending payout calculations or parent posts.
  */
         void delete_comment_evaluator::do_apply(const delete_comment_operation &o) {
-            database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                 const auto &auth = _db.get_account(o.author);
                 GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
@@ -735,18 +733,18 @@ namespace golos { namespace chain {
             } FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_transfer_evaluator::do_apply(const escrow_transfer_operation &o) {
+        void escrow_transfer_evaluator::do_apply(const escrow_transfer_operation& o) {
             try {
-                database &_db = db();
-
-                const auto &from_account = _db.get_account(o.from);
+                const auto& from_account = _db.get_account(o.from);
                 _db.get_account(o.to);
                 _db.get_account(o.agent);
 
-                FC_ASSERT(o.ratification_deadline >
-                          _db.head_block_time(), "The escorw ratification deadline must be after head block time.");
-                FC_ASSERT(o.escrow_expiration >
-                          _db.head_block_time(), "The escrow expiration must be after head block time.");
+                GOLOS_CHECK_LOGIC(o.ratification_deadline > _db.head_block_time(),
+                    logic_exception::escrow_time_in_past,
+                    "The escrow ratification deadline must be after head block time.");
+                GOLOS_CHECK_LOGIC(o.escrow_expiration > _db.head_block_time(),
+                    logic_exception::escrow_time_in_past,
+                    "The escrow expiration must be after head block time.");
 
                 asset steem_spent = o.steem_amount;
                 asset sbd_spent = o.sbd_amount;
@@ -755,16 +753,12 @@ namespace golos { namespace chain {
                 } else {
                     sbd_spent += o.fee;
                 }
-
-                FC_ASSERT(from_account.balance >=
-                          steem_spent, "Account cannot cover STEEM costs of escrow. Required: ${r} Available: ${a}", ("r", steem_spent)("a", from_account.balance));
-                FC_ASSERT(from_account.sbd_balance >=
-                          sbd_spent, "Account cannot cover SBD costs of escrow. Required: ${r} Available: ${a}", ("r", sbd_spent)("a", from_account.sbd_balance));
-
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, steem_spent);
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, sbd_spent);
                 _db.adjust_balance(from_account, -steem_spent);
                 _db.adjust_balance(from_account, -sbd_spent);
 
-                _db.create<escrow_object>([&](escrow_object &esc) {
+                _db.create<escrow_object>([&](escrow_object& esc) {
                     esc.escrow_id = o.escrow_id;
                     esc.from = o.from;
                     esc.to = o.to;
@@ -779,34 +773,36 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_approve_evaluator::do_apply(const escrow_approve_operation &o) {
+        void escrow_approve_evaluator::do_apply(const escrow_approve_operation& o) {
             try {
-                database &_db = db();
-                const auto &escrow = _db.get_escrow(o.from, o.escrow_id);
-
-                FC_ASSERT(escrow.to ==
-                          o.to, "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o", o.to)("e", escrow.to));
-                FC_ASSERT(escrow.agent ==
-                          o.agent, "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o", o.agent)("e", escrow.agent));
-                FC_ASSERT(escrow.ratification_deadline >=
-                          _db.head_block_time(), "The escrow ratification deadline has passed. Escrow can no longer be ratified.");
+                const auto& escrow = _db.get_escrow(o.from, o.escrow_id);
+                GOLOS_CHECK_LOGIC(escrow.to == o.to,
+                    logic_exception::escrow_bad_to,
+                    "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o",o.to)("e",escrow.to));
+                GOLOS_CHECK_LOGIC(escrow.agent == o.agent,
+                    logic_exception::escrow_bad_agent,
+                    "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o",o.agent)("e",escrow.agent));
+                GOLOS_CHECK_LOGIC(escrow.ratification_deadline >= _db.head_block_time(),
+                    logic_exception::ratification_deadline_passed,
+                    "The escrow ratification deadline has passed. Escrow can no longer be ratified.");
 
                 bool reject_escrow = !o.approve;
-
                 if (o.who == o.to) {
-                    FC_ASSERT(!escrow.to_approved, "Account 'to' (${t}) has already approved the escrow.", ("t", o.to));
-
+                    GOLOS_CHECK_LOGIC(!escrow.to_approved,
+                        logic_exception::account_already_approved_escrow,
+                        "Account 'to' (${t}) has already approved the escrow.", ("t",o.to));
                     if (!reject_escrow) {
-                        _db.modify(escrow, [&](escrow_object &esc) {
+                        _db.modify(escrow, [&](escrow_object& esc) {
                             esc.to_approved = true;
                         });
                     }
                 }
                 if (o.who == o.agent) {
-                    FC_ASSERT(!escrow.agent_approved, "Account 'agent' (${a}) has already approved the escrow.", ("a", o.agent));
-
+                    GOLOS_CHECK_LOGIC(!escrow.agent_approved,
+                        logic_exception::account_already_approved_escrow,
+                        "Account 'agent' (${a}) has already approved the escrow.", ("a",o.agent));
                     if (!reject_escrow) {
-                        _db.modify(escrow, [&](escrow_object &esc) {
+                        _db.modify(escrow, [&](escrow_object& esc) {
                             esc.agent_approved = true;
                         });
                     }
@@ -817,13 +813,11 @@ namespace golos { namespace chain {
                     _db.adjust_balance(from_account, escrow.steem_balance);
                     _db.adjust_balance(from_account, escrow.sbd_balance);
                     _db.adjust_balance(from_account, escrow.pending_fee);
-
                     _db.remove(escrow);
                 } else if (escrow.to_approved && escrow.agent_approved) {
                     const auto &agent_account = _db.get_account(o.agent);
                     _db.adjust_balance(agent_account, escrow.pending_fee);
-
-                    _db.modify(escrow, [&](escrow_object &esc) {
+                    _db.modify(escrow, [&](escrow_object& esc) {
                         esc.pending_fee.amount = 0;
                     });
                 }
@@ -910,8 +904,8 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
+
         void transfer_evaluator::do_apply(const transfer_operation &o) {
-            database &_db = db();
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = _db.get_account(o.to);
 
@@ -930,8 +924,6 @@ namespace golos { namespace chain {
         }
 
         void transfer_to_vesting_evaluator::do_apply(const transfer_to_vesting_operation &o) {
-            database &_db = db();
-
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = o.to.size() ? _db.get_account(o.to)
                                                  : from_account;
@@ -944,8 +936,6 @@ namespace golos { namespace chain {
         }
 
         void withdraw_vesting_evaluator::do_apply(const withdraw_vesting_operation &o) {
-            database &_db = db();
-
             const auto &account = _db.get_account(o.account);
 
             GOLOS_CHECK_BALANCE(account, VESTING, asset(0, VESTS_SYMBOL));
@@ -1010,7 +1000,6 @@ namespace golos { namespace chain {
 
         void set_withdraw_vesting_route_evaluator::do_apply(const set_withdraw_vesting_route_operation &o) {
             try {
-                database &_db = db();
                 const auto &from_account = _db.get_account(o.from_account);
                 const auto &to_account = _db.get_account(o.to_account);
                 const auto &wd_idx = _db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
@@ -1067,7 +1056,6 @@ namespace golos { namespace chain {
         }
 
         void account_witness_proxy_evaluator::do_apply(const account_witness_proxy_operation &o) {
-            database &_db = db();
             const auto &account = _db.get_account(o.account);
             GOLOS_CHECK_LOGIC(account.proxy != o.proxy, 
                     logic_exception::proxy_must_change,
@@ -1125,7 +1113,6 @@ namespace golos { namespace chain {
 
 
         void account_witness_vote_evaluator::do_apply(const account_witness_vote_operation &o) {
-            database &_db = db();
             const auto &voter = _db.get_account(o.account);
             GOLOS_CHECK_LOGIC(voter.proxy.size() == 0, 
                     logic_exception::cannot_vote_when_route_are_set,
@@ -1203,8 +1190,6 @@ namespace golos { namespace chain {
 
         void vote_evaluator::do_apply(const vote_operation &o) {
             try {
-                database &_db = db();
-
                 const auto &comment = _db.get_comment(o.author, o.permlink);
                 const auto &voter = _db.get_account(o.voter);
 
@@ -1889,7 +1874,6 @@ namespace golos { namespace chain {
         }
 
         void feed_publish_evaluator::do_apply(const feed_publish_operation &o) {
-            database &_db = db();
             const auto &witness = _db.get_witness(o.publisher);
             _db.modify(witness, [&](witness_object &w) {
                 w.sbd_exchange_rate = o.exchange_rate;
@@ -1898,14 +1882,13 @@ namespace golos { namespace chain {
         }
 
         void convert_evaluator::do_apply(const convert_operation &o) {
-            database &_db = db();
             const auto &owner = _db.get_account(o.owner);
             GOLOS_CHECK_BALANCE(owner, MAIN_BALANCE, o.amount);
 
             _db.adjust_balance(owner, -o.amount);
 
             const auto &fhistory = _db.get_feed_history();
-            GOLOS_CHECK_LOGIC(!fhistory.current_median_history.is_null(), 
+            GOLOS_CHECK_LOGIC(!fhistory.current_median_history.is_null(),
                     logic_exception::no_price_feed_yet,
                     "Cannot convert SBD because there is no price feed.");
 
@@ -1960,7 +1943,7 @@ namespace golos { namespace chain {
         void limit_order_create2_evaluator::do_apply(const limit_order_create2_operation &o) {
             database &_db = db();
             GOLOS_CHECK_OP_PARAM(o, expiration, {
-                GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(), 
+                GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(),
                         "Limit order has to expire after head block time.");
             });
 

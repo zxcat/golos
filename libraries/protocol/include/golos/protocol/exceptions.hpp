@@ -216,6 +216,24 @@ namespace golos {
             // prove_authority_evaluator
             account_is_not_challeneged,
 
+            // escrow
+            escrow_no_amount_set,
+            escrow_wrong_time_limits,
+            escrow_time_in_past,
+            escrow_bad_to,
+            escrow_bad_agent,
+            escrow_bad_receiver,
+            ratification_deadline_passed,
+            account_already_approved_escrow,
+            cannot_dispute_expired_escrow,
+            escrow_must_be_approved_first,
+            escrow_already_disputed,
+            release_amount_exceeds_escrow_balance,
+            only_agent_can_release_disputed,
+            only_from_to_can_release_non_disputed,
+            from_can_release_only_to_to,
+            to_can_release_only_to_from,
+
             //set_reset_account_operation
             cannot_set_same_reset_account,
 
@@ -406,6 +424,24 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (cannot_challenge_yourself)
         //prove_authority_evaluator
         (account_is_not_challeneged)
+
+        //escrow
+        (escrow_no_amount_set)
+        (escrow_wrong_time_limits)
+        (escrow_time_in_past)
+        (escrow_bad_to)
+        (escrow_bad_agent)
+        (escrow_bad_receiver)
+        (ratification_deadline_passed)
+        (account_already_approved_escrow)
+        (cannot_dispute_expired_escrow)
+        (escrow_must_be_approved_first)
+        (escrow_already_disputed)
+        (release_amount_exceeds_escrow_balance)
+        (only_agent_can_release_disputed)
+        (only_from_to_can_release_non_disputed)
+        (from_can_release_only_to_to)
+        (to_can_release_only_to_from)
 
         //set_reset_account_operation
         (cannot_set_same_reset_account)
