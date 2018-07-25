@@ -33,8 +33,8 @@ std::string wstring_to_utf8(const std::wstring &str) {
     )
 
 #define GOLOS_CHECK_BANDWIDTH(NOW, NEXT, TYPE, MSG, ...) \
-        GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
-                ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
+    GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
+            ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
 
 namespace golos { namespace chain {
         using fc::uint128_t;
@@ -533,11 +533,9 @@ namespace golos { namespace chain {
 
         void comment_evaluator::do_apply(const comment_operation &o) {
             try {
-                database &_db = db();
-
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__55))
-                    GOLOS_CHECK_LOGIC(o.title.size() + o.body.size() + o.json_metadata.size(), 
+                    GOLOS_CHECK_LOGIC(o.title.size() + o.body.size() + o.json_metadata.size(),
                             logic_exception::cannot_update_comment_because_nothing_changed,
                             "Cannot update comment because nothing appears to be changing.");
 
@@ -547,7 +545,7 @@ namespace golos { namespace chain {
                 const auto &auth = _db.get_account(o.author); /// prove it exists
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged), 
+                    GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
                             logic_exception::account_is_currently_challenged,
                             "Operation cannot be processed because account is currently challenged.");
 
@@ -598,16 +596,16 @@ namespace golos { namespace chain {
                                     bandwidth_exception::post_bandwidth,
                                     "You may only post once every 5 minutes.");
                         else
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL, 
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
                                     golos::bandwidth_exception::comment_bandwidth,
                                     "You may only comment once every 20 seconds.");
                     } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL, 
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
                                     bandwidth_exception::post_bandwidth,
                                     "You may only post once every 5 minutes.");
                         else
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL, 
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
                                 bandwidth_exception::comment_bandwidth,
                                 "You may only comment once every 20 seconds.");
                     } else {
@@ -825,23 +823,27 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_dispute_evaluator::do_apply(const escrow_dispute_operation &o) {
+        void escrow_dispute_evaluator::do_apply(const escrow_dispute_operation& o) {
             try {
-                database &_db = db();
                 _db.get_account(o.from); // Verify from account exists
+                const auto& e = _db.get_escrow(o.from, o.escrow_id);
+                GOLOS_CHECK_LOGIC(_db.head_block_time() < e.escrow_expiration,
+                    logic_exception::cannot_dispute_expired_escrow,
+                    "Disputing the escrow must happen before expiration.");
+                GOLOS_CHECK_LOGIC(e.to_approved && e.agent_approved,
+                    logic_exception::escrow_must_be_approved_first,
+                    "The escrow must be approved by all parties before a dispute can be raised.");
+                GOLOS_CHECK_LOGIC(!e.disputed,
+                    logic_exception::escrow_already_disputed,
+                    "The escrow is already under dispute.");
+                GOLOS_CHECK_LOGIC(e.to == o.to,
+                    logic_exception::escrow_bad_to,
+                    "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o",o.to)("e",e.to));
+                GOLOS_CHECK_LOGIC(e.agent == o.agent,
+                    logic_exception::escrow_bad_agent,
+                    "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o",o.agent)("e",e.agent));
 
-                const auto &e = _db.get_escrow(o.from, o.escrow_id);
-                FC_ASSERT(_db.head_block_time() <
-                          e.escrow_expiration, "Disputing the escrow must happen before expiration.");
-                FC_ASSERT(e.to_approved &&
-                          e.agent_approved, "The escrow must be approved by all parties before a dispute can be raised.");
-                FC_ASSERT(!e.disputed, "The escrow is already under dispute.");
-                FC_ASSERT(e.to ==
-                          o.to, "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o", o.to)("e", e.to));
-                FC_ASSERT(e.agent ==
-                          o.agent, "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o", o.agent)("e", e.agent));
-
-                _db.modify(e, [&](escrow_object &esc) {
+                _db.modify(e, [&](escrow_object& esc) {
                     esc.disputed = true;
                 });
             }
@@ -1909,9 +1911,7 @@ namespace golos { namespace chain {
 
         }
 
-        void limit_order_create_evaluator::do_apply(const limit_order_create_operation &o) {
-            database &_db = db();
-
+        void limit_order_create_evaluator::do_apply(const limit_order_create_operation& o) {
             GOLOS_CHECK_OP_PARAM(o, expiration, {
                 GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(),
                         "Limit order has to expire after head block time.");
@@ -1940,8 +1940,7 @@ namespace golos { namespace chain {
                         "Cancelling order because it was not filled.");
         }
 
-        void limit_order_create2_evaluator::do_apply(const limit_order_create2_operation &o) {
-            database &_db = db();
+        void limit_order_create2_evaluator::do_apply(const limit_order_create2_operation& o) {
             GOLOS_CHECK_OP_PARAM(o, expiration, {
                 GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(),
                         "Limit order has to expire after head block time.");
