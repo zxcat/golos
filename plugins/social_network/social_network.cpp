@@ -43,9 +43,10 @@ struct content_depth_params {
     }
 
     bool miss_content() const {
-        return has_comment_title_depth && !comment_title_depth &&
-               has_comment_body_depth && !comment_body_depth &&
-               has_comment_json_metadata_depth && !comment_json_metadata_depth;
+        return
+            has_comment_title_depth && !comment_title_depth &&
+            has_comment_body_depth && !comment_body_depth &&
+            has_comment_json_metadata_depth && !comment_json_metadata_depth;
     }
 
     bool need_clear() const {
@@ -53,11 +54,17 @@ struct content_depth_params {
     }
 
     bool should_delete_whole_content_object(const uint32_t delta) const {
-        return delta > comment_title_depth && delta > comment_body_depth && delta > comment_json_metadata_depth;
+        return
+            (has_comment_title_depth && delta > comment_title_depth) &&
+            (has_comment_body_depth && delta > comment_body_depth) &&
+            (has_comment_json_metadata_depth && delta > comment_json_metadata_depth);
     }
 
     bool should_delete_part_of_content_object(const uint32_t delta) const {
-        return delta > comment_title_depth || delta > comment_body_depth || delta > comment_json_metadata_depth;
+        return
+            (has_comment_title_depth && delta > comment_title_depth) ||
+            (has_comment_body_depth && delta > comment_body_depth) ||
+            (has_comment_json_metadata_depth && delta > comment_json_metadata_depth);
     }
 
 
@@ -299,45 +306,47 @@ namespace golos { namespace plugins { namespace social_network {
         } FC_CAPTURE_AND_RETHROW()
     }
 
-    void social_network::impl::on_block(const signed_block& b) {
-        try {
-            const auto& idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
+    void social_network::impl::on_block(const signed_block& b) { try {
+        const auto& dp = depth_parameters;
 
-            for (auto itr = idx.begin(); itr != idx.end();) {
-                auto& content = *itr;
-                ++itr;
+        if (!dp.need_clear()) {
+            return;
+        }
 
-                auto& comment = db.get(content.comment);
+        const auto& idx = db.get_index<comment_content_index>().indices().get<by_block_number>();
 
-                
-                auto delta = db.head_block_num() - content.block_number;
-                if (comment.mode == archived && depth_parameters.should_delete_part_of_content_object(delta)) {
-                    if (depth_parameters.should_delete_whole_content_object(delta)) {
-                        db.remove(content);
-                        continue;
+        for (auto itr = idx.begin(); itr != idx.end();) {
+            auto& content = *itr;
+            ++itr;
+
+            auto& comment = db.get(content.comment);
+
+            auto delta = db.head_block_num() - content.block_number;
+            if (comment.mode == archived && dp.should_delete_part_of_content_object(delta)) {
+                if (dp.should_delete_whole_content_object(delta)) {
+                    db.remove(content);
+                    continue;
+                }
+
+                db.modify(content, [&](comment_content_object& con) {
+                    if (dp.has_comment_title_depth && delta > dp.comment_title_depth) {
+                        con.title.clear();
                     }
 
-                    db.modify(content, [&](comment_content_object& con) {
-                        if (delta > depth_parameters.comment_title_depth) {
-                            con.title.clear();
-                        }
+                    if (dp.has_comment_body_depth && delta > dp.comment_body_depth) {
+                        con.body.clear();
+                    }
 
-                        if (delta > depth_parameters.comment_body_depth) {
-                            con.body.clear();
-                        }
+                    if (dp.has_comment_json_metadata_depth && delta > dp.comment_json_metadata_depth) {
+                        con.json_metadata.clear();
+                    }
+                });
 
-                        if (delta > depth_parameters.comment_json_metadata_depth) {
-                            con.json_metadata.clear();
-                        }
-                    });
-
-                }
-                else {
-                    break;
-                }
+            } else {
+                break;
             }
-        } FC_CAPTURE_AND_RETHROW()
-    }
+        }
+    } FC_CAPTURE_AND_RETHROW() }
 
     void social_network::plugin_startup() {
         wlog("social_network plugin: plugin_startup()");
