@@ -3823,15 +3823,144 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+//-------------------------------------------------------------
+    BOOST_AUTO_TEST_SUITE(recovery)
+
+#define TRIVIAL_AUTHORITY authority(0, "acc0", 1)
+#define IMPOSSIBLE_AUTHORITY authority(3, "acc1", 1, "acc2", 1)
+#define INVALID_AUTHORITY authority(2, "good1", 1, "2bad", 1)
+
+    BOOST_AUTO_TEST_SUITE(request_account_recovery)
+
+    BOOST_AUTO_TEST_CASE(request_account_recovery_validate) { try {
+        BOOST_TEST_MESSAGE("Testing: request_account_recovery_validate");
+        request_account_recovery_operation op;
+        op.recovery_account = "alice";
+        op.account_to_recover = "bob";
+        op.new_owner_authority = authority(1, "sam", 1);
+        BOOST_TEST_MESSAGE("--- success on valid params");
+        CHECK_OP_VALID(op);
+        CHECK_PARAM_VALID(op, new_owner_authority, authority(3, "one", 1, "two", 2));
+        CHECK_PARAM_VALID(op, new_owner_authority, authority());
+        CHECK_PARAM_VALID(op, new_owner_authority, TRIVIAL_AUTHORITY);
+        CHECK_PARAM_VALID(op, new_owner_authority, IMPOSSIBLE_AUTHORITY);
+
+        BOOST_TEST_MESSAGE("--- fail when recovery_account or account_to_recover invalid");
+        CHECK_PARAM_INVALID(op, recovery_account, "");
+        CHECK_PARAM_INVALID(op, account_to_recover, "");
+
+        BOOST_TEST_MESSAGE("--- fail when new_owner_authority invalid");
+        // TODO: create separate test for authority::validate()
+        CHECK_PARAM_INVALID(op, new_owner_authority, authority(1, "no", 1));
+        CHECK_PARAM_INVALID(op, new_owner_authority, authority(2, "good", 1, "no", 1));
+        CHECK_PARAM_INVALID(op, new_owner_authority, INVALID_AUTHORITY);
+
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(request_account_recovery_authorities) { try {
+        BOOST_TEST_MESSAGE("Testing: request_account_recovery_authorities");
+        request_account_recovery_operation op;
+        op.recovery_account = "alice";
+        op.account_to_recover = "bob";
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set({"alice"}), account_name_set());
+    } FC_LOG_AND_RETHROW() }
+
+    // tested in account_recovery and change_recovery_account test cases
+    // BOOST_AUTO_TEST_CASE(request_account_recovery_apply) { try {
+    // } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_SUITE_END() // request_account_recovery
+
+
+    BOOST_AUTO_TEST_SUITE(recover_account)
+
+    BOOST_AUTO_TEST_CASE(recover_account_validate) { try {
+        BOOST_TEST_MESSAGE("Testing: recover_account_validate");
+        recover_account_operation op;
+        op.account_to_recover = "bob";
+        op.new_owner_authority = authority(1, "alice", 1);
+        op.recent_owner_authority = authority(1, "sam", 1);
+        // TODO: key-based authorities
+        BOOST_TEST_MESSAGE("--- success on valid params");
+        CHECK_OP_VALID(op);
+        CHECK_PARAM_VALID(op, recent_owner_authority, authority());
+        CHECK_PARAM_VALID(op, recent_owner_authority, TRIVIAL_AUTHORITY);
+
+        BOOST_TEST_MESSAGE("--- fail when account_to_recover is invalid");
+        CHECK_PARAM_INVALID(op, account_to_recover, "");
+
+        BOOST_TEST_MESSAGE("--- fail when new_owner_authority is bad");
+        CHECK_PARAM_INVALID_LOGIC(op, new_owner_authority, authority(1, "sam", 1), cannot_set_recent_recovery);
+        CHECK_PARAM_INVALID(op, new_owner_authority, authority());
+        CHECK_PARAM_INVALID(op, new_owner_authority, TRIVIAL_AUTHORITY);
+        CHECK_PARAM_INVALID(op, new_owner_authority, IMPOSSIBLE_AUTHORITY);
+        CHECK_PARAM_INVALID(op, new_owner_authority, INVALID_AUTHORITY);
+
+        BOOST_TEST_MESSAGE("--- fail when recent_owner_authority is bad");
+        CHECK_PARAM_INVALID(op, recent_owner_authority, IMPOSSIBLE_AUTHORITY);
+        CHECK_PARAM_INVALID(op, recent_owner_authority, INVALID_AUTHORITY);
+
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(recover_account_authorities) { try {
+        BOOST_TEST_MESSAGE("Testing: recover_account_authorities");
+        recover_account_operation op;
+        op.account_to_recover = "alice";
+        op.new_owner_authority = authority(1, "bob", 1);
+        op.recent_owner_authority = authority(1, "sam", 1);
+        CHECK_OP_AUTHS(op, account_name_set(), account_name_set(), account_name_set());
+        const auto bob_and_sam = vector<authority>{op.new_owner_authority, op.recent_owner_authority};
+        vector<authority> req;
+        op.get_required_authorities(req);
+        BOOST_CHECK_EQUAL(bob_and_sam, req);
+        // TODO: maybe here can be some more complex checks (like multisig)
+    } FC_LOG_AND_RETHROW() }
+
+    // tested in account_recovery and change_recovery_account test cases
+    // BOOST_AUTO_TEST_CASE(recover_account_apply) { try {
+    // } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_SUITE_END() // recover_account
+
+
+    BOOST_AUTO_TEST_SUITE(change_recovery_account)
+
+    BOOST_AUTO_TEST_CASE(change_recovery_account_validate) { try {
+        BOOST_TEST_MESSAGE("Testing: change_recovery_account_validate");
+        change_recovery_account_operation op;
+        op.account_to_recover = "alice";
+        op.new_recovery_account = "bob";
+        BOOST_TEST_MESSAGE("--- success on valid params");
+        CHECK_OP_VALID(op);
+
+        BOOST_TEST_MESSAGE("--- fail when account_to_recover or new_recovery_account is invalid");
+        CHECK_PARAM_INVALID(op, account_to_recover, "");
+        CHECK_PARAM_INVALID(op, new_recovery_account, "");
+
+    } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_CASE(change_recovery_account_authorities) { try {
+        BOOST_TEST_MESSAGE("Testing: change_recovery_account_authorities");
+        change_recovery_account_operation op;
+        op.account_to_recover = "alice";
+        op.new_recovery_account = "bob";
+        CHECK_OP_AUTHS(op, account_name_set({"alice"}), account_name_set(), account_name_set());
+    } FC_LOG_AND_RETHROW() }
+
+    // tested in change_recovery_account test cases
+    // BOOST_AUTO_TEST_CASE(change_recovery_account_apply) { try {
+    // } FC_LOG_AND_RETHROW() }
+
+    BOOST_AUTO_TEST_SUITE_END() // change_recovery_account
+
+
     BOOST_AUTO_TEST_CASE(account_recovery) {
         try {
             BOOST_TEST_MESSAGE("Testing: account recovery");
-
             ACTORS((alice));
             fund("alice", 1000000);
 
-            BOOST_TEST_MESSAGE("Creating account bob with alice");
-
+            BOOST_TEST_MESSAGE("--- Creating account bob with alice");
             account_create_operation acc_create;
             acc_create.fee = ASSET("10.000 GOLOS");
             acc_create.creator = "alice";
@@ -3842,345 +3971,270 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             acc_create.memo_key = generate_private_key("bob_memo").get_public_key();
             acc_create.json_metadata = "";
 
-
             signed_transaction tx;
-            tx.operations.push_back(acc_create);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, acc_create));
+            const auto& bob_auth = db->get<account_authority_object, by_account>("bob");
+            BOOST_CHECK_EQUAL(bob_auth.owner, acc_create.owner);
 
-            const auto &bob_auth = db->get<account_authority_object, by_account>("bob");
-            BOOST_REQUIRE(bob_auth.owner == acc_create.owner);
-
-
-            BOOST_TEST_MESSAGE("Changing bob's owner authority");
-
+            BOOST_TEST_MESSAGE("--- Changing bob's owner authority");
             account_update_operation acc_update;
             acc_update.account = "bob";
             acc_update.owner = authority(1, generate_private_key("bad_key").get_public_key(), 1);
             acc_update.memo_key = acc_create.memo_key;
             acc_update.json_metadata = "";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, generate_private_key("bob_owner"), acc_update));
+            BOOST_CHECK_EQUAL(bob_auth.owner, *acc_update.owner);
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(acc_update);
-            tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(bob_auth.owner == *acc_update.owner);
-
-
-            BOOST_TEST_MESSAGE("Creating recover request for bob with alice");
-
+            BOOST_TEST_MESSAGE("--- Creating recover request for bob with alice");
             request_account_recovery_operation request;
             request.recovery_account = "alice";
             request.account_to_recover = "bob";
             request.new_owner_authority = authority(1, generate_private_key("new_key").get_public_key(), 1);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
+            BOOST_CHECK_EQUAL(bob_auth.owner, *acc_update.owner);
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(request);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(bob_auth.owner == *acc_update.owner);
-
-
-            BOOST_TEST_MESSAGE("Recovering bob's account with original owner auth and new secret");
-
+            BOOST_TEST_MESSAGE("--- Recovering bob's account with original owner auth and new secret");
             generate_blocks(db->head_block_time() + STEEMIT_OWNER_UPDATE_LIMIT);
-
             recover_account_operation recover;
             recover.account_to_recover = "bob";
             recover.new_owner_authority = request.new_owner_authority;
             recover.recent_owner_authority = acc_create.owner;
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
             tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
             tx.sign(generate_private_key("new_key"), db->get_chain_id());
-            db->push_transaction(tx, 0);
-            const auto &owner1 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            BOOST_REQUIRE(owner1 == recover.new_owner_authority);
+            const auto& owner1 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner1, recover.new_owner_authority);
 
-
-            BOOST_TEST_MESSAGE("Creating new recover request for a bogus key");
-
+            BOOST_TEST_MESSAGE("--- Creating new recover request for a bogus key");
             request.new_owner_authority = authority(1, generate_private_key("foo bar").get_public_key(), 1);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(request);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-
-            BOOST_TEST_MESSAGE("Testing failure when bob does not have new authority");
-
-            generate_blocks(db->head_block_time() + STEEMIT_OWNER_UPDATE_LIMIT +
-                            fc::seconds(STEEMIT_BLOCK_INTERVAL));
-
+            BOOST_TEST_MESSAGE("--- Testing failure when bob does not have new authority");
+            generate_blocks(db->head_block_time() + STEEMIT_OWNER_UPDATE_LIMIT + fc::seconds(STEEMIT_BLOCK_INTERVAL));
             recover.new_owner_authority = authority(1, generate_private_key("idontknow").get_public_key(), 1);
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
             tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
             tx.sign(generate_private_key("idontknow"), db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-            const auto &owner2 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner2 ==
-                          authority(1, generate_private_key("new_key").get_public_key(), 1));
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::authority_does_not_match_request)));
 
+            const auto& owner2 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner2, authority(1, generate_private_key("new_key").get_public_key(), 1));
 
-            BOOST_TEST_MESSAGE("Testing failure when bob does not have old authority");
-
+            BOOST_TEST_MESSAGE("--- Testing failure when bob does not have old authority");
             recover.recent_owner_authority = authority(1, generate_private_key("idontknow").get_public_key(), 1);
             recover.new_owner_authority = authority(1, generate_private_key("foo bar").get_public_key(), 1);
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
             tx.sign(generate_private_key("foo bar"), db->get_chain_id());
             tx.sign(generate_private_key("idontknow"), db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-            const auto &owner3 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner3 ==
-                          authority(1, generate_private_key("new_key").get_public_key(), 1));
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::no_recent_authority_in_history)));
 
+            const auto& owner3 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner3, authority(1, generate_private_key("new_key").get_public_key(), 1));
 
-            BOOST_TEST_MESSAGE("Testing using the same old owner auth again for recovery");
-
+            BOOST_TEST_MESSAGE("--- Testing using the same old owner auth again for recovery");
             recover.recent_owner_authority = authority(1, generate_private_key("bob_owner").get_public_key(), 1);
             recover.new_owner_authority = authority(1, generate_private_key("foo bar").get_public_key(), 1);
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
             tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
             tx.sign(generate_private_key("foo bar"), db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            const auto &owner4 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner4 == recover.new_owner_authority);
+            const auto& owner4 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner4, recover.new_owner_authority);
 
-            BOOST_TEST_MESSAGE("Creating a recovery request that will expire");
-
+            BOOST_TEST_MESSAGE("--- Creating a recovery request that will expire");
             request.new_owner_authority = authority(1, generate_private_key("expire").get_public_key(), 1);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
 
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(request);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            const auto &request_idx = db->get_index<account_recovery_request_index>().indices();
+            const auto& request_idx = db->get_index<account_recovery_request_index>().indices();
             auto req_itr = request_idx.begin();
-
-            BOOST_REQUIRE(req_itr->account_to_recover == "bob");
-            BOOST_REQUIRE(req_itr->new_owner_authority ==
-                          authority(1, generate_private_key("expire").get_public_key(), 1));
-            BOOST_REQUIRE(req_itr->expires == db->head_block_time() +
-                                              STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD);
+            BOOST_CHECK_EQUAL(req_itr->account_to_recover, "bob");
+            BOOST_CHECK_EQUAL(req_itr->new_owner_authority,
+                authority(1, generate_private_key("expire").get_public_key(), 1));
+            BOOST_CHECK_EQUAL(req_itr->expires,
+                db->head_block_time() + STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD);
             auto expires = req_itr->expires;
             ++req_itr;
-            BOOST_REQUIRE(req_itr == request_idx.end());
+            BOOST_CHECK(req_itr == request_idx.end());
 
-            generate_blocks(time_point_sec(
-                    expires - STEEMIT_BLOCK_INTERVAL), true);
-
-            const auto &new_request_idx = db->get_index<account_recovery_request_index>().indices();
-            BOOST_REQUIRE(new_request_idx.begin() != new_request_idx.end());
-
+            generate_blocks(time_point_sec(expires - STEEMIT_BLOCK_INTERVAL), true);
+            const auto& new_request_idx = db->get_index<account_recovery_request_index>().indices();
+            BOOST_CHECK(new_request_idx.begin() != new_request_idx.end());
             generate_block();
-
-            BOOST_REQUIRE(new_request_idx.begin() == new_request_idx.end());
+            BOOST_CHECK(new_request_idx.begin() == new_request_idx.end());
 
             recover.new_owner_authority = authority(1, generate_private_key("expire").get_public_key(), 1);
             recover.recent_owner_authority = authority(1, generate_private_key("bob_owner").get_public_key(), 1);
-
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
-            tx.set_expiration(db->head_block_time());
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(generate_private_key("expire"), db->get_chain_id());
             tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-            const auto &owner5 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner5 ==
-                          authority(1, generate_private_key("foo bar").get_public_key(), 1));
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::no_active_recovery_request)));
 
-            BOOST_TEST_MESSAGE("Expiring owner authority history");
+            const auto& owner5 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner5, authority(1, generate_private_key("foo bar").get_public_key(), 1));
 
+            BOOST_TEST_MESSAGE("--- Expiring owner authority history");
             acc_update.owner = authority(1, generate_private_key("new_key").get_public_key(), 1);
-
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(acc_update);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(generate_private_key("foo bar"), db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, generate_private_key("foo bar"), acc_update));
 
             generate_blocks(db->head_block_time() +
-                            (STEEMIT_OWNER_AUTH_RECOVERY_PERIOD -
-                             STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD));
+                (STEEMIT_OWNER_AUTH_RECOVERY_PERIOD - STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD));
             generate_block();
-
             request.new_owner_authority = authority(1, generate_private_key("last key").get_public_key(), 1);
-
-            tx.operations.clear();
-            tx.signatures.clear();
-
-            tx.operations.push_back(request);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
 
             recover.new_owner_authority = request.new_owner_authority;
             recover.recent_owner_authority = authority(1, generate_private_key("bob_owner").get_public_key(), 1);
-
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
             tx.sign(generate_private_key("last key"), db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-            const auto &owner6 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner6 ==
-                          authority(1, generate_private_key("new_key").get_public_key(), 1));
+            GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::no_recent_authority_in_history)));
+
+            const auto& owner6 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner6, authority(1, generate_private_key("new_key").get_public_key(), 1));
 
             recover.recent_owner_authority = authority(1, generate_private_key("foo bar").get_public_key(), 1);
-
-            tx.operations.clear();
-            tx.signatures.clear();
-
+            tx.clear();
             tx.operations.push_back(recover);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
             tx.sign(generate_private_key("foo bar"), db->get_chain_id());
             tx.sign(generate_private_key("last key"), db->get_chain_id());
-            db->push_transaction(tx, 0);
-            const auto &owner7 = db->get<account_authority_object, by_account>("bob").owner;
-            BOOST_REQUIRE(owner7 ==
-                          authority(1, generate_private_key("last key").get_public_key(), 1));
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            const auto& owner7 = db->get<account_authority_object, by_account>("bob").owner;
+            BOOST_CHECK_EQUAL(owner7, authority(1, generate_private_key("last key").get_public_key(), 1));
         }
         FC_LOG_AND_RETHROW()
     }
 
-    BOOST_AUTO_TEST_CASE(change_recovery_account) {
+    BOOST_AUTO_TEST_CASE(change_recovery_account_apply) {
         try {
+            using fc::ecc::private_key;
             BOOST_TEST_MESSAGE("Testing change_recovery_account_operation");
+            ACTORS((alice)(sam))
 
-            ACTORS((alice)(bob)(sam)(tyler))
-
-            auto change_recovery_account = [&](const std::string &account_to_recover, const std::string &new_recovery_account) {
+            auto change_recovery_account = [&](const string& account_to_recover, const string& new_recovery_account) {
                 change_recovery_account_operation op;
                 op.account_to_recover = account_to_recover;
                 op.new_recovery_account = new_recovery_account;
-
                 signed_transaction tx;
-                tx.operations.push_back(op);
-                tx.set_expiration(db->head_block_time() +
-                                  STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-                tx.sign(alice_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                push_tx_with_ops(tx, alice_private_key, op);
             };
 
-            auto recover_account = [&](const std::string &account_to_recover, const fc::ecc::private_key &new_owner_key, const fc::ecc::private_key &recent_owner_key) {
+            auto recover_account = [&](
+                const string& account_to_recover,
+                const private_key& new_owner_key,
+                const private_key& recent_owner_key
+            ) {
                 recover_account_operation op;
                 op.account_to_recover = account_to_recover;
                 op.new_owner_authority = authority(1, public_key_type(new_owner_key.get_public_key()), 1);
                 op.recent_owner_authority = authority(1, public_key_type(recent_owner_key.get_public_key()), 1);
-
                 signed_transaction tx;
                 tx.operations.push_back(op);
-                tx.set_expiration(db->head_block_time() +
-                                  STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+                tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
                 tx.sign(recent_owner_key, db->get_chain_id());
                 // only Alice -> throw
-                STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+                GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), CHECK_ERROR(tx_missing_other_auth, 0));
                 tx.signatures.clear();
                 tx.sign(new_owner_key, db->get_chain_id());
                 // only Sam -> throw
-                STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+                GOLOS_CHECK_ERROR_PROPS(db->push_transaction(tx, 0), CHECK_ERROR(tx_missing_other_auth, 0));
                 tx.sign(recent_owner_key, db->get_chain_id());
                 // Alice+Sam -> OK
                 db->push_transaction(tx, 0);
             };
 
-            auto request_account_recovery = [&](const std::string &recovery_account, const fc::ecc::private_key &recovery_account_key, const std::string &account_to_recover, const public_key_type &new_owner_key) {
+            auto request_account_recovery = [&](
+                const string& recovery_account,
+                const private_key& recovery_account_key,
+                const string& account_to_recover,
+                const public_key_type& new_owner_key
+            ) {
                 request_account_recovery_operation op;
                 op.recovery_account = recovery_account;
                 op.account_to_recover = account_to_recover;
                 op.new_owner_authority = authority(1, new_owner_key, 1);
-
                 signed_transaction tx;
-                tx.operations.push_back(op);
-                tx.set_expiration(db->head_block_time() +
-                                  STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-                tx.sign(recovery_account_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                push_tx_with_ops(tx, recovery_account_key, op);
             };
 
-            auto change_owner = [&](const std::string &account, const fc::ecc::private_key &old_private_key, const public_key_type &new_public_key) {
+            auto change_owner = [&](
+                const string& account,
+                const private_key& old_private_key,
+                const public_key_type& new_public_key
+            ) {
                 account_update_operation op;
                 op.account = account;
                 op.owner = authority(1, new_public_key, 1);
-
                 signed_transaction tx;
-                tx.operations.push_back(op);
-                tx.set_expiration(db->head_block_time() +
-                                  STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-                tx.sign(old_private_key, db->get_chain_id());
-                db->push_transaction(tx, 0);
+                BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, old_private_key, op));
             };
 
-            // if either/both users do not exist, we shouldn't allow it
-            STEEMIT_REQUIRE_THROW(change_recovery_account("alice", "nobody"), fc::exception);
-            STEEMIT_REQUIRE_THROW(change_recovery_account("haxer", "sam"), fc::exception);
-            STEEMIT_REQUIRE_THROW(change_recovery_account("haxer", "nobody"), fc::exception);
-            change_recovery_account("alice", "sam");
+            BOOST_TEST_MESSAGE("--- if either/both users do not exist, we shouldn't allow it");
+            GOLOS_CHECK_ERROR_PROPS(change_recovery_account("alice", "nobody"),
+                CHECK_ERROR(tx_invalid_operation, 0, CHECK_ERROR(missing_object, "account", "nobody")));
+            GOLOS_CHECK_ERROR_PROPS(change_recovery_account("haxer", "sam"),
+                CHECK_ERROR(missing_object, "authority", "haxer"));
+            GOLOS_CHECK_ERROR_PROPS(change_recovery_account("haxer", "nobody"),
+                CHECK_ERROR(missing_object, "authority", "haxer"));
+            BOOST_CHECK_NO_THROW(change_recovery_account("alice", "sam"));
 
             fc::ecc::private_key alice_priv1 = fc::ecc::private_key::regenerate(fc::sha256::hash("alice_k1"));
             fc::ecc::private_key alice_priv2 = fc::ecc::private_key::regenerate(fc::sha256::hash("alice_k2"));
             public_key_type alice_pub1 = public_key_type(alice_priv1.get_public_key());
 
             generate_blocks(
-                    db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD -
-                    fc::seconds(STEEMIT_BLOCK_INTERVAL), true);
-            // cannot request account recovery until recovery account is approved
-            STEEMIT_REQUIRE_THROW(request_account_recovery("sam", sam_private_key, "alice", alice_pub1), fc::exception);
+                db->head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD - fc::seconds(STEEMIT_BLOCK_INTERVAL),
+                true);
+
+            BOOST_TEST_MESSAGE("--- cannot request account recovery until recovery account is approved");
+            GOLOS_CHECK_ERROR_PROPS(request_account_recovery("sam", sam_private_key, "alice", alice_pub1),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::cannot_recover_if_not_partner)));
             generate_blocks(1);
-            // cannot finish account recovery until requested
-            STEEMIT_REQUIRE_THROW(recover_account("alice", alice_priv1, alice_private_key), fc::exception);
+
+            BOOST_TEST_MESSAGE("--- cannot finish account recovery until requested");
+            GOLOS_CHECK_ERROR_PROPS(recover_account("alice", alice_priv1, alice_private_key),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::no_active_recovery_request)));
             // do the request
-            request_account_recovery("sam", sam_private_key, "alice", alice_pub1);
-            // can't recover with the current owner key
-            STEEMIT_REQUIRE_THROW(recover_account("alice", alice_priv1, alice_private_key), fc::exception);
-            // unless we change it!
-            change_owner("alice", alice_private_key, public_key_type(alice_priv2.get_public_key()));
-            recover_account("alice", alice_priv1, alice_private_key);
+            BOOST_CHECK_NO_THROW(request_account_recovery("sam", sam_private_key, "alice", alice_pub1));
+
+            BOOST_TEST_MESSAGE("--- can't recover with the current owner key");
+            GOLOS_CHECK_ERROR_PROPS(recover_account("alice", alice_priv1, alice_private_key),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::no_recent_authority_in_history)));
+
+            BOOST_TEST_MESSAGE("--- success after we change it!");
+            BOOST_CHECK_NO_THROW(change_owner("alice", alice_private_key, public_key_type(alice_priv2.get_public_key())));
+            BOOST_CHECK_NO_THROW(recover_account("alice", alice_priv1, alice_private_key));
         }
         FC_LOG_AND_RETHROW()
     }
+    BOOST_AUTO_TEST_SUITE_END() // recovery
 
 
 //#define CALCULATE_NONCES

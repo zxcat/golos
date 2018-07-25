@@ -548,25 +548,30 @@ namespace golos { namespace protocol {
         }
 
         void request_account_recovery_operation::validate() const {
-            validate_account_name(recovery_account);
-            validate_account_name(account_to_recover);
-            new_owner_authority.validate();
+            GOLOS_CHECK_PARAM_ACCOUNT(recovery_account);
+            GOLOS_CHECK_PARAM_ACCOUNT(account_to_recover);
+            GOLOS_CHECK_PARAM_VALIDATE(new_owner_authority);
         }
 
         void recover_account_operation::validate() const {
-            validate_account_name(account_to_recover);
-            FC_ASSERT(!(new_owner_authority ==
-                        recent_owner_authority), "Cannot set new owner authority to the recent owner authority");
-            FC_ASSERT(!new_owner_authority.is_impossible(), "new owner authority cannot be impossible");
-            FC_ASSERT(!recent_owner_authority.is_impossible(), "recent owner authority cannot be impossible");
-            FC_ASSERT(new_owner_authority.weight_threshold, "new owner authority cannot be trivial");
-            new_owner_authority.validate();
-            recent_owner_authority.validate();
+            GOLOS_CHECK_PARAM_ACCOUNT(account_to_recover);
+            GOLOS_CHECK_PARAM(new_owner_authority, {
+                GOLOS_CHECK_LOGIC(!(new_owner_authority == recent_owner_authority),
+                    logic_exception::cannot_set_recent_recovery,
+                    "Cannot set new owner authority to the recent owner authority");
+                GOLOS_CHECK_VALUE(!new_owner_authority.is_impossible(), "new owner authority cannot be impossible");
+                GOLOS_CHECK_VALUE(new_owner_authority.weight_threshold, "new owner authority cannot be trivial");
+                new_owner_authority.validate();
+            });
+            GOLOS_CHECK_PARAM(recent_owner_authority, {
+                GOLOS_CHECK_VALUE(!recent_owner_authority.is_impossible(), "recent owner authority cannot be impossible");
+                recent_owner_authority.validate();
+            });
         }
 
         void change_recovery_account_operation::validate() const {
-            validate_account_name(account_to_recover);
-            validate_account_name(new_recovery_account);
+            GOLOS_CHECK_PARAM_ACCOUNT(account_to_recover);
+            GOLOS_CHECK_PARAM_ACCOUNT(new_recovery_account);
         }
 
         void transfer_to_savings_operation::validate() const {

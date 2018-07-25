@@ -216,6 +216,15 @@ namespace golos {
             // prove_authority_evaluator
             account_is_not_challeneged,
 
+            // request_account_recovery
+            cannot_recover_if_not_partner,
+            must_be_recovered_by_top_witness,
+            // recover_account_operation
+            cannot_set_recent_recovery,
+            no_active_recovery_request,
+            authority_does_not_match_request,
+            no_recent_authority_in_history,
+
             //set_reset_account_operation
             cannot_set_same_reset_account,
 
@@ -406,6 +415,15 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (cannot_challenge_yourself)
         //prove_authority_evaluator
         (account_is_not_challeneged)
+
+        // request_account_recovery
+        (cannot_recover_if_not_partner)
+        (must_be_recovered_by_top_witness)
+        // recover_account_operation
+        (cannot_set_recent_recovery)
+        (no_active_recovery_request)
+        (authority_does_not_match_request)
+        (no_recent_authority_in_history)
 
         //set_reset_account_operation
         (cannot_set_same_reset_account)
