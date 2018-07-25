@@ -522,24 +522,20 @@ namespace golos { namespace protocol {
         }
 
         void escrow_release_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            validate_account_name(agent);
-            validate_account_name(who);
-            validate_account_name(receiver);
-            FC_ASSERT(who == from || who == to ||
-                      who == agent, "who must be from or to or agent");
-            FC_ASSERT(receiver == from ||
-                      receiver == to, "receiver must be from or to");
-            FC_ASSERT(sbd_amount.amount >= 0, "gbg amount cannot be negative");
-            FC_ASSERT(steem_amount.amount >=
-                      0, "golos amount cannot be negative");
-            FC_ASSERT(sbd_amount.amount > 0 || steem_amount.amount >
-                                               0, "escrow must release a non-zero amount");
-            FC_ASSERT(sbd_amount.symbol ==
-                      SBD_SYMBOL, "gbg amount must contain GBG");
-            FC_ASSERT(steem_amount.symbol ==
-                      STEEM_SYMBOL, "golos amount must contain GOLOS");
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM_ACCOUNT(agent);
+            GOLOS_CHECK_PARAM_ACCOUNT(who);
+            GOLOS_CHECK_PARAM_ACCOUNT(receiver);
+            GOLOS_CHECK_PARAM(who,
+                GOLOS_CHECK_VALUE(who == from || who == to || who == agent, "who must be from or to or agent"));
+            GOLOS_CHECK_PARAM(receiver,
+                GOLOS_CHECK_VALUE(receiver == from || receiver == to, "receiver must be from or to"));
+            GOLOS_CHECK_PARAM(sbd_amount, GOLOS_CHECK_ASSET_GE0(sbd_amount, GBG));
+            GOLOS_CHECK_PARAM(steem_amount, GOLOS_CHECK_ASSET_GE0(steem_amount, GOLOS));
+            GOLOS_CHECK_LOGIC(sbd_amount.amount > 0 || steem_amount.amount > 0,
+                logic_exception::escrow_no_amount_set,
+                "escrow must release a non-zero amount");
         }
 
         void request_account_recovery_operation::validate() const {

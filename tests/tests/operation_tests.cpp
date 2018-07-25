@@ -5138,47 +5138,52 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_SUITE_END() // escrow_dispute
 
 
+    BOOST_AUTO_TEST_SUITE(escrow_release)
+
     BOOST_AUTO_TEST_CASE(escrow_release_validate) {
         try {
             BOOST_TEST_MESSAGE("Testing: escrow release validate");
             escrow_release_operation op;
             op.from = "alice";
             op.to = "bob";
-            op.who = "alice";
             op.agent = "sam";
+            op.who = "alice";
             op.receiver = "bob";
+            op.steem_amount = ASSET_GOLOS(1);
+            op.sbd_amount = ASSET_GBG(0);
+            BOOST_TEST_MESSAGE("--- success");
+            CHECK_OP_VALID(op);
 
+            BOOST_TEST_MESSAGE("--- failure when invalid account");
+            CHECK_PARAM_INVALID(op, from, "");
+            CHECK_PARAM_INVALID(op, to, "");
+            CHECK_PARAM_INVALID(op, agent, "");
+            CHECK_PARAM_INVALID(op, who, "");
+            CHECK_PARAM_INVALID(op, receiver, "");
+
+            BOOST_TEST_MESSAGE("--- failure when who not from or to or agent");
+            CHECK_PARAM_INVALID(op, who, "dave");
+
+            BOOST_TEST_MESSAGE("--- failure when receiver not from or to");
+            CHECK_PARAM_INVALID(op, receiver, "sam");
+            CHECK_PARAM_INVALID(op, receiver, "dave");
 
             BOOST_TEST_MESSAGE("--- failure when steem < 0");
-            op.steem_amount.amount = -1;
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
+            CHECK_PARAM_INVALID(op, steem_amount, ASSET_GOLOS(-1));
 
             BOOST_TEST_MESSAGE("--- failure when sbd < 0");
-            op.steem_amount.amount = 0;
-            op.sbd_amount.amount = -1;
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
+            CHECK_PARAM_INVALID(op, sbd_amount, ASSET_GBG(-1));
 
             BOOST_TEST_MESSAGE("--- failure when steem == 0 and sbd == 0");
-            op.sbd_amount.amount = 0;
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
+            CHECK_PARAM_INVALID_LOGIC(op, steem_amount, ASSET_GOLOS(0), escrow_no_amount_set);
 
             BOOST_TEST_MESSAGE("--- failure when sbd is not sbd symbol");
-            op.sbd_amount = ASSET("1.000 GOLOS");
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
+            CHECK_PARAM_INVALID(op, sbd_amount, ASSET_GOLOS(1));
+            CHECK_PARAM_INVALID(op, sbd_amount, ASSET_GESTS(1));
 
             BOOST_TEST_MESSAGE("--- failure when steem is not steem symbol");
-            op.sbd_amount.symbol = SBD_SYMBOL;
-            op.steem_amount = ASSET("1.000 GBG");
-            STEEMIT_REQUIRE_THROW(op.validate(), fc::exception);
-
-
-            BOOST_TEST_MESSAGE("--- success");
-            op.steem_amount.symbol = STEEM_SYMBOL;
-            op.validate();
+            CHECK_PARAM_INVALID(op, steem_amount, ASSET_GBG(0));
+            CHECK_PARAM_INVALID(op, steem_amount, ASSET_GESTS(0));
         }
         FC_LOG_AND_RETHROW()
     }
@@ -5190,33 +5195,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.from = "alice";
             op.to = "bob";
             op.who = "alice";
-
-            flat_set<account_name_type> auths;
-            flat_set<account_name_type> expected;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.get_required_posting_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            expected.insert("alice");
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({op.who}), account_name_set());
             op.who = "bob";
-            auths.clear();
-            expected.clear();
-            expected.insert("bob");
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
-
-            op.who = "sam";
-            auths.clear();
-            expected.clear();
-            expected.insert("sam");
-            op.get_required_active_authorities(auths);
-            BOOST_REQUIRE(auths == expected);
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set({op.who}), account_name_set());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -5224,7 +5205,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
     BOOST_AUTO_TEST_CASE(escrow_release_apply) {
         try {
             BOOST_TEST_MESSAGE("Testing: escrow_release_apply");
-
             ACTORS((alice)(bob)(sam)(dave))
             fund("alice", 10000);
 
@@ -5238,13 +5218,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             et_op.escrow_expiration = db->head_block_time() + 2 * STEEMIT_BLOCK_INTERVAL;
 
             signed_transaction tx;
-            tx.operations.push_back(et_op);
-
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, et_op));
 
             BOOST_TEST_MESSAGE("--- failure releasing funds prior to approval");
             escrow_release_operation op;
@@ -5254,453 +5228,274 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.who = et_op.from;
             op.receiver = et_op.to;
             op.steem_amount = ASSET("0.100 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::escrow_must_be_approved_first)));
 
             escrow_approve_operation ea_b_op;
             ea_b_op.from = "alice";
             ea_b_op.to = "bob";
             ea_b_op.agent = "sam";
             ea_b_op.who = "bob";
-
             escrow_approve_operation ea_s_op;
             ea_s_op.from = "alice";
             ea_s_op.to = "bob";
             ea_s_op.agent = "sam";
             ea_s_op.who = "sam";
-
-            tx.clear();
-            tx.operations.push_back(ea_b_op);
-            tx.operations.push_back(ea_s_op);
-            tx.sign(bob_private_key, db->get_chain_id());
+            sign_tx_with_ops(tx, bob_private_key, ea_b_op, ea_s_op);
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempts to release non-disputed escrow to 'to'");
             op.who = et_op.agent;
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, sam_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_from_to_can_release_non_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempts to release non-disputed escrow to 'from' ");
             op.receiver = et_op.from;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, sam_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_from_to_can_release_non_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempt to release non-disputed escrow to not 'to' or 'from'");
             op.receiver = "dave";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when other attempts to release non-disputed escrow to 'to'");
             op.receiver = et_op.to;
             op.who = "dave";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(dave_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "who"));
 
             BOOST_TEST_MESSAGE("--- failure when other attempts to release non-disputed escrow to 'from' ");
             op.receiver = et_op.from;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(dave_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "who"));
 
             BOOST_TEST_MESSAGE("--- failure when other attempt to release non-disputed escrow to not 'to' or 'from'");
             op.receiver = "dave";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(dave_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "who"));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attemtps to release non-disputed escrow to 'to'");
             op.receiver = et_op.to;
             op.who = et_op.to;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::to_can_release_only_to_from)));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release non-dispured escrow to 'agent' ");
             op.receiver = et_op.agent;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release non-disputed escrow to not 'from'");
             op.receiver = "dave";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed escrow to 'to' from 'from'");
             op.receiver = et_op.from;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(db->get_escrow(op.from, op.escrow_id).steem_balance ==
-                          ASSET("0.900 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_account("alice").balance == ASSET("9.000 GOLOS"));
-
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, op));
+            BOOST_CHECK_EQUAL(db->get_escrow(op.from, op.escrow_id).steem_balance, ASSET("0.900 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.000 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release non-disputed escrow to 'from'");
             op.receiver = et_op.from;
             op.who = et_op.from;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::from_can_release_only_to_to)));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release non-disputed escrow to 'agent'");
             op.receiver = et_op.agent;
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release non-disputed escrow to not 'from'");
             op.receiver = "dave";
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed escrow to 'from' from 'to'");
             op.receiver = et_op.to;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            BOOST_REQUIRE(db->get_escrow(op.from, op.escrow_id).steem_balance == ASSET("0.800 GOLOS"));
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("0.100 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_escrow(op.from, op.escrow_id).steem_balance, ASSET("0.800 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.100 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- failure when releasing more sbd than available");
             op.steem_amount = ASSET("1.000 GOLOS");
-
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::release_amount_exceeds_escrow_balance)));
 
             BOOST_TEST_MESSAGE("--- failure when releasing less steem than available");
             op.steem_amount = ASSET("0.000 GOLOS");
             op.sbd_amount = ASSET("1.000 GBG");
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::release_amount_exceeds_escrow_balance)));
 
-            tx.clear();
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
-
+            generate_block();
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release disputed escrow");
             escrow_dispute_operation ed_op;
             ed_op.from = "alice";
             ed_op.to = "bob";
             ed_op.agent = "sam";
             ed_op.who = "alice";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, ed_op));
 
-            tx.clear();
-            tx.operations.push_back(ed_op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
-
-            tx.clear();
             op.from = et_op.from;
             op.receiver = et_op.from;
             op.who = et_op.to;
             op.steem_amount = ASSET("0.100 GOLOS");
             op.sbd_amount = ASSET("0.000 GBG");
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_agent_can_release_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release disputed escrow");
-            tx.clear();
             op.receiver = et_op.to;
             op.who = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_agent_can_release_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when releasing disputed escrow to an account not 'to' or 'from'");
-            tx.clear();
             op.who = et_op.agent;
             op.receiver = "dave";
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when agent does not match escrow");
-            tx.clear();
             op.who = "dave";
             op.receiver = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(dave_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "who"));
 
             BOOST_TEST_MESSAGE("--- success releasing disputed escrow with agent to 'to'");
-            tx.clear();
             op.receiver = et_op.to;
             op.who = et_op.agent;
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, sam_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("0.200 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.700 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.200 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.700 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- success releasing disputed escrow with agent to 'from'");
-            tx.clear();
             op.receiver = et_op.from;
             op.who = et_op.agent;
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, sam_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("9.100 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.600 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.100 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.600 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release disputed expired escrow");
             generate_blocks(2);
-
-            tx.clear();
             op.receiver = et_op.from;
             op.who = et_op.to;
-            tx.operations.push_back(op);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_agent_can_release_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release disputed expired escrow");
-            tx.clear();
             op.receiver = et_op.to;
             op.who = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_agent_can_release_disputed)));
 
             BOOST_TEST_MESSAGE("--- success releasing disputed expired escrow with agent");
-            tx.clear();
             op.receiver = et_op.from;
             op.who = et_op.agent;
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, sam_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("9.200 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.500 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.200 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.500 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- success deleting escrow when balances are both zero");
-            tx.clear();
             op.steem_amount = ASSET("0.500 GOLOS");
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, sam_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("9.700 GOLOS"));
-            STEEMIT_REQUIRE_THROW(db->get_escrow(et_op.from, et_op.escrow_id), fc::exception);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.700 GOLOS"));
+            GOLOS_CHECK_ERROR_PROPS(db->get_escrow(et_op.from, et_op.escrow_id),
+                CHECK_ERROR(missing_object, "escrow", make_escrow_id(et_op.from, et_op.escrow_id)));
 
-
-            tx.clear();
-            et_op.ratification_deadline =
-                    db->head_block_time() + STEEMIT_BLOCK_INTERVAL;
-            et_op.escrow_expiration =
-                    db->head_block_time() + 2 * STEEMIT_BLOCK_INTERVAL;
-            tx.operations.push_back(et_op);
-            tx.operations.push_back(ea_b_op);
-            tx.operations.push_back(ea_s_op);
-            tx.set_expiration(
-                    db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.sign(alice_private_key, db->get_chain_id());
+            et_op.ratification_deadline = db->head_block_time() + STEEMIT_BLOCK_INTERVAL;
+            et_op.escrow_expiration = db->head_block_time() + 2 * STEEMIT_BLOCK_INTERVAL;
+            sign_tx_with_ops(tx, alice_private_key, et_op, ea_b_op, ea_s_op);
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
             generate_blocks(2);
 
-
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempts to release non-disputed expired escrow to 'to'");
-            tx.clear();
             op.receiver = et_op.to;
             op.who = et_op.agent;
             op.steem_amount = ASSET("0.100 GOLOS");
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, sam_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_from_to_can_release_non_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempts to release non-disputed expired escrow to 'from'");
-            tx.clear();
             op.receiver = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, sam_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(logic_exception, logic_exception::only_from_to_can_release_non_disputed)));
 
             BOOST_TEST_MESSAGE("--- failure when 'agent' attempt to release non-disputed expired escrow to not 'to' or 'from'");
-            tx.clear();
             op.receiver = "dave";
-            tx.operations.push_back(op);
-            tx.sign(sam_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release non-dispured expired escrow to 'agent'");
-            tx.clear();
             op.who = et_op.to;
             op.receiver = et_op.agent;
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when 'to' attempts to release non-disputed expired escrow to not 'from' or 'to'");
-            tx.clear();
             op.receiver = "dave";
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed expired escrow to 'to' from 'to'");
-            tx.clear();
             op.receiver = et_op.to;
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("bob").balance == ASSET("0.300 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.900 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.300 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.900 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed expired escrow to 'from' from 'to'");
-            tx.clear();
             op.receiver = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, op));
 
-            BOOST_REQUIRE(db->get_account("alice").balance == ASSET("8.700 GOLOS"));
-            BOOST_REQUIRE(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance == ASSET("0.800 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("8.700 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.800 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release non-disputed expired escrow to 'agent'");
-            tx.clear();
             op.who = et_op.from;
             op.receiver = et_op.agent;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- failure when 'from' attempts to release non-disputed expired escrow to not 'from' or 'to'");
-            tx.clear();
             op.receiver = "dave";
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            STEEMIT_REQUIRE_THROW(db->push_transaction(tx, 0), fc::exception);
-
+            GOLOS_CHECK_ERROR_PROPS(op.validate(), CHECK_ERROR(invalid_parameter, "receiver"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed expired escrow to 'to' from 'from'");
-            tx.clear();
             op.receiver = et_op.to;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
-            BOOST_REQUIRE(
-                    db->get_account("bob").balance == ASSET("0.400 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.700 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("bob").balance, ASSET("0.400 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.700 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- success release non-disputed expired escrow to 'from' from 'from'");
-            tx.clear();
             op.receiver = et_op.from;
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
-            BOOST_REQUIRE(
-                    db->get_account("alice").balance == ASSET("8.800 GOLOS"));
-            BOOST_REQUIRE(
-                    db->get_escrow(et_op.from, et_op.escrow_id).steem_balance ==
-                    ASSET("0.600 GOLOS"));
-
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("8.800 GOLOS"));
+            BOOST_CHECK_EQUAL(db->get_escrow(et_op.from, et_op.escrow_id).steem_balance, ASSET("0.600 GOLOS"));
 
             BOOST_TEST_MESSAGE("--- success deleting escrow when balances are zero on non-disputed escrow");
-            tx.clear();
             op.steem_amount = ASSET("0.600 GOLOS");
-            tx.operations.push_back(op);
-            tx.sign(alice_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
 
-            BOOST_REQUIRE(
-                    db->get_account("alice").balance == ASSET("9.400 GOLOS"));
-            STEEMIT_REQUIRE_THROW(db->get_escrow(et_op.from, et_op.escrow_id), fc::exception);
+            BOOST_CHECK_EQUAL(db->get_account("alice").balance, ASSET("9.400 GOLOS"));
+            GOLOS_CHECK_ERROR_PROPS(db->get_escrow(et_op.from, et_op.escrow_id),
+                CHECK_ERROR(missing_object, "escrow", make_escrow_id(et_op.from, et_op.escrow_id)));
         }
         FC_LOG_AND_RETHROW()
     }
+    BOOST_AUTO_TEST_SUITE_END() // escrow_release
     BOOST_AUTO_TEST_SUITE_END() // escrow
 
 //-------------------------------------------------------------
