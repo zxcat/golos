@@ -526,6 +526,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             ACTORS((alice)(bob)(sam))
             generate_blocks(60 / STEEMIT_BLOCK_INTERVAL);
 
+            BOOST_CHECK(db->has_index<golos::plugins::social_network::comment_last_update_index>());
+
+            const auto& clu_idx = db->get_index<golos::plugins::social_network::comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+
             comment_operation op;
             op.author = "alice";
             op.permlink = "lorem";
@@ -549,7 +553,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(alice_comment.author, op.author);
             BOOST_CHECK_EQUAL(to_string(alice_comment.permlink), op.permlink);
             BOOST_CHECK_EQUAL(to_string(alice_comment.parent_permlink), op.parent_permlink);
-            BOOST_CHECK_EQUAL(alice_comment.last_update, db->head_block_time());
+
+            auto alice_clu_itr = clu_idx.find(alice_comment.id);
+            BOOST_CHECK(alice_clu_itr != clu_idx.end());
+            BOOST_CHECK_EQUAL(alice_clu_itr->last_update, db->head_block_time());
+
             BOOST_CHECK_EQUAL(alice_comment.created, db->head_block_time());
             BOOST_CHECK_EQUAL(alice_comment.net_rshares.value, 0);
             BOOST_CHECK_EQUAL(alice_comment.abs_rshares.value, 0);
@@ -591,7 +599,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(to_string(bob_comment.permlink), op.permlink);
             BOOST_CHECK_EQUAL(bob_comment.parent_author, op.parent_author);
             BOOST_CHECK_EQUAL(to_string(bob_comment.parent_permlink), op.parent_permlink);
-            BOOST_CHECK_EQUAL(bob_comment.last_update, db->head_block_time());
+
+            auto bob_clu_itr = clu_idx.find(bob_comment.id);
+            BOOST_CHECK(bob_clu_itr != clu_idx.end());
+            BOOST_CHECK_EQUAL(bob_clu_itr->last_update, db->head_block_time());
+
             BOOST_CHECK_EQUAL(bob_comment.created, db->head_block_time());
             BOOST_CHECK_EQUAL(bob_comment.net_rshares.value, 0);
             BOOST_CHECK_EQUAL(bob_comment.abs_rshares.value, 0);
@@ -618,7 +630,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(to_string(sam_comment.permlink), op.permlink);
             BOOST_CHECK_EQUAL(sam_comment.parent_author, op.parent_author);
             BOOST_CHECK_EQUAL(to_string(sam_comment.parent_permlink), op.parent_permlink);
-            BOOST_CHECK_EQUAL(sam_comment.last_update, db->head_block_time());
+
+            auto sam_clu_itr = clu_idx.find(sam_comment.id);
+            BOOST_CHECK(sam_clu_itr != clu_idx.end());
+            BOOST_CHECK_EQUAL(sam_clu_itr->last_update, db->head_block_time());
+
             BOOST_CHECK_EQUAL(sam_comment.created, db->head_block_time());
             BOOST_CHECK_EQUAL(sam_comment.net_rshares.value, 0);
             BOOST_CHECK_EQUAL(sam_comment.abs_rshares.value, 0);
@@ -666,7 +682,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(to_string(mod_sam_comment.permlink), op.permlink);
             BOOST_CHECK_EQUAL(mod_sam_comment.parent_author, op.parent_author);
             BOOST_CHECK_EQUAL(to_string(mod_sam_comment.parent_permlink), op.parent_permlink);
-            BOOST_CHECK_EQUAL(mod_sam_comment.last_update, db->head_block_time());
+
+            auto mod_sam_clu_itr = clu_idx.find(mod_sam_comment.id);
+            BOOST_CHECK(mod_sam_clu_itr != clu_idx.end());
+            BOOST_CHECK_EQUAL(mod_sam_clu_itr->last_update, db->head_block_time());
+
             BOOST_CHECK_EQUAL(mod_sam_comment.created, created);
             BOOST_CHECK_EQUAL(mod_sam_comment.cashout_time, mod_sam_comment.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
             validate_database();
