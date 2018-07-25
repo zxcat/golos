@@ -107,7 +107,7 @@ namespace golos { namespace protocol {
         };
 
         void comment_payout_beneficiaries::validate() const {
-            fc::safe<uint32_t> sum = 0;  // avoid overflow
+            uint32_t sum = 0;  // avoid overflow
 
             GOLOS_CHECK_PARAM(beneficiaries, {
                 GOLOS_CHECK_VALUE(beneficiaries.size(), "Must specify at least one beneficiary");
@@ -119,10 +119,9 @@ namespace golos { namespace protocol {
                     GOLOS_CHECK_VALUE(beneficiar.weight <= STEEMIT_100_PERCENT,
                             "Cannot allocate more than 100% of rewards to one account");
                     sum += beneficiar.weight;
+                    GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
+                            "Cannot allocate more than 100% of rewards to a comment");
                 }
-
-                GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
-                        "Cannot allocate more than 100% of rewards to a comment");
 
                 for (size_t i = 1; i < beneficiaries.size(); i++) {
                     GOLOS_CHECK_VALUE(beneficiaries[i - 1] < beneficiaries[i],
