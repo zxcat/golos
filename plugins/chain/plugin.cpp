@@ -350,6 +350,8 @@ namespace chain {
     }
 
     void plugin::plugin_startup() {
+        if (skip_startup) return;
+
         ilog("Starting chain with shared_file_size: ${n} bytes", ("n", my->shared_memory_size));
 
         auto data_dir = appbase::app().data_dir() / "blockchain";

@@ -199,8 +199,6 @@ namespace golos { namespace plugins { namespace operation_history {
             boost::program_options::value<uint32_t>()->composing(),
             "Defines depth of history for recording stats."
         );
-
-        cfg.add(cli);
     }
 
     void plugin::plugin_initialize(const boost::program_options::variables_map& options) {
