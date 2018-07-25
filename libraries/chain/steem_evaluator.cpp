@@ -2053,7 +2053,7 @@ namespace golos { namespace chain {
                         "Cannot recover using an open authority.");
                 });
                 // Check accounts in the new authority exist
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) || _db.is_producing()) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465)) {
                     for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
@@ -2073,7 +2073,7 @@ namespace golos { namespace chain {
                     "Cannot recover using an impossible authority.");
                 });
                 // Check accounts in the new authority exist
-                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) || _db.is_producing())) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465)) {
                     for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
