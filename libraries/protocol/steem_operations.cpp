@@ -454,9 +454,9 @@ namespace golos { namespace protocol {
                     "Limit order must be for the GOLOS:GBG market");
 
             GOLOS_CHECK_PARAM(amount_to_sell, {
-                GOLOS_CHECK_VALUE(amount_to_sell.symbol == exchange_rate.base.symbol, 
+                GOLOS_CHECK_VALUE(amount_to_sell.symbol == exchange_rate.base.symbol,
                         "Sell asset must be the base of the price");
-                GOLOS_CHECK_VALUE((amount_to_sell * exchange_rate).amount > 0, 
+                GOLOS_CHECK_VALUE((amount_to_sell * exchange_rate).amount > 0,
                         "Amount to sell cannot round to 0 when traded");
             });
         }
@@ -484,38 +484,33 @@ namespace golos { namespace protocol {
         }
 
         void escrow_transfer_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            validate_account_name(agent);
-            FC_ASSERT(fee.amount >= 0, "fee cannot be negative");
-            FC_ASSERT(sbd_amount.amount >= 0, "gbg amount cannot be negative");
-            FC_ASSERT(steem_amount.amount >=
-                      0, "steem amount cannot be negative");
-            FC_ASSERT(sbd_amount.amount > 0 || steem_amount.amount >
-                                               0, "escrow must transfer a non-zero amount");
-            FC_ASSERT(from != agent &&
-                      to != agent, "agent must be a third party");
-            FC_ASSERT((fee.symbol == STEEM_SYMBOL) ||
-                      (fee.symbol == SBD_SYMBOL), "fee must be GOLOS or GBG");
-            FC_ASSERT(sbd_amount.symbol ==
-                      SBD_SYMBOL, "sbd amount must contain GBG");
-            FC_ASSERT(steem_amount.symbol ==
-                      STEEM_SYMBOL, "golos amount must contain GOLOS");
-            FC_ASSERT(ratification_deadline <
-                      escrow_expiration, "ratification deadline must be before escrow expiration");
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM_ACCOUNT(agent);
+            GOLOS_CHECK_PARAM(fee, GOLOS_CHECK_ASSET_GE0(fee, GOLOS_OR_GBG));
+            GOLOS_CHECK_PARAM(sbd_amount, GOLOS_CHECK_ASSET_GE0(sbd_amount, GBG));
+            GOLOS_CHECK_PARAM(steem_amount, GOLOS_CHECK_ASSET_GE0(steem_amount, GOLOS));
+            GOLOS_CHECK_LOGIC(sbd_amount.amount > 0 || steem_amount.amount > 0,
+                logic_exception::escrow_no_amount_set,
+                "escrow must release a non-zero amount");
+            GOLOS_CHECK_PARAM(agent, GOLOS_CHECK_VALUE(from != agent && to != agent, "agent must be a third party"));
+            GOLOS_CHECK_LOGIC(ratification_deadline < escrow_expiration,
+                logic_exception::escrow_wrong_time_limits,
+                "ratification deadline must be before escrow expiration");
             if (json_meta.size() > 0) {
-                FC_ASSERT(fc::is_utf8(json_meta), "JSON Metadata not formatted in UTF8");
-                FC_ASSERT(fc::json::is_valid(json_meta), "JSON Metadata not valid JSON");
+                GOLOS_CHECK_PARAM(json_meta, {
+                    GOLOS_CHECK_VALUE_UTF8(json_meta);
+                    GOLOS_CHECK_VALUE_JSON(json_meta);
+                });
             }
         }
 
         void escrow_approve_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            validate_account_name(agent);
-            validate_account_name(who);
-            FC_ASSERT(who == to ||
-                      who == agent, "to or agent must approve escrow");
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM_ACCOUNT(agent);
+            GOLOS_CHECK_PARAM_ACCOUNT(who);
+            GOLOS_CHECK_PARAM(who, GOLOS_CHECK_VALUE(who == to || who == agent, "to or agent must approve escrow"));
         }
 
         void escrow_dispute_operation::validate() const {
