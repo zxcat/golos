@@ -12,6 +12,10 @@
 // for api
 #include <fc/optional.hpp>
 
+namespace golos { namespace chain {
+struct database_fixture;
+} } // namespace golos::chain
+
 namespace golos {
     namespace plugins {
         namespace chain {
@@ -93,6 +97,9 @@ namespace golos {
                 class plugin_impl;
 
                 std::unique_ptr<plugin_impl> my;
+
+                friend class golos::chain::database_fixture;  // need to set skip_startup field
+                bool skip_startup = false;
             };
         }
     }

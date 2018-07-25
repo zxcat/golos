@@ -1,9 +1,7 @@
 file(GLOB COMMON_SOURCES
         common/database_fixture.cpp
         common/database_fixture.hpp
-        common/comment_reward.hpp
-        common/options_fixture.hpp
-        common/options_fixture.cpp)
+        common/comment_reward.hpp)
 
 find_package(Gperftools QUIET)
 if(GPERFTOOLS_FOUND)
@@ -36,7 +34,9 @@ file(GLOB PLUGIN_TESTS
     "plugin_tests/main.cpp"
     "plugin_tests/market_history.cpp"
     "plugin_tests/plugin_ops.cpp"
-    "plugin_tests/json_rpc.cpp")
+    "plugin_tests/json_rpc.cpp"
+    "plugin_tests/operation_history.cpp"
+    "plugin_tests/account_history.cpp")
 add_executable(plugin_test ${PLUGIN_TESTS} ${COMMON_SOURCES})
 target_link_libraries(plugin_test golos_chain golos_protocol  golos_account_history golos_market_history golos_debug_node golos_social_network fc ${PLATFORM_SPECIFIC_LIBS})
 target_include_directories(plugin_test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
@@ -62,26 +62,6 @@ macro(add_exec_test)
     target_include_directories("${GET_NAME}_test" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
     add_test(NAME "${GET_NAME}_test_run" COMMAND "${GET_NAME}_test")
 endmacro(add_exec_test)
-
-add_exec_test(NAME "white_options" FILES
-    "plugin_tests/main.cpp"
-    "plugin_tests/white_options_postfix.cpp")
-
-add_exec_test(NAME "black_options" FILES
-    "plugin_tests/main.cpp"
-    "plugin_tests/black_options_postfix.cpp")
-
-add_exec_test(NAME "operation_history_blocks" FILES
-    "plugin_tests/main.cpp"
-    "plugin_tests/operation_history_blocks_test.cpp")
-
-add_exec_test(NAME "short_list_operation_postfix" FILES
-    "plugin_tests/main.cpp"
-    "plugin_tests/short_list_operation_postfix_test.cpp")
-
-add_exec_test(NAME "account_history_blocks" FILES
-    "plugin_tests/main.cpp"
-    "plugin_tests/account_history_blocks_test.cpp")
 
 if(MSVC)
     set_source_files_properties(tests/serialization_tests.cpp PROPERTIES COMPILE_FLAGS "/bigobj")

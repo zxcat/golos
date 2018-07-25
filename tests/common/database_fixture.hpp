@@ -421,6 +421,24 @@ namespace golos { namespace chain {
 
         using namespace golos::protocol;
 
+        namespace {
+            template<typename... S>
+                struct PluginRegistrator;
+
+            template<typename P, typename... S>
+                struct PluginRegistrator<P, S...> {
+                    static void register_plugins() {
+                        appbase::app().register_plugin<P>();
+                        PluginRegistrator<S...>::register_plugins();
+                    }
+                };
+
+            template<>
+                struct PluginRegistrator<> {
+                    static void register_plugins() {}
+                };
+        } // anonymous namespace
+
         struct database_fixture {
             // the reason we use an app is to exercise the indexes of built-in plugins
             chain::database* db;
@@ -432,7 +450,6 @@ namespace golos { namespace chain {
 
             golos::plugins::chain::plugin* ch_plugin = nullptr;
             golos::plugins::debug_node::plugin* db_plugin = nullptr;
-            golos::plugins::operation_history::plugin* oh_plugin = nullptr;
             golos::plugins::account_history::plugin* ah_plugin = nullptr;
             golos::plugins::social_network::social_network* sn_plugin = nullptr;
 
@@ -450,7 +467,63 @@ namespace golos { namespace chain {
 
             string generate_anon_acct_name();
 
-            void initialize();
+            template<typename Plugin>
+            Plugin *find_plugin() {
+                return dynamic_cast<Plugin*>(appbase::app().find_plugin<Plugin>());
+            }
+
+            typedef std::map<std::string,std::string> Options;
+            template<typename... Plugins>
+            void initialize(const Options& opts = {}) {
+                int argc = boost::unit_test::framework::master_test_suite().argc;
+                char** argv = boost::unit_test::framework::master_test_suite().argv;
+
+                for (int i = 1; i < argc; i++) {
+                    const std::string arg = argv[i];
+                    if (arg == "--record-assert-trip") {
+                        fc::enable_record_assert_trip = true;
+                    }
+                    if (arg == "--show-test-names") {
+                        std::cout << "running test "
+                                  << boost::unit_test::framework::current_test_case().p_name
+                                  << std::endl;
+                    }
+                }
+    
+                ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
+                db_plugin = &appbase::app().register_plugin<golos::plugins::debug_node::plugin>();
+                sn_plugin = &appbase::app().register_plugin<golos::plugins::social_network::social_network>();
+                ah_plugin = &appbase::app().register_plugin<golos::plugins::account_history::plugin>();
+                PluginRegistrator<Plugins...>::register_plugins();
+
+                ch_plugin->skip_startup = true;
+
+                std::vector<const char*> args;
+                std::vector<std::string> args_data;
+                args.push_back(argv[0]);
+                for (const auto& opt: opts) {
+                    args_data.push_back(std::string("--")+opt.first);
+                    args.push_back(args_data.back().c_str());
+                    args.push_back(opt.second.c_str());
+                }
+                for (int i = 1; i < argc; i++) {
+                    args.push_back(argv[i]);
+                }
+
+                appbase::app().initialize<
+                    golos::plugins::chain::plugin,
+                    golos::plugins::account_history::plugin,
+                    golos::plugins::debug_node::plugin,
+                    golos::plugins::social_network::social_network,
+                    Plugins...
+                >( args.size(), const_cast<char**>(args.data()) );
+    
+                db_plugin->set_logging(false);
+    
+                db = &ch_plugin->db();
+                BOOST_REQUIRE(db);
+            }
+
             void startup(bool generate_hardfork = true);
 
             void open_database();
@@ -589,27 +662,20 @@ namespace golos { namespace chain {
         };
 
         struct add_operations_database_fixture : public database_fixture {
-            typedef golos::plugins::operation_history::plugin plugin_type;
+            typedef golos::plugins::operation_history::plugin operation_history_plugin;
+            typedef std::map<std::string, std::string> Operations;
 
-            add_operations_database_fixture();
-            ~add_operations_database_fixture() override;
+            template<typename... Plugins>
+            void initialize(const Options& opts = {}) {
+                database_fixture::initialize<operation_history_plugin>(opts);
+                oh_plugin = find_plugin<operation_history_plugin>();
+                open_database();
+                startup();
+            }
 
-            void add_operations();
+            Operations add_operations();
 
-            plugin_type* _plg;
-            std::map<std::string, std::string> _added_ops;
-        };
-
-        struct add_accounts_database_fixture : public add_operations_database_fixture {
-            typedef golos::plugins::account_history::plugin plugin_type;
-
-            add_accounts_database_fixture();
-            ~add_accounts_database_fixture() override;
-
-            void add_accounts();
-
-            plugin_type* _plg;
-            fc::flat_set<golos::chain::account_name_type> _account_names;
+            operation_history_plugin* oh_plugin = nullptr;
         };
 
         namespace test {

@@ -140,6 +140,10 @@ namespace golos { namespace chain {
             }
 
             close_database();
+            db->_plugin_index_signal = fc::signal<void()>();
+            appbase::app().quit();
+            appbase::app().shutdown();
+            appbase::reset();
         }
 
         clean_database_fixture::clean_database_fixture() {
@@ -231,24 +235,9 @@ namespace golos { namespace chain {
             }
         };
 
-        add_operations_database_fixture::add_operations_database_fixture() : _plg(nullptr) {
-            try {
-                ilog("add_operations_database_fixture: begin");
+        add_operations_database_fixture::Operations add_operations_database_fixture::add_operations() try {
+            Operations _added_ops;
 
-                _plg = app_initialise().get_plugin<plugin_type>();
-                initialize();
-                open_database();
-            } catch (const fc::exception &e) {
-                edump((e.to_detail_string()));
-                throw;
-            }
-        }
-
-        add_operations_database_fixture::~add_operations_database_fixture() try {
-            ilog("add_operations_database_fixture: end");
-        } FC_LOG_AND_RETHROW();
-
-        void add_operations_database_fixture::add_operations() try {
             ACTORS((alice)(bob)(sam))
             fund("alice", 10000);
             vest("alice", 10000);
@@ -327,33 +316,10 @@ namespace golos { namespace chain {
             tx.signatures.clear();
 
             validate_database();
+
+            return _added_ops;
         } FC_LOG_AND_RETHROW();
 
-        add_accounts_database_fixture::add_accounts_database_fixture() : _plg(nullptr) {
-            try {
-                ilog("add_accounts_database_fixture: begin");
-
-                _account_names.insert("alice");
-                _account_names.insert("bob");
-                _account_names.insert("sam");
-                _account_names.insert("dave");
-
-                _plg = app_initialise().get_plugin<plugin_type>();
-                initialize();
-                open_database();
-            } catch (const fc::exception &e) {
-                edump((e.to_detail_string()));
-                throw;
-            }
-        }
-
-        add_accounts_database_fixture::~add_accounts_database_fixture() {
-            ilog("add_accounts_database_fixture: end");
-        }
-
-        void add_accounts_database_fixture::add_accounts() try {
-            add_operations_database_fixture::add_operations();
-        } FC_LOG_AND_RETHROW();
 
         fc::ecc::private_key database_fixture::generate_private_key(string seed) {
             return fc::ecc::private_key::regenerate(fc::sha256::hash(seed));
@@ -363,40 +329,6 @@ namespace golos { namespace chain {
             // names of the form "anon-acct-x123" ; the "x" is necessary
             //    to workaround issue #46
             return "anon-acct-x" + std::to_string(anon_acct_count++);
-        }
-
-        void database_fixture::initialize() {
-            int argc = boost::unit_test::framework::master_test_suite().argc;
-            char** argv = boost::unit_test::framework::master_test_suite().argv;
-            for (int i = 1; i < argc; i++) {
-                const std::string arg = argv[i];
-                if (arg == "--record-assert-trip") {
-                    fc::enable_record_assert_trip = true;
-                }
-                if (arg == "--show-test-names") {
-                    std::cout << "running test "
-                              << boost::unit_test::framework::current_test_case().p_name
-                              << std::endl;
-                }
-            }
-
-            ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
-            oh_plugin = &appbase::app().register_plugin<operation_history::plugin>();
-            ah_plugin = &appbase::app().register_plugin<account_history::plugin>();
-            sn_plugin = &appbase::app().register_plugin<golos::plugins::social_network::social_network>();
-            db_plugin = &appbase::app().register_plugin<debug_node::plugin>();
-
-            appbase::app().initialize<
-                golos::plugins::chain::plugin,
-                account_history::plugin,
-                debug_node::plugin,
-                golos::plugins::social_network::social_network
-            >( argc, argv );
-
-            db_plugin->set_logging(false);
-
-            db = &ch_plugin->db();
-            BOOST_REQUIRE(db);
         }
 
         void database_fixture::startup(bool generate_hardfork) {
@@ -418,10 +350,7 @@ namespace golos { namespace chain {
                     STEEMIT_MIN_PRODUCER_REWARD.amount);
             }
 
-            oh_plugin->plugin_startup();
-            ah_plugin->plugin_startup();
-            db_plugin->plugin_startup();
-            sn_plugin->plugin_startup();
+            appbase::app().startup();
 
             validate_database();
         }

@@ -615,6 +615,8 @@ namespace golos { namespace chain {
             template<typename MultiIndexType>
             friend void add_plugin_index(database &db);
 
+            friend class database_fixture;
+
             fc::signal<void()> _plugin_index_signal;
 
             transaction_id_type _current_trx_id;
