@@ -514,11 +514,11 @@ namespace golos { namespace protocol {
         }
 
         void escrow_dispute_operation::validate() const {
-            validate_account_name(from);
-            validate_account_name(to);
-            validate_account_name(agent);
-            validate_account_name(who);
-            FC_ASSERT(who == from || who == to, "who must be from or to");
+            GOLOS_CHECK_PARAM_ACCOUNT(from);
+            GOLOS_CHECK_PARAM_ACCOUNT(to);
+            GOLOS_CHECK_PARAM_ACCOUNT(agent);
+            GOLOS_CHECK_PARAM_ACCOUNT(who);
+            GOLOS_CHECK_PARAM(who, GOLOS_CHECK_VALUE(who == from || who == to, "who must be from or to"));
         }
 
         void escrow_release_operation::validate() const {
