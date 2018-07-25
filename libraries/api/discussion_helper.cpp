@@ -57,26 +57,12 @@ namespace golos { namespace api {
         impl(
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
-            std::function<void(const golos::chain::database&, discussion&)> fill_promoted)
-            : database_(db),
-              fill_reputation_(fill_reputation),
-              fill_promoted_(fill_promoted) {
-        }
-        impl(
-            golos::chain::database& db,
-            std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
             std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
             : database_(db),
               fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted),
               fill_comment_content_(fill_comment_content) {
-        }
-        impl(
-            golos::chain::database& db,
-            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
-            :   database_(db),
-                fill_comment_content_(fill_comment_content) {
         }
         ~impl() = default;
 
@@ -316,25 +302,10 @@ namespace golos { namespace api {
     discussion_helper::discussion_helper(
         golos::chain::database& db,
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
-        std::function<void(const golos::chain::database&, discussion&)> fill_promoted
-    ) {
-        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted);
-    }
-
-    discussion_helper::discussion_helper(
-        golos::chain::database& db,
-        std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
         std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
     ) {
         pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_content);
-    }
-
-    discussion_helper::discussion_helper(
-            golos::chain::database& db,
-            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
-    ) {
-        pimpl = std::make_unique<impl>(db, fill_comment_content);
     }
 
     discussion_helper::~discussion_helper() = default;

@@ -37,7 +37,8 @@ namespace golos { namespace plugins { namespace tags {
             helper = std::make_unique<discussion_helper>(
                 database_,
                 follow::fill_account_reputation,
-                fill_promoted);
+                fill_promoted,
+                social_network::fill_comment_content);
         }
 
         ~impl() {}
