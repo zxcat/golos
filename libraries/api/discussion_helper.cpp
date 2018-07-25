@@ -8,43 +8,7 @@
 
 namespace golos { namespace api {
 
-    comment_metadata get_metadata(const comment_api_object& c) {
-
-        comment_metadata meta;
-
-        if (!c.json_metadata.empty()) {
-            try {
-                meta = fc::json::from_string(c.json_metadata).as<comment_metadata>();
-            } catch (const fc::exception& e) {
-                // Do nothing on malformed json_metadata
-            }
-        }
-
-        std::set<std::string> lower_tags;
-
-        std::size_t tag_limit = 5;
-        for (const auto& name : meta.tags) {
-            if (lower_tags.size() > tag_limit) {
-                break;
-            }
-            auto value = boost::trim_copy(name);
-            if (value.empty()) {
-                continue;
-            }
-            boost::to_lower(value);
-            lower_tags.insert(value);
-        }
-
-        meta.tags.swap(lower_tags);
-
-        boost::trim(meta.language);
-        boost::to_lower(meta.language);
-
-        return meta;
-    }
-
-
-    boost::multiprecision::uint256_t to256(const fc::uint128_t& t) {
+     boost::multiprecision::uint256_t to256(const fc::uint128_t& t) {
         boost::multiprecision::uint256_t result(t.high_bits());
         result <<= 65;
         result += t.low_bits();

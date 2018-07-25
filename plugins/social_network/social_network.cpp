@@ -626,4 +626,15 @@ namespace golos { namespace plugins { namespace social_network {
         }
     }
 
+    std::string get_json_metadata(const golos::chain::database& db, const comment_object& c) {
+        if (!db.has_index<comment_content_index>()) {
+            return std::string();
+        }
+        const auto content = db.find<comment_content_object, by_comment>(c.id);
+        if (content != nullptr) {
+            return to_string(content->json_metadata);
+        }
+        return std::string();
+    }
+
 } } } // golos::plugins::social_network
