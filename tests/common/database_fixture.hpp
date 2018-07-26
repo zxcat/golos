@@ -426,7 +426,7 @@ namespace golos { namespace chain {
         fc::variant_object make_convert_request_id(const std::string& account, uint32_t requestid);
         fc::variant_object make_escrow_id(const string& name, uint32_t escrow_id);
 
-        typedef fc::flat_set<account_name_type> account_name_set;
+        using account_name_set = fc::flat_set<account_name_type>;
 
         namespace {
             template<typename... S>
