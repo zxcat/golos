@@ -1,10 +1,49 @@
 #include <boost/algorithm/string.hpp>
 #include <golos/plugins/tags/tag_visitor.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 namespace golos { namespace plugins { namespace tags {
 
-    operation_visitor::operation_visitor(database& db, const discussion_helper& helper)
-        : db_(db), helper_(helper) {
+    comment_metadata get_metadata(const std::string& json_metadata) {
+        comment_metadata meta;
+
+        if (!json_metadata.empty()) {
+            try {
+                meta = fc::json::from_string(json_metadata).as<comment_metadata>();
+            } catch (const fc::exception& e) {
+                // Do nothing on malformed json_metadata
+            }
+        }
+
+        std::set<std::string> lower_tags;
+
+        std::size_t tag_limit = 5;
+        for (const auto& name : meta.tags) {
+            if (lower_tags.size() > tag_limit) {
+                break;
+            }
+            auto value = boost::trim_copy(name);
+            if (value.empty()) {
+                continue;
+            }
+            boost::to_lower(value);
+            lower_tags.insert(value);
+        }
+
+        meta.tags.swap(lower_tags);
+
+        boost::trim(meta.language);
+        boost::to_lower(meta.language);
+
+        return meta;
+    }
+
+    comment_metadata get_metadata(const golos::chain::database& db, const comment_object& c) {
+        return get_metadata(golos::plugins::social_network::get_json_metadata(db, c));
+    }
+
+    operation_visitor::operation_visitor(database& db)
+        : db_(db) {
     }
 
     void operation_visitor::remove_stats(const tag_object& tag) const {
@@ -174,7 +213,7 @@ namespace golos { namespace plugins { namespace tags {
         auto trending = calculate_trending(comment.net_rshares, comment.created);
         const auto& comment_idx = db_.get_index<tag_index>().indices().get<by_comment>();
 
-        auto meta = get_metadata(helper_.create_comment_api_object(comment));
+        auto meta = get_metadata(db_, comment);
         auto citr = comment_idx.lower_bound(comment.id);
         const tag_object* language_tag = nullptr;
 
@@ -307,7 +346,7 @@ namespace golos { namespace plugins { namespace tags {
         const auto& comment = db_.get_comment(op.author, op.permlink);
         const auto& author = db_.get_account(op.author).id;
 
-        auto meta = get_metadata(helper_.create_comment_api_object(comment));
+        auto meta = get_metadata(db_, comment);
         const auto& stats_idx = db_.get_index<tag_stats_index>().indices().get<by_tag>();
         const auto& auth_idx = db_.get_index<author_tag_stats_index>().indices().get<by_author_tag_posts>();
 

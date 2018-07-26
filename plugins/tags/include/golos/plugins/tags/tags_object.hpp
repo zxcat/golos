@@ -17,8 +17,6 @@ namespace golos { namespace plugins { namespace tags {
     using golos::api::comment_object;
     using golos::api::comment_api_object;
 
-    using golos::api::get_metadata;
-
     using namespace golos::chain;
     using namespace boost::multi_index;
     using chainbase::object;

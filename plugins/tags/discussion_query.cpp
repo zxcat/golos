@@ -1,6 +1,7 @@
 #include <boost/algorithm/string.hpp>
 #include <golos/plugins/tags/discussion_query.hpp>
 #include <golos/plugins/tags/tags_object.hpp>
+#include <golos/plugins/tags/tag_visitor.hpp>
 
 namespace golos { namespace plugins { namespace tags {
 
@@ -39,7 +40,7 @@ namespace golos { namespace plugins { namespace tags {
             return true;
         }
 
-        auto meta = tags::get_metadata(d);
+        auto meta = get_metadata(d.json_metadata);
         if ((has_language_selector() && !select_languages.count(meta.language)) ||
             (has_language_filter() && filter_languages.count(meta.language))
         ) {

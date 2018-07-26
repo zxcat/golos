@@ -10,23 +10,13 @@ namespace golos { namespace api {
         std::string language;
     };
 
-    comment_metadata get_metadata(const comment_api_object& c);
-
     class discussion_helper {
     public:
         discussion_helper() = delete;
         discussion_helper(
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
-            std::function<void(const golos::chain::database&, discussion&)> fill_promoted);
-        discussion_helper(
-            golos::chain::database& db,
-            std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-            std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
-        );
-        discussion_helper(
-            golos::chain::database& db,
             std::function<void(const database&, const comment_object&, comment_api_object&)> fill_comment_content
         );
         ~discussion_helper();
