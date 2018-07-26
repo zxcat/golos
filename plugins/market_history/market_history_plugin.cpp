@@ -1,4 +1,5 @@
 #include <golos/plugins/market_history/market_history_plugin.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 
 #include <golos/chain/index.hpp>
 #include <golos/chain/operation_notification.hpp>
@@ -255,7 +256,7 @@ namespace golos {
             }
 
             order_book_extended market_history_plugin::market_history_plugin_impl::get_order_book_extended(uint32_t limit) const {
-                FC_ASSERT(limit <= 1000);
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 order_book_extended result;
 
                 auto max_sell = price::max(SBD_SYMBOL, STEEM_SYMBOL);
@@ -298,7 +299,7 @@ namespace golos {
 
             vector<market_trade> market_history_plugin::market_history_plugin_impl::get_trade_history(
                     time_point_sec start, time_point_sec end, uint32_t limit) const {
-                FC_ASSERT(limit <= 1000);
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 const auto &bucket_idx = database().get_index<order_history_index>().indices().get<by_time>();
                 auto itr = bucket_idx.lower_bound(start);
 
@@ -318,7 +319,7 @@ namespace golos {
             }
 
             vector<market_trade> market_history_plugin::market_history_plugin_impl::get_recent_trades(uint32_t limit) const {
-                FC_ASSERT(limit <= 1000);
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 const auto &order_idx = database().get_index<order_history_index>().indices().get<by_time>();
                 auto itr = order_idx.rbegin();
 
@@ -447,6 +448,7 @@ namespace golos {
             // Api Defines
 
             DEFINE_API(market_history_plugin, get_ticker) {
+                PLUGIN_API_VALIDATE_ARGS();
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_ticker();
@@ -454,6 +456,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_volume) {
+                PLUGIN_API_VALIDATE_ARGS();
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_volume();
@@ -461,8 +464,9 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_order_book) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
-                GOLOS_DECLARE_PARAM(limit, args.args->at(0).as<uint32_t>());
+                PLUGIN_API_VALIDATE_ARGS(
+                    (uint32_t, limit)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_order_book(limit);
@@ -470,8 +474,9 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_order_book_extended) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
-                auto limit = args.args->at(0).as<uint32_t>();
+                PLUGIN_API_VALIDATE_ARGS(
+                    (uint32_t, limit)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_order_book_extended(limit);
@@ -480,10 +485,11 @@ namespace golos {
 
 
             DEFINE_API(market_history_plugin, get_trade_history) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 3);
-                auto start = args.args->at(0).as<time_point_sec>();
-                auto end = args.args->at(1).as<time_point_sec>();
-                auto limit = args.args->at(2).as<uint32_t>();
+                PLUGIN_API_VALIDATE_ARGS(
+                    (time_point_sec, start)
+                    (time_point_sec, end)
+                    (uint32_t,       limit)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_trade_history(start, end, limit);
@@ -491,8 +497,9 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_recent_trades) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
-                auto limit = args.args->at(0).as<uint32_t>();
+                PLUGIN_API_VALIDATE_ARGS(
+                    (uint32_t, limit)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_recent_trades(limit);
@@ -500,10 +507,11 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_market_history) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 3);
-                auto bucket_seconds = args.args->at(0).as<uint32_t>();
-                auto start = args.args->at(1).as<time_point_sec>();
-                auto end = args.args->at(2).as<time_point_sec>();
+                PLUGIN_API_VALIDATE_ARGS(
+                    (uint32_t,       bucket_seconds)
+                    (time_point_sec, start)
+                    (time_point_sec, end)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_market_history(bucket_seconds, start, end);
@@ -511,6 +519,7 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_market_history_buckets) {
+                PLUGIN_API_VALIDATE_ARGS();
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_market_history_buckets();
@@ -518,9 +527,9 @@ namespace golos {
             }
 
             DEFINE_API(market_history_plugin, get_open_orders) {
-                GOLOS_CHECK_ARGS_COUNT(args.args, 1);
-                GOLOS_DECLARE_PARAM(account, args.args->at(0).as<string>());
-                //auto tmp = args.args->at(0).as<string>();
+                PLUGIN_API_VALIDATE_ARGS(
+                    (string, account)
+                );
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_open_orders(account);
