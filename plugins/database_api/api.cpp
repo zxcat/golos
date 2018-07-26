@@ -1,7 +1,9 @@
 #include <golos/plugins/database_api/plugin.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 #include <golos/plugins/follow/plugin.hpp>
 #include <golos/protocol/get_config.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/chain/operation_notification.hpp>
 
 #include <fc/smart_ref_impl.hpp>
@@ -9,12 +11,6 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string.hpp>
 #include <memory>
-
-
-#define CHECK_ARG_SIZE(s) \
-   FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
-#define CHECK_ARGS_COUNT(min, max) \
-   FC_ASSERT(n_args >= min && n_args <= max, "Expected #min-#max arguments, got ${n}", ("n", n_args));
 
 
 namespace golos { namespace plugins { namespace database_api {
@@ -181,9 +177,11 @@ plugin::api_impl::~api_impl() {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, get_block_header) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (uint32_t, block_num)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->get_block_header(args.args->at(0).as<uint32_t>());
+        return my->get_block_header(block_num);
     });
 }
 
@@ -196,9 +194,11 @@ optional<block_header> plugin::api_impl::get_block_header(uint32_t block_num) co
 }
 
 DEFINE_API(plugin, get_block) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (uint32_t, block_num)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->get_block(args.args->at(0).as<uint32_t>());
+        return my->get_block(block_num);
     });
 }
 
@@ -213,14 +213,9 @@ optional<signed_block> plugin::api_impl::get_block(uint32_t block_num) const {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, set_block_applied_callback) {
-    CHECK_ARG_SIZE(1);
-    block_applied_callback_result_type type = block;
-    auto arg = args.args->at(0);
-    try {
-        type = arg.as<block_applied_callback_result_type>();
-    } catch (...) {
-        ilog("Bad argument (${a}) passed to set_block_applied_callback, using default", ("a",arg));
-    }
+    PLUGIN_API_VALIDATE_ARGS(
+        (block_applied_callback_result_type, type)
+    );
 
     // Delegate connection handlers to callback
     msg_pack_transfer transfer(args);
@@ -254,7 +249,6 @@ DEFINE_API(plugin, set_block_applied_callback) {
 }
 
 DEFINE_API(plugin, set_pending_transaction_callback) {
-    // CHECK_ARG_SIZE(1);   // not used
     // Delegate connection handlers to callback
     msg_pack_transfer transfer(args);
     my->database().with_weak_read_lock([&]{
@@ -311,6 +305,7 @@ void plugin::api_impl::op_applied_callback(const operation_notification& o) {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, get_config) {
+    PLUGIN_API_VALIDATE_ARGS();
     return my->database().with_weak_read_lock([&]() {
         return my->get_config();
     });
@@ -321,12 +316,14 @@ fc::variant_object plugin::api_impl::get_config() const {
 }
 
 DEFINE_API(plugin, get_dynamic_global_properties) {
+    PLUGIN_API_VALIDATE_ARGS();
     return my->database().with_weak_read_lock([&]() {
         return my->get_dynamic_global_properties();
     });
 }
 
 DEFINE_API(plugin, get_chain_properties) {
+    PLUGIN_API_VALIDATE_ARGS();
     return my->database().with_weak_read_lock([&]() {
         return chain_api_properties(my->database().get_witness_schedule_object().median_props, my->database());
     });
@@ -337,12 +334,14 @@ dynamic_global_property_api_object plugin::api_impl::get_dynamic_global_properti
 }
 
 DEFINE_API(plugin, get_hardfork_version) {
+    PLUGIN_API_VALIDATE_ARGS();
     return my->database().with_weak_read_lock([&]() {
         return my->database().get(hardfork_property_object::id_type()).current_hardfork_version;
     });
 }
 
 DEFINE_API(plugin, get_next_scheduled_hardfork) {
+    PLUGIN_API_VALIDATE_ARGS();
     return my->database().with_weak_read_lock([&]() {
         scheduled_hardfork shf;
         const auto &hpo = my->database().get(hardfork_property_object::id_type());
@@ -359,9 +358,11 @@ DEFINE_API(plugin, get_next_scheduled_hardfork) {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, get_accounts) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (vector<std::string>, account_names)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->get_accounts(args.args->at(0).as<vector<std::string> >());
+        return my->get_accounts(account_names);
     });
 }
 
@@ -387,9 +388,11 @@ std::vector<account_api_object> plugin::api_impl::get_accounts(std::vector<std::
 }
 
 DEFINE_API(plugin, lookup_account_names) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (vector<std::string>, account_names)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->lookup_account_names(args.args->at(0).as<vector<std::string> >());
+        return my->lookup_account_names(account_names);
     });
 }
 
@@ -413,9 +416,10 @@ std::vector<optional<account_api_object>> plugin::api_impl::lookup_account_names
 }
 
 DEFINE_API(plugin, lookup_accounts) {
-    CHECK_ARG_SIZE(2)
-    account_name_type lower_bound_name = args.args->at(0).as<account_name_type>();
-    uint32_t limit = args.args->at(1).as<uint32_t>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (account_name_type, lower_bound_name)
+        (uint32_t,          limit)
+    );
     return my->database().with_weak_read_lock([&]() {
         return my->lookup_accounts(lower_bound_name, limit);
     });
@@ -425,7 +429,7 @@ std::set<std::string> plugin::api_impl::lookup_accounts(
     const std::string &lower_bound_name,
         uint32_t limit
 ) const {
-    FC_ASSERT(limit <= 1000);
+    GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
     const auto &accounts_by_name = database().get_index<account_index>().indices().get<by_name>();
     std::set<std::string> result;
 
@@ -448,8 +452,9 @@ uint64_t plugin::api_impl::get_account_count() const {
 }
 
 DEFINE_API(plugin, get_owner_history) {
-    CHECK_ARG_SIZE(1)
-    auto account = args.args->at(0).as<string>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string, account)
+    );
     return my->database().with_weak_read_lock([&]() {
         std::vector<owner_authority_history_api_object> results;
         const auto &hist_idx = my->database().get_index<owner_authority_history_index>().indices().get<
@@ -466,8 +471,9 @@ DEFINE_API(plugin, get_owner_history) {
 }
 
 DEFINE_API(plugin, get_recovery_request) {
-    CHECK_ARG_SIZE(1)
-    auto account = args.args->at(0).as<account_name_type>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (account_name_type, account)
+    );
     return my->database().with_weak_read_lock([&]() {
         optional<account_recovery_request_api_object> result;
 
@@ -484,9 +490,10 @@ DEFINE_API(plugin, get_recovery_request) {
 }
 
 DEFINE_API(plugin, get_escrow) {
-    CHECK_ARG_SIZE(2)
-    auto from = args.args->at(0).as<account_name_type>();
-    auto escrow_id = args.args->at(1).as<uint32_t>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (account_name_type, from)
+        (uint32_t,          escrow_id)
+    );
     return my->database().with_weak_read_lock([&]() {
         optional<escrow_api_object> result;
 
@@ -547,19 +554,20 @@ std::vector<withdraw_route> plugin::api_impl::get_withdraw_routes(
 
 
 DEFINE_API(plugin, get_withdraw_routes) {
-    FC_ASSERT(args.args->size() == 1 || args.args->size() == 2, "Expected 1-2 arguments, was ${n}",
-                ("n", args.args->size()));
-    auto account = args.args->at(0).as<string>();
-    auto type = args.args->at(1).as<withdraw_route_type>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string,               account)
+        (withdraw_route_type,  type, incoming)
+    );
     return my->database().with_weak_read_lock([&]() {
         return my->get_withdraw_routes(account, type);
     });
 }
 
 DEFINE_API(plugin, get_account_bandwidth) {
-    CHECK_ARG_SIZE(2)
-    auto account = args.args->at(0).as<string>();
-    auto type = args.args->at(1).as<bandwidth_type>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string,         account)
+        (bandwidth_type, type)
+    );
     optional<account_bandwidth_api_object> result;
     auto band = my->database().find<account_bandwidth_object, by_account_bandwidth_type>(
             boost::make_tuple(account, type));
@@ -578,8 +586,9 @@ DEFINE_API(plugin, get_account_bandwidth) {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, get_transaction_hex) {
-    CHECK_ARG_SIZE(1)
-    auto trx = args.args->at(0).as<signed_transaction>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (signed_transaction, trx)
+    );
     return my->database().with_weak_read_lock([&]() {
         return my->get_transaction_hex(trx);
     });
@@ -590,9 +599,10 @@ std::string plugin::api_impl::get_transaction_hex(const signed_transaction &trx)
 }
 
 DEFINE_API(plugin, get_required_signatures) {
-    CHECK_ARG_SIZE(2)
-    auto trx = args.args->at(0).as<signed_transaction>();
-    auto available_keys = args.args->at(1).as<flat_set<public_key_type>>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (signed_transaction,        trx)
+        (flat_set<public_key_type>, available_keys)
+    );
     return my->database().with_weak_read_lock([&]() {
         return my->get_required_signatures(trx, available_keys);
     });
@@ -621,9 +631,11 @@ std::set<public_key_type> plugin::api_impl::get_required_signatures(
 }
 
 DEFINE_API(plugin, get_potential_signatures) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (signed_transaction, trx)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->get_potential_signatures(args.args->at(0).as<signed_transaction>());
+        return my->get_potential_signatures(trx);
     });
 }
 
@@ -660,9 +672,11 @@ std::set<public_key_type> plugin::api_impl::get_potential_signatures(const signe
 }
 
 DEFINE_API(plugin, verify_authority) {
-    CHECK_ARG_SIZE(1)
+    PLUGIN_API_VALIDATE_ARGS(
+        (signed_transaction, trx)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->verify_authority(args.args->at(0).as<signed_transaction>());
+        return my->verify_authority(trx);
     });
 }
 
@@ -678,10 +692,12 @@ bool plugin::api_impl::verify_authority(const signed_transaction &trx) const {
 }
 
 DEFINE_API(plugin, verify_account_authority) {
-    CHECK_ARG_SIZE(2)
+    PLUGIN_API_VALIDATE_ARGS(
+        (account_name_type,         name)
+        (flat_set<public_key_type>, keys)
+    );
     return my->database().with_weak_read_lock([&]() {
-        return my->verify_account_authority(args.args->at(0).as<account_name_type>(),
-                                            args.args->at(1).as<flat_set<public_key_type> >());
+        return my->verify_account_authority(name, keys);
     });
 }
 
@@ -689,22 +705,22 @@ bool plugin::api_impl::verify_account_authority(
     const std::string &name,
     const flat_set<public_key_type> &keys
 ) const {
-    FC_ASSERT(name.size() > 0);
-    auto account = database().find<account_object, by_name>(name);
-    FC_ASSERT(account, "no such account");
+    GOLOS_CHECK_PARAM(name, GOLOS_CHECK_VALUE(name.size() > 0, "Account must be not empty"));
+    auto account = database().get_account(name);
 
     /// reuse trx.verify_authority by creating a dummy transfer
     signed_transaction trx;
     transfer_operation op;
-    op.from = account->name;
+    op.from = account.name;
     trx.operations.emplace_back(op);
 
     return verify_authority(trx);
 }
 
 DEFINE_API(plugin, get_conversion_requests) {
-    CHECK_ARG_SIZE(1)
-    auto account = args.args->at(0).as<std::string>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string, account)
+    );
     return my->database().with_weak_read_lock([&]() {
         const auto &idx = my->database().get_index<convert_request_index>().indices().get<by_owner>();
         std::vector<convert_request_api_object> result;
@@ -719,8 +735,9 @@ DEFINE_API(plugin, get_conversion_requests) {
 
 
 DEFINE_API(plugin, get_savings_withdraw_from) {
-    CHECK_ARG_SIZE(1)
-    auto account = args.args->at(0).as<string>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string, account)
+    );
     return my->database().with_weak_read_lock([&]() {
         std::vector<savings_withdraw_api_object> result;
 
@@ -735,8 +752,9 @@ DEFINE_API(plugin, get_savings_withdraw_from) {
 }
 
 DEFINE_API(plugin, get_savings_withdraw_to) {
-    CHECK_ARG_SIZE(1)
-    auto account = args.args->at(0).as<string>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (string, account)
+    );
     return my->database().with_weak_read_lock([&]() {
         std::vector<savings_withdraw_api_object> result;
 
@@ -752,14 +770,14 @@ DEFINE_API(plugin, get_savings_withdraw_to) {
 
 //vector<vesting_delegation_api_obj> get_vesting_delegations(string account, string from, uint32_t limit, delegations_type type = delegated) const;
 DEFINE_API(plugin, get_vesting_delegations) {
-    size_t n_args = args.args->size();
-    CHECK_ARGS_COUNT(2, 4);
-    auto account = args.args->at(0).as<string>();
-    auto from = args.args->at(1).as<string>();
-    auto limit = n_args >= 3 ? args.args->at(2).as<uint32_t>() : 100;
-    auto type = n_args >= 4 ? args.args->at(3).as<delegations_type>() : delegated;
+    PLUGIN_API_VALIDATE_ARGS(
+        (string,           account)
+        (string,           from)
+        (uint32_t,         limit, 100)
+        (delegations_type, type, delegated)
+    );
     bool sent = type == delegated;
-    FC_ASSERT(limit <= 1000);
+    GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
 
     vector<vesting_delegation_api_object> result;
     result.reserve(limit);
@@ -781,12 +799,12 @@ DEFINE_API(plugin, get_vesting_delegations) {
 
 //vector<vesting_delegation_expiration_api_obj> get_expiring_vesting_delegations(string account, time_point_sec from, uint32_t limit = 100) const;
 DEFINE_API(plugin, get_expiring_vesting_delegations) {
-    size_t n_args = args.args->size();
-    CHECK_ARGS_COUNT(2, 3);
-    auto account = args.args->at(0).as<string>();
-    auto from = args.args->at(1).as<time_point_sec>();
-    uint32_t limit = n_args >= 3 ? args.args->at(2).as<uint32_t>() : 100;
-    FC_ASSERT(limit <= 1000);
+    PLUGIN_API_VALIDATE_ARGS(
+        (string,         account)
+        (time_point_sec, from)
+        (uint32_t,       limit, 100)
+    );
+    GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
 
     return my->database().with_weak_read_lock([&]() {
         vector<vesting_delegation_expiration_api_object> result;
@@ -802,8 +820,7 @@ DEFINE_API(plugin, get_expiring_vesting_delegations) {
 }
 
 DEFINE_API(plugin, get_database_info) {
-    CHECK_ARG_SIZE(0);
-
+    PLUGIN_API_VALIDATE_ARGS();
     // read lock doesn't seem needed...
 
     database_info info;
@@ -864,11 +881,12 @@ std::vector<proposal_api_object> plugin::api_impl::get_proposed_transactions(
 }
 
 DEFINE_API(plugin, get_proposed_transactions) {
-    CHECK_ARG_SIZE(3);
-    auto account = args.args->at(0).as<string>();
-    auto from = args.args->at(1).as<uint32_t>();
-    auto limit = args.args->at(2).as<uint32_t>();
-    FC_ASSERT(limit <= 100);
+    PLUGIN_API_VALIDATE_ARGS(
+        (string, account)
+        (uint32_t, from)
+        (uint32_t, limit)
+    );
+    GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
     return my->database().with_weak_read_lock([&]() {
         return my->get_proposed_transactions(account, from, limit);
