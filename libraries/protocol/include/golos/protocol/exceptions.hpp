@@ -100,6 +100,9 @@
         } \
     FC_MULTILINE_MACRO_END
 
+#define GOLOS_CHECK_OPTION(COND, MSG, ...) \
+    GOLOS_ASSERT((COND), golos::invalid_option, MSG, __VA_ARGS__)
+
 #define GOLOS_CHECK_VALUE(COND, MSG, ...) \
     GOLOS_ASSERT((COND), golos::invalid_value, MSG, __VA_ARGS__)
 
@@ -342,6 +345,10 @@ namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         limit_too_large, invalid_value,
         4020100, "Exceeded limit value");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        invalid_option, golos_exception,
+        5000000, "invalid option");
 
 } // golos
 
