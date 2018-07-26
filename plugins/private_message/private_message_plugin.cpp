@@ -72,7 +72,7 @@ namespace golos { namespace plugins { namespace private_message {
         const std::string& to, time_point newest, uint16_t limit, std::uint32_t offset
     ) const {
         std::vector<message_api_object> result;
-        const auto &idx = db_.get_index<message_index>().indices().get<by_to_date>();
+        const auto& idx = db_.get_index<message_index>().indices().get<by_to_date>();
 
         auto itr = idx.lower_bound(std::make_tuple(to, newest));
         auto etr = idx.upper_bound(std::make_tuple(to, time_point::min()));
@@ -92,7 +92,7 @@ namespace golos { namespace plugins { namespace private_message {
     ) const {
 
         std::vector<message_api_object> result;
-        const auto &idx = db_.get_index<message_index>().indices().get<by_from_date>();
+        const auto& idx = db_.get_index<message_index>().indices().get<by_from_date>();
 
         auto itr = idx.lower_bound(std::make_tuple(from, newest));
         auto etr = idx.upper_bound(std::make_tuple(from, time_point::min()));
@@ -125,10 +125,10 @@ namespace golos { namespace plugins { namespace private_message {
         contact_api_object result(o);
 
         const auto& idx = db_.get_index<contact_index>().indices().get<by_contact>();
-        auto ritr = idx.find(std::make_tuple(o.contact, o.owner));
+        auto itr = idx.find(std::make_tuple(o.contact, o.owner));
 
-        if (idx.end() != ritr) {
-            result.remote_type = ritr->type;
+        if (idx.end() != itr) {
+            result.remote_type = itr->type;
         }
 
         return result;
@@ -314,8 +314,8 @@ namespace golos { namespace plugins { namespace private_message {
             return;
         }
 
-        auto& idx = d.get_index<contact_index>().indices().get<by_contact>();
-        auto itr = idx.find(std::make_tuple(pl.owner, pl.contact));
+        auto& contact_idx = d.get_index<contact_index>().indices().get<by_contact>();
+        auto contact_itr = contact_idx.find(std::make_tuple(pl.owner, pl.contact));
 
         GOLOS_CHECK_OP_PARAM(pl, contact, {
             d.get_account(pl.contact);
@@ -323,57 +323,57 @@ namespace golos { namespace plugins { namespace private_message {
             if (d.is_producing()) {
                 // TODO: fix exception type
                 GOLOS_CHECK_VALUE(
-                    idx.end() != itr || pl.type != undefined,
+                    contact_idx.end() != contact_itr || pl.type != undefined,
                     "Can't add undefined contact");
 
                 // TODO: fix exception type
-                std::string json_metadata(itr->json_metadata.begin(), itr->json_metadata.end());
+                std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
                 GOLOS_CHECK_VALUE(
-                    itr->type != pl.type || pl.json_metadata != json_metadata,
+                    contact_itr->type != pl.type || pl.json_metadata != json_metadata,
                     "Contact has the same type");
             }
         });
 
-        auto& sidx = d.get_index<contact_size_index>().indices().get<by_owner>();
-        auto ditr = sidx.find(std::make_tuple(pl.owner, pl.type));
+        auto& owner_idx = d.get_index<contact_size_index>().indices().get<by_owner>();
+        auto dst_itr = owner_idx.find(std::make_tuple(pl.owner, pl.type));
 
-        if (idx.end() != itr) {
-            auto sitr = sidx.find(std::make_tuple(pl.owner, itr->type));
-            if (itr->type != pl.type) {
+        if (contact_idx.end() != contact_itr) {
+            auto src_itr = owner_idx.find(std::make_tuple(pl.owner, contact_itr->type));
+            if (contact_itr->type != pl.type) {
                 // last contact
-                if (sitr->size.total_contacts == 1) {
-                    d.remove(*sitr);
+                if (src_itr->size.total_contacts == 1) {
+                    d.remove(*src_itr);
                 } else {
-                    d.modify(*sitr, [&](auto& src) {
+                    d.modify(*src_itr, [&](auto& src) {
                         src.size.total_contacts--;
-                        src.size -= itr->size;
+                        src.size -= contact_itr->size;
                     });
                 }
 
                 // has messages or type is not undefined
-                if (!itr->size.empty() || pl.type != undefined) {
+                if (!contact_itr->size.empty() || pl.type != undefined) {
                     auto modify_counters = [&](auto& dst) {
                         dst.size.total_contacts++;
-                        dst.size += itr->size;
+                        dst.size += contact_itr->size;
                     };
 
-                    if (sidx.end() == ditr) {
+                    if (owner_idx.end() == dst_itr) {
                         d.create<contact_size_object>([&](auto& dst) {
                             dst.owner = pl.owner;
                             dst.type = pl.type;
                             modify_counters(dst);
                         });
                     } else {
-                        d.modify(*ditr, modify_counters);
+                        d.modify(*dst_itr, modify_counters);
                     }
                 }
             }
 
             // contact is undefined and no messages
-            if (pl.type == undefined && itr->size.empty()) {
-                d.remove(*itr);
+            if (pl.type == undefined && contact_itr->size.empty()) {
+                d.remove(*contact_itr);
             } else {
-                d.modify(*itr, [&](auto& plo) {
+                d.modify(*contact_itr, [&](auto& plo) {
                     plo.type = pl.type;
                     from_string(plo.json_metadata, pl.json_metadata);
                 });
@@ -386,14 +386,14 @@ namespace golos { namespace plugins { namespace private_message {
                 from_string(plo.json_metadata, pl.json_metadata);
             });
 
-            if (sidx.end() == ditr) {
+            if (owner_idx.end() == dst_itr) {
                 d.create<contact_size_object>([&](auto& plso) {
                     plso.owner = pl.owner;
                     plso.type = pl.type;
                     plso.size.total_contacts = 1;
                 });
             } else {
-                d.modify(*ditr, [&](auto& plso) {
+                d.modify(*dst_itr, [&](auto& plso) {
                     plso.size.total_contacts++;
                 });
             }
