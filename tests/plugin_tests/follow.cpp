@@ -24,9 +24,9 @@ using golos::protocol::custom_binary_operation;
 using golos::chain::account_id_type;
 using golos::chain::make_comment_id;
 
-using namespace golos::plugins::follow;
+using golos::chain::account_name_set;
 
-using account_name_set = flat_set<account_name_type>;
+using namespace golos::plugins::follow;
 
 
 struct follow_fixture : public golos::chain::database_fixture {

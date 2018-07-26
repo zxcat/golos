@@ -29,7 +29,6 @@ using namespace golos::protocol;
 using golos::plugins::social_network::comment_content_object;
 using std::string;
 
-using account_name_set = flat_set<account_name_type>;
 
 #define BAD_UTF8_STRING "\xc3\x28"
 
@@ -766,17 +765,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             op.permlink = "test";
             op.weight = 1000;
 
-            using account_name_set = flat_set<account_name_type>;
-            account_name_set auths;
-
-            op.get_required_owner_authorities(auths);
-            BOOST_CHECK_EQUAL(auths, account_name_set());
-
-            op.get_required_active_authorities(auths);
-            BOOST_CHECK_EQUAL(auths, account_name_set());
-
-            op.get_required_posting_authorities(auths);
-            BOOST_CHECK_EQUAL(auths, account_name_set({"bob"}));
+            CHECK_OP_AUTHS(op, account_name_set(), account_name_set(), account_name_set({"bob"}));
 
             validate_database();
         }

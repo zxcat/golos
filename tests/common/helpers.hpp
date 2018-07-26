@@ -29,7 +29,7 @@
 
 // Check operation authorities
 #define CHECK_OP_AUTHS(OP, OWNER, ACTIVE, POSTING) {               \
-    boost::container::flat_set<golos::protocol::account_name_type> \
+    golos::chain::account_name_set                                 \
             owner_auths, active_auths, posting_auths;              \
     OP.get_required_owner_authorities(owner_auths);                \
     BOOST_CHECK_EQUAL(owner_auths, OWNER);                         \
