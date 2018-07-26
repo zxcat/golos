@@ -34,27 +34,6 @@ using account_name_set = flat_set<account_name_type>;
 #define BAD_UTF8_STRING "\xc3\x28"
 
 
-fc::variant_object make_comment_id(const std::string& author, const std::string& permlink) {
-    auto res = fc::mutable_variant_object()("account",author)("permlink",permlink);
-    return fc::variant_object(res);
-}
-
-fc::variant_object make_limit_order_id(const std::string& author, uint32_t orderid) {
-    auto res = fc::mutable_variant_object()("account",author)("order_id",orderid);
-    return fc::variant_object(res);
-}
-
-fc::variant_object make_convert_request_id(const std::string& account, uint32_t requestid) {
-    auto res = fc::mutable_variant_object()("account",account)("request_id",requestid);
-    return fc::variant_object(res);
-}
-
-fc::variant_object make_escrow_id(const string& name, uint32_t escrow_id) {
-    auto res = fc::mutable_variant_object()("account",name)("escrow",escrow_id);
-    return fc::variant_object(res);
-}
-
-
 BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_CASE(account_create_validate) {
