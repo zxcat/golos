@@ -14,6 +14,14 @@
 #include <golos/chain/index.hpp>
 #include <golos/api/discussion_helper.hpp>
 
+namespace golos {
+
+template<>
+std::string get_logic_error_namespace<golos::plugins::follow::logic_errors::error_type>() {
+    return golos::plugins::follow::plugin::name();
+}
+
+} // namespace golos
 
 namespace golos {
     namespace plugins {

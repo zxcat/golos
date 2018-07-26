@@ -211,6 +211,7 @@ struct ErrorValidator<golos::logic_exception> {
     void validate(const std::string& name, const fc::variant& props, errors err) {
         BOOST_CHECK_EQUAL(name, "logic_exception");
         BOOST_CHECK_EQUAL(props["errid"].get_string(), fc::reflector<errors>::to_string(err));
+        BOOST_CHECK_EQUAL(props["namespace"].get_string(), golos::get_logic_error_namespace<errors>());
     }
 };
 
