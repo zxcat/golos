@@ -1,6 +1,8 @@
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 #include <golos/plugins/private_message/private_message_evaluators.hpp>
 #include <golos/plugins/private_message/private_message_objects.hpp>
+#include <golos/plugins/private_message/private_message_exceptions.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 #include <appbase/application.hpp>
 
@@ -201,13 +203,11 @@ namespace golos { namespace plugins { namespace private_message {
 
         GOLOS_CHECK_OP_PARAM(pm, to, {
             d.get_account(pm.to);
-            // TODO: fix exception type
-            GOLOS_CHECK_VALUE(
-                gitr == idx.end() || gitr->type != ignored,
+            PLUGIN_CHECK_LOGIC(gitr == idx.end() || gitr->type != ignored,
+                logic_errors::sender_in_ignore_list,
                 "Sender is in ignore list of receiver");
-            // TODO: fix exception type
-            GOLOS_CHECK_VALUE(
-                titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
+            PLUGIN_CHECK_LOGIC(titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
+                logic_errors::recepient_ignore_messages_from_undefined_contact,
                 "Recipient accept messages only from his contact list");
         });
 
@@ -322,15 +322,13 @@ namespace golos { namespace plugins { namespace private_message {
             d.get_account(pl.contact);
 
             if (d.is_producing()) {
-                // TODO: fix exception type
-                GOLOS_CHECK_VALUE(
-                    contact_idx.end() != contact_itr || pl.type != undefined,
+                PLUGIN_CHECK_LOGIC(contact_idx.end() != contact_itr || pl.type != undefined,
+                    logic_errors::add_undefined_contact,
                     "Can't add undefined contact");
 
-                // TODO: fix exception type
                 std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
-                GOLOS_CHECK_VALUE(
-                    contact_itr->type != pl.type || pl.json_metadata != json_metadata,
+                PLUGIN_CHECK_LOGIC(contact_itr->type != pl.type || pl.json_metadata != json_metadata,
+                    logic_errors::contact_has_same_type,
                     "Contact has the same type");
             }
         });
@@ -434,8 +432,10 @@ namespace golos { namespace plugins { namespace private_message {
 
         using pairstring = std::pair<std::string, std::string>;
         LOAD_VALUE_SET(options, "pm-account-range", my->tracked_account_ranges_, pairstring);
-        auto list = options["pm-account-list"].as<std::vector<std::string>>();
-        my->tracked_account_list_.insert(list.begin(), list.end());
+        if (options.count("pm-account-list")) {
+            auto list = options["pm-account-list"].as<std::vector<std::string>>();
+            my->tracked_account_list_.insert(list.begin(), list.end());
+        }
         JSON_RPC_REGISTER_API(name())
     }
 
@@ -468,83 +468,77 @@ namespace golos { namespace plugins { namespace private_message {
     // Api Defines
 
     DEFINE_API(private_message_plugin, get_inbox) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 4)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, to)
+            (time_point, newest)
+            (uint16_t, limit)
+            (uint32_t, offset)
+        );
 
-        auto to = args.args->at(0).as<std::string>();
-        auto newest = args.args->at(1).as<time_point>();
-        auto limit = args.args->at(2).as<uint16_t>();
-        auto offset = args.args->at(3).as<std::uint32_t>();
-        auto& db = my->db_;
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
-        GOLOS_CHECK_LIMIT(limit, 100);
-
-        return db.with_weak_read_lock([&]() {
+        return my->db_.with_weak_read_lock([&]() {
             return my->get_inbox(to, newest, limit, offset);
         });
     }
 
     DEFINE_API(private_message_plugin, get_outbox) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 4)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, from)
+            (time_point, newest)
+            (uint16_t, limit)
+            (uint32_t, offset)
+        );
 
-        auto from = args.args->at(0).as<std::string>();
-        auto newest = args.args->at(1).as<time_point>();
-        auto limit = args.args->at(2).as<uint16_t>();
-        auto offset = args.args->at(3).as<std::uint32_t>();
-        auto& db = my->db_;
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
-        GOLOS_CHECK_LIMIT(limit, 100);
-
-        return db.with_weak_read_lock([&]() {
+        return my->db_.with_weak_read_lock([&]() {
             return my->get_outbox(from, newest, limit, offset);
         });
     }
 
     DEFINE_API(private_message_plugin, get_settings) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 1)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, owner)
+        );
 
-        auto owner = args.args->at(0).as<std::string>();
-        auto& db = my->db_;
-
-        return db.with_weak_read_lock([&](){
+        return my->db_.with_weak_read_lock([&](){
             return my->get_settings(owner);
         });
     }
 
     DEFINE_API(private_message_plugin, get_contacts_size) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 1)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, owner)
+        );
 
-        auto owner = args.args->at(0).as<std::string>();
-        auto& db = my->db_;
-
-        return db.with_weak_read_lock([&](){
+        return my->db_.with_weak_read_lock([&](){
             return my->get_contacts_size(owner);
         });
     }
 
     DEFINE_API(private_message_plugin, get_contact_info) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 2)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, owner)
+            (std::string, contact)
+        );
 
-        auto owner = args.args->at(0).as<std::string>();
-        auto contact = args.args->at(1).as<std::string>();
-        auto& db = my->db_;
-
-        return db.with_weak_read_lock([&](){
+        return my->db_.with_weak_read_lock([&](){
             return my->get_contact_info(owner, contact);
         });
     }
 
     DEFINE_API(private_message_plugin, get_contacts) {
-        GOLOS_CHECK_ARGS_COUNT(args.args, 4)
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, owner)
+            (private_contact_type, type)
+            (uint16_t, limit)
+            (uint32_t, offset)
+        );
 
-        auto owner = args.args->at(0).as<std::string>();
-        auto type = args.args->at(1).as<private_contact_type>();
-        auto limit = args.args->at(2).as<uint16_t>();
-        auto offset = args.args->at(3).as<uint32_t>();
-        auto& db = my->db_;
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
-        GOLOS_CHECK_LIMIT(limit, 100);
-
-        return db.with_weak_read_lock([&](){
+        return my->db_.with_weak_read_lock([&](){
             return my->get_contacts(owner, type, limit, offset);
         });
     }

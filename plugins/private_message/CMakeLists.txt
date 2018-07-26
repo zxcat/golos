@@ -6,6 +6,7 @@ list(APPEND CURRENT_TARGET_HEADERS
         include/golos/plugins/private_message/private_message_objects.hpp
         include/golos/plugins/private_message/private_message_operations.hpp
         include/golos/plugins/private_message/private_message_evaluators.hpp
+        include/golos/plugins/private_message/private_message_exceptions.hpp
         )
 
 list(APPEND CURRENT_TARGET_SOURCES
@@ -32,9 +33,9 @@ set_property(TARGET golos_${CURRENT_TARGET} PROPERTY EXPORT_NAME ${CURRENT_TARGE
 target_link_libraries(
         golos_${CURRENT_TARGET}
         golos::chain_plugin
-        golos::p2p
         golos::protocol
         golos::network
+        golos::json_rpc
         graphene_utilities
         graphene_time
         appbase
