@@ -1,6 +1,7 @@
 #include <boost/program_options/options_description.hpp>
 #include <golos/plugins/tags/plugin.hpp>
 #include <golos/plugins/tags/tags_object.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 #include <golos/chain/index.hpp>
 #include <golos/api/discussion.hpp>
 #include <golos/plugins/tags/discussion_query.hpp>
@@ -9,23 +10,8 @@
 #include <golos/api/discussion_helper.hpp>
 #include <golos/plugins/tags/tag_visitor.hpp>
 #include <golos/chain/operation_notification.hpp>
+#include <golos/protocol/exceptions.hpp>
 
-#define CHECK_ARG_SIZE(_S)                                 \
-   FC_ASSERT(                                              \
-       args.args->size() == _S,                            \
-       "Expected #_S argument(s), was ${n}",               \
-       ("n", args.args->size()) );
-
-#define CHECK_ARG_MIN_SIZE(_S, _M)                         \
-   FC_ASSERT(                                              \
-       args.args->size() >= _S && args.args->size() <= _M, \
-       "Expected #_S (maximum #_M) argument(s), was ${n}", \
-       ("n", args.args->size()) );
-
-#define GET_OPTIONAL_ARG(_I, _T, _D)   \
-   (args.args->size() > _I) ?          \
-   (args.args->at(_I).as<_T>()) :      \
-   static_cast<_T>(_D)
 
 namespace golos { namespace plugins { namespace tags {
 
@@ -188,6 +174,7 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_languages) {
+        PLUGIN_API_VALIDATE_ARGS();
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_languages();
         });
@@ -552,15 +539,18 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_blog) {
-        CHECK_ARG_SIZE(1)
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
 
-        auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-        FC_ASSERT(query.select_authors.size(), "Must get blogs for specific authors");
+        GOLOS_CHECK_PARAM(query.select_authors,
+            GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get blogs for specific authors"));
 
         auto& db = pimpl->database();
-        FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_operation, 
+                "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
             return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(
@@ -572,15 +562,17 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_feed) {
-        CHECK_ARG_SIZE(1)
-
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-        FC_ASSERT(query.select_authors.size(), "Must get feeds for specific authors");
+        GOLOS_CHECK_PARAM(query.select_authors,
+            GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get feeds for specific authors"));
 
         auto& db = pimpl->database();
-        FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_operation,
+                "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
             return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(
@@ -594,12 +586,14 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_comments) {
-        CHECK_ARG_SIZE(1)
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         std::vector<discussion> result;
-        auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-        FC_ASSERT(!!query.start_author, "Must get comments for a specific author");
+        GOLOS_CHECK_PARAM(query.start_author,
+            GOLOS_CHECK_VALUE(!!query.start_author, "Must get comments for specific authors"));
 
         auto& db = pimpl->database();
         return db.with_weak_read_lock([&]() {
@@ -642,8 +636,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_trending) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_trending>(
@@ -655,8 +650,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_promoted) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_promoted>(
@@ -668,8 +664,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_created) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_created>(
@@ -681,8 +678,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_active) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_active>(
@@ -694,8 +692,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_cashout) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_cashout>(
@@ -707,8 +706,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_payout) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_net_rshares>(
@@ -720,8 +720,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_votes) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_net_votes>(
@@ -733,8 +734,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_children) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_children>(
@@ -746,8 +748,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_hot) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
         return pimpl->select_ordered_discussions<sort::by_hot>(
@@ -793,9 +796,10 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_trending_tags) {
-        CHECK_ARG_SIZE(2)
-        auto after = args.args->at(0).as<string>();
-        auto limit = args.args->at(1).as<uint32_t>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   after)
+            (uint32_t, limit)
+        );
 
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_trending_tags(after, limit);
@@ -826,8 +830,9 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_tags_used_by_author) {
-        CHECK_ARG_SIZE(1)
-        auto author = args.args->at(0).as<string>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (string, author)
+        );
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_tags_used_by_author(author);
         });
@@ -836,14 +841,14 @@ namespace golos { namespace plugins { namespace tags {
     DEFINE_API(tags_plugin, get_discussions_by_author_before_date) {
         std::vector<discussion> result;
 
-        CHECK_ARG_MIN_SIZE(4, 5)
-        auto author = args.args->at(0).as<std::string>();
-        auto start_permlink = args.args->at(1).as<std::string>();
-        auto before_date = args.args->at(2).as<time_point_sec>();
-        auto limit = args.args->at(3).as<uint32_t>();
-        auto vote_limit = GET_OPTIONAL_ARG(4, uint32_t, DEFAULT_VOTE_LIMIT);
-
-        FC_ASSERT(limit <= 100);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,         author)
+            (string,         start_permlink)
+            (time_point_sec, before_date)
+            (uint32_t,       limit)
+            (uint32_t,       vote_limit, DEFAULT_VOTE_LIMIT)
+        );
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
         result.reserve(limit);
 
