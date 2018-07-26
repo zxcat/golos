@@ -10,7 +10,7 @@
 //Expands to:
 // std::string json_filename;
 // auto n_args = args.args->size();
-// GOLOS_ASSERT(n_args == 1, golos::invalid_parameter, "Expected 1 parameter, received ${n}", ("n", n_args)("required",1));
+// GOLOS_ASSERT(n_args == 1, golos::invalid_arguments_count, "Expected 1 parameter, received ${n}", ("n", n_args)("required",1));
 // json_filename = GOLOS_CONVERT_PARAM(json_filename,args.args->at(0),std::string);
 //
 //And this:
@@ -24,7 +24,7 @@
 // uint32_t count;
 // uint32_t skip_flags = golos::chain::database::skip_nothing;
 // auto n_args = args.args->size();
-// GOLOS_ASSERT(n_args >= 2 && n_args <= 3, golos::invalid_parameter, "Expected at least 2 and up to 3 parameters, received ${n}", ("n", n_args)("min",2)("max",3));
+// GOLOS_ASSERT(n_args >= 2 && n_args <= 3, golos::invalid_arguments_count, "Expected at least 2 and up to 3 parameters, received ${n}", ("n", n_args)("min",2)("max",3));
 // json_filename = GOLOS_CONVERT_PARAM(json_filename,args.args->at(0),std::string);
 // count = GOLOS_CONVERT_PARAM(count,args.args->at(1),uint32_t);
 // if (n_args > 2) {
