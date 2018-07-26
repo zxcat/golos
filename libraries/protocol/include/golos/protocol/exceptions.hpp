@@ -55,6 +55,9 @@
 #define GOLOS_CHECK_LOGIC(expr, TYPE, MSG, ...) \
         GOLOS_ASSERT(expr, golos::logic_exception, MSG, ("errid", TYPE)__VA_ARGS__)
 
+
+// TODO Remove after done refactor errors in plugins #791
+//      This macros is obsolete and replaced with PLUGIN_API_VALIDATE_ARGS
 #define GOLOS_DECLARE_PARAM(PARAM, GETTER) auto (PARAM) = [&]() {\
     try {return (GETTER);} \
     catch (const fc::exception &e) { \
@@ -66,6 +69,20 @@
             ); \
     } \
 }()
+
+#define GOLOS_CONVERT_PARAM(PARAM, VALUE, TYPE) \
+    [&](){ \
+        try { \
+            return (VALUE).as<TYPE>(); \
+        } catch (const fc::exception& e) { \
+            FC_THROW_EXCEPTION(invalid_parameter, "Invalid value \"${value}\" for parameter \"${param}\": ${errmsg}", \
+                    ("param", FC_STRINGIZE(PARAM)) \
+                    ("value", VALUE) \
+                    ("errmsg", e.to_string()) \
+                    ("error", e)); \
+        } \
+        return TYPE(); /* make compiler happy */\
+    }()
 
 #define GOLOS_CHECK_PARAM(PARAM, VALIDATOR) GOLOS_CHECK_PARAM_I(PARAM, PARAM, VALIDATOR, "")
 #define GOLOS_CHECK_OP_PARAM(OP, PARAM, VALIDATOR) GOLOS_CHECK_PARAM_I(PARAM, OP.PARAM, VALIDATOR, "operation ")
@@ -89,6 +106,9 @@
 #define GOLOS_CHECK_LIMIT(limit, max_value) \
     GOLOS_ASSERT( limit <= max_value, golos::limit_too_large, "Exceeded limit value. Maximum allowed ${max}", \
             ("limit",limit)("max",max_value))
+
+#define GOLOS_CHECK_LIMIT_PARAM(limit, max_value) \
+    GOLOS_CHECK_PARAM(limit, GOLOS_CHECK_LIMIT(limit, max_value))
 
 #define GOLOS_CHECK_ARGS_COUNT(args, required) \
     GOLOS_ASSERT( (args)->size() == (required), invalid_arguments_count, \
