@@ -63,7 +63,8 @@ namespace golos { namespace plugins { namespace private_message {
         bool is_tracked_account(account_name_type) const;
 
         std::shared_ptr<generic_custom_operation_interpreter<private_message_plugin_operation>> custom_operation_interpreter_;
-        flat_map<std::string, std::string> tracked_accounts_;
+        flat_map<std::string, std::string> tracked_account_ranges_;
+        flat_set<std::string> tracked_account_list_;
 
         golos::chain::database& db_;
     };
@@ -413,11 +414,13 @@ namespace golos { namespace plugins { namespace private_message {
         boost::program_options::options_description &cli,
         boost::program_options::options_description &cfg
     ) {
-        cli.add_options()
+        cfg.add_options()
             ("pm-account-range",
-             boost::program_options::value < std::vector < std::string >> ()->composing()->multitoken(),
-             "Defines a range of accounts to private messages to/from as a json pair [\"from\",\"to\"] [from,to)");
-        cfg.add(cli);
+             boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(),
+             "Defines a range of accounts to private messages to/from as a json pair [\"from\",\"to\"] [from,to]")
+            ("pm-account-list",
+             boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(),
+             "Defines a list of accounts to private messages to/from");
     }
 
     void private_message_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
@@ -430,7 +433,9 @@ namespace golos { namespace plugins { namespace private_message {
         add_plugin_index<contact_size_index>(my->db_);
 
         using pairstring = std::pair<std::string, std::string>;
-        LOAD_VALUE_SET(options, "pm-accounts", my->tracked_accounts_, pairstring);
+        LOAD_VALUE_SET(options, "pm-account-range", my->tracked_account_ranges_, pairstring);
+        auto list = options["pm-account-list"].as<std::vector<std::string>>();
+        my->tracked_account_list_.insert(list.begin(), list.end());
         JSON_RPC_REGISTER_API(name())
     }
 
@@ -443,12 +448,17 @@ namespace golos { namespace plugins { namespace private_message {
     }
 
     bool private_message_plugin::private_message_plugin_impl::is_tracked_account(account_name_type name) const {
-        if (tracked_accounts_.empty()) {
+        if (tracked_account_ranges_.empty() && tracked_account_list_.empty()) {
             return true;
         }
 
-        auto itr = tracked_accounts_.lower_bound(name);
-        return tracked_accounts_.end() != itr && name >= itr->first && name <= itr->second;
+        auto list_itr = tracked_account_list_.find(name);
+        if (tracked_account_list_.end() != list_itr) {
+            return true;
+        }
+
+        auto range_itr = tracked_account_ranges_.lower_bound(name);
+        return tracked_account_ranges_.end() != range_itr && name >= range_itr->first && name <= range_itr->second;
     }
 
     bool private_message_plugin::is_tracked_account(account_name_type name) const {
