@@ -7,6 +7,7 @@
 #include <golos/api/discussion_helper.hpp>
 // These visitors creates additional tables, we don't really need them in LOW_MEM mode
 #include <golos/plugins/tags/plugin.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 #include <golos/chain/operation_notification.hpp>
 #include <golos/protocol/types.hpp>
 #include <golos/protocol/config.hpp>
@@ -15,22 +16,6 @@
 #include <diff_match_patch.h>
 #include <boost/locale/encoding_utf.hpp>
 
-#define CHECK_ARG_SIZE(_S)                                 \
-   FC_ASSERT(                                              \
-       args.args->size() == _S,                            \
-       "Expected #_S argument(s), was ${n}",               \
-       ("n", args.args->size()) );
-
-#define CHECK_ARG_MIN_SIZE(_S, _M)                         \
-   FC_ASSERT(                                              \
-       args.args->size() >= _S && args.args->size() <= _M, \
-       "Expected #_S (maximum #_M) argument(s), was ${n}", \
-       ("n", args.args->size()) );
-
-#define GET_OPTIONAL_ARG(_I, _T, _D)   \
-   (args.args->size() > _I) ?          \
-   (args.args->at(_I).as<_T>()) :      \
-   static_cast<_T>(_D)
 
 #ifndef DEFAULT_VOTE_LIMIT
 #  define DEFAULT_VOTE_LIMIT 10000
@@ -454,10 +439,11 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     DEFINE_API(social_network, get_content_replies) {
-        CHECK_ARG_MIN_SIZE(2, 3)
-        auto author = args.args->at(0).as<string>();
-        auto permlink = args.args->at(1).as<string>();
-        auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   author)
+            (string,   permlink)
+            (uint32_t, vote_limit, DEFAULT_VOTE_LIMIT)
+        );
         return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_content_replies(author, permlink, vote_limit);
         });
@@ -481,21 +467,22 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     DEFINE_API(social_network, get_all_content_replies) {
-        CHECK_ARG_MIN_SIZE(2, 3)
-        auto author = args.args->at(0).as<string>();
-        auto permlink = args.args->at(1).as<string>();
-        auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   author)
+            (string,   permlink)
+            (uint32_t, vote_limit, DEFAULT_VOTE_LIMIT)
+        );
         return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_all_content_replies(author, permlink, vote_limit);
         });
     }
 
     DEFINE_API(social_network, get_account_votes) {
-        CHECK_ARG_MIN_SIZE(1, 3)
-        account_name_type voter = args.args->at(0).as<account_name_type>();
-        auto from = GET_OPTIONAL_ARG(1, uint32_t, 0);
-        auto limit = GET_OPTIONAL_ARG(2, uint64_t, DEFAULT_VOTE_LIMIT);
-
+        PLUGIN_API_VALIDATE_ARGS(
+            (account_name_type, voter)
+            (uint32_t,          from,  0)
+            (uint64_t,          limit, DEFAULT_VOTE_LIMIT)
+        );
         auto& db = pimpl->db;
         return db.with_weak_read_lock([&]() {
             std::vector<account_vote> result;
@@ -536,24 +523,26 @@ namespace golos { namespace plugins { namespace social_network {
     }
 
     DEFINE_API(social_network, get_content) {
-        CHECK_ARG_MIN_SIZE(2, 3)
-        auto author = args.args->at(0).as<account_name_type>();
-        auto permlink = args.args->at(1).as<string>();
-        auto vote_limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   author)
+            (string,   permlink)
+            (uint32_t, vote_limit, DEFAULT_VOTE_LIMIT)
+        );
         return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_content(author, permlink, vote_limit);
         });
     }
 
     DEFINE_API(social_network, get_active_votes) {
-        CHECK_ARG_MIN_SIZE(2, 3)
-        auto author = args.args->at(0).as<string>();
-        auto permlink = args.args->at(1).as<string>();
-        auto limit = GET_OPTIONAL_ARG(2, uint32_t, DEFAULT_VOTE_LIMIT);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   author)
+            (string,   permlink)
+            (uint32_t, vote_limit, DEFAULT_VOTE_LIMIT)
+        );
         return pimpl->db.with_weak_read_lock([&]() {
             std::vector<vote_state> result;
             uint32_t total_count;
-            pimpl->select_active_votes(result, total_count, author, permlink, limit);
+            pimpl->select_active_votes(result, total_count, author, permlink, vote_limit);
             return result;
         });
     }
@@ -598,12 +587,13 @@ namespace golos { namespace plugins { namespace social_network {
      *  Subsequent calls should be (last_author, last_permlink, limit)
      */
     DEFINE_API(social_network, get_replies_by_last_update) {
-        CHECK_ARG_MIN_SIZE(3, 4)
-        auto start_parent_author = args.args->at(0).as<account_name_type>();
-        auto start_permlink = args.args->at(1).as<string>();
-        auto limit = args.args->at(2).as<uint32_t>();
-        auto vote_limit = GET_OPTIONAL_ARG(3, uint32_t, DEFAULT_VOTE_LIMIT);
-        FC_ASSERT(limit <= 100);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   start_parent_author)
+            (string,   start_permlink)
+            (uint32_t, limit)
+            (uint32_t, vote_limit, DEFAULT_VOTE_LIMIT)
+        );
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
         return pimpl->db.with_weak_read_lock([&]() {
             return pimpl->get_replies_by_last_update(start_parent_author, start_permlink, limit, vote_limit);
         });
