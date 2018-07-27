@@ -46,7 +46,7 @@ namespace golos {
                     (signed_transaction, trx)
                     (uint32_t,           max_block_age, 0)
                 );
-                if (args.args->size() >= 2) {
+                if (n_args >= 2) {
                     GOLOS_CHECK_PARAM(max_block_age, GOLOS_CHECK_VALUE(!check_max_block_age(max_block_age), "Invalid value"));
                 }
                 pimpl->_chain.accept_transaction(trx);
@@ -60,7 +60,7 @@ namespace golos {
                     (signed_transaction, trx)
                     (uint32_t,           max_block_age, 0)
                 );
-                if (args.args->size() >= 2) {
+                if (n_args >= 2) {
                     GOLOS_CHECK_PARAM(max_block_age, GOLOS_CHECK_VALUE(!check_max_block_age(max_block_age), "Invalid value"));
                 }
 
@@ -99,7 +99,7 @@ namespace golos {
                     (signed_transaction, trx)
                     (uint32_t,           max_block_age, 0)
                 );
-                if (args.args->size() >= 2) {
+                if (n_args >= 2) {
                     GOLOS_CHECK_PARAM(max_block_age, GOLOS_CHECK_VALUE(!check_max_block_age(max_block_age), "Invalid value"));
                 }
 
