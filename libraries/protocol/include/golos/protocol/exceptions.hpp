@@ -152,6 +152,10 @@ namespace golos {
         1010000, "Unsupported operation");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
+        unsupported_api_method, unsupported_operation,
+        1010100, "Unsupported api method");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
         parameter_exception, operation_exception,
         1020000, "Parameter exception");
 

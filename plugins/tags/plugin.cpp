@@ -549,7 +549,7 @@ namespace golos { namespace plugins { namespace tags {
             GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get blogs for specific authors"));
 
         auto& db = pimpl->database();
-        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_operation, 
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_api_method, 
                 "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
@@ -571,7 +571,7 @@ namespace golos { namespace plugins { namespace tags {
             GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get feeds for specific authors"));
 
         auto& db = pimpl->database();
-        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_operation,
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_api_method,
                 "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
