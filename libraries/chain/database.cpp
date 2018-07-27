@@ -793,8 +793,7 @@ namespace golos { namespace chain {
         }
 
         void database::pay_fee(const account_object &account, asset fee) {
-            FC_ASSERT(fee.amount >=
-                      0); /// NOTE if this fails then validate() on some operation is probably wrong
+            FC_ASSERT(fee.amount >= 0); /// NOTE if this fails then validate() on some operation is probably wrong
             if (fee.amount == 0) {
                 return;
             }
@@ -847,7 +846,9 @@ namespace golos { namespace chain {
                 has_bandwidth = (account_vshares * max_virtual_bandwidth) > (account_average_bandwidth * total_vshares);
 
                 if (is_producing())
-                    FC_ASSERT(has_bandwidth, "Account exceeded maximum allowed bandwidth per vesting share.",
+                    GOLOS_CHECK_LOGIC(has_bandwidth, 
+                        logic_exception::account_exceeded_bandwidth_per_vestring_share,
+                        "Account exceeded maximum allowed bandwidth per vesting share.",
                         ("account_vshares", account_vshares)
                         ("account_average_bandwidth", account_average_bandwidth)
                         ("max_virtual_bandwidth", max_virtual_bandwidth)
