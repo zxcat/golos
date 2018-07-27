@@ -221,8 +221,6 @@ namespace golos {
             }
 
             order_book market_history_plugin::market_history_plugin_impl::get_order_book(uint32_t limit) const {
-                GOLOS_CHECK_PARAM(limit, GOLOS_CHECK_LIMIT(limit, 500));
-
                 const auto &order_idx = database().get_index<golos::chain::limit_order_index>().indices().get<golos::chain::by_price>();
                 auto itr = order_idx.lower_bound(price::max(SBD_SYMBOL, STEEM_SYMBOL));
 
@@ -256,7 +254,6 @@ namespace golos {
             }
 
             order_book_extended market_history_plugin::market_history_plugin_impl::get_order_book_extended(uint32_t limit) const {
-                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 order_book_extended result;
 
                 auto max_sell = price::max(SBD_SYMBOL, STEEM_SYMBOL);
@@ -299,7 +296,6 @@ namespace golos {
 
             vector<market_trade> market_history_plugin::market_history_plugin_impl::get_trade_history(
                     time_point_sec start, time_point_sec end, uint32_t limit) const {
-                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 const auto &bucket_idx = database().get_index<order_history_index>().indices().get<by_time>();
                 auto itr = bucket_idx.lower_bound(start);
 
@@ -319,7 +315,6 @@ namespace golos {
             }
 
             vector<market_trade> market_history_plugin::market_history_plugin_impl::get_recent_trades(uint32_t limit) const {
-                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
                 const auto &order_idx = database().get_index<order_history_index>().indices().get<by_time>();
                 auto itr = order_idx.rbegin();
 
@@ -467,6 +462,8 @@ namespace golos {
                 PLUGIN_API_VALIDATE_ARGS(
                     (uint32_t, limit)
                 );
+                GOLOS_CHECK_LIMIT_PARAM(limit, 500);
+
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_order_book(limit);
@@ -477,6 +474,8 @@ namespace golos {
                 PLUGIN_API_VALIDATE_ARGS(
                     (uint32_t, limit)
                 );
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
+
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_order_book_extended(limit);
@@ -490,6 +489,8 @@ namespace golos {
                     (time_point_sec, end)
                     (uint32_t,       limit)
                 );
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
+
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_trade_history(start, end, limit);
@@ -500,6 +501,8 @@ namespace golos {
                 PLUGIN_API_VALIDATE_ARGS(
                     (uint32_t, limit)
                 );
+                GOLOS_CHECK_LIMIT_PARAM(limit, 1000);
+
                 auto &db = _my->database();
                 return db.with_weak_read_lock([&]() {
                     return _my->get_recent_trades(limit);
