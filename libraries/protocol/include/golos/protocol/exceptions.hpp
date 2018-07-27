@@ -330,6 +330,15 @@ namespace golos {
             account_already_scheduled_for_work,
             cannot_specify_owner_key_unless_creating_account,
             witness_must_be_created_before_minning,
+
+            // custom operations
+            inner_authorities_does_not_match_outer,
+
+            // database logic
+            account_exceeded_bandwidth_per_vestring_share,
+
+            // protocol logic
+            cannot_mix_posting_and_active_owner_autority_operation,
         };
     };
 
@@ -559,6 +568,15 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (account_already_scheduled_for_work)
         (cannot_specify_owner_key_unless_creating_account)
         (witness_must_be_created_before_minning)
+
+        // custom operations
+        (inner_authorities_does_not_match_outer)
+
+        // database logic
+        (account_exceeded_bandwidth_per_vestring_share)
+
+        // protocol logic
+        (cannot_mix_posting_and_active_owner_autority_operation)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
