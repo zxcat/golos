@@ -28,8 +28,9 @@ namespace golos {
         }
 
         void transaction::validate() const {
-            FC_ASSERT(operations.size() >
-                      0, "A transaction must have at least one operation", ("trx", *this));
+            GOLOS_ASSERT(operations.size() > 0, 
+                    golos::protocol::transaction_exception,
+                    "A transaction must have at least one operation", ("trx", *this));
 
             uint32_t _current_op_in_trx = 0;
             for (const auto &op : operations) {
@@ -133,9 +134,11 @@ namespace golos {
              *  check for the merged authority of active and posting.
              */
             if (required_posting.size()) {
-                FC_ASSERT(required_active.size() == 0);
-                FC_ASSERT(required_owner.size() == 0);
-                FC_ASSERT(other.size() == 0);
+                GOLOS_CHECK_LOGIC(
+                    required_active.size() == 0 && required_owner.size() == 0 && other.size() == 0,
+                    logic_exception::cannot_mix_posting_and_active_owner_autority_operation,
+                    "Transactions with operations required posting authority cannot be combined "
+                    "with transactions requiring active or owner authority");
 
                 sign_state s(sigs, get_posting, avail);
                 s.max_recursion = max_recursion_depth;
@@ -266,8 +269,11 @@ namespace golos {
                 sign_state s(get_signature_keys(chain_id), get_posting, available_keys);
                 s.max_recursion = max_recursion_depth;
 
-                FC_ASSERT(!required_owner.size());
-                FC_ASSERT(!required_active.size());
+                GOLOS_CHECK_LOGIC(
+                    required_active.size() == 0 && required_owner.size() == 0,
+                    logic_exception::cannot_mix_posting_and_active_owner_autority_operation,
+                    "Transactions with operations required posting authority cannot be combined "
+                    "with transactions requiring active or owner authority");
                 for (auto &posting : required_posting) {
                     s.check_authority(posting);
                 }
