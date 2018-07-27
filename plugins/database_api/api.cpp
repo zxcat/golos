@@ -213,9 +213,18 @@ optional<signed_block> plugin::api_impl::get_block(uint32_t block_num) const {
 //////////////////////////////////////////////////////////////////////
 
 DEFINE_API(plugin, set_block_applied_callback) {
-    PLUGIN_API_VALIDATE_ARGS(
-        (block_applied_callback_result_type, type)
-    );
+    auto n_args = args.args->size();
+    GOLOS_ASSERT(n_args == 1, golos::invalid_arguments_count, "Expected 1 parameter, received ${n}", ("n", n_args)("required",1));
+
+    // Use default value in case of converting errors to preserve
+    // previous HF behaviour, where 1st argument can be any integer
+    block_applied_callback_result_type type = block;
+    auto arg = args.args->at(0);
+    try {
+        type = arg.as<block_applied_callback_result_type>();
+    } catch (...) {
+        ilog("Bad argument (${a}) passed to set_block_applied_callback, using default", ("a",arg));
+    }
 
     // Delegate connection handlers to callback
     msg_pack_transfer transfer(args);
