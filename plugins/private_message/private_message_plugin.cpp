@@ -203,12 +203,12 @@ namespace golos { namespace plugins { namespace private_message {
 
         GOLOS_CHECK_OP_PARAM(pm, to, {
             d.get_account(pm.to);
-            PLUGIN_CHECK_LOGIC(gitr == idx.end() || gitr->type != ignored,
+            GOLOS_CHECK_LOGIC(gitr == idx.end() || gitr->type != ignored,
                 logic_errors::sender_in_ignore_list,
-                "Sender is in ignore list of receiver");
-            PLUGIN_CHECK_LOGIC(titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
-                logic_errors::recepient_ignore_messages_from_undefined_contact,
-                "Recipient accept messages only from his contact list");
+                "Sender is in the ignore list of recipient");
+            GOLOS_CHECK_LOGIC(titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
+                logic_errors::recepient_ignores_messages_from_undefined_contact,
+                "Recipient accepts messages only from his contact list");
         });
 
         d.create<message_object>([&](message_object& pmo) {
@@ -322,12 +322,12 @@ namespace golos { namespace plugins { namespace private_message {
             d.get_account(pl.contact);
 
             if (d.is_producing()) {
-                PLUGIN_CHECK_LOGIC(contact_idx.end() != contact_itr || pl.type != undefined,
+                GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr || pl.type != undefined,
                     logic_errors::add_undefined_contact,
                     "Can't add undefined contact");
 
                 std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
-                PLUGIN_CHECK_LOGIC(contact_itr->type != pl.type || pl.json_metadata != json_metadata,
+                GOLOS_CHECK_LOGIC(contact_itr->type != pl.type || pl.json_metadata != json_metadata,
                     logic_errors::contact_has_same_type,
                     "Contact has the same type");
             }

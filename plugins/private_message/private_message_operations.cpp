@@ -36,7 +36,7 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_PARAM_ACCOUNT(to);
         GOLOS_CHECK_PARAM_ACCOUNT(from);
 
-        PLUGIN_CHECK_LOGIC(from != to,
+        GOLOS_CHECK_LOGIC(from != to,
             logic_errors::cannot_send_to_yourself,
             "You cannot write to yourself");
 
@@ -48,7 +48,7 @@ namespace golos { namespace plugins { namespace private_message {
             GOLOS_CHECK_VALUE(from_memo_key != public_key_type(), "From_key can't be empty");
         });
 
-        PLUGIN_CHECK_LOGIC(
+        GOLOS_CHECK_LOGIC(
             from_memo_key != to_memo_key,
             logic_errors::from_and_to_memo_keys_must_be_different,
             "from_key can't be equal to to_key");
@@ -72,7 +72,7 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_PARAM_ACCOUNT(contact);
         GOLOS_CHECK_PARAM_ACCOUNT(owner);
 
-        PLUGIN_CHECK_LOGIC(contact != owner,
+        GOLOS_CHECK_LOGIC(contact != owner,
             logic_errors::cannot_add_contact_to_yourself,
             "You add contact to yourself");
 

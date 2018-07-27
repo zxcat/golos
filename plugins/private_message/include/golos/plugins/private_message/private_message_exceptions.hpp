@@ -3,9 +3,6 @@
 #include <golos/protocol/exceptions.hpp>
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 
-#define PLUGIN_CHECK_LOGIC(expr, type, msg, ...) \
-    GOLOS_CHECK_LOGIC(expr, type, msg, ("plugin", "private_message") __VA_ARGS__)
-
 namespace golos { namespace plugins { namespace private_message {
 
     struct logic_errors {
@@ -14,7 +11,7 @@ namespace golos { namespace plugins { namespace private_message {
             from_and_to_memo_keys_must_be_different,
             cannot_add_contact_to_yourself,
             sender_in_ignore_list,
-            recepient_ignore_messages_from_undefined_contact,
+            recepient_ignores_messages_from_undefined_contact,
             add_undefined_contact,
             contact_has_same_type,
         };
@@ -34,7 +31,7 @@ FC_REFLECT_ENUM(golos::plugins::private_message::logic_errors::types,
     (from_and_to_memo_keys_must_be_different)
     (cannot_add_contact_to_yourself)
     (sender_in_ignore_list)
-    (recepient_ignore_messages_from_undefined_contact)
+    (recepient_ignores_messages_from_undefined_contact)
     (add_undefined_contact)
     (contact_has_same_type)
 );
