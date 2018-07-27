@@ -2517,7 +2517,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         vector<extended_message_object> wallet_api::get_inbox(
-            const std::string& to, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+            const std::string& to, const std::string& newest_str, uint16_t limit, std::uint32_t offset
         ) {
             FC_ASSERT(!is_locked());
             std::vector<extended_message_object> result;
@@ -2533,7 +2533,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         vector<extended_message_object> wallet_api::get_outbox(
-            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint64_t offset
+            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint32_t offset
         ) {
             FC_ASSERT(!is_locked());
             std::vector<extended_message_object> result;
@@ -2548,9 +2548,85 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return result;
         }
 
+        annotated_signed_transaction wallet_api::set_private_settings(
+            const std::string& owner, const settings_api_object& s, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+            private_settings_operation op;
+
+            op.owner = owner;
+            op.ignore_messages_from_undefined_contact = s.ignore_messages_from_undefined_contact;
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(owner);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
+        settings_api_object wallet_api::get_private_settings(const std::string& owner) {
+            return my->_remote_private_message->get_settings(owner);
+        }
+
+        annotated_signed_transaction wallet_api::add_private_contact(
+            const std::string& owner, const std::string& contact,
+            private_contact_type type, fc::optional<std::string> json_metadata, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+            FC_ASSERT(type != golos::plugins::private_message::undefined || !json_metadata);
+
+            private_contact_operation op;
+
+            op.owner = owner;
+            op.contact = contact;
+            op.type = type;
+
+            if (type == golos::plugins::private_message::undefined) {
+                // op.json_metadata.clear();
+            } else if (!json_metadata) {
+                op.json_metadata = my->_remote_private_message->get_contact_info(owner, contact).json_metadata;
+            } else {
+                op.json_metadata = *json_metadata;
+            }
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(owner);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
+        vector<contact_api_object> wallet_api::get_private_contacts(
+            const std::string& owner, private_contact_type type, uint16_t limit, uint32_t offset
+        ) {
+            return my->_remote_private_message->get_contacts(owner, type, limit, offset);
+        }
+
+        contact_api_object wallet_api::get_private_contact(
+            const std::string& owner, const std::string& contact
+        ) {
+            return my->_remote_private_message->get_contact_info(owner, contact);
+        }
+
         annotated_signed_transaction wallet_api::send_private_message(
             const std::string& from, const std::string& to, const message_body& message, bool broadcast
         ) {
+            FC_ASSERT(!is_locked());
+
             auto from_account  = get_account(from);
             auto to_account    = get_account(to);
             auto shared_secret = my->get_private_key(from_account.memo_key).get_shared_secret(to_account.memo_key);
@@ -2570,7 +2646,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from_memo_key     = from_account.memo_key;
             op.to                = to;
             op.to_memo_key       = to_account.memo_key;
-            op.sent_time         = sent_time;
+            op.nonce             = sent_time;
             op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
             op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
 
@@ -2588,7 +2664,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(trx, broadcast);
         }
 
-        message_body wallet_api::try_decrypt_message(const message_api_obj& mo) {
+        message_body wallet_api::try_decrypt_message(const message_api_object& mo) {
             message_body result;
 
             fc::sha512 shared_secret;
@@ -2614,7 +2690,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             }
 
             fc::sha512::encoder enc;
-            fc::raw::pack(enc, mo.sent_time);
+            fc::raw::pack(enc, mo.nonce);
             fc::raw::pack(enc, shared_secret);
             auto encrypt_key = enc.result();
 

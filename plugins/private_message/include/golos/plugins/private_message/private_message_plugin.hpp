@@ -1,6 +1,6 @@
 #pragma once
-#include <golos/plugins/private_message/private_message_objects.hpp>
-
+#include <golos/plugins/private_message/private_message_operations.hpp>
+#include <golos/plugins/private_message/private_message_api_objects.hpp>
 
 #include <appbase/plugin.hpp>
 #include <golos/chain/database.hpp>
@@ -16,8 +16,12 @@
 namespace golos { namespace plugins { namespace private_message {
     using namespace golos::chain;
 
-    DEFINE_API_ARGS(get_inbox,  json_rpc::msg_pack, std::vector<message_api_obj>)
-    DEFINE_API_ARGS(get_outbox, json_rpc::msg_pack, std::vector<message_api_obj>)
+    DEFINE_API_ARGS(get_inbox,         json_rpc::msg_pack, std::vector<message_api_object>)
+    DEFINE_API_ARGS(get_outbox,        json_rpc::msg_pack, std::vector<message_api_object>)
+    DEFINE_API_ARGS(get_settings ,     json_rpc::msg_pack, settings_api_object)
+    DEFINE_API_ARGS(get_contact_info,  json_rpc::msg_pack, contact_api_object)
+    DEFINE_API_ARGS(get_contacts_size, json_rpc::msg_pack, contacts_size_api_object)
+    DEFINE_API_ARGS(get_contacts,      json_rpc::msg_pack, std::vector<contact_api_object>)
 
     /**
      *   This plugin scans the blockchain for custom operations containing a valid message and authorized
@@ -33,20 +37,27 @@ namespace golos { namespace plugins { namespace private_message {
         ~private_message_plugin();
 
         void set_program_options(
-            boost::program_options::options_description &cli,
-            boost::program_options::options_description &cfg) override;
+            boost::program_options::options_description& cli,
+            boost::program_options::options_description& cfg) override;
 
-        void plugin_initialize(const boost::program_options::variables_map &options) override;
+        void plugin_initialize(const boost::program_options::variables_map& options) override;
 
         void plugin_startup() override;
 
         void plugin_shutdown() override;
 
-        flat_map<std::string, std::string> tracked_accounts() const; /// map start_range to end_range
+        bool is_tracked_account(account_name_type) const;
 
-        static const std::string &name();
+        static const std::string& name();
 
-        DECLARE_API((get_inbox)(get_outbox))
+        DECLARE_API(
+            (get_inbox)
+            (get_outbox)
+            (get_settings)
+            (get_contact_info)
+            (get_contacts_size)
+            (get_contacts)
+        )
 
     private:
         class private_message_plugin_impl;
@@ -56,13 +67,3 @@ namespace golos { namespace plugins { namespace private_message {
     };
 
 } } } //golos::plugins::private_message
-
-FC_REFLECT(
-    (golos::plugins::private_message::message_object),
-    (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));
-CHAINBASE_SET_INDEX_TYPE(
-    golos::plugins::private_message::message_object, golos::plugins::private_message::message_index);
-
-FC_REFLECT(
-    (golos::plugins::private_message::message_api_obj),
-    (id)(from)(to)(from_memo_key)(to_memo_key)(sent_time)(receive_time)(checksum)(encrypted_message));

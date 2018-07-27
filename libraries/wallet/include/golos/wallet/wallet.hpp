@@ -49,11 +49,11 @@ namespace golos { namespace wallet {
             std::string body;
         };
 
-        struct extended_message_object: public message_api_obj {
+        struct extended_message_object: public message_api_object {
             extended_message_object() = default;
 
-            extended_message_object(const message_api_obj& o)
-                : message_api_obj(o) {
+            extended_message_object(const message_api_object& o)
+                : message_api_object(o) {
             }
 
             message_body message;
@@ -1124,10 +1124,63 @@ namespace golos { namespace wallet {
 
             // Private message
             vector<extended_message_object> get_inbox(
-                    const std::string& to, const std::string& newest, uint16_t limit, std::uint64_t offset);
+                const std::string& to, const std::string& newest, uint16_t limit, std::uint32_t offset);
             vector<extended_message_object> get_outbox(
-                    const std::string& from, const std::string& newest, uint16_t limit, std::uint64_t offset);
+                const std::string& from, const std::string& newest, uint16_t limit, std::uint32_t offset);
 
+            /**
+             * Change settings for private messages
+             *
+             * @param owner
+             * @param settings
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction set_private_settings(
+                const std::string& owner, const settings_api_object& s, bool broadcast);
+
+            /**
+             * Get settings for private messages
+             *
+             * @param owner
+             * @return the settings for private messages
+             */
+            settings_api_object get_private_settings(const std::string& owner);
+
+            /**
+             * Add/modify contact list
+             *
+             * @param owner
+             * @param contact
+             * @param type (undefined - remove it if no messages, pinned, ignore)
+             * @param json_metadata
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction add_private_contact(
+                const std::string& owner, const std::string& contact, private_contact_type,
+                fc::optional<std::string> json_metadata, bool broadcast);
+
+            /**
+             * Get contact list
+             *
+             * @param owner
+             * @param type (undefined, pinned, ignore)
+             * @param limit
+             * @param offset
+             * @return List of contacts
+             */
+            vector<contact_api_object> get_private_contacts(
+                const std::string& owner, private_contact_type type, uint16_t limit, uint32_t offset);
+
+            /**
+             * Get contact info
+             *
+             * @param owner
+             * @param contact
+             * @return Contact
+             */
+            contact_api_object get_private_contact(const std::string& owner, const std::string& contact);
             /**
              * Send an encrypted private message from one account to other
              *
@@ -1140,7 +1193,7 @@ namespace golos { namespace wallet {
             annotated_signed_transaction send_private_message(
                 const std::string& from, const std::string& to, const message_body& message, bool broadcast);
 
-            message_body try_decrypt_message( const message_api_obj& mo );
+            message_body try_decrypt_message(const message_api_object& mo);
         };
 
         struct plain_keys {
@@ -1258,6 +1311,11 @@ FC_API( golos::wallet::wallet_api,
                 (get_transaction)
                 (get_inbox)
                 (get_outbox)
+                (set_private_settings)
+                (get_private_settings)
+                (get_private_contacts)
+                (get_private_contact)
+                (add_private_contact)
                 (send_private_message)
 )
 
@@ -1280,5 +1338,5 @@ FC_REFLECT(
 
 FC_REFLECT_DERIVED(
     (golos::wallet::extended_message_object),
-    ((golos::plugins::private_message::message_api_obj)),
+    ((golos::plugins::private_message::message_api_object)),
     (message));
