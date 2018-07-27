@@ -1,4 +1,5 @@
 #include <boost/algorithm/string.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/plugins/tags/discussion_query.hpp>
 #include <golos/plugins/tags/tags_object.hpp>
 #include <golos/plugins/tags/tag_visitor.hpp>
@@ -24,15 +25,23 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     void discussion_query::validate() const {
-        FC_ASSERT(limit <= 100);
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
-        for (auto& itr : filter_tags) {
-            FC_ASSERT(select_tags.find(itr) == select_tags.end());
-        }
+        GOLOS_CHECK_PARAM(filter_tags, {
+            for (auto& itr : filter_tags) {
+                GOLOS_CHECK_VALUE(select_tags.find(itr) == select_tags.end(),
+                    "Can't filter and select tag '${tag}' at the same time",
+                    ("tag", itr));
+            }
+        });
 
-        for (auto& itr : filter_languages) {
-            FC_ASSERT(select_languages.find(itr) == select_languages.end());
-        }
+        GOLOS_CHECK_PARAM(filter_languages, {
+            for (auto& itr : filter_languages) {
+                GOLOS_CHECK_VALUE(select_languages.find(itr) == select_languages.end(),
+                    "Can't filter and select language '${language}' at the same time",
+                    ("language", itr));
+            }
+        });
     }
 
     bool discussion_query::is_good_tags(const discussion& d) const {

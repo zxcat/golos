@@ -1,16 +1,14 @@
 #include <golos/plugins/operation_history/plugin.hpp>
 #include <golos/plugins/operation_history/history_object.hpp>
 
+#include <golos/plugins/json_rpc/api_helper.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/chain/operation_notification.hpp>
 
 #include <boost/algorithm/string.hpp>
 
 #define STEEM_NAMESPACE_PREFIX "golos::protocol::"
 #define OPERATION_POSTFIX "_operation"
-
-#define CHECK_ARG_SIZE(s) \
-   FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
-
 
 
 namespace golos { namespace plugins { namespace operation_history {
@@ -150,7 +148,7 @@ namespace golos { namespace plugins { namespace operation_history {
                 result.transaction_num = itr->trx_in_block;
                 return result;
             }
-            FC_ASSERT(false, "Unknown Transaction ${t}", ("t", id));
+            GOLOS_THROW_MISSING_OBJECT("transaction", id);
         }
 
         bool filter_content = false;
@@ -162,17 +160,19 @@ namespace golos { namespace plugins { namespace operation_history {
     };
 
     DEFINE_API(plugin, get_ops_in_block) {
-        CHECK_ARG_SIZE(2)
-        auto block_num = args.args->at(0).as<uint32_t>();
-        auto only_virtual = args.args->at(1).as<bool>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (uint32_t, block_num)
+            (bool,     only_virtual)
+        );
         return pimpl->database.with_weak_read_lock([&](){
             return pimpl->get_ops_in_block(block_num, only_virtual);
         });
     }
 
     DEFINE_API(plugin, get_transaction) {
-        CHECK_ARG_SIZE(1)
-        auto id = args.args->at(0).as<transaction_id_type>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (transaction_id_type, id)
+        );
         return pimpl->database.with_weak_read_lock([&](){
             return pimpl->get_transaction(id);
         });
@@ -231,8 +231,7 @@ namespace golos { namespace plugins { namespace operation_history {
         };
 
         if (options.count("history-whitelist-ops")) {
-            FC_ASSERT(
-                !options.count("history-blacklist-ops"),
+            GOLOS_CHECK_OPTION(!options.count("history-blacklist-ops"),
                 "history-blacklist-ops and history-whitelist-ops can't be specified together");
 
             pimpl->filter_content = true;
