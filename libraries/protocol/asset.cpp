@@ -78,7 +78,7 @@ namespace golos {
                     auto intpart = s.substr(0, dot_pos);
                     auto fractpart = "1" + s.substr(
                             dot_pos + 1, space_pos - dot_pos - 1);
-                    GOLOS_CHECK_VALUE(fractpart.size() - 1 < 15, "Asset fraction part is too length");
+                    GOLOS_CHECK_VALUE(fractpart.size() - 1 < 15, "Asset fraction part is too long");
                     result.set_decimals(fractpart.size() - 1);
 
                     result.amount = fc::to_int64(intpart);
@@ -94,7 +94,7 @@ namespace golos {
                 size_t symbol_size = symbol.size();
 
                 if (symbol_size > 0) {
-                    GOLOS_CHECK_VALUE(symbol_size <= 6, "Asset symbol is too length");
+                    GOLOS_CHECK_VALUE(symbol_size <= 6, "Asset symbol is too long");
                     memcpy(sy + 1, symbol.c_str(), symbol_size);
                 }
 

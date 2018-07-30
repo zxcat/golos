@@ -136,9 +136,8 @@ namespace golos {
             if (required_posting.size()) {
                 GOLOS_CHECK_LOGIC(
                     required_active.size() == 0 && required_owner.size() == 0 && other.size() == 0,
-                    logic_exception::cannot_mix_posting_and_active_owner_autority_operation,
-                    "Transactions with operations required posting authority cannot be combined "
-                    "with transactions requiring active or owner authority");
+                    logic_exception::tx_with_both_posting_active_ops,
+                    "Can't combine operations required posting authority and active or owner authority");
 
                 sign_state s(sigs, get_posting, avail);
                 s.max_recursion = max_recursion_depth;
@@ -271,9 +270,8 @@ namespace golos {
 
                 GOLOS_CHECK_LOGIC(
                     required_active.size() == 0 && required_owner.size() == 0,
-                    logic_exception::cannot_mix_posting_and_active_owner_autority_operation,
-                    "Transactions with operations required posting authority cannot be combined "
-                    "with transactions requiring active or owner authority");
+                    logic_exception::tx_with_both_posting_active_ops,
+                    "Can't combine operations required posting authority and active or owner authority");
                 for (auto &posting : required_posting) {
                     s.check_authority(posting);
                 }

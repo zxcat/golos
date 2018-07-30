@@ -1077,7 +1077,9 @@ namespace golos { namespace chain {
         */
         void database::push_transaction(const signed_transaction &trx, uint32_t skip) {
             try {
-                FC_ASSERT(fc::raw::pack_size(trx) <= (get_dynamic_global_properties().maximum_block_size - 256));
+                GOLOS_ASSERT(fc::raw::pack_size(trx) <= (get_dynamic_global_properties().maximum_block_size - 256),
+                        golos::protocol::tx_too_long, "Transaction data is too long. Maximum transaction size ${max} bytes",
+                        ("max",get_dynamic_global_properties().maximum_block_size - 256));
                 with_weak_write_lock([&]() {
                     detail::with_producing(*this, [&]() {
                         _push_transaction(trx, skip);
@@ -3335,25 +3337,34 @@ namespace golos { namespace chain {
                     const auto &tapos_block_summary = get_block_summary(trx.ref_block_num);
                     //Verify TaPoS block summary has correct ID prefix,
                     //   and that this block's time is not past the expiration
-                    FC_ASSERT(
-                        trx.ref_block_prefix == tapos_block_summary.block_id._hash[1], "",
+                    GOLOS_ASSERT(trx.ref_block_prefix == tapos_block_summary.block_id._hash[1],
+                        tx_invalid_field, "Transaction field ${field} has invalid value",
+                        ("field","ref_block_prefix")
                         ("trx.ref_block_prefix", trx.ref_block_prefix)
                         ("tapos_block_summary", tapos_block_summary.block_id._hash[1]));
                 }
 
                 fc::time_point_sec now = head_block_time();
+                fc::time_point_sec maximum = now + fc::seconds(STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
 
-                FC_ASSERT(
-                    trx.expiration <= now + fc::seconds(STEEMIT_MAX_TIME_UNTIL_EXPIRATION), "",
-                    ("trx.expiration", trx.expiration)("now", now)
-                    ("max_til_exp", STEEMIT_MAX_TIME_UNTIL_EXPIRATION));
+                GOLOS_ASSERT(trx.expiration <= maximum, 
+                    tx_invalid_field, "Transaction field ${field} has invalid value",
+                    ("field", "expiration")
+                    ("trx.expiration", trx.expiration)
+                    ("now", now)("maximum", maximum));
 
                 // Simple solution to pending trx bug when now == trx.expiration
                 if (is_producing() || has_hardfork(STEEMIT_HARDFORK_0_9)) {
-                    FC_ASSERT(now < trx.expiration, "", ("now", now)("trx.exp", trx.expiration));
+                    GOLOS_ASSERT(now < trx.expiration, tx_expired,
+                            "Transaction is expired. Now ${now}, expired ${expired}", 
+                            ("now", now)("expired", trx.expiration-1)
+                            ("trx.expiration", trx.expiration));
                 }
 
-                FC_ASSERT(now <= trx.expiration, "", ("now", now)("trx.exp", trx.expiration));
+                GOLOS_ASSERT(now <= trx.expiration, tx_expired,
+                        "Transaction is expired. Now ${now}, expired ${expired}", 
+                        ("now", now)("expired", trx.expiration)
+                        ("trx.expiration", trx.expiration));
             }
         }
 
