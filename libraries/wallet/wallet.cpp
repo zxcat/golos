@@ -1804,9 +1804,9 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         {
             WALLET_CHECK_UNLOCKED();
 
-            auto account = get_account(account_name);
             GOLOS_CHECK_PARAM(threshold, GOLOS_CHECK_VALUE(threshold != 0, "Authority is implicitly satisfied"));
 
+            auto account = get_account(account_name);
             account_update_operation op;
             op.account = account_name;
             op.memo_key = account.memo_key;
