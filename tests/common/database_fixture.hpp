@@ -507,7 +507,7 @@ namespace golos { namespace chain {
                 ch_plugin->skip_startup = true;
 
                 std::vector<std::string> args_data;
-                // fill all elements first to avoid c_str() pointers stay valid
+                // fill all elements first so c_str() pointers stay valid
                 for (const auto& opt: opts) {
                     args_data.push_back(std::string("--") + opt.first);
                     args_data.push_back(opt.second);
