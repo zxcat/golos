@@ -43,7 +43,7 @@ namespace golos { namespace plugins { namespace chain {
         size_t min_free_shared_memory_size;
 
         uint32_t clear_votes_before_block = 0;
-        uint32_t clear_votes_older_n_blocks = -1;
+        uint32_t clear_votes_older_n_blocks = 0xFFFFFFFF;
         bool enable_plugins_on_push_transaction;
 
         uint32_t block_num_check_free_size = 0;
@@ -72,13 +72,13 @@ namespace golos { namespace plugins { namespace chain {
             return appbase::app().get_io_service();
         }
 
-        void check_time_in_block(const protocol::signed_block &block);
-        bool accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip);
-        void accept_transaction(const protocol::signed_transaction &trx);
-        void wipe_db(const bfs::path &data_dir, bool wipe_block_log);
-        void replay_db(const bfs::path &data_dir, bool force_replay);
+        void check_time_in_block(const protocol::signed_block& block);
+        bool accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip);
+        void accept_transaction(const protocol::signed_transaction& trx);
+        void wipe_db(const bfs::path& data_dir, bool wipe_block_log);
+        void replay_db(const bfs::path& data_dir, bool force_replay);
 
-        void on_block (const  protocol::signed_block& b);
+        void on_block (const protocol::signed_block& b);
     };
 
 
@@ -97,7 +97,7 @@ namespace golos { namespace plugins { namespace chain {
         }
     }
 
-    void plugin::impl::check_time_in_block(const protocol::signed_block &block) {
+    void plugin::impl::check_time_in_block(const protocol::signed_block& block) {
         time_point_sec now = fc::time_point::now();
 
         uint64_t max_accept_time = now.sec_since_epoch();
@@ -105,10 +105,10 @@ namespace golos { namespace plugins { namespace chain {
         FC_ASSERT(block.timestamp.sec_since_epoch() <= max_accept_time);
     }
 
-    bool plugin::impl::accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip) {
+    bool plugin::impl::accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip) {
         if (currently_syncing && block.block_num() % 10000 == 0) {
             ilog("Syncing Blockchain --- Got block: #${n} time: ${t} producer: ${p}",
-                 ("t", block.timestamp)("n", block.block_num())("p", block.witness));
+                ("t", block.timestamp)("n", block.block_num())("p", block.witness));
         }
 
         check_time_in_block(block);
@@ -122,7 +122,7 @@ namespace golos { namespace plugins { namespace chain {
             io_service().post([&]{
                 try {
                     promise.set_value(db.push_block(block, skip));
-                } catch(...) {
+                } catch (...) {
                     promise.set_exception(std::current_exception());
                 }
             });
@@ -132,7 +132,7 @@ namespace golos { namespace plugins { namespace chain {
         }
     }
 
-    void plugin::impl::wipe_db(const bfs::path &data_dir, bool wipe_block_log) {
+    void plugin::impl::wipe_db(const bfs::path& data_dir, bool wipe_block_log) {
         if (wipe_block_log) {
             ilog("Wiping blockchain with block log.");
         } else {
@@ -140,10 +140,10 @@ namespace golos { namespace plugins { namespace chain {
         }
 
         db.wipe(data_dir, shared_memory_dir, wipe_block_log);
-        db.open(data_dir, shared_memory_dir, STEEMIT_INIT_SUPPLY, shared_memory_size, chainbase::database::read_write/*, validate_invariants*/ );
+        db.open(data_dir, shared_memory_dir, STEEMIT_INIT_SUPPLY, shared_memory_size, chainbase::database::read_write/*, validate_invariants*/);
     };
 
-    void plugin::impl::replay_db(const bfs::path &data_dir, bool force_replay) {
+    void plugin::impl::replay_db(const bfs::path& data_dir, bool force_replay) {
         auto head_block_log = db.get_block_log().head();
         force_replay |= head_block_log && db.revision() >= head_block_log->block_num();
 
@@ -157,7 +157,7 @@ namespace golos { namespace plugins { namespace chain {
         db.reindex(data_dir, shared_memory_dir, from_block_num, shared_memory_size);
     };
 
-    void plugin::impl::accept_transaction(const protocol::signed_transaction &trx) {
+    void plugin::impl::accept_transaction(const protocol::signed_transaction& trx) {
         uint32_t skip = db.validate_transaction(trx, db.skip_apply_transaction);
 
         if (single_write_thread) {
@@ -168,7 +168,7 @@ namespace golos { namespace plugins { namespace chain {
                 try {
                     db.push_transaction(trx, skip);
                     promise.set_value(true);
-                } catch(...) {
+                } catch (...) {
                     promise.set_exception(std::current_exception());
                 }
             });
@@ -184,11 +184,11 @@ namespace golos { namespace plugins { namespace chain {
     plugin::~plugin() {
     }
 
-    golos::chain::database &plugin::db() {
+    golos::chain::database& plugin::db() {
         return my->db;
     }
 
-    const golos::chain::database &plugin::db() const {
+    const golos::chain::database& plugin::db() const {
         return my->db;
     }
 
@@ -336,7 +336,7 @@ namespace golos { namespace plugins { namespace chain {
         if (options.count("checkpoint")) {
             auto cps = options.at("checkpoint").as<std::vector<std::string>>();
             my->loaded_checkpoints.reserve(cps.size());
-            for (const auto &cp : cps) {
+            for (const auto& cp : cps) {
                 auto item = fc::json::from_string(cp).as<std::pair<uint32_t, protocol::block_id_type>>();
                 my->loaded_checkpoints[item.first] = item.second;
             }
@@ -405,7 +405,7 @@ namespace golos { namespace plugins { namespace chain {
 
         try {
             ilog("Opening shared memory from ${path}", ("path", my->shared_memory_dir.generic_string()));
-            my->db.open(data_dir, my->shared_memory_dir, STEEMIT_INIT_SUPPLY, my->shared_memory_size, chainbase::database::read_write/*, my->validate_invariants*/ );
+            my->db.open(data_dir, my->shared_memory_dir, STEEMIT_INIT_SUPPLY, my->shared_memory_size, chainbase::database::read_write/*, my->validate_invariants*/);
             auto head_block_log = my->db.get_block_log().head();
             my->replay |= head_block_log && my->db.revision() != head_block_log->block_num();
 
@@ -453,15 +453,15 @@ namespace golos { namespace plugins { namespace chain {
         ilog("database closed successfully");
     }
 
-    bool plugin::accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip) {
+    bool plugin::accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip) {
         return my->accept_block(block, currently_syncing, skip);
     }
 
-    void plugin::accept_transaction(const protocol::signed_transaction &trx) {
+    void plugin::accept_transaction(const protocol::signed_transaction& trx) {
         my->accept_transaction(trx);
     }
 
-    bool plugin::block_is_on_preferred_chain(const protocol::block_id_type &block_id) {
+    bool plugin::block_is_on_preferred_chain(const protocol::block_id_type& block_id) {
         // If it's not known, it's not preferred.
         if (!db().is_known_block(block_id)) {
             return false;
@@ -472,7 +472,7 @@ namespace golos { namespace plugins { namespace chain {
         return db().get_block_id_for_num(protocol::block_header::num_from_id(block_id)) == block_id;
     }
 
-    void plugin::check_time_in_block(const protocol::signed_block &block) {
+    void plugin::check_time_in_block(const protocol::signed_block& block) {
         my->check_time_in_block(block);
     }
 

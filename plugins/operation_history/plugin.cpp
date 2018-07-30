@@ -192,11 +192,11 @@ namespace golos { namespace plugins { namespace operation_history {
             "Defines a list of operations which will be explicitly ignored."
         ) (
             "history-start-block",
-            boost::program_options::value<uint32_t>()->composing(),
+            boost::program_options::value<uint32_t>(),
             "Defines starting block from which recording stats."
         ) (
             "history-blocks",
-            boost::program_options::value<uint32_t>()->composing(),
+            boost::program_options::value<uint32_t>(),
             "Defines depth of history for recording stats."
         );
     }

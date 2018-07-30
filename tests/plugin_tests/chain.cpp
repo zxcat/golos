@@ -20,7 +20,7 @@ using namespace golos::plugins::chain;
 
 struct chain_fixture : public golos::chain::database_fixture {
 
-    void initialize(const Options& opts = {}) {
+    void initialize(const plugin_options& opts = {}) {
         database_fixture::initialize(opts);
         open_database();
         startup();

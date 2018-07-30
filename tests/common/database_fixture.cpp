@@ -257,8 +257,8 @@ namespace golos { namespace chain {
             }
         };
 
-        add_operations_database_fixture::Operations add_operations_database_fixture::add_operations() try {
-            Operations _added_ops;
+        add_operations_database_fixture::operations_map add_operations_database_fixture::add_operations() { try {
+            operations_map _added_ops;
 
             ACTORS((alice)(bob)(sam))
             fund("alice", 10000);
@@ -268,9 +268,6 @@ namespace golos { namespace chain {
             fund("sam", 8000);
             vest("sam", 8000);
 
-
-            signed_transaction tx;
-
             comment_operation com;
             com.author = "bob";
             com.permlink = "test";
@@ -278,21 +275,18 @@ namespace golos { namespace chain {
             com.parent_permlink = "test";
             com.title = "foo";
             com.body = "bar";
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(com);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            signed_transaction tx;
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, com));
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "comment_operation"));
             ilog("Generate: " + tx.id().str() + " comment_operation");
-            tx.operations.clear();
-            tx.signatures.clear();
 
+            tx.clear();
             vote_operation vote;
             vote.voter = "alice";
             vote.author = "bob";
             vote.permlink = "test";
-            vote.weight = -1; ///< Nessary for the posiblity of delet_comment_operation.
+            vote.weight = -1;               // Necessary to allow delete_comment_operation
             tx.operations.push_back(vote);
             vote.voter = "bob";
             tx.operations.push_back(vote);
@@ -301,45 +295,33 @@ namespace golos { namespace chain {
             tx.sign(alice_private_key, db->get_chain_id());
             tx.sign(bob_private_key, db->get_chain_id());
             tx.sign(sam_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            GOLOS_CHECK_NO_THROW(db->push_transaction(tx, 0));
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "vote_operation"));
             ilog("Generate: " + tx.id().str() + " vote_operation");
-            tx.operations.clear();
-            tx.signatures.clear();
 
             delete_comment_operation dco;
             dco.author = "bob";
             dco.permlink = "test";
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(dco);
-            tx.sign(bob_private_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, dco));
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "delete_comment_operation"));
             ilog("Generate: " + tx.id().str() + " delete_comment_operation");
-            tx.operations.clear();
-            tx.signatures.clear();
 
             account_create_operation aco;
             aco.new_account_name = "dave";
             aco.creator = STEEMIT_INIT_MINER_NAME;
             aco.owner = authority(1, init_account_pub_key, 1);
             aco.active = aco.owner;
-            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
-            tx.operations.push_back(aco);
-            tx.sign(init_account_priv_key, db->get_chain_id());
-            db->push_transaction(tx, 0);
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, init_account_priv_key, aco));
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "account_create_operation"));
             ilog("Generate: " + tx.id().str() + " account_create_operation");
-            tx.operations.clear();
-            tx.signatures.clear();
 
             validate_database();
 
             return _added_ops;
-        } FC_LOG_AND_RETHROW();
+        } FC_LOG_AND_RETHROW(); }
 
 
         fc::ecc::private_key database_fixture::generate_private_key(string seed) {
