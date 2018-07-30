@@ -23,9 +23,9 @@ namespace golos { namespace api {
 
         std::string category;
 
-        time_point_sec last_update;
+        fc::optional<time_point_sec> last_update;
         time_point_sec created;
-        time_point_sec active;
+        fc::optional<time_point_sec> active;
         time_point_sec last_payout;
 
         uint8_t depth = 0;

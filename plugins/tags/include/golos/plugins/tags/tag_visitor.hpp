@@ -11,6 +11,8 @@ namespace golos { namespace plugins { namespace tags {
 
     comment_metadata get_metadata(const std::string& json_metadata);
 
+    struct comment_date { time_point_sec active; time_point_sec last_update; };
+
     struct operation_visitor {
         operation_visitor(database& db);
         using result_type = void;
@@ -24,6 +26,8 @@ namespace golos { namespace plugins { namespace tags {
         void remove_tag(const tag_object& tag) const;
 
         const tag_stats_object& get_stats(const tag_object&) const;
+
+        comment_date get_comment_last_update(const comment_object& comment) const;
 
         void update_tag(const tag_object&, const comment_object&, double hot, double trending) const;
 

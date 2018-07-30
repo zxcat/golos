@@ -3,8 +3,11 @@
 #include <golos/plugins/block_info/plugin.hpp>
 
 #include <golos/protocol/types.hpp>
+#include <golos/protocol/exceptions.hpp>
+#include <golos/protocol/validate_helper.hpp>
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 
 namespace golos {
 namespace plugins {
@@ -43,8 +46,8 @@ private:
 std::vector<block_info> plugin::plugin_impl::get_block_info(uint32_t start_block_num, uint32_t count) {
     std::vector<block_info> result;
 
-    FC_ASSERT(start_block_num > 0);
-    FC_ASSERT(count <= 10000);
+    GOLOS_CHECK_PARAM(start_block_num, GOLOS_CHECK_VALUE_GT(start_block_num, 0));
+    GOLOS_CHECK_LIMIT_PARAM(count, 10000);
     uint32_t n = std::min(uint32_t(block_info_.size()),
     start_block_num + count);
 
@@ -61,8 +64,8 @@ std::vector<block_with_info> plugin::plugin_impl::get_blocks_with_info(
     std::vector<block_with_info> result;
     const auto & db = database();
 
-    FC_ASSERT(start_block_num > 0);
-    FC_ASSERT(count <= 10000);
+    GOLOS_CHECK_PARAM(start_block_num, GOLOS_CHECK_VALUE_GT(start_block_num, 0));
+    GOLOS_CHECK_LIMIT_PARAM(count, 10000);
     uint32_t n = std::min( uint32_t( block_info_.size() ), start_block_num + count );
 
     uint64_t total_size = 0;
@@ -104,8 +107,10 @@ void plugin::plugin_impl::on_applied_block(const protocol::signed_block &b) {
 }
 
 DEFINE_API ( plugin, get_block_info ) {
-    auto start_block_num = args.args->at(0).as<uint32_t>();
-    auto count = args.args->at(1).as<uint32_t>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (uint32_t, start_block_num)
+        (uint32_t, count)
+    );
     auto &db = my->database();
     return db.with_weak_read_lock([&]() {
         return  my->get_block_info(start_block_num, count);
@@ -113,8 +118,10 @@ DEFINE_API ( plugin, get_block_info ) {
 }
 
 DEFINE_API ( plugin, get_blocks_with_info ) {
-    auto start_block_num = args.args->at(0).as<uint32_t>();
-    auto count = args.args->at(1).as<uint32_t>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (uint32_t, start_block_num)
+        (uint32_t, count)
+    );
     auto &db = my->database();
     return db.with_weak_read_lock([&]() {
         return my->get_blocks_with_info(start_block_num, count);

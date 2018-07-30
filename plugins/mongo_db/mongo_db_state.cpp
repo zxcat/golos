@@ -4,6 +4,7 @@
 #include <golos/chain/account_object.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/chain/proposal_object.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/value_context.hpp>
@@ -70,7 +71,6 @@ namespace mongo_db {
             format_value(body, "author", auth);
             format_value(body, "permlink", perm);
             format_value(body, "abs_rshares", comment.abs_rshares);
-            format_value(body, "active", comment.active);
 
             format_value(body, "allow_curation_rewards", comment.allow_curation_rewards);
             format_value(body, "allow_replies", comment.allow_replies);
@@ -85,7 +85,6 @@ namespace mongo_db {
             format_value(body, "curator_payout", comment.curator_payout_value);
             format_value(body, "depth", comment.depth);
             format_value(body, "last_payout", comment.last_payout);
-            format_value(body, "last_update", comment.last_update);
             format_value(body, "max_accepted_payout", comment.max_accepted_payout);
             format_value(body, "max_cashout_time", comment.max_cashout_time);
             format_value(body, "net_rshares", comment.net_rshares);
@@ -127,11 +126,24 @@ namespace mongo_db {
 
             format_value(body, "mode", comment_mode);
 
-            auto& content = db_.get_comment_content(comment_id_type(comment.id));
+            if (db_.has_index<golos::plugins::social_network::comment_content_index>()) {
+                const auto& con_idx = db_.get_index<golos::plugins::social_network::comment_content_index>().indices().get<golos::plugins::social_network::by_comment>();
+                auto con_itr = con_idx.find(comment.id);
+                if (con_itr != con_idx.end()) {
+                    format_value(body, "title", con_itr->title);
+                    format_value(body, "body", con_itr->body);
+                    format_value(body, "json_metadata", con_itr->json_metadata);
+                }
+            }
 
-            format_value(body, "title", content.title);
-            format_value(body, "body", content.body);
-            format_value(body, "json_metadata", content.json_metadata);
+            if (db_.has_index<golos::plugins::social_network::comment_last_update_index>()) {
+                const auto& clu_idx = db_.get_index<golos::plugins::social_network::comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+                auto clu_itr = clu_idx.find(comment.id);
+                if (clu_itr != clu_idx.end()) {
+                    format_value(body, "active", clu_itr->active);
+                    format_value(body, "last_update", clu_itr->last_update);
+                }
+            }
 
             std::string category, root_oid;
             if (comment.parent_author == STEEMIT_ROOT_POST_PARENT) {
