@@ -8,17 +8,11 @@
 #include <golos/chain/account_object.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 
-using golos::logic_exception;
-using golos::missing_object;
 using golos::protocol::comment_operation;
 using golos::protocol::vote_operation;
-using golos::protocol::tx_invalid_operation;
 using golos::protocol::public_key_type;
 using golos::protocol::signed_transaction;
-using golos::protocol::custom_binary_operation;
 using golos::chain::account_id_type;
-using golos::chain::make_comment_id;
-
 using golos::chain::account_name_set;
 
 using namespace golos::plugins::chain;
@@ -77,13 +71,11 @@ struct chain_fixture : public golos::chain::database_fixture {
         op.body = "bar";
         signed_transaction tx;
         GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
-        ilog("Generate: " + tx.id().str() + " comment_operation");
         validate_database();
     }
 
     uint32_t count_stored_votes() {
         const auto n = db->get_index<golos::chain::comment_vote_index>().indices().size();
-        ilog("block: ${b}, votes in db: ${n}", ("b",db->head_block_num())("n",n));
         return n;
     }
 };
