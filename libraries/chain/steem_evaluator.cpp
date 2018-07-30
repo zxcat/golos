@@ -444,11 +444,9 @@ namespace golos { namespace chain {
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__80) &&
                 comment.parent_author != STEEMIT_ROOT_POST_PARENT) {
                 auto parent = &_db.get_comment(comment.parent_author, comment.parent_permlink);
-                auto now = _db.head_block_time();
                 while (parent) {
                     _db.modify(*parent, [&](comment_object &p) {
                         p.children--;
-                        p.active = now;
                     });
                     if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                         parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
@@ -659,9 +657,7 @@ namespace golos { namespace chain {
 
                         com.author = o.author;
                         from_string(com.permlink, o.permlink);
-                        com.last_update = _db.head_block_time();
-                        com.created = com.last_update;
-                        com.active = com.last_update;
+                        com.created = _db.head_block_time();
                         com.last_payout = fc::time_point_sec::min();
                         com.max_cashout_time = fc::time_point_sec::maximum();
                         com.reward_weight = reward_weight;
@@ -689,11 +685,9 @@ namespace golos { namespace chain {
 
                     });
 
-                    auto now = _db.head_block_time();
                     while (parent) {
                         _db.modify(*parent, [&](comment_object &p) {
                             p.children++;
-                            p.active = now;
                         });
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                             parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
@@ -719,8 +713,6 @@ namespace golos { namespace chain {
                     }
 
                     _db.modify(comment, [&](comment_object &com) {
-                        com.last_update = _db.head_block_time();
-                        com.active = com.last_update;
                         strcmp_equal equal;
 
                         GOLOS_CHECK_LOGIC(com.parent_author == (parent ? o.parent_author : account_name_type()),

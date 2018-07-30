@@ -38,6 +38,7 @@ target_link_libraries(
         golos::network
         golos::follow
         golos::api
+        golos::social_network
         appbase
 )
 

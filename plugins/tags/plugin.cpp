@@ -11,9 +11,12 @@
 #include <golos/plugins/tags/tag_visitor.hpp>
 #include <golos/chain/operation_notification.hpp>
 #include <golos/protocol/exceptions.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 
 namespace golos { namespace plugins { namespace tags {
+
+    using golos::plugins::social_network::comment_last_update_index;
 
     using golos::chain::feed_history_object;
     using golos::api::discussion_helper;
@@ -24,7 +27,7 @@ namespace golos { namespace plugins { namespace tags {
                 database_,
                 follow::fill_account_reputation,
                 fill_promoted,
-                social_network::fill_comment_content);
+                social_network::fill_comment_info);
         }
 
         ~impl() {}
@@ -596,10 +599,17 @@ namespace golos { namespace plugins { namespace tags {
             GOLOS_CHECK_VALUE(!!query.start_author, "Must get comments for specific authors"));
 
         auto& db = pimpl->database();
+
+        if (!db.has_index<comment_last_update_index>()) {
+            return result;
+        }
+
         return db.with_weak_read_lock([&]() {
-            const auto &idx = db.get_index<comment_index>().indices().get<by_author_last_update>();
-            auto itr = idx.lower_bound(*query.start_author);
-            if (itr == idx.end()) {
+            const auto& clu_cmt_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+            const auto& clu_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_author_last_update>();
+
+            auto itr = clu_idx.lower_bound(*query.start_author);
+            if (itr == clu_idx.end()) {
                 return result;
             }
 
@@ -609,7 +619,12 @@ namespace golos { namespace plugins { namespace tags {
                 if (litr == lidx.end()) {
                     return result;
                 }
-                itr = idx.iterator_to(*litr);
+                auto clu_itr = clu_cmt_idx.find(litr->id);
+                if (clu_itr == clu_cmt_idx.end()) {
+                    return result;
+                } else {
+                    itr = clu_idx.iterator_to(*clu_itr);
+                }
             }
 
             if (!pimpl->filter_query(query)) {
@@ -618,15 +633,16 @@ namespace golos { namespace plugins { namespace tags {
 
             result.reserve(query.limit);
 
-            for (; itr != idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
+            for (; itr != clu_idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
                 if (itr->parent_author.size() > 0) {
                     discussion p;
-                    pimpl->fill_comment_api_object(db.get<comment_object>(itr->root_comment), p);
+                    auto& comment = db.get_comment(itr->comment);
+                    pimpl->fill_comment_api_object(db.get_comment(comment.root_comment), p);
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
                     discussion d;
-                    pimpl->fill_comment_api_object(*itr, d);
+                    pimpl->fill_comment_api_object(comment, d);
                     result.push_back(std::move(d));
                     pimpl->fill_discussion(result.back(), query);
                 }
@@ -683,6 +699,10 @@ namespace golos { namespace plugins { namespace tags {
         );
         query.prepare();
         query.validate();
+        auto& db = pimpl->database();
+        if (!db.has_index<comment_last_update_index>()) {
+            return std::vector<discussion>();
+        }
         return pimpl->select_ordered_discussions<sort::by_active>(
             query,
             [&](const discussion& d) -> bool {
@@ -858,25 +878,33 @@ namespace golos { namespace plugins { namespace tags {
 
         auto& db = pimpl->database();
 
+        if (!db.has_index<comment_last_update_index>()) {
+            return result;
+        }
+
         return db.with_weak_read_lock([&]() {
             try {
                 uint32_t count = 0;
-                const auto& didx = db.get_index<comment_index>().indices().get<by_author_last_update>();
+                const auto& clu_cmt_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+                const auto& clu_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_author_last_update>();
 
-                auto itr = didx.lower_bound(std::make_tuple(author, before_date));
+                auto itr = clu_idx.lower_bound(std::make_tuple(author, before_date));
                 if (start_permlink.size()) {
-                    const auto& comment = db.get_comment(author, start_permlink);
-                    if (comment.last_update < before_date) {
-                        itr = didx.iterator_to(comment);
+                    const auto comment = db.find_comment(author, start_permlink);
+                    if (comment == nullptr) {
+                        return result;
+                    }
+                    auto clu_itr = clu_cmt_idx.find(comment->id);
+                    if (clu_itr != clu_cmt_idx.end() && clu_itr->last_update < before_date) {
+                        itr = clu_idx.iterator_to(*clu_itr);
                     }
                 }
 
-                while (itr != didx.end() && itr->author == author && count < limit) {
+                for (; itr != clu_idx.end() && itr->author == author && count < limit; ++itr) {
                     if (itr->parent_author.size() == 0) {
-                        result.push_back(pimpl->get_discussion(*itr, vote_limit));
+                        result.push_back(pimpl->get_discussion(db.get_comment(itr->comment), vote_limit));
                         ++count;
                     }
-                    ++itr;
                 }
 
                 return result;
