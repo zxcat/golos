@@ -268,7 +268,6 @@ namespace golos { namespace chain {
             fund("sam", 8000);
             vest("sam", 8000);
 
-            db->set_clear_votes(0xFFFFFFFF);
 
             signed_transaction tx;
 

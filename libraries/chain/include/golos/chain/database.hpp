@@ -102,9 +102,7 @@ namespace golos { namespace chain {
             void set_block_num_check_free_size(uint32_t);
             void check_free_memory(bool skip_print, uint32_t current_block_num);
 
-            void set_clear_votes(uint32_t clear_votes_block);
             void set_skip_virtual_ops();
-            bool clear_votes();
 
             void set_store_account_metadata(store_metadata_modes store_account_metadata);
             void set_accounts_to_store_metadata(const std::vector<std::string>& accounts_to_store_metadata);
@@ -615,7 +613,7 @@ namespace golos { namespace chain {
             template<typename MultiIndexType>
             friend void add_plugin_index(database &db);
 
-            friend class database_fixture;
+            friend struct database_fixture;
 
             fc::signal<void()> _plugin_index_signal;
 

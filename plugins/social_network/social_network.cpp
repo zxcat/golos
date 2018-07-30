@@ -117,7 +117,7 @@ namespace golos { namespace plugins { namespace social_network {
         discussion get_content(std::string author, std::string permlink, uint32_t limit) const;
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const ;
- 
+
         void set_depth_parameters(const content_depth_params& params);
 
         // Looks for a comment_operation, fills the comment_content state objects.
@@ -154,7 +154,7 @@ namespace golos { namespace plugins { namespace social_network {
     const comment_content_object* social_network::impl::find_comment_content(const comment_id_type& comment) const {
         return db.find<comment_content_object, by_comment>(comment);
     }
-     
+
     const comment_content_object* social_network::find_comment_content(const comment_id_type& comment) const {
         return pimpl->find_comment_content(comment);
     }
@@ -262,7 +262,7 @@ namespace golos { namespace plugins { namespace social_network {
                     // Set depth null if needed (this parameter is given in config)
                     if (dp.set_null_after_update) {
                         con.block_number = db.head_block_num();
-                    } 
+                    }
                 });
 
             } else {
@@ -287,7 +287,7 @@ namespace golos { namespace plugins { namespace social_network {
                 });
             }
         }
-        
+
     };
 
     void social_network::impl::pre_operation(const operation_notification& o) { try {

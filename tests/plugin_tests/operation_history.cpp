@@ -60,8 +60,8 @@ BOOST_AUTO_TEST_CASE(operation_history_blocks) {
     const uint32_t HISTORY_BLOCKS = 2;
     BOOST_TEST_MESSAGE("Testing: operation_history_blocks");
     initialize({
-            {"history-blocks",std::to_string(HISTORY_BLOCKS)},
-            {"history-whitelist-ops",OPERATIONS}
+        {"history-blocks",std::to_string(HISTORY_BLOCKS)},
+        {"history-whitelist-ops",OPERATIONS}
     });
 
     auto _added_ops = add_operations();

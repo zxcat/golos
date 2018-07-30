@@ -497,7 +497,7 @@ namespace golos { namespace chain {
                                   << std::endl;
                     }
                 }
-    
+
                 ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
                 db_plugin = &appbase::app().register_plugin<golos::plugins::debug_node::plugin>();
                 sn_plugin = &appbase::app().register_plugin<golos::plugins::social_network::social_network>();
@@ -524,10 +524,10 @@ namespace golos { namespace chain {
                     golos::plugins::debug_node::plugin,
                     golos::plugins::social_network::social_network,
                     Plugins...
-                >( args.size(), const_cast<char**>(args.data()) );
-    
+                >(args.size(), const_cast<char**>(args.data()));
+
                 db_plugin->set_logging(false);
-    
+
                 db = &ch_plugin->db();
                 BOOST_REQUIRE(db);
             }
