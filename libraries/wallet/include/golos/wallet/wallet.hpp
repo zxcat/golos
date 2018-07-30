@@ -4,6 +4,7 @@
 #include <golos/wallet/time_converter.hpp>
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 #include <golos/plugins/account_history/history_object.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -66,7 +67,7 @@ namespace golos { namespace wallet {
                     if( str.size() > sizeof(memo_data) && str[0] == '#') {
                         auto data = fc::from_base58( str.substr(1) );
                         auto m = fc::raw::unpack<memo_data>( data );
-                        FC_ASSERT( string(m) == str );
+                        GOLOS_CHECK_VALUE( string(m) == str, "Invalid encoded memo data" );
                         return m;
                     }
                 } catch ( ... ) {}
