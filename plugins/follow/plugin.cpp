@@ -300,7 +300,7 @@ namespace golos {
                         database_,
                         follow::fill_account_reputation,
                         nullptr,
-                        golos::plugins::social_network::fill_comment_content
+                        golos::plugins::social_network::fill_comment_info
                     );
                 }
 

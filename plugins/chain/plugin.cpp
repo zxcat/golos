@@ -97,7 +97,10 @@ namespace chain {
 
         uint64_t max_accept_time = now.sec_since_epoch();
         max_accept_time += allow_future_time;
-        FC_ASSERT(block.timestamp.sec_since_epoch() <= max_accept_time);
+        GOLOS_CHECK_VALUE(block.timestamp.sec_since_epoch() <= max_accept_time, 
+                "Block timestamp is too far in the future",
+                ("timestamp", block.timestamp.sec_since_epoch())
+                ("max_accept_time", max_accept_time));
     }
 
     bool plugin::plugin_impl::accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip) {

@@ -4,28 +4,31 @@
 #include <golos/protocol/types.hpp>
 #include <golos/chain/steem_object_types.hpp>
 #include <chainbase/chainbase.hpp>
-#include <golos/protocol/operation_util.hpp>
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <golos/plugins/private_message/private_message_api_objects.hpp>
 
 namespace golos { namespace plugins { namespace private_message {
 
     using namespace golos::protocol;
     using namespace chainbase;
     using namespace golos::chain;
+    using namespace boost::multi_index;
 
 #ifndef PRIVATE_MESSAGE_SPACE_ID
 #define PRIVATE_MESSAGE_SPACE_ID 6
 #endif
 
     enum private_message_object_type {
-        message_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8)
+        message_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8),
+        settings_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 1,
+        contact_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 2,
+        contact_size_object_type = (PRIVATE_MESSAGE_SPACE_ID << 8) + 3,
     };
 
-    class message_object:
-        public object<message_object_type, message_object> {
+    /**
+     * Message
+     */
+    class message_object: public object<message_object_type, message_object> {
     public:
         template<typename Constructor, typename Allocator>
         message_object(Constructor&& c, allocator <Allocator> a)
@@ -37,46 +40,21 @@ namespace golos { namespace plugins { namespace private_message {
 
         account_name_type from;
         account_name_type to;
+        uint64_t nonce = 0; /// used as seed to secret generation
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        uint64_t sent_time = 0; /// used as seed to secret generation
         time_point_sec receive_time; /// time received by blockchain
         uint32_t checksum = 0;
+        time_point_sec read_time;
         buffer_type encrypted_message;
     };
 
     using message_id_type = message_object::id_type;
 
-    struct message_api_obj {
-        message_api_obj(const message_object& o)
-            : id(o.id),
-              from(o.from),
-              to(o.to),
-              from_memo_key(o.from_memo_key),
-              to_memo_key(o.to_memo_key),
-              sent_time(o.sent_time),
-              receive_time(o.receive_time),
-              checksum(o.checksum),
-              encrypted_message(o.encrypted_message.begin(), o.encrypted_message.end()) {
-        }
-
-        message_api_obj() = default;
-
-        message_id_type id;
-        account_name_type from;
-        account_name_type to;
-        public_key_type from_memo_key;
-        public_key_type to_memo_key;
-        uint64_t sent_time;
-        time_point_sec receive_time;
-        uint32_t checksum;
-        std::vector<char> encrypted_message;
-    };
-
     struct by_to_date;
     struct by_from_date;
-
-    using namespace boost::multi_index;
+    struct by_owner;
+    struct by_contact;
 
     using message_index = multi_index_container<
         message_object,
@@ -92,7 +70,7 @@ namespace golos { namespace plugins { namespace private_message {
                     member<message_object, time_point_sec, &message_object::receive_time>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
-                    std::less<string>,
+                    string_less,
                     std::greater<time_point_sec>,
                     std::less<message_id_type>>>,
             ordered_unique<
@@ -103,34 +81,134 @@ namespace golos { namespace plugins { namespace private_message {
                     member<message_object, time_point_sec, &message_object::receive_time>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
-                    std::less<string>,
+                    string_less,
                     std::greater<time_point_sec>,
                     std::less<message_id_type>>>>,
         allocator<message_object>>;
 
-    struct private_message_operation: public base_operation {
-        account_name_type from;
-        account_name_type to;
-        public_key_type from_memo_key;
-        public_key_type to_memo_key;
-        uint64_t sent_time = 0; /// used as seed to secret generation
-        uint32_t checksum = 0;
-        std::vector<char> encrypted_message;
-
-        void validate() const;
-
-        void get_required_posting_authorities(flat_set<account_name_type>& a) const {
-            a.insert(from);
+    /**
+     * Settings
+     */
+    class settings_object: public object<settings_object_type, settings_object> {
+    public:
+        template<typename Constructor, typename Allocator>
+        settings_object(Constructor&& c, allocator <Allocator> a) {
+            c(*this);
         }
+
+        id_type id;
+
+        account_name_type owner;
+        bool ignore_messages_from_undefined_contact = false;
     };
 
-    using private_message_plugin_operation = fc::static_variant<private_message_operation>;
+    using settings_id_type = settings_object::id_type;
+
+    using settings_index = multi_index_container<
+        settings_object,
+        indexed_by<
+            ordered_unique<
+                tag<by_id>,
+                member<settings_object, settings_id_type, &settings_object::id>>,
+            ordered_unique<
+                tag<by_owner>,
+                member<settings_object, account_name_type, &settings_object::owner>>>,
+        allocator<settings_object>>;
+
+    /**
+     * Contact item
+     */
+    class contact_object: public object<contact_object_type, contact_object> {
+    public:
+        template<typename Constructor, typename Allocator>
+        contact_object(Constructor&& c, allocator <Allocator> a): json_metadata(a) {
+            c(*this);
+        }
+
+        id_type id;
+
+        account_name_type owner;
+        account_name_type contact;
+        private_contact_type type;
+        shared_string json_metadata;
+        contact_size_info size;
+    };
+
+    using contact_id_type = contact_object::id_type;
+
+    using contact_index = multi_index_container<
+        contact_object,
+        indexed_by<
+            ordered_unique<
+                tag<by_id>,
+                member<contact_object, contact_id_type, &contact_object::id>>,
+            ordered_unique<
+                tag<by_owner>,
+                composite_key<
+                    contact_object,
+                    member<contact_object, account_name_type, &contact_object::owner>,
+                    member<contact_object, private_contact_type, &contact_object::type>,
+                    member<contact_object, account_name_type, &contact_object::contact>>,
+                composite_key_compare<
+                    string_less,
+                    std::greater<private_contact_type>,
+                    string_less>>,
+            ordered_unique<
+                tag<by_contact>,
+                composite_key<
+                    contact_object,
+                    member<contact_object, account_name_type, &contact_object::owner>,
+                    member<contact_object, account_name_type, &contact_object::contact>>,
+                composite_key_compare<
+                    string_less,
+                    string_less>>>,
+        allocator<contact_object>>;
+
+    /**
+     * Counters for account contact lists
+     */
+    struct contact_size_object: public object<contact_size_object_type, contact_size_object> {
+        template<typename Constructor, typename Allocator>
+        contact_size_object(Constructor&& c, allocator <Allocator> a) {
+            c(*this);
+        }
+
+        id_type id;
+
+        account_name_type owner;
+        private_contact_type type;
+        contacts_size_info size;
+    };
+
+    using contact_size_id_type = contact_size_object::id_type;
+
+    using contact_size_index = multi_index_container<
+        contact_size_object,
+        indexed_by<
+            ordered_unique<
+                tag<by_id>,
+                member<contact_size_object, contact_size_id_type, &contact_size_object::id>>,
+            ordered_unique<
+                tag<by_owner>,
+                composite_key<
+                    contact_size_object,
+                    member<contact_size_object, account_name_type, &contact_size_object::owner>,
+                    member<contact_size_object, private_contact_type, &contact_size_object::type>>,
+                composite_key_compare<
+                    string_less,
+                    std::less<private_contact_type>>>>,
+        allocator<contact_size_object>>;
 
 } } } // golos::plugins::private_message
 
-FC_REFLECT(
-    (golos::plugins::private_message::private_message_operation),
-    (from)(to)(from_memo_key)(to_memo_key)(sent_time)(checksum)(encrypted_message))
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::private_message::message_object, golos::plugins::private_message::message_index)
 
-FC_REFLECT_TYPENAME((golos::plugins::private_message::private_message_plugin_operation))
-DECLARE_OPERATION_TYPE(golos::plugins::private_message::private_message_plugin_operation)
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::private_message::settings_object, golos::plugins::private_message::settings_index)
+
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::private_message::contact_object, golos::plugins::private_message::contact_index)
+
+CHAINBASE_SET_INDEX_TYPE(
+    golos::plugins::private_message::contact_size_object, golos::plugins::private_message::contact_size_index)

@@ -100,6 +100,9 @@
         } \
     FC_MULTILINE_MACRO_END
 
+#define GOLOS_CHECK_OPTION(COND, MSG, ...) \
+    GOLOS_ASSERT((COND), golos::invalid_option, MSG, __VA_ARGS__)
+
 #define GOLOS_CHECK_VALUE(COND, MSG, ...) \
     GOLOS_ASSERT((COND), golos::invalid_value, MSG, __VA_ARGS__)
 
@@ -153,6 +156,10 @@ namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         unsupported_operation, operation_exception,
         1010000, "Unsupported operation");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        unsupported_api_method, unsupported_operation,
+        1010100, "Unsupported api method");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         parameter_exception, operation_exception,
@@ -348,6 +355,10 @@ namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         limit_too_large, invalid_value,
         4020100, "Exceeded limit value");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        invalid_option, golos_exception,
+        5000000, "invalid option");
 
 } // golos
 

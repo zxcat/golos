@@ -1,8 +1,10 @@
 #include <golos/plugins/raw_block/plugin.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/protocol/types.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 
 namespace golos {
 namespace plugins {
@@ -45,10 +47,12 @@ get_raw_block_r plugin::plugin_impl::get_raw_block(uint32_t block_num) {
 }
 
 DEFINE_API ( plugin, get_raw_block ) {
-    auto tmp = args.args->at(0).as<uint32_t>();
+    PLUGIN_API_VALIDATE_ARGS(
+        (uint32_t, block_num)
+    );
     auto &db = my->database();
     return db.with_weak_read_lock([&]() {
-        return my->get_raw_block(tmp);
+        return my->get_raw_block(block_num);
     });
 }
 

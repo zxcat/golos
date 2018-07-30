@@ -22,11 +22,11 @@ namespace golos { namespace api {
             golos::chain::database& db,
             std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content)
+            std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_info)
             : database_(db),
               fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted),
-              fill_comment_content_(fill_comment_content) {
+              fill_comment_info_(fill_comment_info) {
         }
         ~impl() = default;
 
@@ -61,7 +61,7 @@ namespace golos { namespace api {
         golos::chain::database& database_;
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation_;
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted_;
-        std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_content_;
+        std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_info_;
     };
 
 // create_comment_api_object 
@@ -89,9 +89,7 @@ namespace golos { namespace api {
         d.parent_permlink = to_string(o.parent_permlink);
         d.author = o.author;
         d.permlink = to_string(o.permlink);
-        d.last_update = o.last_update;
         d.created = o.created;
-        d.active = o.active;
         d.last_payout = o.last_payout;
         d.depth = o.depth;
         d.children = o.children;
@@ -120,8 +118,8 @@ namespace golos { namespace api {
             d.beneficiaries.push_back(route);
         }
 
-        if (fill_comment_content_) {
-            fill_comment_content_(database(), o, d);
+        if (fill_comment_info_) {
+            fill_comment_info_(database(), o, d);
         }
 
         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
@@ -176,6 +174,7 @@ namespace golos { namespace api {
     ) const {
         pimpl->select_active_votes(result, total_count, author, permlink, limit);
     }
+
 //
 // set_pending_payout
     void discussion_helper::impl::set_pending_payout(discussion& d) const {
@@ -246,6 +245,8 @@ namespace golos { namespace api {
     discussion discussion_helper::impl::create_discussion(const std::string& author) const {
         auto dis = discussion();
         fill_reputation_(database_, author, dis.author_reputation);
+        dis.active = time_point_sec::min();
+        dis.last_update = time_point_sec::min();
         return dis;
     }
 
@@ -267,9 +268,9 @@ namespace golos { namespace api {
         golos::chain::database& db,
         std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
-        std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_content
+        std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_info
     ) {
-        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_content);
+        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_info);
     }
 
     discussion_helper::~discussion_helper() = default;
