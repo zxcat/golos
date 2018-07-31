@@ -46,6 +46,22 @@ namespace golos { namespace plugins { namespace private_message {
         private_message_plugin* plugin_;
     };
 
+    class private_mark_message_evaluator:
+        public evaluator_impl<private_mark_message_evaluator, private_message_plugin_operation>
+    {
+    public:
+        using operation_type = private_mark_message_operation;
+
+        private_mark_message_evaluator(database& db, private_message_plugin* plugin)
+            : evaluator_impl<private_mark_message_evaluator, private_message_plugin_operation>(db),
+              plugin_(plugin) {
+        }
+
+        void do_apply(const private_mark_message_operation& o);
+
+        private_message_plugin* plugin_;
+    };
+
     class private_settings_evaluator:
         public evaluator_impl<private_settings_evaluator, private_message_plugin_operation>
     {

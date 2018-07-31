@@ -69,6 +69,10 @@ namespace golos { namespace plugins { namespace private_message {
                 total_recv_messages == s.total_recv_messages &&
                 unread_recv_messages == s.unread_recv_messages;
         }
+
+        bool operator!=(const contact_size_info& s) const {
+            return !(this->operator==(s));
+        }
     };
 
     struct contacts_size_info final: public contact_size_info {

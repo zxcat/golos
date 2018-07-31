@@ -31,6 +31,17 @@ namespace golos { namespace plugins { namespace private_message {
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
     };
 
+    struct private_mark_message_operation: public base_operation {
+        account_name_type from;
+        account_name_type to;
+        uint64_t nonce = 0;
+        time_point_sec from_date;
+        time_point_sec to_date;
+
+        void validate() const;
+        void get_required_posting_authorities(flat_set<account_name_type>& a) const;
+    };
+
     struct private_settings_operation: public base_operation {
         account_name_type owner;
         bool ignore_messages_from_undefined_contact = false;
@@ -63,6 +74,7 @@ namespace golos { namespace plugins { namespace private_message {
     using private_message_plugin_operation = fc::static_variant<
         private_message_operation,
         private_delete_message_operation,
+        private_mark_message_operation,
         private_settings_operation,
         private_contact_operation>;
 
@@ -74,6 +86,10 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::private_delete_message_operation),
+    (from)(to)(nonce)(from_date)(to_date))
+
+FC_REFLECT(
+    (golos::plugins::private_message::private_mark_message_operation),
     (from)(to)(nonce)(from_date)(to_date))
 
 FC_REFLECT(

@@ -2834,6 +2834,61 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(trx, broadcast);
         }
 
+        annotated_signed_transaction wallet_api::mark_private_message(
+            const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+            FC_ASSERT(nonce != 0);
+
+            private_mark_message_operation op;
+            op.from = from;
+            op.to = to;
+            op.nonce = nonce;
+            op.from_date = time_point_sec::min();
+            op.to_date = time_point_sec::min();
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(to);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
+        annotated_signed_transaction wallet_api::mark_private_messages(
+            const std::string& from, const std::string& to,
+            const std::string& from_date, const std::string& to_date,
+            bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+
+            private_mark_message_operation op;
+            op.from = from;
+            op.to = to;
+            op.nonce = 0;
+            op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::min()).time();
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(to);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
+        }
+
         annotated_signed_transaction wallet_api::follow(
                 const string& follower,
                 const string& following,

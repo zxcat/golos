@@ -1234,6 +1234,32 @@ namespace golos { namespace wallet {
             annotated_signed_transaction delete_private_messages(
                 const std::string& from, const std::string& to,
                 const std::string& from_date, const std::string& to_date, bool broadcast);
+
+            /**
+             * Mark encrypted private message with read time
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction mark_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
+
+            /**
+             * Mark encrypted private messages with read time by date range
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param from_date begin of date range
+             * @param to_date begin of date range
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction mark_private_messages(
+                const std::string& from, const std::string& to,
+                const std::string& from_date, const std::string& to_date, bool broadcast);
         };
 
         struct plain_keys {
@@ -1360,6 +1386,8 @@ FC_API( golos::wallet::wallet_api,
                 (edit_private_message)
                 (delete_private_message)
                 (delete_private_messages)
+                (mark_private_message)
+                (mark_private_messages)
 )
 
 FC_REFLECT((golos::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))

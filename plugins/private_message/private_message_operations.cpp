@@ -94,6 +94,32 @@ namespace golos { namespace plugins { namespace private_message {
     }
 
 
+    void private_mark_message_operation::validate() const {
+        GOLOS_CHECK_PARAM(to, {
+            if (to.size()) {
+                validate_account_name(to);
+                GOLOS_CHECK_VALUE(to != from, "You cannot mark messages to yourself");
+            }
+        });
+
+        GOLOS_CHECK_PARAM(from_date, {
+            GOLOS_CHECK_VALUE(from_date <= to_date, "from_date can't be greater then to_time");
+        });
+
+        GOLOS_CHECK_PARAM(nonce, {
+            if (nonce != 0) {
+                GOLOS_CHECK_VALUE(to.size(), "to and nonce should be set both");
+                GOLOS_CHECK_VALUE(from_date == time_point_sec::min(), "nonce and from_date can't be used together");
+                GOLOS_CHECK_VALUE(to_date == time_point_sec::min(), "nonce and to_date can't be used together");
+            }
+        });
+    }
+
+    void private_mark_message_operation::get_required_posting_authorities(flat_set<account_name_type>& a) const {
+        a.insert(to);
+    }
+
+
     void private_contact_operation::validate() const {
         GOLOS_CHECK_PARAM_ACCOUNT(contact);
         GOLOS_CHECK_PARAM_ACCOUNT(owner);
