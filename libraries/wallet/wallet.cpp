@@ -1105,7 +1105,7 @@ namespace golos { namespace wallet {
                     const std::string& from, const std::string& to, const uint64_t nonce, const bool update,
                     const message_body& message, bool broadcast
                 ) {
-                    FC_ASSERT(!is_locked());
+                    WALLET_CHECK_UNLOCKED();
 
                     auto from_account  = get_account(from);
                     auto to_account    = get_account(to);
@@ -2716,7 +2716,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         vector<extended_message_object> wallet_api::get_private_thread(
             const std::string& from, const std::string& to, const private_thread_query& query_template
         ) {
-            FC_ASSERT(!is_locked());
+            WALLET_CHECK_UNLOCKED();
             std::vector<extended_message_object> result;
             thread_query query;
             query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
@@ -2742,7 +2742,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         annotated_signed_transaction wallet_api::set_private_settings(
             const std::string& owner, const settings_api_object& s, bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
+            WALLET_CHECK_UNLOCKED();
             private_settings_operation op;
 
             op.owner = owner;
@@ -2770,8 +2770,10 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             const std::string& owner, const std::string& contact,
             private_contact_type type, fc::optional<std::string> json_metadata, bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
-            FC_ASSERT(type != golos::plugins::private_message::undefined || !json_metadata);
+            WALLET_CHECK_UNLOCKED();
+            GOLOS_CHECK_PARAM(type,
+                GOLOS_CHECK_VALUE(type != golos::plugins::private_message::undefined || !json_metadata,
+                    "Undefined contact can't have a json_metadata"));
 
             private_contact_operation op;
 
@@ -2830,8 +2832,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         annotated_signed_transaction wallet_api::delete_private_message(
             const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
-            FC_ASSERT(nonce != 0);
+            WALLET_CHECK_UNLOCKED();
+            GOLOS_CHECK_PARAM(nonce, GOLOS_CHECK_VALUE(nonce != 0, "You should specify nonce of deleted message"));
 
             private_delete_message_operation op;
             op.from = from;
@@ -2859,14 +2861,14 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             const std::string& from_date, const std::string& to_date,
             bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
+            WALLET_CHECK_UNLOCKED();
 
             private_delete_message_operation op;
             op.from = from;
             op.to = to;
             op.nonce = 0;
             op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::now()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point::now()).time();
 
             private_message_plugin_operation pop = op;
 
@@ -2885,8 +2887,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         annotated_signed_transaction wallet_api::mark_private_message(
             const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
-            FC_ASSERT(nonce != 0);
+            WALLET_CHECK_UNLOCKED();
+            GOLOS_CHECK_PARAM(nonce, GOLOS_CHECK_VALUE(nonce != 0, "You should specify nonce of marked message"));
 
             private_mark_message_operation op;
             op.from = from;
@@ -2914,14 +2916,14 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             const std::string& from_date, const std::string& to_date,
             bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
+            WALLET_CHECK_UNLOCKED();
 
             private_mark_message_operation op;
             op.from = from;
             op.to = to;
             op.nonce = 0;
             op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::now()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point::now()).time();
 
             private_message_plugin_operation pop = op;
 
