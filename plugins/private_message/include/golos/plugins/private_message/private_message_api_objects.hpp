@@ -20,6 +20,7 @@ namespace golos { namespace plugins { namespace private_message {
         uint64_t nonce = 0;
         public_key_type from_memo_key;
         public_key_type to_memo_key;
+        time_point_sec create_time;
         time_point_sec receive_time;
         uint32_t checksum = 0;
         time_point_sec read_time;
@@ -96,7 +97,8 @@ namespace golos { namespace plugins { namespace private_message {
 
 FC_REFLECT(
     (golos::plugins::private_message::message_api_object),
-    (from)(to)(from_memo_key)(to_memo_key)(nonce)(receive_time)(read_time)(checksum)(encrypted_message))
+    (from)(to)(from_memo_key)(to_memo_key)(nonce)
+    (create_time)(receive_time)(read_time)(checksum)(encrypted_message))
 
 FC_REFLECT(
     (golos::plugins::private_message::settings_api_object),

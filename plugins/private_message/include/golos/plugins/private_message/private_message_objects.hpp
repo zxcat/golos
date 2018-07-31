@@ -40,9 +40,10 @@ namespace golos { namespace plugins { namespace private_message {
 
         account_name_type from;
         account_name_type to;
-        uint64_t nonce = 0; /// used as seed to secret generation
+        uint64_t nonce; /// used as seed to secret generation
         public_key_type from_memo_key;
         public_key_type to_memo_key;
+        time_point_sec create_time;
         time_point_sec receive_time; /// time received by blockchain
         uint32_t checksum = 0;
         time_point_sec read_time;
@@ -53,6 +54,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     struct by_to_date;
     struct by_from_date;
+    struct by_nonce;
     struct by_owner;
     struct by_contact;
 
@@ -73,6 +75,17 @@ namespace golos { namespace plugins { namespace private_message {
                     string_less,
                     std::greater<time_point_sec>,
                     std::less<message_id_type>>>,
+            ordered_unique<
+                tag<by_nonce>,
+                composite_key<
+                    message_object,
+                    member<message_object, account_name_type, &message_object::from>,
+                    member<message_object, account_name_type, &message_object::to>,
+                    member<message_object, uint64_t, &message_object::nonce>>,
+                composite_key_compare<
+                    string_less,
+                    string_less,
+                    std::less<uint64_t>>>,
             ordered_unique<
                 tag<by_from_date>,
                 composite_key<

@@ -1182,6 +1182,7 @@ namespace golos { namespace wallet {
              * @return Contact
              */
             contact_api_object get_private_contact(const std::string& owner, const std::string& contact);
+
             /**
              * Send an encrypted private message from one account to other
              *
@@ -1193,6 +1194,20 @@ namespace golos { namespace wallet {
              */
             annotated_signed_transaction send_private_message(
                 const std::string& from, const std::string& to, const message_body& message, bool broadcast);
+
+            /**
+             * Edit an encrypted private message from one account to other
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param message to send
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction edit_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce,
+                const message_body& message, bool broadcast);
 
             message_body try_decrypt_message(const message_api_object& mo);
         };
@@ -1318,6 +1333,7 @@ FC_API( golos::wallet::wallet_api,
                 (get_private_contact)
                 (add_private_contact)
                 (send_private_message)
+                (edit_private_message)
 )
 
 FC_REFLECT((golos::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))

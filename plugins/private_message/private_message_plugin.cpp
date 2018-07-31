@@ -195,15 +195,15 @@ namespace golos { namespace plugins { namespace private_message {
             return;
         }
 
-        auto& idx = d.get_index<contact_index>().indices().get<by_contact>();
-        auto gitr = idx.find(std::make_tuple(pm.to, pm.from));
+        auto& cidx = d.get_index<contact_index>().indices().get<by_contact>();
+        auto citr = cidx.find(std::make_tuple(pm.to, pm.from));
 
         auto& tidx = d.get_index<settings_index>().indices().get<by_owner>();
         auto titr = tidx.find(pm.to);
 
         GOLOS_CHECK_OP_PARAM(pm, to, {
             d.get_account(pm.to);
-            GOLOS_CHECK_LOGIC(gitr == idx.end() || gitr->type != ignored,
+            GOLOS_CHECK_LOGIC(citr == idx.end() || citr->type != ignored,
                 logic_errors::sender_in_ignore_list,
                 "Sender is in the ignore list of recipient");
             GOLOS_CHECK_LOGIC(titr == tidx.end() || !titr->ignore_messages_from_undefined_contact,
@@ -211,10 +211,22 @@ namespace golos { namespace plugins { namespace private_message {
                 "Recipient accepts messages only from his contact list");
         });
 
-        d.create<message_object>([&](message_object& pmo) {
-            pmo.from = pm.from;
-            pmo.to = pm.to;
-            pmo.nonce = pm.nonce;
+        auto& idx = d.get_index<message_index>().indices().get<by_nonce>();
+        auto itr = idx.find(std::make_tuple(pm.from, pm.to, pm.nonce));
+
+        GOLOS_CHECK_OP_PARAM(pm, nonce, {
+            if (pm.update) {
+                GOLOS_ASSERT(
+                    itr != idx.end(), golos::missing_object, "Private message doesn't exist",
+                    ("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+            } else {
+                GOLOS_ASSERT(
+                    itr == idx.end(), golos::object_already_exist, "Private message already exist",
+                    ("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+            }
+        });
+
+        auto set_message = [&](message_object& pmo) {
             pmo.from_memo_key = pm.from_memo_key;
             pmo.to_memo_key = pm.to_memo_key;
             pmo.checksum = pm.checksum;
@@ -224,7 +236,19 @@ namespace golos { namespace plugins { namespace private_message {
             std::copy(
                 pm.encrypted_message.begin(), pm.encrypted_message.end(),
                 pmo.encrypted_message.begin());
-        });
+        };
+
+        if (itr == idx.end()) {
+            d.create<message_object>([&](message_object& pmo) {
+                pmo.from = pm.from;
+                pmo.to = pm.to;
+                pmo.nonce = pm.nonce;
+                pmo.create_time = d.head_block_time();
+                set_message(pmo);
+            });
+        } else {
+            d.modify(*itr, set_message);
+        }
 
         // Ok, now update contact lists and counters in them
 
@@ -264,11 +288,10 @@ namespace golos { namespace plugins { namespace private_message {
         };
 
         // Add contact list if it doesn't exist or update it if it exits
-
         auto modify_contact = [&](auto& owner, auto& contact, auto type, const bool is_send) {
             bool is_new_contact;
-            auto itr = idx.find(std::make_tuple(owner, contact));
-            if (idx.end() != itr) {
+            auto itr = cidx.find(std::make_tuple(owner, contact));
+            if (cidx.end() != itr) {
                 d.modify(*itr, [&](auto& plo) {
                     inc_counters(plo.size, is_send);
                 });

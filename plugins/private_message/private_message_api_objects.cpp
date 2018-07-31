@@ -9,6 +9,7 @@ namespace golos { namespace plugins { namespace private_message {
           nonce(o.nonce),
           from_memo_key(o.from_memo_key),
           to_memo_key(o.to_memo_key),
+          create_time(o.create_time),
           receive_time(o.receive_time),
           checksum(o.checksum),
           read_time(o.read_time),

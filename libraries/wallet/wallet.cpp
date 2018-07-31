@@ -1054,6 +1054,49 @@ namespace golos { namespace wallet {
                     return it->second;
                 }
 
+                annotated_signed_transaction send_private_message(
+                    const std::string& from, const std::string& to, const uint64_t nonce, const bool update,
+                    const message_body& message, bool broadcast
+                ) {
+                    FC_ASSERT(!is_locked());
+
+                    auto from_account  = get_account(from);
+                    auto to_account    = get_account(to);
+                    auto shared_secret = get_private_key(from_account.memo_key).get_shared_secret(to_account.memo_key);
+
+                    fc::sha512::encoder enc;
+                    fc::raw::pack(enc, nonce);
+                    fc::raw::pack(enc, shared_secret);
+                    auto encrypt_key = enc.result();
+
+                    auto msg_json = fc::json::to_string(message);
+                    auto msg_data = std::vector<char>(msg_json.begin(), msg_json.end());
+
+                    private_message_operation op;
+
+                    op.from              = from;
+                    op.from_memo_key     = from_account.memo_key;
+                    op.to                = to;
+                    op.to_memo_key       = to_account.memo_key;
+                    op.nonce             = nonce;
+                    op.update            = update;
+                    op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
+                    op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
+
+                    private_message_plugin_operation pop = op;
+
+                    custom_json_operation jop;
+                    jop.id   = "private_message";
+                    jop.json = fc::json::to_string(pop);
+                    jop.required_posting_auths.insert(from);
+
+                    signed_transaction trx;
+                    trx.operations.push_back(jop);
+                    trx.validate();
+
+                    return sign_transaction(trx, broadcast);
+                }
+
                 string                                  _wallet_filename;
                 wallet_data                             _wallet;
                 golos::protocol::chain_id_type          steem_chain_id;
@@ -1081,6 +1124,8 @@ namespace golos { namespace wallet {
 #endif
                 const string _wallet_filename_extension = ".wallet";
             };
+
+
 
         } } } // golos::wallet::detail
 
@@ -2673,46 +2718,18 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->_remote_private_message->get_contact_info(owner, contact);
         }
 
+        annotated_signed_transaction wallet_api::edit_private_message(
+            const std::string& from, const std::string& to, const uint64_t nonce,
+            const message_body& message, bool broadcast
+        ) {
+            return my->send_private_message(from, to, nonce, true, message, broadcast);
+        }
+
         annotated_signed_transaction wallet_api::send_private_message(
             const std::string& from, const std::string& to, const message_body& message, bool broadcast
         ) {
-            FC_ASSERT(!is_locked());
-
-            auto from_account  = get_account(from);
-            auto to_account    = get_account(to);
-            auto shared_secret = my->get_private_key(from_account.memo_key).get_shared_secret(to_account.memo_key);
-            auto sent_time     = fc::time_point::now().time_since_epoch().count();
-
-            fc::sha512::encoder enc;
-            fc::raw::pack(enc, sent_time);
-            fc::raw::pack(enc, shared_secret);
-            auto encrypt_key = enc.result();
-
-            auto msg_json = fc::json::to_string(message);
-            auto msg_data = std::vector<char>(msg_json.begin(), msg_json.end());
-
-            private_message_operation op;
-
-            op.from              = from;
-            op.from_memo_key     = from_account.memo_key;
-            op.to                = to;
-            op.to_memo_key       = to_account.memo_key;
-            op.nonce             = sent_time;
-            op.encrypted_message = fc::aes_encrypt(encrypt_key, msg_data);
-            op.checksum          = fc::sha256::hash(encrypt_key)._hash[0];
-
-            private_message_plugin_operation pop = op;
-
-            custom_json_operation jop;
-            jop.id   = "private_message";
-            jop.json = fc::json::to_string(pop);
-            jop.required_posting_auths.insert(from);
-
-            signed_transaction trx;
-            trx.operations.push_back(jop);
-            trx.validate();
-
-            return my->sign_transaction(trx, broadcast);
+            auto nonce = fc::time_point::now().time_since_epoch().count();
+            return my->send_private_message(from, to, nonce, false, message, broadcast);
         }
 
         message_body wallet_api::try_decrypt_message(const message_api_object& mo) {
