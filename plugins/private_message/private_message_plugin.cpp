@@ -290,7 +290,9 @@ namespace golos { namespace plugins { namespace private_message {
             GOLOS_CHECK_LOGIC(contact_itr == contact_idx.end() || contact_itr->type != ignored,
                 logic_errors::sender_in_ignore_list,
                 "Sender is in the ignore list of recipient");
-            GOLOS_CHECK_LOGIC(cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_undefined_contact,
+            GOLOS_CHECK_LOGIC(
+                (cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_undefined_contact) ||
+                (contact_itr != contact_idx.end() && contact_itr->type == pinned),
                 logic_errors::recepient_ignores_messages_from_undefined_contact,
                 "Recipient accepts messages only from his contact list");
         });
@@ -495,7 +497,7 @@ namespace golos { namespace plugins { namespace private_message {
 
         process_private_messages(
             d, pdm,
-            [&](auto& stat_map, const message_object& m) {
+            /* update_stat */ [&](auto& stat_map, const message_object& m) {
                 auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
                 auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
                 if (m.read_time == time_point_sec::min()) {
@@ -505,12 +507,13 @@ namespace golos { namespace plugins { namespace private_message {
                 send_stat.total_send_messages--;
                 recv_stat.total_recv_messages--;
             },
-            [&](const message_object& m) {
+            /* process_action */ [&](const message_object& m) {
                 d.remove(m);
             },
-            [&]() {
+            /* verify_action */ [&]() {
                 // nothing
             },
+            /* contact_action */
             [&](const contact_object& co, const contact_size_object& so, const contact_size_info& size) -> bool {
                 if (co.size != size || co.type != undefined) {
                     return false;
@@ -537,7 +540,7 @@ namespace golos { namespace plugins { namespace private_message {
 
         process_private_messages(
             d, pmm,
-            [&](auto& stat_map, const message_object& m) {
+            /* update_stat */ [&](auto& stat_map, const message_object& m) {
                 auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
                 auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
                 if (m.read_time == time_point_sec::min()) {
@@ -546,16 +549,17 @@ namespace golos { namespace plugins { namespace private_message {
                     total_marked_messages++;
                 }
             },
-            [&](const message_object& m) {
+            /* process_action */ [&](const message_object& m) {
                 d.modify(m, [&](message_object& m){
                     m.read_time = now;
                 });
             },
-            [&](){
+            /* verify_action */ [&](){
                 GOLOS_CHECK_LOGIC(total_marked_messages > 0,
                     logic_errors::no_unread_messages,
                     "No unread messages in requested range");
             },
+            /* contact_action */
             [&](const contact_object&, const contact_size_object&, const contact_size_info&) -> bool {
                 return false;
             }
