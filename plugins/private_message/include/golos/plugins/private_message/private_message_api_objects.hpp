@@ -37,13 +37,13 @@ namespace golos { namespace plugins { namespace private_message {
     };
 
     struct contact_size_info {
-        fc::safe<uint32_t> total_send_messages = 0;
-        fc::safe<uint32_t> unread_send_messages = 0;
-        fc::safe<uint32_t> total_recv_messages = 0;
-        fc::safe<uint32_t> unread_recv_messages = 0;
+        uint32_t total_send_messages = 0;
+        uint32_t unread_send_messages = 0;
+        uint32_t total_recv_messages = 0;
+        uint32_t unread_recv_messages = 0;
 
         bool empty() const {
-            return !total_send_messages.value && !total_recv_messages.value;
+            return !total_send_messages && !total_recv_messages;
         }
 
         contact_size_info& operator-=(const contact_size_info& s) {
@@ -60,6 +60,14 @@ namespace golos { namespace plugins { namespace private_message {
             total_recv_messages += s.total_recv_messages;
             unread_recv_messages += s.unread_send_messages;
             return *this;
+        }
+
+        bool operator==(const contact_size_info& s) const {
+            return
+                total_send_messages == s.total_send_messages &&
+                unread_send_messages == s.unread_send_messages &&
+                total_recv_messages == s.total_recv_messages &&
+                unread_recv_messages == s.unread_recv_messages;
         }
     };
 

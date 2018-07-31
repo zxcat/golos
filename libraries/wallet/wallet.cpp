@@ -1054,6 +1054,53 @@ namespace golos { namespace wallet {
                     return it->second;
                 }
 
+                message_body try_decrypt_message(const message_api_object& mo) {
+                    message_body result;
+
+                    fc::sha512 shared_secret;
+
+                    auto it = _keys.find(mo.from_memo_key);
+                    if (it == _keys.end()) {
+                        it = _keys.find(mo.to_memo_key);
+                        if (it ==_keys.end()) {
+                            wlog("unable to find keys");
+                            return result;
+                        }
+                        auto priv_key = wif_to_key(it->second);
+                        if (!priv_key) {
+                            return result;
+                        }
+                        shared_secret = priv_key->get_shared_secret(mo.from_memo_key);
+                    } else {
+                        auto priv_key = wif_to_key(it->second);
+                        if (!priv_key) {
+                            return result;
+                        }
+                        shared_secret = priv_key->get_shared_secret(mo.to_memo_key);
+                    }
+
+                    fc::sha512::encoder enc;
+                    fc::raw::pack(enc, mo.nonce);
+                    fc::raw::pack(enc, shared_secret);
+                    auto encrypt_key = enc.result();
+
+                    uint32_t check = fc::sha256::hash(encrypt_key)._hash[0];
+
+                    if (mo.checksum != check) {
+                        wlog("wrong checksum");
+                        return result;
+                    }
+
+                    auto decrypt_data = fc::aes_decrypt(encrypt_key, mo.encrypted_message);
+                    auto msg_json = std::string(decrypt_data.begin(), decrypt_data.end());
+                    try {
+                        result = fc::json::from_string(msg_json).as<message_body>();
+                    } catch (...) {
+                        result.body = msg_json;
+                    }
+                    return result;
+                }
+
                 annotated_signed_transaction send_private_message(
                     const std::string& from, const std::string& to, const uint64_t nonce, const bool update,
                     const message_body& message, bool broadcast
@@ -2622,7 +2669,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             result.reserve(remote_result.size());
             for (const auto& item : remote_result) {
                 result.emplace_back(item);
-                message_body tmp = try_decrypt_message(item);
+                message_body tmp = my->try_decrypt_message(item);
                 result.back().message = std::move(tmp);
             }
             return result;
@@ -2638,7 +2685,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             result.reserve(remote_result.size());
             for (const auto& item : remote_result) {
                 result.emplace_back(item);
-                message_body tmp = try_decrypt_message(item);
+                message_body tmp = my->try_decrypt_message(item);
                 result.back().message = std::move(tmp);
             }
             return result;
@@ -2732,51 +2779,59 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->send_private_message(from, to, nonce, false, message, broadcast);
         }
 
-        message_body wallet_api::try_decrypt_message(const message_api_object& mo) {
-            message_body result;
+        annotated_signed_transaction wallet_api::delete_private_message(
+            const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+            FC_ASSERT(nonce != 0);
 
-            fc::sha512 shared_secret;
+            private_delete_message_operation op;
+            op.from = from;
+            op.to = to;
+            op.nonce = nonce;
+            op.from_date = time_point_sec::min();
+            op.to_date = time_point_sec::min();
 
-            auto it = my->_keys.find(mo.from_memo_key);
-            if (it == my->_keys.end()) {
-                it = my->_keys.find(mo.to_memo_key);
-                if (it == my->_keys.end()) {
-                    wlog("unable to find keys");
-                    return result;
-                }
-                auto priv_key = wif_to_key(it->second);
-                if (!priv_key) {
-                    return result;
-                }
-                shared_secret = priv_key->get_shared_secret(mo.from_memo_key);
-            } else {
-                auto priv_key = wif_to_key(it->second);
-                if (!priv_key) {
-                    return result;
-                }
-                shared_secret = priv_key->get_shared_secret(mo.to_memo_key);
-            }
+            private_message_plugin_operation pop = op;
 
-            fc::sha512::encoder enc;
-            fc::raw::pack(enc, mo.nonce);
-            fc::raw::pack(enc, shared_secret);
-            auto encrypt_key = enc.result();
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(from);
 
-            uint32_t check = fc::sha256::hash(encrypt_key)._hash[0];
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
 
-            if (mo.checksum != check) {
-                wlog("wrong checksum");
-                return result;
-            }
+            return my->sign_transaction(trx, broadcast);
+        }
 
-            auto decrypt_data = fc::aes_decrypt(encrypt_key, mo.encrypted_message);
-            auto msg_json = std::string(decrypt_data.begin(), decrypt_data.end());
-            try {
-                result = fc::json::from_string(msg_json).as<message_body>();
-            } catch (...) {
-                result.body = msg_json;
-            }
-            return result;
+        annotated_signed_transaction wallet_api::delete_private_messages(
+            const std::string& from, const std::string& to,
+            const std::string& from_date, const std::string& to_date,
+            bool broadcast
+        ) {
+            FC_ASSERT(!is_locked());
+
+            private_delete_message_operation op;
+            op.from = from;
+            op.to = to;
+            op.nonce = 0;
+            op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::min()).time();
+
+            private_message_plugin_operation pop = op;
+
+            custom_json_operation jop;
+            jop.id   = "private_message";
+            jop.json = fc::json::to_string(pop);
+            jop.required_posting_auths.insert(from);
+
+            signed_transaction trx;
+            trx.operations.push_back(jop);
+            trx.validate();
+
+            return my->sign_transaction(trx, broadcast);
         }
 
         annotated_signed_transaction wallet_api::follow(

@@ -54,6 +54,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     struct by_to_date;
     struct by_from_date;
+    struct by_from_to_date;
     struct by_nonce;
     struct by_owner;
     struct by_contact;
@@ -69,9 +70,33 @@ namespace golos { namespace plugins { namespace private_message {
                 composite_key<
                     message_object,
                     member<message_object, account_name_type, &message_object::to>,
-                    member<message_object, time_point_sec, &message_object::receive_time>,
+                    member<message_object, time_point_sec, &message_object::create_time>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
+                    string_less,
+                    std::greater<time_point_sec>,
+                    std::less<message_id_type>>>,
+            ordered_unique<
+                tag<by_from_date>,
+                composite_key<
+                    message_object,
+                    member<message_object, account_name_type, &message_object::from>,
+                    member<message_object, time_point_sec, &message_object::create_time>,
+                    member<message_object, message_id_type, &message_object::id>>,
+                composite_key_compare<
+                    string_less,
+                    std::greater<time_point_sec>,
+                    std::less<message_id_type>>>,
+            ordered_unique<
+                tag<by_from_to_date>,
+                composite_key<
+                    message_object,
+                    member<message_object, account_name_type, &message_object::from>,
+                    member<message_object, account_name_type, &message_object::to>,
+                    member<message_object, time_point_sec, &message_object::create_time>,
+                    member<message_object, message_id_type, &message_object::id>>,
+                composite_key_compare<
+                    string_less,
                     string_less,
                     std::greater<time_point_sec>,
                     std::less<message_id_type>>>,
@@ -85,18 +110,7 @@ namespace golos { namespace plugins { namespace private_message {
                 composite_key_compare<
                     string_less,
                     string_less,
-                    std::less<uint64_t>>>,
-            ordered_unique<
-                tag<by_from_date>,
-                composite_key<
-                    message_object,
-                    member<message_object, account_name_type, &message_object::from>,
-                    member<message_object, time_point_sec, &message_object::receive_time>,
-                    member<message_object, message_id_type, &message_object::id>>,
-                composite_key_compare<
-                    string_less,
-                    std::greater<time_point_sec>,
-                    std::less<message_id_type>>>>,
+                    std::less<uint64_t>>>>,
         allocator<message_object>>;
 
     /**
