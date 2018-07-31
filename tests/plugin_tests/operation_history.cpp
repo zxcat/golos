@@ -66,8 +66,6 @@ BOOST_AUTO_TEST_CASE(operation_history_blocks) {
     auto _added_ops = add_operations();
     auto _found_ops = check_operations();
 
-    elog("---");
-
     size_t _checked_ops_count = 0;
     for (auto it = _found_ops.begin(); it != _found_ops.end(); ++it) {
         auto itr = _added_ops.find(it->first);

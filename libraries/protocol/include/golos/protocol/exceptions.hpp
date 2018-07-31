@@ -218,7 +218,6 @@ namespace golos {
             votes_are_not_allowed,
             does_not_have_voting_power,
             voting_weight_is_too_small,
-            cannot_vote_after_payout,
             cannot_vote_within_last_minute_before_payout,
             cannot_vote_with_zero_rshares,
             voter_has_used_maximum_vote_changes,
@@ -228,9 +227,6 @@ namespace golos {
             cannot_update_comment_because_nothing_changed,
             reached_comment_max_depth,
             replies_are_not_allowed,
-            discussion_is_frozen,
-            comment_is_archived,
-            comment_editable_during_first_24_hours,
             cannot_delete_comment_with_replies,
             cannot_delete_comment_with_positive_votes,
             comment_options_requires_no_rshares,
@@ -451,7 +447,6 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (votes_are_not_allowed)
         (does_not_have_voting_power)
         (voting_weight_is_too_small)
-        (cannot_vote_after_payout)
         (cannot_vote_within_last_minute_before_payout)
         (cannot_vote_with_zero_rshares)
         (voter_has_used_maximum_vote_changes)
@@ -461,9 +456,6 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (cannot_update_comment_because_nothing_changed)
         (reached_comment_max_depth)
         (replies_are_not_allowed)
-        (discussion_is_frozen)
-        (comment_is_archived)
-        (comment_editable_during_first_24_hours)
         (cannot_delete_comment_with_replies)
         (cannot_delete_comment_with_positive_votes)
         (comment_options_requires_no_rshares)

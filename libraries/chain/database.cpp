@@ -2408,12 +2408,12 @@ namespace golos { namespace chain {
 
                 push_virtual_operation(comment_payout_update_operation(comment.author, to_string(comment.permlink)));
 
-                const auto& vote_idx = get_index<comment_vote_index>().indices().get<by_comment_voter>();
-                auto vote_itr = vote_idx.lower_bound(comment.id);
-                while (vote_itr != vote_idx.end() && vote_itr->comment == comment.id) {
-                    const auto& cur_vote = *vote_itr;
-                    ++vote_itr;
-                    if (comment.mode == archived) {
+                if (comment.mode == archived) {
+                    const auto& vote_idx = get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                    auto vote_itr = vote_idx.lower_bound(comment.id);
+                    while (vote_itr != vote_idx.end() && vote_itr->comment == comment.id) {
+                        const auto& cur_vote = *vote_itr;
+                        ++vote_itr;
                         modify(cur_vote, [&](comment_vote_object& cvo) {
                             cvo.num_changes = -1;       // mark vote that it's ready to be removed (archived comment)
                         });
