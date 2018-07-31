@@ -177,6 +177,7 @@ struct remote_market_history {
 struct remote_private_message {
     vector <message_api_object> get_inbox(const std::string& to, const inbox_query&) const;
     vector <message_api_object> get_outbox(const std::string& from, const outbox_query&) const;
+    vector <message_api_object> get_thread(const std::string& from, const std::string& to, const thread_query&) const;
     settings_api_object get_settings(const std::string& owner) const;
     contacts_size_api_object get_contacts_size(const std::string& owner) const;
     contact_api_object get_contact_info(const std::string& owner, const std::string& contact) const;
@@ -328,6 +329,7 @@ FC_API( golos::wallet::remote_market_history,
 FC_API( golos::wallet::remote_private_message,
         (get_inbox)
         (get_outbox)
+        (get_thread)
         (get_settings)
         (get_contacts)
         (get_contacts_size)

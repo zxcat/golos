@@ -49,6 +49,9 @@ namespace golos { namespace plugins { namespace private_message {
 
         std::vector<message_api_object> get_outbox(const std::string& from, const outbox_query&) const;
 
+        std::vector<message_api_object> get_thread(
+            const std::string& from, const std::string& to, const thread_query&) const;
+
         settings_api_object get_settings(const std::string& owner) const;
 
         contact_api_object get_contact_item(const contact_object& o) const;
@@ -131,6 +134,58 @@ namespace golos { namespace plugins { namespace private_message {
             if (filter(*itr)) {
                 result.emplace_back(*itr);
             }
+        }
+
+        return result;
+    }
+
+    std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_thread(
+        const std::string& from, const std::string& to, const thread_query& query
+    ) const {
+
+        std::vector<message_api_object> result;
+        const auto& idx = db_.get_index<message_index>().indices().get<by_from_date>();
+
+        auto from_itr = idx.lower_bound(std::make_tuple(from, query.start_date));
+        auto from_etr = idx.upper_bound(std::make_tuple(from, time_point::min()));
+        auto to_itr = idx.lower_bound(std::make_tuple(to, query.start_date));
+        auto to_etr = idx.upper_bound(std::make_tuple(to, time_point::min()));
+        auto offset = query.offset;
+
+        auto filter = [&](const message_object& o) {
+            return (!query.unread_only || o.read_time == time_point_sec::min());
+        };
+
+        auto select_itr = [&]() -> auto& {
+            if (from_itr != from_etr) {
+                if (to_itr != to_etr && from_itr->id < to_itr->id) {
+                    return to_itr;
+                }
+                return from_itr;
+            } else {
+                return to_itr;
+            }
+        };
+
+        auto is_done = [&]() {
+            return from_itr == from_etr && to_itr == to_etr;
+        };
+
+        while (!is_done() && offset) {
+            auto& itr = select_itr();
+            if (filter(*itr)){
+                --offset;
+            }
+            ++itr;
+        }
+
+        result.reserve(query.limit);
+        while (!is_done() && result.size() < query.limit) {
+            auto& itr = select_itr();
+            if (filter(*itr)) {
+                result.emplace_back(*itr);
+            }
+            ++itr;
         }
 
         return result;
@@ -723,6 +778,28 @@ namespace golos { namespace plugins { namespace private_message {
 
         return my->db_.with_weak_read_lock([&]() {
             return my->get_outbox(from, query);
+        });
+    }
+
+    DEFINE_API(private_message_plugin, get_thread) {
+        PLUGIN_API_VALIDATE_ARGS(
+            (std::string, from)
+            (std::string, to)
+            (thread_query, query)
+        );
+
+        GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
+
+        if (!query.limit) {
+            query.limit = PRIVATE_DEFAULT_LIMIT;
+        }
+
+        if (query.start_date == time_point_sec::min()) {
+            query.start_date = my->db_.head_block_time();
+        }
+
+        return my->db_.with_weak_read_lock([&]() {
+            return my->get_thread(from, to, query);
         });
     }
 

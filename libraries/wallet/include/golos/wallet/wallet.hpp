@@ -61,6 +61,13 @@ namespace golos { namespace wallet {
             fc::optional<uint32_t> offset;
         };
 
+        struct private_thread_query {
+            std::string start_date;
+            fc::optional<bool> unread_only;
+            fc::optional<uint16_t> limit;
+            fc::optional<uint32_t> offset;
+        };
+
         struct message_body {
             std::string subject;
             std::string body;
@@ -1142,12 +1149,19 @@ namespace golos { namespace wallet {
             /**
              * Select inbox private messages for `to` account
              */
-            vector<extended_message_object> get_inbox(const std::string& to, const private_inbox_query& query);
+            vector<extended_message_object> get_private_inbox(const std::string& to, const private_inbox_query& query);
 
             /**
-             * Select outbox private messages for `to` account
+             * Select outbox private messages for `from` account
              */
-            vector<extended_message_object> get_outbox(const std::string& from, const private_outbox_query& query);
+            vector<extended_message_object> get_private_outbox(
+                const std::string& from, const private_outbox_query& query);
+
+            /**
+             * Select thread private messages between `from ` and `to` accounts
+             */
+            vector<extended_message_object> get_private_thread(
+                const std::string& from, const std::string& to, const private_thread_query& query);
 
             /**
              * Change settings for private messages
@@ -1395,8 +1409,10 @@ FC_API( golos::wallet::wallet_api,
                 (get_active_witnesses)
                 (get_miner_queue)
                 (get_transaction)
-                (get_inbox)
-                (get_outbox)
+
+                (get_private_inbox)
+                (get_private_outbox)
+                (get_private_thread)
                 (set_private_settings)
                 (get_private_settings)
                 (get_private_contacts)
@@ -1425,6 +1441,10 @@ FC_REFLECT(
 FC_REFLECT(
     (golos::wallet::private_outbox_query),
     (select_to)(start_date)(limit)(offset)(unread_only))
+
+FC_REFLECT(
+    (golos::wallet::private_thread_query),
+    (start_date)(limit)(offset)(unread_only))
 
 FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)

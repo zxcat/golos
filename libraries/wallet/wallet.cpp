@@ -2659,7 +2659,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->_remote_operation_history->get_transaction( id );
         }
 
-        vector<extended_message_object> wallet_api::get_inbox(
+        vector<extended_message_object> wallet_api::get_private_inbox(
             const std::string& to, const private_inbox_query& query_template
         ) {
             WALLET_CHECK_UNLOCKED();
@@ -2686,7 +2686,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return result;
         }
 
-        vector<extended_message_object> wallet_api::get_outbox(
+        vector<extended_message_object> wallet_api::get_private_outbox(
             const std::string& from, const private_outbox_query& query_template
         ) {
             WALLET_CHECK_UNLOCKED();
@@ -2704,6 +2704,32 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 query.offset = *query_template.offset;
             }
             auto remote_result = my->_remote_private_message->get_outbox(from, query);
+            result.reserve(remote_result.size());
+            for (const auto& item : remote_result) {
+                result.emplace_back(item);
+                message_body tmp = my->try_decrypt_message(item);
+                result.back().message = std::move(tmp);
+            }
+            return result;
+        }
+
+        vector<extended_message_object> wallet_api::get_private_thread(
+            const std::string& from, const std::string& to, const private_thread_query& query_template
+        ) {
+            FC_ASSERT(!is_locked());
+            std::vector<extended_message_object> result;
+            thread_query query;
+            query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
+            if (query_template.unread_only) {
+                query.unread_only = *query_template.unread_only;
+            }
+            if (query_template.limit) {
+                query.limit = *query_template.limit;
+            }
+            if (query_template.offset) {
+                query.offset = *query_template.offset;
+            }
+            auto remote_result = my->_remote_private_message->get_thread(from, to, query);
             result.reserve(remote_result.size());
             for (const auto& item : remote_result) {
                 result.emplace_back(item);
