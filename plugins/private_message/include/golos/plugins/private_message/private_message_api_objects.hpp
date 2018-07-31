@@ -77,7 +77,7 @@ namespace golos { namespace plugins { namespace private_message {
     };
 
     struct contacts_size_info final: public contact_size_info {
-        uint32_t total_contacts;
+        uint32_t total_contacts = 0;
     };
 
     /**
