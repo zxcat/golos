@@ -27,7 +27,8 @@ namespace golos { namespace plugins { namespace private_message {
 
 
     contact_api_object::contact_api_object(const contact_object& o)
-        : contact(o.contact),
+        : owner(o.owner),
+          contact(o.contact),
           json_metadata(o.json_metadata.begin(), o.json_metadata.end()),
           local_type(o.type),
           size(o.size) {

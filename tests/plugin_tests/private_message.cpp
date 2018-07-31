@@ -9,6 +9,7 @@
 
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 #include <golos/plugins/private_message/private_message_operations.hpp>
+#include <golos/plugins/private_message/private_message_exceptions.hpp>
 
 using golos::plugins::json_rpc::msg_pack;
 using golos::logic_exception;
@@ -243,6 +244,181 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(std::equal(
             bob_alice_edited_decrypt_msg_data.begin(), bob_alice_edited_decrypt_msg_data.end(),
             alice_bob_edited_msg_data.begin(), alice_bob_edited_msg_data.end()), true);
+    }
+
+    BOOST_AUTO_TEST_CASE(private_contact) {
+        BOOST_TEST_MESSAGE("Testing: private_contact_operation");
+
+        ACTORS((alice)(bob)(sam)(dave));
+
+        BOOST_TEST_MESSAGE("--- Undefined contact");
+
+        private_contact_operation cop;
+
+        cop.owner = "alice";
+        cop.contact = "bob";
+        cop.type = undefined;
+
+        private_message_plugin_operation pop = cop;
+
+        custom_json_operation jop;
+        jop.id = "private_message";
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        signed_transaction trx;
+
+        GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(trx, alice_private_key, jop),
+            CHECK_ERROR(tx_invalid_operation, 0,
+                CHECK_ERROR(logic_exception, logic_errors::add_undefined_contact)));
+
+        BOOST_TEST_MESSAGE("--- Ignored contact");
+
+        cop.type = ignored;
+        cop.json_metadata = "{}";
+        pop = cop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        msg_pack mp;
+        mp.args = std::vector<fc::variant>(
+            {fc::variant("alice"), fc::variant(ignored), fc::variant(100), fc::variant(0)});
+        auto alice_contacts = pm_plugin->get_contacts(mp);
+
+        BOOST_CHECK_EQUAL(alice_contacts.size(), 1);
+        BOOST_CHECK_EQUAL(alice_contacts[0].owner, cop.owner);
+        BOOST_CHECK_EQUAL(alice_contacts[0].contact, cop.contact);
+        BOOST_CHECK_EQUAL(alice_contacts[0].local_type, cop.type);
+        BOOST_CHECK_EQUAL(alice_contacts[0].remote_type, undefined);
+        BOOST_CHECK_EQUAL(alice_contacts[0].json_metadata, cop.json_metadata);
+        BOOST_CHECK_EQUAL(alice_contacts[0].size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts[0].size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts[0].size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts[0].size.unread_recv_messages, 0);
+
+        generate_block();
+
+        BOOST_TEST_MESSAGE("--- Same contact");
+
+        GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(trx, alice_private_key, jop),
+            CHECK_ERROR(tx_invalid_operation, 0,
+                CHECK_ERROR(logic_exception, logic_errors::contact_has_same_type)));
+
+        cop.json_metadata = "{\"name\":\"Mark\"}";
+        pop = cop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        BOOST_TEST_MESSAGE("--- Send message from ignored contact");
+
+        auto base_nonce = fc::time_point::now().time_since_epoch().count();
+
+        fc::sha512::encoder enc;
+        fc::raw::pack(enc, base_nonce);
+        auto encrypt_key = enc.result();
+
+        private_message_operation mop;
+
+        mop.from = "alice";
+        mop.from_memo_key = alice_private_key.get_public_key();
+        mop.to = "bob";
+        mop.to_memo_key = bob_private_key.get_public_key();
+        mop.nonce = base_nonce;
+        mop.encrypted_message = fc::aes_encrypt(encrypt_key, {});
+        mop.checksum = encrypt_key._hash[0];
+
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mop.from = "bob";
+        mop.to = "alice";
+        mop.nonce += 10;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"bob"};
+
+        GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(trx, bob_private_key, jop),
+            CHECK_ERROR(tx_invalid_operation, 0,
+                CHECK_ERROR(logic_exception, logic_errors::sender_in_ignore_list)));
+
+        mop.from = "sam";
+        mop.to = "alice";
+        mop.nonce += 10;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"sam"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, sam_private_key, jop));
+
+        BOOST_TEST_MESSAGE("--- Receive messages only from pinned contacts");
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        auto alice_settings = pm_plugin->get_settings(mp);
+
+        BOOST_CHECK_EQUAL(alice_settings.ignore_messages_from_undefined_contact, false);
+
+        private_settings_operation sop;
+        sop.owner = "alice";
+        sop.ignore_messages_from_undefined_contact = true;
+        pop = sop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        alice_settings = pm_plugin->get_settings(mp);
+
+        BOOST_CHECK_EQUAL(alice_settings.ignore_messages_from_undefined_contact, true);
+
+        mop.from = "sam";
+        mop.to = "alice";
+        mop.nonce += 10;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"sam"};
+
+        GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(trx, sam_private_key, jop),
+            CHECK_ERROR(tx_invalid_operation, 0,
+                CHECK_ERROR(logic_exception, logic_errors::recepient_ignores_messages_from_undefined_contact)));
+
+        cop.owner = "alice";
+        cop.contact = "dave";
+        cop.type = pinned;
+        cop.json_metadata = "{}";
+        pop = cop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mop.from = "dave";
+        mop.to = "alice";
+        mop.nonce += 10;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"dave"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, dave_private_key, jop));
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("dave")});
+        auto alice_dave_contact = pm_plugin->get_contact_info(mp);
+
+        BOOST_CHECK_EQUAL(alice_dave_contact.owner, "alice");
+        BOOST_CHECK_EQUAL(alice_dave_contact.contact, "dave");
+        BOOST_CHECK_EQUAL(alice_dave_contact.local_type, pinned);
+        BOOST_CHECK_EQUAL(alice_dave_contact.remote_type, pinned);
+        BOOST_CHECK_EQUAL(alice_dave_contact.json_metadata, "{}");
+        BOOST_CHECK_EQUAL(alice_dave_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_dave_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_dave_contact.size.total_recv_messages, 1);
+        BOOST_CHECK_EQUAL(alice_dave_contact.size.unread_recv_messages, 1);
     }
 
 BOOST_AUTO_TEST_SUITE_END()
