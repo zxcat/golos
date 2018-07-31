@@ -37,32 +37,20 @@ file(GLOB PLUGIN_TESTS
     "plugin_tests/json_rpc.cpp"
     "plugin_tests/operation_history.cpp"
     "plugin_tests/account_history.cpp"
-    "plugin_tests/follow.cpp")
+    "plugin_tests/follow.cpp"
+    "plugin_tests/private_message.cpp")
 add_executable(plugin_test ${PLUGIN_TESTS} ${COMMON_SOURCES})
-target_link_libraries(plugin_test golos_chain golos_protocol  golos_account_history golos_market_history golos_debug_node golos_social_network fc ${PLATFORM_SPECIFIC_LIBS})
+target_link_libraries(plugin_test
+    golos_chain golos_protocol
+    golos_account_history
+    golos_market_history
+    golos_debug_node
+    golos_social_network
+    golos_private_message
+    fc
+    ${PLATFORM_SPECIFIC_LIBS})
 target_include_directories(plugin_test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
 add_test(NAME plugin_test_run COMMAND plugin_test)
-
-macro(add_exec_test)
-    set(OPTIONS)
-    set(ONE_VALUE_ARGS NAME)
-    set(MULTI_VALUE_ARGS FILES)
-    cmake_parse_arguments(GET "${OPTIONS}" "${ONE_VALUE_ARGS}" "${MULTI_VALUE_ARGS}" ${ARGN})
-    string(TOUPPER "${GET_NAME}_TEST" TESTS)
-    MESSAGE(STATUS "\"${TESTS}\" \"${GET_NAME}\"")
-    file(GLOB ${TESTS} ${GET_FILES})
-    add_executable("${GET_NAME}_test" ${${TESTS}} ${COMMON_SOURCES})
-    target_link_libraries("${GET_NAME}_test"
-        golos_chain
-        golos_protocol
-        golos_account_history
-        golos_market_history
-        golos_debug_node
-        golos_social_network
-        fc ${PLATFORM_SPECIFIC_LIBS})
-    target_include_directories("${GET_NAME}_test" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/common")
-    add_test(NAME "${GET_NAME}_test_run" COMMAND "${GET_NAME}_test")
-endmacro(add_exec_test)
 
 if(MSVC)
     set_source_files_properties(tests/serialization_tests.cpp PROPERTIES COMPILE_FLAGS "/bigobj")

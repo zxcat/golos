@@ -15,6 +15,7 @@ namespace golos { namespace plugins { namespace private_message {
             add_undefined_contact,
             contact_has_same_type,
             no_unread_messages,
+            invalid_range,
             invalid_size,
         };
     };
@@ -37,5 +38,6 @@ FC_REFLECT_ENUM(golos::plugins::private_message::logic_errors::types,
     (add_undefined_contact)
     (contact_has_same_type)
     (no_unread_messages)
+    (invalid_range)
     (invalid_size)
 );

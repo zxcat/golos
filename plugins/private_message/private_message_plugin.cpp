@@ -301,12 +301,12 @@ namespace golos { namespace plugins { namespace private_message {
         auto id_itr = id_idx.find(std::make_tuple(pm.from, pm.to, pm.nonce));
 
         GOLOS_CHECK_OP_PARAM(pm, nonce, {
-            if (pm.update) {
-                GOLOS_ASSERT(id_itr != id_idx.end(), golos::missing_object, "Private message doesn't exist",
-                    ("from", pm.from)("to", pm.to)("nonce", pm.nonce));
-            } else {
-                GOLOS_ASSERT(id_itr == id_idx.end(), golos::object_already_exist, "Private message already exist",
-                    ("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+            if (pm.update && id_itr == id_idx.end()) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+            } else if (!pm.update && id_itr != id_idx.end()){
+                GOLOS_THROW_OBJECT_ALREADY_EXIST("private_message",
+                    fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
             }
         });
 
@@ -422,8 +422,10 @@ namespace golos { namespace plugins { namespace private_message {
             auto id_itr = id_idx.find(std::make_tuple(po.from, po.to, po.nonce));
 
             GOLOS_CHECK_OP_PARAM(po, nonce, {
-                GOLOS_ASSERT(id_itr != id_idx.end(), golos::missing_object, "Private message doesn't exist",
-                    ("from", po.from)("to", po.to)("nonce", po.nonce));
+                if (id_itr == id_idx.end()) {
+                    GOLOS_THROW_MISSING_OBJECT("private_message",
+                        fc::mutable_variant_object()("from", po.from)("to", po.to)("nonce", po.nonce));
+                }
             });
 
             update_stat(stat_map, *id_itr);
@@ -433,10 +435,12 @@ namespace golos { namespace plugins { namespace private_message {
             auto to_itr = to_idx.lower_bound(std::make_tuple(po.from, po.to, po.to_date));
             auto to_etr = to_idx.upper_bound(std::make_tuple(po.from, po.to, po.from_date));
 
-            GOLOS_CHECK_OP_PARAM(po, to, {
-                GOLOS_ASSERT(to_itr != to_etr, golos::missing_object,
-                    "No private messages to account in requested range",
-                    ("from", po.from)("to", po.to)("from_date", po.from_date)("to_time", po.to_date));
+            GOLOS_CHECK_OP_PARAM(po, from_date, {
+                if (to_itr == to_etr) {
+                    GOLOS_THROW_MISSING_OBJECT("private_message",
+                        fc::mutable_variant_object()("from", po.from)("to", po.to)
+                        ("from_date", po.from_date)("to_time", po.to_date));
+                }
             });
 
             process_range(to_itr, to_etr);
@@ -445,10 +449,12 @@ namespace golos { namespace plugins { namespace private_message {
             auto date_itr = date_idx.lower_bound(std::make_tuple(po.from, po.to_date));
             auto date_etr = date_idx.upper_bound(std::make_tuple(po.from, po.from_date));
 
-            GOLOS_CHECK_OP_PARAM(po, from_date, {
-                GOLOS_ASSERT(date_itr != date_etr, golos::missing_object,
-                    "No private messages in requested range",
-                    ("from", po.from)("from_date", po.from_date)("to_date", po.to_date));
+            GOLOS_CHECK_OP_PARAM(po, from, {
+                if (date_itr == date_etr) {
+                    GOLOS_THROW_MISSING_OBJECT("private_message",
+                        fc::mutable_variant_object()("from", po.from)
+                        ("from_date", po.from_date)("to_time", po.to_date));
+                }
             });
 
             process_range(date_itr, date_etr);
@@ -457,13 +463,17 @@ namespace golos { namespace plugins { namespace private_message {
             auto date_itr = date_idx.lower_bound(std::make_tuple(po.to, po.to_date));
             auto date_etr = date_idx.upper_bound(std::make_tuple(po.to, po.from_date));
 
-            GOLOS_CHECK_OP_PARAM(po, from_date, {
-                GOLOS_ASSERT(date_itr != date_etr, golos::missing_object,
-                    "No private messages in requested range",
-                    ("to", po.to)("from_date", po.from_date)("to_date", po.to_date));
+            GOLOS_CHECK_OP_PARAM(po, to, {
+                if (date_itr == date_etr) {
+                    GOLOS_THROW_MISSING_OBJECT("private_message",
+                        fc::mutable_variant_object()("to", po.to)
+                        ("from_date", po.from_date)("to_time", po.to_date));
+                }
             });
 
             process_range(date_itr, date_etr);
+        } else {
+            GOLOS_CHECK_LOGIC(false, logic_errors::invalid_range, "Invalid range");
         }
 
         verify_action();
