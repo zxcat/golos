@@ -45,6 +45,14 @@ namespace golos { namespace wallet {
             fc::optional<asset> min_delegation;
         };
 
+        struct private_inbox_query {
+            fc::flat_set<std::string> select_from;
+            std::string start_date;
+            fc::optional<bool> unread_only;
+            fc::optional<uint16_t> limit;
+            fc::optional<uint32_t> offset;
+        };
+
         struct message_body {
             std::string subject;
             std::string body;
@@ -1123,9 +1131,10 @@ namespace golos { namespace wallet {
 
             annotated_signed_transaction decline_voting_rights( string account, bool decline, bool broadcast );
 
-            // Private message
-            vector<extended_message_object> get_inbox(
-                const std::string& to, const std::string& newest, uint16_t limit, std::uint32_t offset);
+            /**
+             * Select inbox private messages for `to` account
+             */
+            vector<extended_message_object> get_inbox(const std::string& to, const private_inbox_query&);
             vector<extended_message_object> get_outbox(
                 const std::string& from, const std::string& newest, uint16_t limit, std::uint32_t offset);
 
@@ -1397,6 +1406,10 @@ FC_REFLECT(
     (owner_approvals_to_add)(owner_approvals_to_remove)
     (posting_approvals_to_add)(posting_approvals_to_remove)
     (key_approvals_to_add)(key_approvals_to_remove))
+
+FC_REFLECT(
+    (golos::wallet::private_inbox_query),
+    (select_from)(start_date)(limit)(offset)(unread_only))
 
 FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)

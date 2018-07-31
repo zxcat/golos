@@ -4,6 +4,7 @@
 
 #include <golos/plugins/private_message/private_message_operations.hpp>
 
+#define PRIVATE_DEFAULT_LIMIT 100
 
 namespace golos { namespace plugins { namespace private_message {
 
@@ -105,6 +106,17 @@ namespace golos { namespace plugins { namespace private_message {
         fc::flat_map<private_contact_type, contacts_size_info> size;
     };
 
+    /**
+     * Query for inbox messages
+     */
+    struct inbox_query {
+        fc::flat_set<std::string> select_from;
+        time_point_sec start_date = time_point_sec::min();
+        bool unread_only = false;
+        uint16_t limit = PRIVATE_DEFAULT_LIMIT;
+        uint32_t offset = 0;
+    };
+
 } } } // golos::plugins::private_message
 
 FC_REFLECT(
@@ -132,3 +144,6 @@ FC_REFLECT(
     (golos::plugins::private_message::contacts_size_api_object),
     (size))
 
+FC_REFLECT(
+    (golos::plugins::private_message::inbox_query),
+    (select_from)(start_date)(unread_only)(limit)(offset))
