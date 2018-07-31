@@ -2687,12 +2687,23 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
         vector<extended_message_object> wallet_api::get_outbox(
-            const std::string& from, const std::string& newest_str, uint16_t limit, std::uint32_t offset
+            const std::string& from, const private_outbox_query& query_template
         ) {
             WALLET_CHECK_UNLOCKED();
             std::vector<extended_message_object> result;
-            auto newest = time_converter(newest_str, time_point::now(), time_point::now()).time();
-            auto remote_result = my->_remote_private_message->get_outbox(from, newest, limit, offset);
+            outbox_query query;
+            query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
+            query.select_to = query_template.select_to;
+            if (query_template.unread_only) {
+                query.unread_only = *query_template.unread_only;
+            }
+            if (query_template.limit) {
+                query.limit = *query_template.limit;
+            }
+            if (query_template.offset) {
+                query.offset = *query_template.offset;
+            }
+            auto remote_result = my->_remote_private_message->get_outbox(from, query);
             result.reserve(remote_result.size());
             for (const auto& item : remote_result) {
                 result.emplace_back(item);

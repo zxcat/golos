@@ -117,6 +117,17 @@ namespace golos { namespace plugins { namespace private_message {
         uint32_t offset = 0;
     };
 
+    /**
+     * Query for outbox messages
+     */
+    struct outbox_query {
+        fc::flat_set<std::string> select_to;
+        time_point_sec start_date = time_point_sec::min();
+        bool unread_only = false;
+        uint16_t limit = PRIVATE_DEFAULT_LIMIT;
+        uint32_t offset = 0;
+    };
+
 } } } // golos::plugins::private_message
 
 FC_REFLECT(
@@ -147,3 +158,7 @@ FC_REFLECT(
 FC_REFLECT(
     (golos::plugins::private_message::inbox_query),
     (select_from)(start_date)(unread_only)(limit)(offset))
+
+FC_REFLECT(
+    (golos::plugins::private_message::outbox_query),
+    (select_to)(start_date)(unread_only)(limit)(offset))

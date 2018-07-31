@@ -176,7 +176,7 @@ struct remote_market_history {
  */
 struct remote_private_message {
     vector <message_api_object> get_inbox(const std::string& to, const inbox_query&) const;
-    vector <message_api_object> get_outbox(const std::string& from, time_point newest, uint16_t limit, uint32_t offset) const;
+    vector <message_api_object> get_outbox(const std::string& from, const outbox_query&) const;
     settings_api_object get_settings(const std::string& owner) const;
     contacts_size_api_object get_contacts_size(const std::string& owner) const;
     contact_api_object get_contact_info(const std::string& owner, const std::string& contact) const;
