@@ -6,9 +6,6 @@
 #include <golos/plugins/social_network/social_network.hpp>
 #include "follow_api_object.hpp"
 
-#define PLUGIN_CHECK_LOGIC(expr, type, msg, ...) \
-    GOLOS_CHECK_LOGIC(expr, type, msg, ("plugin", "follow") __VA_ARGS__)
-
 namespace golos { namespace plugins { namespace follow {
     using json_rpc::msg_pack;
 

@@ -6,13 +6,13 @@ namespace golos {
         namespace follow {
 
             void follow_operation::validate() const {
-                PLUGIN_CHECK_LOGIC(follower != following,
+                GOLOS_CHECK_LOGIC(follower != following,
                         logic_errors::cannot_follow_yourself,
                         "You cannot follow yourself");
             }
 
             void reblog_operation::validate() const {
-                PLUGIN_CHECK_LOGIC(account != author, 
+                GOLOS_CHECK_LOGIC(account != author, 
                         logic_errors::cannot_reblog_own_content,
                         "You cannot reblog your own content");
             }
