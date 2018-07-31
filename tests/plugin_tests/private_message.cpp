@@ -421,4 +421,325 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(alice_dave_contact.size.unread_recv_messages, 1);
     }
 
+    BOOST_AUTO_TEST_CASE(private_mark) {
+        BOOST_TEST_MESSAGE("Testing: private_mark_message_operation");
+
+        ACTORS((alice)(bob)(sam));
+
+        BOOST_TEST_MESSAGE("--- Unread messages");
+
+        private_contact_operation cop;
+
+        cop.owner = "alice";
+        cop.contact = "bob";
+        cop.type = pinned;
+        cop.json_metadata = "{}";
+
+        private_message_plugin_operation pop = cop;
+
+        custom_json_operation jop;
+        jop.id = "private_message";
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+
+        signed_transaction trx;
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+        generate_block();
+
+        auto base_nonce = fc::time_point::now().time_since_epoch().count();
+
+        fc::sha512::encoder enc;
+        fc::raw::pack(enc, base_nonce);
+        auto encrypt_key = enc.result();
+
+        private_message_operation mop;
+
+        mop.from = "bob";
+        mop.from_memo_key = bob_private_key.get_public_key();
+        mop.to = "alice";
+        mop.to_memo_key = alice_private_key.get_public_key();
+        mop.nonce = base_nonce;
+        mop.encrypted_message = fc::aes_encrypt(encrypt_key, {});
+        mop.checksum = encrypt_key._hash[0];
+
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"bob"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, bob_private_key, jop));
+        generate_block();
+        
+        mop.from = "bob";
+        mop.to = "alice";
+        mop.nonce = base_nonce + 10;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"bob"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, bob_private_key, jop));
+        generate_block();
+
+        mop.from = "sam";
+        mop.to = "alice";
+        mop.nonce = base_nonce + 20;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"sam"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, sam_private_key, jop));
+        generate_block();
+
+        mop.from = "sam";
+        mop.to = "alice";
+        mop.nonce = base_nonce + 30;
+        pop = mop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"sam"};
+
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, sam_private_key, jop));
+        generate_block();
+
+        msg_pack mp;
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        auto alice_contacts_size = pm_plugin->get_contacts_size(mp);
+        
+        BOOST_CHECK_EQUAL(alice_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_contacts, 1);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].unread_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_contacts, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("bob")});
+        auto alice_bob_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_recv_messages, 2);
+        
+        mp.args = std::vector<fc::variant>({fc::variant("bob")});
+        auto bob_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[undefined].total_contacts, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[undefined].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[undefined].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[undefined].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[undefined].unread_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].total_contacts, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant("alice")});
+        auto bob_alice_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_recv_messages, 0);
+
+        BOOST_TEST_MESSAGE("--- Change contact type");
+
+        cop.owner = "alice";
+        cop.contact = "sam";
+        cop.type = pinned;
+        cop.json_metadata = "{}";
+        pop = cop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        alice_contacts_size = pm_plugin->get_contacts_size(mp);
+
+        BOOST_CHECK_EQUAL(alice_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_contacts, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[undefined].unread_recv_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_contacts, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_recv_messages, 4);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_recv_messages, 4);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_contacts, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[ignored].unread_recv_messages, 0);
+
+        BOOST_TEST_MESSAGE("--- Mark one message");
+
+        private_mark_message_operation rop;
+
+        rop.from = "bob";
+        rop.to = "alice";
+        rop.nonce = base_nonce;
+        pop = rop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        alice_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_contacts, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_recv_messages, 4);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_recv_messages, 3);
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("bob")});
+        alice_bob_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_recv_messages, 1);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob")});
+        bob_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_send_messages, 1);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant("alice")});
+        bob_alice_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_send_messages, 1);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_recv_messages, 0);
+
+        BOOST_TEST_MESSAGE("--- Mark all messages from user");
+
+        generate_block();
+        
+        rop.from = "sam";
+        rop.to = "alice";
+        rop.nonce = 0;
+        rop.to_date = db->head_block_time();
+        pop = rop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        alice_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_contacts, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_recv_messages, 4);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_recv_messages, 1);
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("sam")});
+        auto alice_sam_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("sam")});
+        auto sam_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_send_messages, 2);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant("alice")});
+        auto sam_alice_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.total_send_messages, 2);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.unread_recv_messages, 0);
+
+        BOOST_TEST_MESSAGE("--- Mark all messages to user");
+
+        generate_block();
+
+        rop.from = "";
+        rop.to = "alice";
+        rop.nonce = 0;
+        rop.to_date = db->head_block_time();
+        pop = rop;
+        jop.json = fc::json::to_string(pop);
+        jop.required_posting_auths = {"alice"};
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice")});
+        alice_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_contacts, 2);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].total_recv_messages, 4);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[pinned].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("sam")});
+        alice_sam_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_sam_contact.size.unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("sam")});
+        sam_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_send_messages, 2);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(sam_contacts_size.size[pinned].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant("alice")});
+        sam_alice_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.total_send_messages, 2);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(sam_alice_contact.size.unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("bob")});
+        alice_bob_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.total_recv_messages, 2);
+        BOOST_CHECK_EQUAL(alice_bob_contact.size.unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob")});
+        bob_contacts_size = pm_plugin->get_contacts_size(mp);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size.size(), 3);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_contacts, 1);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].unread_recv_messages, 0);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant("alice")});
+        bob_alice_contact = pm_plugin->get_contact_info(mp);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_send_messages, 2);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_send_messages, 0);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.total_recv_messages, 0);
+        BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_recv_messages, 0);
+    }
 BOOST_AUTO_TEST_SUITE_END()

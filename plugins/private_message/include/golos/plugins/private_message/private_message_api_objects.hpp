@@ -51,7 +51,7 @@ namespace golos { namespace plugins { namespace private_message {
             total_send_messages -= s.total_send_messages;
             unread_send_messages -= s.unread_send_messages;
             total_recv_messages -= s.total_recv_messages;
-            unread_recv_messages -= s.unread_send_messages;
+            unread_recv_messages -= s.unread_recv_messages;
             return *this;
         }
 
@@ -59,7 +59,7 @@ namespace golos { namespace plugins { namespace private_message {
             total_send_messages += s.total_send_messages;
             unread_send_messages += s.unread_send_messages;
             total_recv_messages += s.total_recv_messages;
-            unread_recv_messages += s.unread_send_messages;
+            unread_recv_messages += s.unread_recv_messages;
             return *this;
         }
 

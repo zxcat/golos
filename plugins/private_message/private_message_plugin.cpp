@@ -406,7 +406,7 @@ namespace golos { namespace plugins { namespace private_message {
         UpdateStat&& update_stat, ProcessAction&& process_action,
         VerifyAction&& verify_action, ContactAction&& contact_action
     ) {
-        fc::flat_map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
+        std::map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
 
         auto process_range = [&](auto itr, auto etr) {
             while (itr != etr) {
@@ -511,11 +511,11 @@ namespace golos { namespace plugins { namespace private_message {
                 auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
                 auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
                 if (m.read_time == time_point_sec::min()) {
-                    send_stat.unread_send_messages--;
-                    recv_stat.unread_recv_messages--;
+                    send_stat.unread_send_messages++;
+                    recv_stat.unread_recv_messages++;
                 }
-                send_stat.total_send_messages--;
-                recv_stat.total_recv_messages--;
+                send_stat.total_send_messages++;
+                recv_stat.total_recv_messages++;
             },
             /* process_action */ [&](const message_object& m) {
                 d.remove(m);
@@ -551,11 +551,11 @@ namespace golos { namespace plugins { namespace private_message {
         process_private_messages(
             d, pmm,
             /* update_stat */ [&](auto& stat_map, const message_object& m) {
-                auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
-                auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
                 if (m.read_time == time_point_sec::min()) {
-                    send_stat.unread_send_messages--;
-                    recv_stat.unread_recv_messages--;
+                    auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
+                    auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
+                    send_stat.unread_send_messages++;
+                    recv_stat.unread_recv_messages++;
                     total_marked_messages++;
                 }
             },
