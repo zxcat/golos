@@ -2866,7 +2866,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.to = to;
             op.nonce = 0;
             op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::min()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::now()).time();
 
             private_message_plugin_operation pop = op;
 
@@ -2921,7 +2921,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.to = to;
             op.nonce = 0;
             op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::min()).time();
+            op.to_date = time_converter(to_date, time_point::now(), time_point_sec::now()).time();
 
             private_message_plugin_operation pop = op;
 
