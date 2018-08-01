@@ -45,24 +45,16 @@ namespace golos { namespace wallet {
             fc::optional<asset> min_delegation;
         };
 
-        struct private_inbox_query {
-            fc::flat_set<std::string> select_from;
-            std::string start_date;
+        struct optional_private_box_query {
+            fc::flat_set<std::string> select_accounts;
+            std::string newest_date;
             fc::optional<bool> unread_only;
             fc::optional<uint16_t> limit;
             fc::optional<uint32_t> offset;
         };
 
-        struct private_outbox_query {
-            fc::flat_set<std::string> select_to;
-            std::string start_date;
-            fc::optional<bool> unread_only;
-            fc::optional<uint16_t> limit;
-            fc::optional<uint32_t> offset;
-        };
-
-        struct private_thread_query {
-            std::string start_date;
+        struct optional_private_thread_query {
+            std::string newest_date;
             fc::optional<bool> unread_only;
             fc::optional<uint16_t> limit;
             fc::optional<uint32_t> offset;
@@ -1149,19 +1141,20 @@ namespace golos { namespace wallet {
             /**
              * Select inbox private messages for `to` account
              */
-            vector<extended_message_object> get_private_inbox(const std::string& to, const private_inbox_query& query);
+            vector<extended_message_object> get_private_inbox(
+                const std::string& to, const optional_private_box_query& query);
 
             /**
              * Select outbox private messages for `from` account
              */
             vector<extended_message_object> get_private_outbox(
-                const std::string& from, const private_outbox_query& query);
+                const std::string& from, const optional_private_box_query& query);
 
             /**
              * Select thread private messages between `from ` and `to` accounts
              */
             vector<extended_message_object> get_private_thread(
-                const std::string& from, const std::string& to, const private_thread_query& query);
+                const std::string& from, const std::string& to, const optional_private_thread_query& query);
 
             /**
              * Change settings for private messages
@@ -1435,16 +1428,12 @@ FC_REFLECT(
     (key_approvals_to_add)(key_approvals_to_remove))
 
 FC_REFLECT(
-    (golos::wallet::private_inbox_query),
-    (select_from)(start_date)(limit)(offset)(unread_only))
+    (golos::wallet::optional_private_box_query),
+    (select_accounts)(newest_date)(limit)(offset)(unread_only))
 
 FC_REFLECT(
-    (golos::wallet::private_outbox_query),
-    (select_to)(start_date)(limit)(offset)(unread_only))
-
-FC_REFLECT(
-    (golos::wallet::private_thread_query),
-    (start_date)(limit)(offset)(unread_only))
+    (golos::wallet::optional_private_thread_query),
+    (newest_date)(limit)(offset)(unread_only))
 
 FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)

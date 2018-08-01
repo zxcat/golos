@@ -45,12 +45,12 @@ namespace golos { namespace plugins { namespace private_message {
             db_.set_custom_operation_interpreter(plugin.name(), custom_operation_interpreter_);
         }
 
-        std::vector<message_api_object> get_inbox(const std::string& to, const inbox_query&) const;
-
-        std::vector<message_api_object> get_outbox(const std::string& from, const outbox_query&) const;
+        template <typename Direction, typename Filter>
+        std::vector<message_api_object> get_message_box(
+            const std::string& account, const message_box_query&, Filter&&) const;
 
         std::vector<message_api_object> get_thread(
-            const std::string& from, const std::string& to, const thread_query&) const;
+            const std::string& from, const std::string& to, const message_thread_query&) const;
 
         settings_api_object get_settings(const std::string& owner) const;
 
@@ -78,30 +78,36 @@ namespace golos { namespace plugins { namespace private_message {
         return time_point_sec(1);
     }
 
-    std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_inbox(
-        const std::string& to, const inbox_query& query
+    template <typename Direction, typename Filter>
+    std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_message_box(
+        const std::string& to, const message_box_query& query, Filter&& filter
     ) const {
         std::vector<message_api_object> result;
-        const auto& idx = db_.get_index<message_index>().indices().get<by_inbox>();
+        const auto& idx = db_.get_index<message_index>().indices().get<Direction>();
+        auto newest_date = query.newest_date;
 
-        auto itr = idx.lower_bound(std::make_tuple(to, query.start_date));
+        if (newest_date == time_point_sec::min()) {
+            newest_date = db_.head_block_time();
+        }
+
+        auto itr = idx.lower_bound(std::make_tuple(to, newest_date));
         auto etr = idx.upper_bound(std::make_tuple(to, min_create_date()));
         auto offset = query.offset;
 
-        auto filter = [&](const message_object& o) {
-            return
-                (query.select_from.empty() || query.select_from.count(o.from)) &&
-                (!query.unread_only || o.read_date == time_point_sec::min());
-        };
-
         for (; itr != etr && offset; ++itr) {
             if (filter(*itr)){
                 --offset;
             }
         }
 
-        result.reserve(query.limit);
-        for (; itr != etr && result.size() < query.limit; ++itr) {
+        auto limit = query.limit;
+
+        if (!limit) {
+            limit = PRIVATE_DEFAULT_LIMIT;
+        }
+
+        result.reserve(limit);
+        for (; itr != etr && result.size() < limit; ++itr) {
             if (filter(*itr)) {
                 result.emplace_back(*itr);
             }
@@ -110,50 +116,17 @@ namespace golos { namespace plugins { namespace private_message {
         return result;
     }
 
-    std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_outbox(
-        const std::string& from, const outbox_query& query
-    ) const {
-
-        std::vector<message_api_object> result;
-        const auto& idx = db_.get_index<message_index>().indices().get<by_outbox>();
-
-        auto itr = idx.lower_bound(std::make_tuple(from, query.start_date));
-        auto etr = idx.upper_bound(std::make_tuple(from, min_create_date()));
-        auto offset = query.offset;
-
-        auto filter = [&](const message_object& o) {
-            return
-                (query.select_to.empty() || query.select_to.count(o.to)) &&
-                (!query.unread_only || o.read_date == time_point_sec::min());
-        };
-
-        for (; itr != etr && offset; ++itr) {
-            if (filter(*itr)){
-                --offset;
-            }
-        }
-
-        result.reserve(query.limit);
-        for (; itr != etr && result.size() < query.limit; ++itr) {
-            if (filter(*itr)) {
-                result.emplace_back(*itr);
-            }
-        }
-
-        return result;
-    }
-
-    std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_thread(
-        const std::string& from, const std::string& to, const thread_query& query
+     std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_thread(
+        const std::string& from, const std::string& to, const message_thread_query& query
     ) const {
 
         std::vector<message_api_object> result;
         const auto& outbox_idx = db_.get_index<message_index>().indices().get<by_outbox_account>();
         const auto& inbox_idx = db_.get_index<message_index>().indices().get<by_inbox_account>();
 
-        auto outbox_itr = outbox_idx.lower_bound(std::make_tuple(from, to, query.start_date));
+        auto outbox_itr = outbox_idx.lower_bound(std::make_tuple(from, to, query.newest_date));
         auto outbox_etr = outbox_idx.upper_bound(std::make_tuple(from, to, min_create_date()));
-        auto inbox_itr = inbox_idx.lower_bound(std::make_tuple(from, to, query.start_date));
+        auto inbox_itr = inbox_idx.lower_bound(std::make_tuple(from, to, query.newest_date));
         auto inbox_etr = inbox_idx.upper_bound(std::make_tuple(from, to, min_create_date()));
         auto offset = query.offset;
 
@@ -778,42 +751,39 @@ namespace golos { namespace plugins { namespace private_message {
     DEFINE_API(private_message_plugin, get_inbox) {
         PLUGIN_API_VALIDATE_ARGS(
             (std::string, to)
-            (inbox_query, query)
+            (message_box_query, query)
         );
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
 
-        if (!query.limit) {
-            query.limit = PRIVATE_DEFAULT_LIMIT;
-        }
-
-        if (query.start_date == time_point_sec::min()) {
-            query.start_date = my->db_.head_block_time();
-        }
-
         return my->db_.with_weak_read_lock([&]() {
-            return my->get_inbox(to, query);
+            return my->get_message_box<by_inbox>(
+                to, query,
+                [&](const message_object& o) -> bool {
+                    return
+                        (query.select_accounts.empty() || query.select_accounts.count(o.from)) &&
+                        (!query.unread_only || o.read_date == time_point_sec::min());
+                }
+            );
         });
     }
 
     DEFINE_API(private_message_plugin, get_outbox) {
         PLUGIN_API_VALIDATE_ARGS(
             (std::string, from)
-            (outbox_query, query)
+                (message_box_query, query)
         );
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
 
-        if (!query.limit) {
-            query.limit = PRIVATE_DEFAULT_LIMIT;
-        }
-
-        if (query.start_date == time_point_sec::min()) {
-            query.start_date = my->db_.head_block_time();
-        }
-
         return my->db_.with_weak_read_lock([&]() {
-            return my->get_outbox(from, query);
+            return my->get_message_box<by_outbox>(
+                from, query,
+                [&](const message_object& o) -> bool {
+                    return
+                        (query.select_accounts.empty() || query.select_accounts.count(o.to)) &&
+                        (!query.unread_only || o.read_date == time_point_sec::min());
+                });
         });
     }
 
@@ -821,7 +791,7 @@ namespace golos { namespace plugins { namespace private_message {
         PLUGIN_API_VALIDATE_ARGS(
             (std::string, from)
             (std::string, to)
-            (thread_query, query)
+            (message_thread_query, query)
         );
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
@@ -830,8 +800,8 @@ namespace golos { namespace plugins { namespace private_message {
             query.limit = PRIVATE_DEFAULT_LIMIT;
         }
 
-        if (query.start_date == time_point_sec::min()) {
-            query.start_date = my->db_.head_block_time();
+        if (query.newest_date == time_point_sec::min()) {
+            query.newest_date = my->db_.head_block_time();
         }
 
         return my->db_.with_weak_read_lock([&]() {

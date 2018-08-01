@@ -121,22 +121,24 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_TEST_MESSAGE("--- Get message ");
 
         msg_pack mp;
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         auto bob_inbox = pm_plugin->get_inbox(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         auto bob_outbox = pm_plugin->get_outbox(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         auto alice_inbox = pm_plugin->get_inbox(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         auto alice_outbox = pm_plugin->get_outbox(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("bob"), fc::variant(thread_query())});
+        mp.args = std::vector<fc::variant>(
+            {fc::variant("alice"), fc::variant("bob"), fc::variant(message_thread_query())});
         auto alice_bob_thread = pm_plugin->get_thread(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant("alice"), fc::variant(thread_query())});
+        mp.args = std::vector<fc::variant>(
+            {fc::variant("bob"), fc::variant("alice"), fc::variant(message_thread_query())});
         auto bob_alice_thread = pm_plugin->get_thread(mp);
 
         BOOST_CHECK_EQUAL(bob_outbox.size(), 1);
@@ -229,10 +231,10 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         jop.json = fc::json::to_string(pop);
         GOLOS_CHECK_NO_THROW(push_tx_with_ops(trx, alice_private_key, jop));
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         bob_inbox = pm_plugin->get_inbox(mp);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         alice_outbox = pm_plugin->get_outbox(mp);
 
         BOOST_CHECK_EQUAL(bob_inbox.size(), 1);
@@ -877,15 +879,15 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(bob_alice_contact.size.total_inbox_messages, 0);
         BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_inbox_messages, 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         auto alice_inbox = pm_plugin->get_inbox(mp);
         BOOST_CHECK_EQUAL(alice_inbox.size(), 4);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         auto bob_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(bob_outbox.size(), 1);
 
-        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(message_box_query())});
         auto sam_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(sam_outbox.size(), 2);
 
@@ -936,15 +938,15 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(bob_alice_contact.size.total_inbox_messages, 0);
         BOOST_CHECK_EQUAL(bob_alice_contact.size.unread_inbox_messages, 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         alice_inbox = pm_plugin->get_inbox(mp);
         BOOST_CHECK_EQUAL(alice_inbox.size(), 4);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         bob_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(bob_outbox.size(), 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(message_box_query())});
         sam_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(sam_outbox.size(), 2);
 
@@ -990,15 +992,15 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(sam_alice_contact.size.total_inbox_messages, 0);
         BOOST_CHECK_EQUAL(sam_alice_contact.size.unread_inbox_messages, 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         alice_inbox = pm_plugin->get_inbox(mp);
         BOOST_CHECK_EQUAL(alice_inbox.size(), 4);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         bob_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(bob_outbox.size(), 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(message_box_query())});
         sam_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(sam_outbox.size(), 0);
 
@@ -1070,15 +1072,15 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(bob_contacts_size.size[pinned].total_contacts, 1);
         BOOST_CHECK_EQUAL(bob_contacts_size.size[ignored].total_contacts, 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(inbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant(message_box_query())});
         alice_inbox = pm_plugin->get_inbox(mp);
         BOOST_CHECK_EQUAL(alice_inbox.size(), 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         bob_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(bob_outbox.size(), 0);
 
-        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(outbox_query())});
+        mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(message_box_query())});
         sam_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(sam_outbox.size(), 0);
     }

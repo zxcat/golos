@@ -175,9 +175,9 @@ struct remote_market_history {
  * Class is used by wallet to send formatted API calls to market_history plugin on remote node.
  */
 struct remote_private_message {
-    vector <message_api_object> get_inbox(const std::string& to, const inbox_query&) const;
-    vector <message_api_object> get_outbox(const std::string& from, const outbox_query&) const;
-    vector <message_api_object> get_thread(const std::string& from, const std::string& to, const thread_query&) const;
+    vector <message_api_object> get_inbox(const std::string& to, const message_box_query&) const;
+    vector <message_api_object> get_outbox(const std::string& from, const message_box_query&) const;
+    vector <message_api_object> get_thread(const std::string& from, const std::string& to, const message_thread_query&) const;
     settings_api_object get_settings(const std::string& owner) const;
     contacts_size_api_object get_contacts_size(const std::string& owner) const;
     contact_api_object get_contact_info(const std::string& owner, const std::string& contact) const;

@@ -1054,7 +1054,7 @@ namespace golos { namespace wallet {
                     return it->second;
                 }
 
-                message_body try_decrypt_message(const message_api_object& mo) {
+                message_body try_decrypt_private_message(const message_api_object& mo) const {
                     message_body result;
 
                     fc::sha512 shared_secret;
@@ -1063,7 +1063,7 @@ namespace golos { namespace wallet {
                     auto pub_key = mo.to_memo_key;
                     if (it == _keys.end()) {
                         it = _keys.find(mo.to_memo_key);
-                        auto pub_key = mo.from_memo_key;
+                        pub_key = mo.from_memo_key;
                     }
                     if (it ==_keys.end()) {
                         wlog("unable to find keys");
@@ -1071,6 +1071,7 @@ namespace golos { namespace wallet {
                     }
                     auto priv_key = wif_to_key(it->second);
                     if (!priv_key) {
+                        wlog("empty private key");
                         return result;
                     }
                     shared_secret = priv_key->get_shared_secret(pub_key);
@@ -1093,6 +1094,18 @@ namespace golos { namespace wallet {
                         result = fc::json::from_string(msg_json).as<message_body>();
                     } catch (...) {
                         result.body = msg_json;
+                    }
+                    return result;
+                }
+
+                std::vector<extended_message_object> decrypt_private_messages(
+                    std::vector<message_api_object> remote_result
+                ) const {
+                    std::vector<extended_message_object> result;
+                    result.reserve(remote_result.size());
+                    for (const auto& item : remote_result) {
+                        result.emplace_back(item);
+                        result.back().message = try_decrypt_private_message(item);
                     }
                     return result;
                 }
@@ -2655,14 +2668,10 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->_remote_operation_history->get_transaction( id );
         }
 
-        vector<extended_message_object> wallet_api::get_private_inbox(
-            const std::string& to, const private_inbox_query& query_template
-        ) {
-            WALLET_CHECK_UNLOCKED();
-            std::vector<extended_message_object> result;
-            inbox_query query;
-            query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
-            query.select_from = query_template.select_from;
+        message_box_query get_message_box_query(const optional_private_box_query& query_template) {
+            message_box_query query;
+            query.newest_date = time_converter(query_template.newest_date, time_point::now(), time_point::now()).time();
+            query.select_accounts = query_template.select_accounts;
             if (query_template.unread_only) {
                 query.unread_only = *query_template.unread_only;
             }
@@ -2672,50 +2681,34 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             if (query_template.offset) {
                 query.offset = *query_template.offset;
             }
-            auto remote_result = my->_remote_private_message->get_inbox(to, query);
-            result.reserve(remote_result.size());
-            for (const auto& item : remote_result) {
-                result.emplace_back(item);
-                message_body tmp = my->try_decrypt_message(item);
-                result.back().message = std::move(tmp);
-            }
-            return result;
+            return query;
+        }
+
+        vector<extended_message_object> wallet_api::get_private_inbox(
+            const std::string& to, const optional_private_box_query& query
+        ) {
+            WALLET_CHECK_UNLOCKED();
+            return my->decrypt_private_messages(
+                my->_remote_private_message->get_inbox(
+                    to, get_message_box_query(query)));
         }
 
         vector<extended_message_object> wallet_api::get_private_outbox(
-            const std::string& from, const private_outbox_query& query_template
+            const std::string& from, const optional_private_box_query& query
         ) {
             WALLET_CHECK_UNLOCKED();
-            std::vector<extended_message_object> result;
-            outbox_query query;
-            query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
-            query.select_to = query_template.select_to;
-            if (query_template.unread_only) {
-                query.unread_only = *query_template.unread_only;
-            }
-            if (query_template.limit) {
-                query.limit = *query_template.limit;
-            }
-            if (query_template.offset) {
-                query.offset = *query_template.offset;
-            }
-            auto remote_result = my->_remote_private_message->get_outbox(from, query);
-            result.reserve(remote_result.size());
-            for (const auto& item : remote_result) {
-                result.emplace_back(item);
-                message_body tmp = my->try_decrypt_message(item);
-                result.back().message = std::move(tmp);
-            }
-            return result;
+            return my->decrypt_private_messages(
+                my->_remote_private_message->get_outbox(
+                     from, get_message_box_query(query)));
         }
 
         vector<extended_message_object> wallet_api::get_private_thread(
-            const std::string& from, const std::string& to, const private_thread_query& query_template
+            const std::string& from, const std::string& to, const optional_private_thread_query& query_template
         ) {
             WALLET_CHECK_UNLOCKED();
             std::vector<extended_message_object> result;
-            thread_query query;
-            query.start_date = time_converter(query_template.start_date, time_point::now(), time_point::now()).time();
+            message_thread_query query;
+            query.newest_date = time_converter(query_template.newest_date, time_point::now(), time_point::now()).time();
             if (query_template.unread_only) {
                 query.unread_only = *query_template.unread_only;
             }
@@ -2729,7 +2722,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             result.reserve(remote_result.size());
             for (const auto& item : remote_result) {
                 result.emplace_back(item);
-                message_body tmp = my->try_decrypt_message(item);
+                message_body tmp = my->try_decrypt_private_message(item);
                 result.back().message = std::move(tmp);
             }
             return result;
