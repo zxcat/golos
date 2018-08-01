@@ -13,7 +13,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     static inline bool is_valid_contact_type(private_contact_type type) {
         switch(type) {
-            case undefined:
+            case unknown:
             case pinned:
             case ignored:
                 return true;
@@ -151,7 +151,7 @@ namespace golos { namespace plugins { namespace private_message {
         if (json_metadata.size() > 0) {
             GOLOS_CHECK_PARAM(json_metadata, {
                 GOLOS_CHECK_VALUE(fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON");
-                GOLOS_CHECK_VALUE(type != undefined, "JSON Metadata can't be set for undefined contact");
+                GOLOS_CHECK_VALUE(type != unknown, "JSON Metadata can't be set for undefined contact");
             });
         }
     }

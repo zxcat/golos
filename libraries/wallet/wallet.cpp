@@ -2746,7 +2746,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             private_settings_operation op;
 
             op.owner = owner;
-            op.ignore_messages_from_undefined_contact = s.ignore_messages_from_undefined_contact;
+            op.ignore_messages_from_unknown_contact = s.ignore_messages_from_unknown_contact;
 
             private_message_plugin_operation pop = op;
 
@@ -2771,9 +2771,6 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             private_contact_type type, fc::optional<std::string> json_metadata, bool broadcast
         ) {
             WALLET_CHECK_UNLOCKED();
-            GOLOS_CHECK_PARAM(type,
-                GOLOS_CHECK_VALUE(type != golos::plugins::private_message::undefined || !json_metadata,
-                    "Undefined contact can't have a json_metadata"));
 
             private_contact_operation op;
 
@@ -2781,7 +2778,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.contact = contact;
             op.type = type;
 
-            if (type == golos::plugins::private_message::undefined) {
+            if (type == golos::plugins::private_message::unknown) {
                 // op.json_metadata.clear();
             } else if (!json_metadata) {
                 op.json_metadata = my->_remote_private_message->get_contact_info(owner, contact).json_metadata;

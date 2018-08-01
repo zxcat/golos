@@ -144,7 +144,7 @@ namespace golos { namespace plugins { namespace private_message {
         id_type id;
 
         account_name_type owner;
-        bool ignore_messages_from_undefined_contact = false;
+        bool ignore_messages_from_unknown_contact = false;
     };
 
     using settings_id_type = settings_object::id_type;

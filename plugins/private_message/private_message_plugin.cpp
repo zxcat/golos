@@ -243,14 +243,14 @@ namespace golos { namespace plugins { namespace private_message {
         contacts_size_api_object result;
 
         const auto& idx = db_.get_index<contact_size_index>().indices().get<by_owner>();
-        auto itr = idx.lower_bound(std::make_tuple(owner, undefined));
+        auto itr = idx.lower_bound(std::make_tuple(owner, unknown));
         auto etr = idx.upper_bound(std::make_tuple(owner, private_contact_type_size));
 
         for (; etr != itr; ++itr) {
             result.size[itr->type] = itr->size;
         }
 
-        for (uint8_t i = undefined; i < private_contact_type_size; ++i) {
+        for (uint8_t i = unknown; i < private_contact_type_size; ++i) {
             auto t = static_cast<private_contact_type>(i);
             if (!result.size.count(t)) {
                 result.size[t] = contacts_size_info();
@@ -298,9 +298,9 @@ namespace golos { namespace plugins { namespace private_message {
                 logic_errors::sender_in_ignore_list,
                 "Sender is in the ignore list of recipient");
             GOLOS_CHECK_LOGIC(
-                (cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_undefined_contact) ||
+                (cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_unknown_contact) ||
                 (contact_itr != contact_idx.end() && contact_itr->type == pinned),
-                logic_errors::recepient_ignores_messages_from_undefined_contact,
+                logic_errors::recepient_ignores_messages_from_unknown_contact,
                 "Recipient accepts messages only from his contact list");
         });
 
@@ -403,7 +403,7 @@ namespace golos { namespace plugins { namespace private_message {
         };
 
         modify_contact(pm.from, pm.to, pinned, true);
-        modify_contact(pm.to, pm.from, undefined, false);
+        modify_contact(pm.to, pm.from, unknown, false);
     }
 
     template <typename Direction, typename Operation, typename Action, typename... Args>
@@ -542,7 +542,7 @@ namespace golos { namespace plugins { namespace private_message {
             },
             /* contact_action */
             [&](const contact_object& co, const contact_size_object& so, const contact_size_info& size) -> bool {
-                if (co.size != size || co.type != undefined) {
+                if (co.size != size || co.type != unknown) {
                     return false;
                 }
                 d.remove(co);
@@ -606,7 +606,7 @@ namespace golos { namespace plugins { namespace private_message {
 
         auto set_settings = [&](settings_object& pso) {
             pso.owner = ps.owner;
-            pso.ignore_messages_from_undefined_contact = ps.ignore_messages_from_undefined_contact;
+            pso.ignore_messages_from_unknown_contact = ps.ignore_messages_from_unknown_contact;
         };
 
         if (idx.end() != itr) {
@@ -630,9 +630,9 @@ namespace golos { namespace plugins { namespace private_message {
             d.get_account(pc.contact);
 
             if (d.is_producing()) {
-                GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr || pc.type != undefined,
-                    logic_errors::add_undefined_contact,
-                    "Can't add undefined contact");
+                GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr || pc.type != unknown,
+                    logic_errors::add_unknown_contact,
+                    "Can't add unknown contact");
 
                 std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
                 GOLOS_CHECK_LOGIC(contact_itr->type != pc.type || pc.json_metadata != json_metadata,
@@ -657,8 +657,8 @@ namespace golos { namespace plugins { namespace private_message {
                     });
                 }
 
-                // has messages or type is not undefined
-                if (!contact_itr->size.empty() || pc.type != undefined) {
+                // has messages or type is not unknown
+                if (!contact_itr->size.empty() || pc.type != unknown) {
                     auto modify_counters = [&](auto& dst) {
                         dst.size.total_contacts++;
                         dst.size += contact_itr->size;
@@ -676,8 +676,8 @@ namespace golos { namespace plugins { namespace private_message {
                 }
             }
 
-            // contact is undefined and no messages
-            if (pc.type == undefined && contact_itr->size.empty()) {
+            // contact is unknown and no messages
+            if (pc.type == unknown && contact_itr->size.empty()) {
                 d.remove(*contact_itr);
             } else {
                 d.modify(*contact_itr, [&](auto& plo) {
@@ -685,7 +685,7 @@ namespace golos { namespace plugins { namespace private_message {
                     from_string(plo.json_metadata, pc.json_metadata);
                 });
             }
-        } else if (pc.type != undefined) {
+        } else if (pc.type != unknown) {
             d.create<contact_object>([&](auto& plo){
                 plo.owner = pc.owner;
                 plo.contact = pc.contact;

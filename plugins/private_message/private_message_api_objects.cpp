@@ -21,7 +21,7 @@ namespace golos { namespace plugins { namespace private_message {
 
 
     settings_api_object::settings_api_object(const settings_object& o)
-        : ignore_messages_from_undefined_contact(o.ignore_messages_from_undefined_contact) {
+        : ignore_messages_from_unknown_contact(o.ignore_messages_from_unknown_contact) {
     }
 
     settings_api_object::settings_api_object() = default;

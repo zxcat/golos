@@ -36,7 +36,7 @@ namespace golos { namespace plugins { namespace private_message {
         settings_api_object(const settings_object& o);
         settings_api_object();
 
-        bool ignore_messages_from_undefined_contact = false;
+        bool ignore_messages_from_unknown_contact = false;
     };
 
     struct contact_size_info {
@@ -94,8 +94,8 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type owner;
         account_name_type contact;
         std::string json_metadata;
-        private_contact_type local_type = undefined;
-        private_contact_type remote_type = undefined;
+        private_contact_type local_type = unknown;
+        private_contact_type remote_type = unknown;
         contact_size_info size;
     };
 
@@ -149,7 +149,7 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::settings_api_object),
-    (ignore_messages_from_undefined_contact))
+    (ignore_messages_from_unknown_contact))
 
 FC_REFLECT(
     (golos::plugins::private_message::contact_size_info),

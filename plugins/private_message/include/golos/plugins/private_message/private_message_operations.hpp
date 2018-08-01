@@ -45,7 +45,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     struct private_settings_operation: public base_operation {
         account_name_type owner;
-        bool ignore_messages_from_undefined_contact = false;
+        bool ignore_messages_from_unknown_contact = false;
 
         void validate() const;
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
@@ -55,7 +55,7 @@ namespace golos { namespace plugins { namespace private_message {
      * Types of contacts
      */
     enum private_contact_type: uint8_t {
-        undefined = 1,
+        unknown = 1,
         pinned = 2,
         ignored = 3,
     };
@@ -95,11 +95,11 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::private_settings_operation),
-    (owner)(ignore_messages_from_undefined_contact))
+    (owner)(ignore_messages_from_unknown_contact))
 
 FC_REFLECT_ENUM(
     golos::plugins::private_message::private_contact_type,
-    (undefined)(pinned)(ignored))
+    (unknown)(pinned)(ignored))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_contact_operation),
