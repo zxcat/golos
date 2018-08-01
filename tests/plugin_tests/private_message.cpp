@@ -883,9 +883,17 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         auto alice_inbox = pm_plugin->get_inbox(mp);
         BOOST_CHECK_EQUAL(alice_inbox.size(), 4);
 
+        mp.args = std::vector<fc::variant>({fc::variant("alice"), fc::variant("bob"), fc::variant(message_thread_query())});
+        auto alice_bob_thread = pm_plugin->get_thread(mp);
+        BOOST_CHECK_EQUAL(alice_bob_thread.size(), 2);
+
         mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant(message_box_query())});
         auto bob_outbox = pm_plugin->get_outbox(mp);
         BOOST_CHECK_EQUAL(bob_outbox.size(), 1);
+
+        mp.args = std::vector<fc::variant>({fc::variant("bob"), fc::variant("alice"), fc::variant(message_thread_query())});
+        auto bob_alice_thread = pm_plugin->get_thread(mp);
+        BOOST_CHECK_EQUAL(bob_alice_thread.size(), 1);
 
         mp.args = std::vector<fc::variant>({fc::variant("sam"), fc::variant(message_box_query())});
         auto sam_outbox = pm_plugin->get_outbox(mp);
