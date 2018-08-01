@@ -17,6 +17,12 @@ namespace golos {
                         "You cannot reblog your own content");
             }
 
+            void delete_reblog_operation::validate() const {
+                GOLOS_CHECK_LOGIC(account != author, 
+                        logic_errors::cannot_delete_reblog_of_own_content,
+                        "You cannot delete reblog of your own content");
+            }
+
         }
     }
 } //golos::follow

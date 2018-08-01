@@ -13,9 +13,11 @@ namespace golos { namespace plugins { namespace follow {
         enum error_type {
             cannot_follow_yourself,
             cannot_reblog_own_content,
+            cannot_delete_reblog_of_own_content,
             cannot_follow_and_ignore_simultaneously,
             only_top_level_posts_reblogged,
             account_already_reblogged_this_post,
+            account_has_not_reblogged_this_post,
         };
     };
 
@@ -41,14 +43,14 @@ namespace golos { namespace plugins { namespace follow {
     class plugin final : public appbase::plugin<plugin> {
     public:
 
-        constexpr static const char *plugin_name = "follow";
+        constexpr static const char* plugin_name = "follow";
 
         APPBASE_PLUGIN_REQUIRES(
                 (chain::plugin)
                 (json_rpc::plugin)
         )
 
-        static const std::string &name() {
+        static const std::string& name() {
             static std::string name = plugin_name;
             return name;
         }
@@ -70,10 +72,10 @@ namespace golos { namespace plugins { namespace follow {
 
         plugin();
 
-        void set_program_options(boost::program_options::options_description &cli,
-                                 boost::program_options::options_description &cfg) override;
+        void set_program_options(boost::program_options::options_description& cli,
+                                 boost::program_options::options_description& cfg) override;
 
-        void plugin_initialize(const boost::program_options::variables_map &options) override;
+        void plugin_initialize(const boost::program_options::variables_map& options) override;
 
         uint32_t max_feed_size();
 
@@ -93,7 +95,9 @@ namespace golos { namespace plugins { namespace follow {
 FC_REFLECT_ENUM(golos::plugins::follow::logic_errors::error_type,
         (cannot_follow_yourself)
         (cannot_reblog_own_content)
+        (cannot_delete_reblog_of_own_content)
         (cannot_follow_and_ignore_simultaneously)
         (only_top_level_posts_reblogged)
         (account_already_reblogged_this_post)
+        (account_has_not_reblogged_this_post)
 );
