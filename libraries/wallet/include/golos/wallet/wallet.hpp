@@ -1237,7 +1237,7 @@ namespace golos { namespace wallet {
                 const message_body& message, bool broadcast);
 
             /**
-             * Delete encrypted private message
+             * Delete encrypted private message from inbox
              *
              * @param from account from which you send message
              * @param to account to which you send message
@@ -1245,11 +1245,11 @@ namespace golos { namespace wallet {
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
-            annotated_signed_transaction delete_private_message(
+            annotated_signed_transaction delete_inbox_private_message(
                 const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
 
             /**
-             * Delete encrypted private messages by date range
+             * Delete encrypted private messages from inbox by date range
              *
              * @param from account from which you send message
              * @param to account to which you send message
@@ -1258,7 +1258,33 @@ namespace golos { namespace wallet {
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
-            annotated_signed_transaction delete_private_messages(
+            annotated_signed_transaction delete_inbox_private_messages(
+                const std::string& from, const std::string& to,
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
+
+            /**
+             * Delete encrypted private message from outbox
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_outbox_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
+
+            /**
+             * Delete encrypted private messages from outbox by date range
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_outbox_private_messages(
                 const std::string& from, const std::string& to,
                 const std::string& start_date, const std::string& stop_date, bool broadcast);
 
@@ -1413,8 +1439,10 @@ FC_API( golos::wallet::wallet_api,
                 (add_private_contact)
                 (send_private_message)
                 (edit_private_message)
-                (delete_private_message)
-                (delete_private_messages)
+                (delete_inbox_private_message)
+                (delete_inbox_private_messages)
+                (delete_outbox_private_message)
+                (delete_outbox_private_messages)
                 (mark_private_message)
                 (mark_private_messages)
 )
