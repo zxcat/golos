@@ -35,6 +35,7 @@ file(GLOB PLUGIN_TESTS
     "plugin_tests/market_history.cpp"
     "plugin_tests/plugin_ops.cpp"
     "plugin_tests/json_rpc.cpp"
+    "plugin_tests/chain.cpp"
     "plugin_tests/operation_history.cpp"
     "plugin_tests/account_history.cpp"
     "plugin_tests/follow.cpp")

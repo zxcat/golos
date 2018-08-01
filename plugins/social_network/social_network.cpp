@@ -155,7 +155,7 @@ namespace golos { namespace plugins { namespace social_network {
     const comment_content_object* social_network::impl::find_comment_content(const comment_id_type& comment) const {
         return db.find<comment_content_object, by_comment>(comment);
     }
-     
+
     const comment_content_object* social_network::find_comment_content(const comment_id_type& comment) const {
         return pimpl->find_comment_content(comment);
     }
@@ -337,7 +337,7 @@ namespace golos { namespace plugins { namespace social_network {
                 }
             }
         }
-        
+
     };
 
     void social_network::impl::pre_operation(const operation_notification& o) { try {

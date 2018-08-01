@@ -344,13 +344,6 @@ namespace golos { namespace chain {
             _block_num_check_free_memory = value;
         }
 
-        void database::set_clear_votes(uint32_t clear_votes_block) {
-            _clear_votes_block = clear_votes_block;
-        }
-
-        bool database::clear_votes() {
-            return _clear_votes_block > head_block_num();
-        }
 
         void database::set_store_account_metadata(store_metadata_modes store_account_metadata) {
             _store_account_metadata = store_account_metadata;
@@ -2339,9 +2332,7 @@ namespace golos { namespace chain {
 
                         author_tokens -= total_beneficiary;
 
-                        auto sbd_steem = (author_tokens *
-                                          comment.percent_steem_dollars) /
-                                         (2 * STEEMIT_100_PERCENT);
+                        auto sbd_steem = (author_tokens * comment.percent_steem_dollars) / (2 * STEEMIT_100_PERCENT);
                         auto vesting_steem = author_tokens - sbd_steem;
 
                         const auto &author = get_account(comment.author);
@@ -2376,7 +2367,6 @@ namespace golos { namespace chain {
                             a.posting_rewards += author_tokens;
                         });
 #endif
-
                     }
 
                     fc::uint128_t old_rshares2 = calculate_vshares(comment.net_rshares.value);
@@ -2400,15 +2390,14 @@ namespace golos { namespace chain {
                     if (has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                         c.cashout_time = fc::time_point_sec::maximum();
                     } else if (c.parent_author == STEEMIT_ROOT_POST_PARENT) {
-                        if (has_hardfork(STEEMIT_HARDFORK_0_12__177) && c.last_payout == fc::time_point_sec::min()) {
+                        if (c.last_payout == fc::time_point_sec::min()) {
                             c.cashout_time = head_block_time() + STEEMIT_SECOND_CASHOUT_WINDOW;
                         } else {
                             c.cashout_time = fc::time_point_sec::maximum();
                         }
                     }
 
-                    if (calculate_discussion_payout_time(c) ==
-                        fc::time_point_sec::maximum()) {
+                    if (calculate_discussion_payout_time(c) == fc::time_point_sec::maximum()) {
                         c.mode = archived;
                     } else {
                         c.mode = second_payout;
@@ -2419,22 +2408,15 @@ namespace golos { namespace chain {
 
                 push_virtual_operation(comment_payout_update_operation(comment.author, to_string(comment.permlink)));
 
-                const auto &vote_idx = get_index<comment_vote_index>().indices().get<by_comment_voter>();
-                auto vote_itr = vote_idx.lower_bound(comment.id);
-                while (vote_itr != vote_idx.end() &&
-                       vote_itr->comment == comment.id) {
-                    const auto &cur_vote = *vote_itr;
-                    ++vote_itr;
-                    if (!has_hardfork(STEEMIT_HARDFORK_0_12__177) ||
-                        calculate_discussion_payout_time(comment) !=
-                        fc::time_point_sec::maximum()) {
-                        modify(cur_vote, [&](comment_vote_object &cvo) {
-                            cvo.num_changes = -1;
+                if (comment.mode == archived) {
+                    const auto& vote_idx = get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                    auto vote_itr = vote_idx.lower_bound(comment.id);
+                    while (vote_itr != vote_idx.end() && vote_itr->comment == comment.id) {
+                        const auto& cur_vote = *vote_itr;
+                        ++vote_itr;
+                        modify(cur_vote, [&](comment_vote_object& cvo) {
+                            cvo.num_changes = -1;       // mark vote that it's ready to be removed (archived comment)
                         });
-                    } else {
-                        if(clear_votes()) {
-                            remove(cur_vote);
-                        }
                     }
                 }
             } FC_CAPTURE_AND_RETHROW()

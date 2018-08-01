@@ -1,28 +1,26 @@
-#include <golos/chain/database_exceptions.hpp>
-#include <golos/chain/database.hpp>
 #include <golos/plugins/chain/plugin.hpp>
+#include <golos/chain/database_exceptions.hpp>
+#include <golos/chain/comment_object.hpp>
+#include <golos/protocol/protocol.hpp>
+#include <golos/protocol/types.hpp>
 
 #include <fc/io/json.hpp>
 #include <fc/string.hpp>
 
 #include <iostream>
-#include <golos/protocol/protocol.hpp>
-#include <golos/protocol/types.hpp>
 #include <future>
 
-namespace golos {
-namespace plugins {
-namespace chain {
+namespace golos { namespace plugins { namespace chain {
 
     namespace bfs = boost::filesystem;
+    namespace bpo = boost::program_options;
     using fc::flat_map;
     using protocol::block_id_type;
 
-    class plugin::plugin_impl {
+    class plugin::impl final {
     public:
-
         uint64_t shared_memory_size = 0;
-        boost::filesystem::path shared_memory_dir;
+        bfs::path shared_memory_dir;
         bool replay = false;
         bool replay_if_corrupted = true;
         bool force_replay = false;
@@ -31,7 +29,7 @@ namespace chain {
         bool check_locks = false;
         bool validate_invariants = false;
         uint32_t flush_interval = 0;
-        flat_map<uint32_t, protocol::block_id_type> loaded_checkpoints;
+        flat_map<uint32_t, block_id_type> loaded_checkpoints;
 
         uint32_t allow_future_time = 5;
 
@@ -45,6 +43,7 @@ namespace chain {
         size_t min_free_shared_memory_size;
 
         uint32_t clear_votes_before_block = 0;
+        uint32_t clear_votes_older_n_blocks = 0xFFFFFFFF;
         bool enable_plugins_on_push_transaction;
 
         uint32_t block_num_check_free_size = 0;
@@ -55,13 +54,11 @@ namespace chain {
 
         bool single_write_thread = false;
 
-        golos::chain::database::store_metadata_modes store_account_metadata; 
-
+        golos::chain::database::store_metadata_modes store_account_metadata;
         std::vector<std::string> accounts_to_store_metadata;
-
         bool store_memo_in_savings_withdraws = true;
 
-        plugin_impl() {
+        impl() {
             // get default settings
             read_wait_micro = db.read_wait_micro();
             max_read_wait_retries = db.max_read_wait_retries();
@@ -71,28 +68,36 @@ namespace chain {
         }
 
         // HELPERS
-        golos::chain::database &database() {
-            return db;
-        }
-
         boost::asio::io_service& io_service() {
             return appbase::app().get_io_service();
         }
 
-        constexpr const static char *plugin_name = "chain_api";
-        static const std::string &name() {
-            static std::string name = plugin_name;
-            return name;
-        }
+        void check_time_in_block(const protocol::signed_block& block);
+        bool accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip);
+        void accept_transaction(const protocol::signed_transaction& trx);
+        void wipe_db(const bfs::path& data_dir, bool wipe_block_log);
+        void replay_db(const bfs::path& data_dir, bool force_replay);
 
-        void check_time_in_block(const protocol::signed_block &block);
-        bool accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip);
-        void accept_transaction(const protocol::signed_transaction &trx);
-        void wipe_db(const bfs::path &data_dir, bool wipe_block_log);
-        void replay_db(const bfs::path &data_dir, bool force_replay);
+        void on_block (const protocol::signed_block& b);
     };
 
-    void plugin::plugin_impl::check_time_in_block(const protocol::signed_block &block) {
+
+    void plugin::impl::on_block(const protocol::signed_block& b) {
+        auto n = b.block_num();
+        bool del_any = n < clear_votes_before_block;
+        const auto now = db.head_block_time();    // don't make one constant from now and ttl because of overflow
+        const auto ttl = uint64_t(clear_votes_older_n_blocks) * STEEMIT_BLOCK_INTERVAL;
+
+        const auto& idx = db.get_index<golos::chain::comment_vote_index>().indices().get<golos::chain::by_vote_last_update>();
+        auto itr = idx.begin();
+        while (itr != idx.end() && itr->num_changes == -1 && (del_any || now - itr->last_update > fc::seconds(ttl))) {
+            const auto& vote = *itr;
+            ++itr;
+            db.remove(vote);
+        }
+    }
+
+    void plugin::impl::check_time_in_block(const protocol::signed_block& block) {
         time_point_sec now = fc::time_point::now();
 
         uint64_t max_accept_time = now.sec_since_epoch();
@@ -103,10 +108,10 @@ namespace chain {
                 ("max_accept_time", max_accept_time));
     }
 
-    bool plugin::plugin_impl::accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip) {
+    bool plugin::impl::accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip) {
         if (currently_syncing && block.block_num() % 10000 == 0) {
             ilog("Syncing Blockchain --- Got block: #${n} time: ${t} producer: ${p}",
-                 ("t", block.timestamp)("n", block.block_num())("p", block.witness));
+                ("t", block.timestamp)("n", block.block_num())("p", block.witness));
         }
 
         check_time_in_block(block);
@@ -120,7 +125,7 @@ namespace chain {
             io_service().post([&]{
                 try {
                     promise.set_value(db.push_block(block, skip));
-                } catch(...) {
+                } catch (...) {
                     promise.set_exception(std::current_exception());
                 }
             });
@@ -130,7 +135,7 @@ namespace chain {
         }
     }
 
-    void plugin::plugin_impl::wipe_db(const bfs::path &data_dir, bool wipe_block_log) {
+    void plugin::impl::wipe_db(const bfs::path& data_dir, bool wipe_block_log) {
         if (wipe_block_log) {
             ilog("Wiping blockchain with block log.");
         } else {
@@ -138,10 +143,10 @@ namespace chain {
         }
 
         db.wipe(data_dir, shared_memory_dir, wipe_block_log);
-        db.open(data_dir, shared_memory_dir, STEEMIT_INIT_SUPPLY, shared_memory_size, chainbase::database::read_write/*, validate_invariants*/ );
+        db.open(data_dir, shared_memory_dir, STEEMIT_INIT_SUPPLY, shared_memory_size, chainbase::database::read_write/*, validate_invariants*/);
     };
 
-    void plugin::plugin_impl::replay_db(const bfs::path &data_dir, bool force_replay) {
+    void plugin::impl::replay_db(const bfs::path& data_dir, bool force_replay) {
         auto head_block_log = db.get_block_log().head();
         force_replay |= head_block_log && db.revision() >= head_block_log->block_num();
 
@@ -155,7 +160,7 @@ namespace chain {
         db.reindex(data_dir, shared_memory_dir, from_block_num, shared_memory_size);
     };
 
-    void plugin::plugin_impl::accept_transaction(const protocol::signed_transaction &trx) {
+    void plugin::impl::accept_transaction(const protocol::signed_transaction& trx) {
         uint32_t skip = db.validate_transaction(trx, db.skip_apply_transaction);
 
         if (single_write_thread) {
@@ -166,7 +171,7 @@ namespace chain {
                 try {
                     db.push_transaction(trx, skip);
                     promise.set_value(true);
-                } catch(...) {
+                } catch (...) {
                     promise.set_exception(std::current_exception());
                 }
             });
@@ -182,99 +187,106 @@ namespace chain {
     plugin::~plugin() {
     }
 
-    golos::chain::database &plugin::db() {
+    golos::chain::database& plugin::db() {
         return my->db;
     }
 
-    const golos::chain::database &plugin::db() const {
+    const golos::chain::database& plugin::db() const {
         return my->db;
     }
 
-    void plugin::set_program_options(boost::program_options::options_description &cli,
-                                     boost::program_options::options_description &cfg) {
+    void plugin::set_program_options(bpo::options_description& cli, bpo::options_description& cfg) {
         cfg.add_options()
             (
-                "shared-file-dir", boost::program_options::value<boost::filesystem::path>()->default_value("blockchain"),
+                "shared-file-dir", bpo::value<bfs::path>()->default_value("blockchain"),
                 "the location of the chain shared memory files (absolute path or relative to application data dir)"
             ) (
-                "shared-file-size", boost::program_options::value<std::string>()->default_value("2G"),
+                "shared-file-size", bpo::value<std::string>()->default_value("2G"),
                 "Start size of the shared memory file. Default: 2G"
             ) (
-                "inc-shared-file-size", boost::program_options::value<std::string>()->default_value("2G"),
+                "inc-shared-file-size", bpo::value<std::string>()->default_value("2G"),
                 "Increasing size on reaching limit of free space in shared memory file (see min-free-shared-file-size). Default: 2G"
             ) (
-                "min-free-shared-file-size", boost::program_options::value<std::string>()->default_value("500M"),
+                "min-free-shared-file-size", bpo::value<std::string>()->default_value("500M"),
                 "Minimum free space in shared memory file (see inc-shared-file-size). Default: 500M"
             ) (
-                "block-num-check-free-size", boost::program_options::value<uint32_t>()->default_value(1000),
+                "block-num-check-free-size", bpo::value<uint32_t>()->default_value(1000),
                 "Check free space in shared memory each N blocks. Default: 1000 (each 3000 seconds)."
             ) (
-                "checkpoint", boost::program_options::value<std::vector<std::string>>()->composing(),
+                "checkpoint", bpo::value<std::vector<std::string>>()->composing(),
                 "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints."
             ) (
-                "flush-state-interval", boost::program_options::value<uint32_t>(),
+                "flush-state-interval", bpo::value<uint32_t>(),
                 "flush shared memory changes to disk every N blocks"
             ) (
-                "read-wait-micro", boost::program_options::value<uint64_t>(),
+                "read-wait-micro", bpo::value<uint64_t>(),
                 "maximum microseconds for trying to get read lock"
             ) (
-                "max-read-wait-retries", boost::program_options::value<uint32_t>(),
+                "max-read-wait-retries", bpo::value<uint32_t>(),
                 "maximum number of retries to get read lock"
             ) (
-                "write-wait-micro", boost::program_options::value<uint64_t>(),
+                "write-wait-micro", bpo::value<uint64_t>(),
                 "maximum microseconds for trying to get write lock"
             ) (
-                "max-write-wait-retries", boost::program_options::value<uint32_t>(),
+                "max-write-wait-retries", bpo::value<uint32_t>(),
                 "maximum number of retries to get write lock"
             ) (
-                "single-write-thread", boost::program_options::value<bool>()->default_value(false),
+                "single-write-thread", bpo::value<bool>()->default_value(false),
                 "push blocks and transactions from one thread"
             ) (
-                "clear-votes-before-block", boost::program_options::value<uint32_t>()->default_value(0),
+                "clear-votes-before-block", bpo::value<uint32_t>()->default_value(0),
                 "remove votes before defined block, should speedup initial synchronization"
             ) (
-                "skip-virtual-ops", boost::program_options::value<bool>()->default_value(false),
+                "clear-votes-older-n-blocks", bpo::value<uint32_t>()->default_value(0xFFFFFFFF),
+                "if set, remove votes older than specified number of blocks. "
+                "-1 = do not remove; 0 = remove after cashout; any other value N - remove votes older than N blocks. "
+                "note: votes don't removed before post cashout"
+            ) (
+                "skip-virtual-ops", bpo::value<bool>()->default_value(false),
                 "virtual operations will not be passed to the plugins, helps to save some memory"
             ) (
-                "enable-plugins-on-push-transaction", boost::program_options::value<bool>()->default_value(true),
+                "enable-plugins-on-push-transaction", bpo::value<bool>()->default_value(true),
                 "enable calling of plugins for operations on push_transaction"
             ) (
-                "replay-if-corrupted", boost::program_options::bool_switch()->default_value(true),
+                "replay-if-corrupted", bpo::bool_switch()->default_value(true),
                 "replay all blocks if shared memory is corrupted"
             ) (
-                "store-account-metadata", boost::program_options::value<bool>(),
+                "store-account-metadata", bpo::value<bool>(),
                 "store account metadata for all accounts if true, for no one if else, otherwise for specified in store-account-metadata-list"
             ) (
-                "store-account-metadata-list", boost::program_options::value<std::string>(),
+                "store-account-metadata-list", bpo::value<std::string>(),
                 "names of accounts to store metadata"
             ) (
-                "store-memo-in-savings-withdraws", boost::program_options::bool_switch()->default_value(true),
+                "store-memo-in-savings-withdraws", bpo::bool_switch()->default_value(true),
                 "store memo for all savings withdraws"
             );
         cli.add_options()
             (
-                "replay-blockchain", boost::program_options::bool_switch()->default_value(false),
+                "replay-blockchain", bpo::bool_switch()->default_value(false),
                 "clear chain database and replay all blocks"
             ) (
-                "force-replay-blockchain", boost::program_options::bool_switch()->default_value(false),
+                "force-replay-blockchain", bpo::bool_switch()->default_value(false),
                 "force clear chain database and replay all blocks"
             ) (
-                "resync-blockchain", boost::program_options::bool_switch()->default_value(false),
+                "resync-blockchain", bpo::bool_switch()->default_value(false),
                 "clear chain database and block log"
             ) (
-                "check-locks", boost::program_options::bool_switch()->default_value(false),
+                "check-locks", bpo::bool_switch()->default_value(false),
                 "Check correctness of chainbase locking"
             ) (
-                "validate-database-invariants", boost::program_options::bool_switch()->default_value(false),
+                "validate-database-invariants", bpo::bool_switch()->default_value(false),
                 "Validate all supply invariants check out"
             );
     }
 
-    void plugin::plugin_initialize(const boost::program_options::variables_map &options) {
+    void plugin::plugin_initialize(const bpo::variables_map& options) {
+        my.reset(new impl());
 
-        my.reset(new plugin_impl());
+        my->db.applied_block.connect([&](const protocol::signed_block& b) {
+            my->on_block(b);
+        });
 
-        auto sfd = options.at("shared-file-dir").as<boost::filesystem::path>();
+        auto sfd = options.at("shared-file-dir").as<bfs::path>();
         if (sfd.is_relative()) {
             my->shared_memory_dir = appbase::app().data_dir() / sfd;
         } else {
@@ -305,6 +317,7 @@ namespace chain {
         my->inc_shared_memory_size = fc::parse_size(options.at("inc-shared-file-size").as<std::string>());
         my->min_free_shared_memory_size = fc::parse_size(options.at("min-free-shared-file-size").as<std::string>());
         my->clear_votes_before_block = options.at("clear-votes-before-block").as<uint32_t>();
+        my->clear_votes_older_n_blocks = options.at("clear-votes-older-n-blocks").as<uint32_t>();
         my->skip_virtual_ops = options.at("skip-virtual-ops").as<bool>();
 
         if (options.count("block-num-check-free-size")) {
@@ -326,7 +339,7 @@ namespace chain {
         if (options.count("checkpoint")) {
             auto cps = options.at("checkpoint").as<std::vector<std::string>>();
             my->loaded_checkpoints.reserve(cps.size());
-            for (const auto &cp : cps) {
+            for (const auto& cp : cps) {
                 auto item = fc::json::from_string(cp).as<std::pair<uint32_t, protocol::block_id_type>>();
                 my->loaded_checkpoints[item.first] = item.second;
             }
@@ -376,7 +389,6 @@ namespace chain {
         my->db.set_inc_shared_memory_size(my->inc_shared_memory_size);
         my->db.set_min_free_shared_memory_size(my->min_free_shared_memory_size);
 
-        my->db.set_clear_votes(my->clear_votes_before_block);
 
         my->db.set_store_account_metadata(my->store_account_metadata);
 
@@ -384,7 +396,7 @@ namespace chain {
 
         my->db.set_store_memo_in_savings_withdraws(my->store_memo_in_savings_withdraws);
 
-        if(my->skip_virtual_ops) {
+        if (my->skip_virtual_ops) {
             my->db.set_skip_virtual_ops();
         }
 
@@ -396,20 +408,20 @@ namespace chain {
 
         try {
             ilog("Opening shared memory from ${path}", ("path", my->shared_memory_dir.generic_string()));
-            my->db.open(data_dir, my->shared_memory_dir, STEEMIT_INIT_SUPPLY, my->shared_memory_size, chainbase::database::read_write/*, my->validate_invariants*/ );
+            my->db.open(data_dir, my->shared_memory_dir, STEEMIT_INIT_SUPPLY, my->shared_memory_size, chainbase::database::read_write/*, my->validate_invariants*/);
             auto head_block_log = my->db.get_block_log().head();
             my->replay |= head_block_log && my->db.revision() != head_block_log->block_num();
 
             if (my->replay) {
                 my->replay_db(data_dir, my->force_replay);
             }
-        } catch (const golos::chain::database_revision_exception &) {
+        } catch (const golos::chain::database_revision_exception&) {
             if (my->replay_if_corrupted) {
                 wlog("Error opening database, attempting to replay blockchain.");
                 my->force_replay |= my->db.revision() >= my->db.head_block_num();
                 try {
                     my->replay_db(data_dir, my->force_replay);
-                } catch (const golos::chain::block_log_exception &) {
+                } catch (const golos::chain::block_log_exception&) {
                     wlog("Error opening block log. Having to resync from network...");
                     my->wipe_db(data_dir, true);
                 }
@@ -423,7 +435,7 @@ namespace chain {
                 wlog("Error opening database, attempting to replay blockchain.");
                 try {
                     my->replay_db(data_dir, true);
-                } catch (const golos::chain::block_log_exception &) {
+                } catch (const golos::chain::block_log_exception&) {
                     wlog("Error opening block log. Having to resync from network...");
                     my->wipe_db(data_dir, true);
                 }
@@ -444,15 +456,15 @@ namespace chain {
         ilog("database closed successfully");
     }
 
-    bool plugin::accept_block(const protocol::signed_block &block, bool currently_syncing, uint32_t skip) {
+    bool plugin::accept_block(const protocol::signed_block& block, bool currently_syncing, uint32_t skip) {
         return my->accept_block(block, currently_syncing, skip);
     }
 
-    void plugin::accept_transaction(const protocol::signed_transaction &trx) {
+    void plugin::accept_transaction(const protocol::signed_transaction& trx) {
         my->accept_transaction(trx);
     }
 
-    bool plugin::block_is_on_preferred_chain(const protocol::block_id_type &block_id) {
+    bool plugin::block_is_on_preferred_chain(const protocol::block_id_type& block_id) {
         // If it's not known, it's not preferred.
         if (!db().is_known_block(block_id)) {
             return false;
@@ -463,10 +475,8 @@ namespace chain {
         return db().get_block_id_for_num(protocol::block_header::num_from_id(block_id)) == block_id;
     }
 
-    void plugin::check_time_in_block(const protocol::signed_block &block) {
+    void plugin::check_time_in_block(const protocol::signed_block& block) {
         my->check_time_in_block(block);
     }
 
-}
-}
-} // namespace steem::plugis::chain::chain_apis
+} } } // golos::plugins::chain

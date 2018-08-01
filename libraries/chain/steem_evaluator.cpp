@@ -142,7 +142,7 @@ namespace golos { namespace chain {
                     case '-':
                         break;
                     default:
-                        FC_THROW_EXCEPTION(invalid_value, "Invalid permlink character: ${s}", 
+                        FC_THROW_EXCEPTION(invalid_value, "Invalid permlink character: ${s}",
                                 ("s", std::string() + c));
                 }
             }
@@ -572,17 +572,9 @@ namespace golos { namespace chain {
 
                 if (itr == by_permlink_idx.end()) {
                     if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
-                        GOLOS_CHECK_LOGIC(_db.get(parent->root_comment).allow_replies, 
+                        GOLOS_CHECK_LOGIC(_db.get(parent->root_comment).allow_replies,
                                 logic_exception::replies_are_not_allowed,
                                 "The parent comment has disabled replies.");
-
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) && !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536) ) {
-                            GOLOS_CHECK_LOGIC(
-                                    _db.calculate_discussion_payout_time(*parent) !=
-                                    fc::time_point_sec::maximum(), 
-                                    logic_exception::discussion_is_frozen,
-                                    "Discussion is frozen.");
-                        }
                     }
 
                     auto band = _db.find<account_bandwidth_object, by_account_bandwidth_type>(std::make_tuple(o.author, bandwidth_type::post));
@@ -697,22 +689,10 @@ namespace golos { namespace chain {
                         }
                     }
 
-                } else // start edit case
-                {
-                    const auto &comment = *itr;
-                    if ( !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536 ) ) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__306)) {
-                            GOLOS_CHECK_LOGIC(_db.calculate_discussion_payout_time(comment) != fc::time_point_sec::maximum(),
-                                    logic_exception::comment_is_archived,
-                                    "The comment is archived.");
-                        } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
-                            GOLOS_CHECK_LOGIC(comment.last_payout == fc::time_point_sec::min(),
-                                    logic_exception::comment_editable_during_first_24_hours,
-                                    "Can only edit during the first 24 hours.");
-                        }
-                    }
-
-                    _db.modify(comment, [&](comment_object &com) {
+                } else {
+                    // start edit case
+                    const auto& comment = *itr;
+                    _db.modify(comment, [&](comment_object& com) {
                         strcmp_equal equal;
 
                         GOLOS_CHECK_LOGIC(com.parent_author == (parent ? o.parent_author : account_name_type()),
@@ -970,7 +950,7 @@ namespace golos { namespace chain {
             if (o.vesting_shares.amount == 0) {
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                    GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate.amount != 0, 
+                    GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate.amount != 0,
                             logic_exception::operation_would_not_change_vesting_withdraw_rate,
                             "This operation would not change the vesting withdraw rate.");
 
@@ -996,7 +976,7 @@ namespace golos { namespace chain {
 
                     if (_db.is_producing() ||
                         _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                        GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate != new_vesting_withdraw_rate, 
+                        GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate != new_vesting_withdraw_rate,
                                 logic_exception::operation_would_not_change_vesting_withdraw_rate,
                                 "This operation would not change the vesting withdraw rate.");
 
@@ -1020,7 +1000,7 @@ namespace golos { namespace chain {
                     GOLOS_CHECK_LOGIC(o.percent != 0,
                             logic_exception::cannot_create_zero_percent_destination,
                             "Cannot create a 0% destination.");
-                    GOLOS_CHECK_LOGIC(from_account.withdraw_routes < STEEMIT_MAX_WITHDRAW_ROUTES, 
+                    GOLOS_CHECK_LOGIC(from_account.withdraw_routes < STEEMIT_MAX_WITHDRAW_ROUTES,
                             logic_exception::reached_maxumum_number_of_routes,
                             "Account already has the maximum number of routes (${max}).",
                             ("max",STEEMIT_MAX_WITHDRAW_ROUTES));
@@ -1059,7 +1039,7 @@ namespace golos { namespace chain {
                     ++itr;
                 }
 
-                GOLOS_CHECK_LOGIC(total_percent <= STEEMIT_100_PERCENT, 
+                GOLOS_CHECK_LOGIC(total_percent <= STEEMIT_100_PERCENT,
                         logic_exception::more_100percent_allocated_to_destinations,
                         "More than 100% of vesting withdrawals allocated to destinations.");
             }
@@ -1068,7 +1048,7 @@ namespace golos { namespace chain {
 
         void account_witness_proxy_evaluator::do_apply(const account_witness_proxy_operation &o) {
             const auto &account = _db.get_account(o.account);
-            GOLOS_CHECK_LOGIC(account.proxy != o.proxy, 
+            GOLOS_CHECK_LOGIC(account.proxy != o.proxy,
                     logic_exception::proxy_must_change,
                     "Proxy must change.");
 
@@ -1125,12 +1105,12 @@ namespace golos { namespace chain {
 
         void account_witness_vote_evaluator::do_apply(const account_witness_vote_operation &o) {
             const auto &voter = _db.get_account(o.account);
-            GOLOS_CHECK_LOGIC(voter.proxy.size() == 0, 
+            GOLOS_CHECK_LOGIC(voter.proxy.size() == 0,
                     logic_exception::cannot_vote_when_route_are_set,
                     "A proxy is currently set, please clear the proxy before voting for a witness.");
 
             if (o.approve)
-                GOLOS_CHECK_LOGIC(voter.can_vote, 
+                GOLOS_CHECK_LOGIC(voter.can_vote,
                         logic_exception::voter_declined_voting_rights,
                         "Account has declined its voting rights.");
 
@@ -1140,12 +1120,12 @@ namespace golos { namespace chain {
             auto itr = by_account_witness_idx.find(boost::make_tuple(voter.id, witness.id));
 
             if (itr == by_account_witness_idx.end()) {
-                GOLOS_CHECK_LOGIC(o.approve, 
+                GOLOS_CHECK_LOGIC(o.approve,
                         logic_exception::witness_vote_does_not_exist,
                         "Vote doesn't exist, user must indicate a desire to approve witness.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_2)) {
-                    GOLOS_CHECK_LOGIC(voter.witnesses_voted_for < STEEMIT_MAX_ACCOUNT_WITNESS_VOTES, 
+                    GOLOS_CHECK_LOGIC(voter.witnesses_voted_for < STEEMIT_MAX_ACCOUNT_WITNESS_VOTES,
                             logic_exception::account_has_too_many_witness_votes,
                             "Account has voted for too many witnesses.",
                             ("max_votes", STEEMIT_MAX_ACCOUNT_WITNESS_VOTES)); // TODO: Remove after hardfork 2
@@ -1177,7 +1157,7 @@ namespace golos { namespace chain {
                 });
 
             } else {
-                GOLOS_CHECK_LOGIC(!o.approve, 
+                GOLOS_CHECK_LOGIC(!o.approve,
                         logic_exception::witness_vote_already_exist,
                         "Vote currently exists, user must indicate a desire to reject witness.");
 
@@ -1199,83 +1179,76 @@ namespace golos { namespace chain {
             }
         }
 
-        void vote_evaluator::do_apply(const vote_operation &o) {
+        void vote_evaluator::do_apply(const vote_operation& o) {
             try {
-                const auto &comment = _db.get_comment(o.author, o.permlink);
-                const auto &voter = _db.get_account(o.voter);
+                const auto& comment = _db.get_comment(o.author, o.permlink);
+                const auto& voter = _db.get_account(o.voter);
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    GOLOS_CHECK_LOGIC(!(voter.owner_challenged || voter.active_challenged), 
-                            logic_exception::account_is_currently_challenged,
-                            "Account \"${account}\" is currently challenged", ("account", voter.name));
+                GOLOS_CHECK_LOGIC(!(voter.owner_challenged || voter.active_challenged),
+                    logic_exception::account_is_currently_challenged,
+                    "Account \"${account}\" is currently challenged", ("account", voter.name));
 
                 GOLOS_CHECK_LOGIC(voter.can_vote, logic_exception::voter_declined_voting_rights,
-                        "Voter has declined their voting rights");
+                    "Voter has declined their voting rights");
 
-                if (o.weight > 0)
+                if (o.weight > 0) {
                     GOLOS_CHECK_LOGIC(comment.allow_votes, logic_exception::votes_are_not_allowed,
-                            "Votes are not allowed on the comment.");
+                        "Votes are not allowed on the comment.");
+                }
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
-                    _db.calculate_discussion_payout_time(comment) ==
-                    fc::time_point_sec::maximum()
-                ) {
-                    if(!_db.clear_votes()) {
-                        const auto& comment_vote_idx = _db.get_index< comment_vote_index >().indices().get< by_comment_voter >();
-                        auto itr = comment_vote_idx.find( std::make_tuple( comment.id, voter.id ) );
-
-                        if( itr == comment_vote_idx.end() )
-                            _db.create< comment_vote_object >( [&]( comment_vote_object& cvo ) {
-                                cvo.voter = voter.id;
-                                cvo.comment = comment.id;
-                                cvo.vote_percent = o.weight;
-                                cvo.last_update = _db.head_block_time();
-                            });
-                        else
-                            _db.modify( *itr, [&]( comment_vote_object& cvo ) {
-                                cvo.vote_percent = o.weight;
-                                cvo.last_update = _db.head_block_time();
+                if (_db.calculate_discussion_payout_time(comment) == fc::time_point_sec::maximum()) {
+                    // non-consensus vote (after cashout)
+                    const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                    auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
+                    if (itr == comment_vote_idx.end()) {
+                        _db.create<comment_vote_object>([&](comment_vote_object& cvo) {
+                            cvo.voter = voter.id;
+                            cvo.comment = comment.id;
+                            cvo.vote_percent = o.weight;
+                            cvo.last_update = _db.head_block_time();
+                            cvo.num_changes = -1;           // mark vote that it's ready to be removed (archived comment)
+                        });
+                    } else {
+                        _db.modify(*itr, [&](comment_vote_object& cvo) {
+                            cvo.vote_percent = o.weight;
+                            cvo.last_update = _db.head_block_time();
                         });
                     }
                     return;
                 }
 
-                const auto &comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                 auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
 
-                int64_t elapsed_seconds = (_db.head_block_time() -
-                                           voter.last_vote_time).to_seconds();
+                int64_t elapsed_seconds = (_db.head_block_time() - voter.last_vote_time).to_seconds();
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
-                            bandwidth_exception::vote_bandwidth, "Can only vote once every 3 seconds.");
+                GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
+                        bandwidth_exception::vote_bandwidth, "Can only vote once every 3 seconds.");
 
                 int64_t regenerated_power =
                         (STEEMIT_100_PERCENT * elapsed_seconds) /
                         STEEMIT_VOTE_REGENERATION_SECONDS;
-                int64_t current_power = std::min(int64_t(voter.voting_power +
-                                                         regenerated_power), int64_t(STEEMIT_100_PERCENT));
+                int64_t current_power = std::min(
+                    int64_t(voter.voting_power + regenerated_power),
+                    int64_t(STEEMIT_100_PERCENT));
                 GOLOS_CHECK_LOGIC(current_power > 0, logic_exception::does_not_have_voting_power,
                         "Account currently does not have voting power.");
 
                 int64_t abs_weight = abs(o.weight);
-                int64_t used_power =
-                        (current_power * abs_weight) / STEEMIT_100_PERCENT;
+                int64_t used_power = (current_power * abs_weight) / STEEMIT_100_PERCENT;
 
                 const dynamic_global_property_object &dgpo = _db.get_dynamic_global_properties();
 
                 // used_power = (current_power * abs_weight / STEEMIT_100_PERCENT) * (reserve / max_vote_denom)
                 // The second multiplication is rounded up as of HF 259
                 int64_t max_vote_denom = dgpo.vote_regeneration_per_day *
-                                         STEEMIT_VOTE_REGENERATION_SECONDS /
-                                         (60 * 60 * 24);
+                    STEEMIT_VOTE_REGENERATION_SECONDS / (60 * 60 * 24);
                 GOLOS_ASSERT(max_vote_denom > 0, golos::internal_error, "max_vote_denom is too small");
 
                 if (!_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
                     used_power = (used_power / max_vote_denom) + 1;
                 } else {
-                    used_power =
-                            (used_power + max_vote_denom - 1) / max_vote_denom;
+                    used_power = (used_power + max_vote_denom - 1) / max_vote_denom;
                 }
                 GOLOS_CHECK_LOGIC(used_power <= current_power, logic_exception::does_not_have_voting_power,
                         "Account does not have enough power to vote.");
@@ -1288,40 +1261,25 @@ namespace golos { namespace chain {
                 }
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
-                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || o.weight == 0, 
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || o.weight == 0,
                             logic_exception::voting_weight_is_too_small,
                             "Voting weight is too small, please accumulate more voting power or steem power.");
                 } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_13__248)) {
-                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || abs_rshares == 1, 
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || abs_rshares == 1,
                             logic_exception::voting_weight_is_too_small,
                             "Voting weight is too small, please accumulate more voting power or steem power.");
                 }
 
-
-
-                // Lazily delete vote
-                if (itr != comment_vote_idx.end() && itr->num_changes == -1) {
-                    if (_db.is_producing() ||
-                        _db.has_hardfork(STEEMIT_HARDFORK_0_12__177))
-                        GOLOS_CHECK_LOGIC(false, logic_exception::cannot_vote_after_payout,
-                                "Cannot vote again on a comment after payout.");
-
-                    _db.remove(*itr);
-                    itr = comment_vote_idx.end();
-                }
 
                 if (itr == comment_vote_idx.end()) {
                     GOLOS_CHECK_OP_PARAM(o, weight, GOLOS_CHECK_VALUE(o.weight != 0, "Vote weight cannot be 0"));
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
-
                     if (rshares > 0) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            GOLOS_CHECK_LOGIC(_db.head_block_time() <
-                                      _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
-                                      logic_exception::cannot_vote_within_last_minute_before_payout,
-                                      "Cannot increase reward of post within the last minute before payout.");
-                        }
+                        GOLOS_CHECK_LOGIC(_db.head_block_time() <
+                            _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                            logic_exception::cannot_vote_within_last_minute_before_payout,
+                            "Cannot increase reward of post within the last minute before payout.");
                     }
 
                     //used_power /= (50*7); /// a 100% vote means use .28% of voting power which should force users to spread their votes around over 50+ posts day for a week
@@ -1372,8 +1330,7 @@ namespace golos { namespace chain {
                         } else {
                             c.net_votes--;
                         }
-                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_6__114) &&
-                            c.net_rshares == -c.abs_rshares)
+                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_6__114) && c.net_rshares == -c.abs_rshares)
                             GOLOS_ASSERT(c.net_votes < 0, golos::internal_error, "Comment has negative network votes?");
                     });
 
@@ -1447,8 +1404,7 @@ namespace golos { namespace chain {
                                 rshares3 = rshares3 * rshares3 * rshares3;
 
                                 total2 *= total2;
-                                cv.weight = static_cast<uint64_t>( rshares3 /
-                                                                   total2 );
+                                cv.weight = static_cast<uint64_t>(rshares3 / total2);
                             } else {// cv.weight = W(R_1) - W(R_0)
                                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                                     uint64_t old_weight = (
@@ -1501,38 +1457,33 @@ namespace golos { namespace chain {
                         }
                     });
 
-                    if (max_vote_weight) // Optimization
-                    {
-                        _db.modify(comment, [&](comment_object &c) {
+                    if (max_vote_weight) {
+                        // Optimization
+                        _db.modify(comment, [&](comment_object& c) {
                             c.total_vote_weight += max_vote_weight;
                         });
                     }
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 } else {
-                    GOLOS_CHECK_LOGIC(itr->num_changes < STEEMIT_MAX_VOTE_CHANGES, 
+                    GOLOS_CHECK_LOGIC(itr->num_changes < STEEMIT_MAX_VOTE_CHANGES,
                             logic_exception::voter_has_used_maximum_vote_changes,
                             "Voter has used the maximum number of vote changes on this comment.");
-
-                    if (_db.is_producing() ||
-                        _db.has_hardfork(STEEMIT_HARDFORK_0_6__112))
-                        GOLOS_CHECK_LOGIC(itr->vote_percent != o.weight, 
-                                logic_exception::already_voted_in_similar_way,
-                                "You have already voted in a similar way.");
+                    GOLOS_CHECK_LOGIC(itr->vote_percent != o.weight,
+                            logic_exception::already_voted_in_similar_way,
+                            "You have already voted in a similar way.");
 
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
 
                     if (itr->rshares < rshares) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            GOLOS_CHECK_LOGIC(_db.head_block_time() <
-                                      _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
-                                      logic_exception::cannot_vote_within_last_minute_before_payout,
-                                      "Cannot increase reward of post within the last minute before payout.");
-                        }
+                        GOLOS_CHECK_LOGIC(_db.head_block_time() <
+                            _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                            logic_exception::cannot_vote_within_last_minute_before_payout,
+                            "Cannot increase reward of post within the last minute before payout.");
                     }
 
-                    _db.modify(voter, [&](account_object &a) {
+                    _db.modify(voter, [&](account_object& a) {
                         a.voting_power = current_power - used_power;
                         a.last_vote_time = _db.head_block_time();
                     });
@@ -1544,7 +1495,7 @@ namespace golos { namespace chain {
 
                     fc::uint128_t avg_cashout_sec = 0;
 
-                    if (!_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
+                    if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                         fc::uint128_t cur_cashout_time_sec = _db.calculate_discussion_payout_time(comment).sec_since_epoch();
                         fc::uint128_t new_cashout_time_sec = _db.head_block_time().sec_since_epoch();
 
@@ -1588,20 +1539,19 @@ namespace golos { namespace chain {
 
                     _db.modify(root, [&](comment_object &c) {
                         c.children_abs_rshares += abs_rshares;
-                        if (!_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
                             if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
                                 c.last_payout > fc::time_point_sec::min()
                             ) {
+                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                                 c.cashout_time = c.last_payout + STEEMIT_SECOND_CASHOUT_WINDOW;
                             } else {
-                                c.cashout_time = fc::time_point_sec(
-                                        std::min(uint32_t(avg_cashout_sec.to_uint64()),
-                                                 c.max_cashout_time.sec_since_epoch()));
+                                c.cashout_time = fc::time_point_sec(std::min(
+                                    uint32_t(avg_cashout_sec.to_uint64()), c.max_cashout_time.sec_since_epoch()));
                             }
 
                             if (c.max_cashout_time == fc::time_point_sec::maximum()) {
                                 c.max_cashout_time =
-                                        _db.head_block_time() + fc::seconds(STEEMIT_MAX_CASHOUT_WINDOW_SECONDS);
+                                    _db.head_block_time() + fc::seconds(STEEMIT_MAX_CASHOUT_WINDOW_SECONDS);
                             }
                         }
                     });

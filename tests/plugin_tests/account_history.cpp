@@ -13,7 +13,7 @@ using golos::plugins::json_rpc::msg_pack;
 
 
 struct account_history_fixture : public golos::chain::add_operations_database_fixture {
-    typedef std::map<uint32_t, std::set<std::string>> checked_accounts_map; ///<  pair { [block], [accaunt names] }
+    typedef std::map<uint32_t, std::set<std::string>> checked_accounts_map; ///<  pair { [block], [account names] }
 
     checked_accounts_map check(const account_name_set& names) {
         uint32_t head_block_num = db->head_block_num();

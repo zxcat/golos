@@ -41,7 +41,7 @@ namespace golos {
                     }
 
                     if (what & (1 << ignore))
-                        GOLOS_CHECK_LOGIC(!(what & (1 << blog)), 
+                        GOLOS_CHECK_LOGIC(!(what & (1 << blog)),
                                 logic_errors::cannot_follow_and_ignore_simultaneously,
                                 "Cannot follow blog and ignore author at the same time");
 
