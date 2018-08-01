@@ -1153,6 +1153,65 @@ namespace golos { namespace wallet {
                     return sign_transaction(trx, broadcast);
                 }
 
+                annotated_signed_transaction delete_private_message(
+                    const std::string& requester,
+                    const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
+                ) {
+                    WALLET_CHECK_UNLOCKED();
+                    GOLOS_CHECK_PARAM(nonce, GOLOS_CHECK_VALUE(nonce != 0, "You should specify nonce of deleted message"));
+
+                    private_delete_message_operation op;
+                    op.requester = requester;
+                    op.from = from;
+                    op.to = to;
+                    op.nonce = nonce;
+                    op.start_date = time_point_sec::min();
+                    op.stop_date = time_point_sec::min();
+
+                    private_message_plugin_operation pop = op;
+
+                    custom_json_operation jop;
+                    jop.id   = "private_message";
+                    jop.json = fc::json::to_string(pop);
+                    jop.required_posting_auths.insert(to);
+
+                    signed_transaction trx;
+                    trx.operations.push_back(jop);
+                    trx.validate();
+
+                    return sign_transaction(trx, broadcast);
+                }
+
+                annotated_signed_transaction delete_private_messages(
+                    const std::string& requester,
+                    const std::string& from, const std::string& to,
+                    const std::string& start_date, const std::string& stop_date,
+                    bool broadcast
+                ) {
+                    WALLET_CHECK_UNLOCKED();
+
+                    private_delete_message_operation op;
+                    op.requester = requester;
+                    op.from = from;
+                    op.to = to;
+                    op.nonce = 0;
+                    op.start_date = time_converter(start_date, time_point::now(), time_point_sec::min()).time();
+                    op.stop_date = time_converter(stop_date, time_point::now(), time_point::now()).time();
+
+                    private_message_plugin_operation pop = op;
+
+                    custom_json_operation jop;
+                    jop.id   = "private_message";
+                    jop.json = fc::json::to_string(pop);
+                    jop.required_posting_auths.insert(to);
+
+                    signed_transaction trx;
+                    trx.operations.push_back(jop);
+                    trx.validate();
+
+                    return sign_transaction(trx, broadcast);
+                }
+
                 string                                  _wallet_filename;
                 wallet_data                             _wallet;
                 golos::protocol::chain_id_type          steem_chain_id;
@@ -2818,29 +2877,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         annotated_signed_transaction wallet_api::delete_inbox_private_message(
             const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
         ) {
-            WALLET_CHECK_UNLOCKED();
-            GOLOS_CHECK_PARAM(nonce, GOLOS_CHECK_VALUE(nonce != 0, "You should specify nonce of deleted message"));
-
-            private_delete_message_operation op;
-            op.requester = to;
-            op.from = from;
-            op.to = to;
-            op.nonce = nonce;
-            op.start_date = time_point_sec::min();
-            op.stop_date = time_point_sec::min();
-
-            private_message_plugin_operation pop = op;
-
-            custom_json_operation jop;
-            jop.id   = "private_message";
-            jop.json = fc::json::to_string(pop);
-            jop.required_posting_auths.insert(to);
-
-            signed_transaction trx;
-            trx.operations.push_back(jop);
-            trx.validate();
-
-            return my->sign_transaction(trx, broadcast);
+            return my->delete_private_message(to, from, to, nonce, broadcast);
         }
 
         annotated_signed_transaction wallet_api::delete_inbox_private_messages(
@@ -2848,57 +2885,13 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             const std::string& start_date, const std::string& stop_date,
             bool broadcast
         ) {
-            WALLET_CHECK_UNLOCKED();
-
-            private_delete_message_operation op;
-            op.requester = to;
-            op.from = from;
-            op.to = to;
-            op.nonce = 0;
-            op.start_date = time_converter(start_date, time_point::now(), time_point_sec::min()).time();
-            op.stop_date = time_converter(stop_date, time_point::now(), time_point::now()).time();
-
-            private_message_plugin_operation pop = op;
-
-            custom_json_operation jop;
-            jop.id   = "private_message";
-            jop.json = fc::json::to_string(pop);
-            jop.required_posting_auths.insert(to);
-
-            signed_transaction trx;
-            trx.operations.push_back(jop);
-            trx.validate();
-
-            return my->sign_transaction(trx, broadcast);
+            return my->delete_private_messages(to, from, to, start_date, stop_date, broadcast);
         }
-
 
         annotated_signed_transaction wallet_api::delete_outbox_private_message(
             const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast
         ) {
-            WALLET_CHECK_UNLOCKED();
-            GOLOS_CHECK_PARAM(nonce, GOLOS_CHECK_VALUE(nonce != 0, "You should specify nonce of deleted message"));
-
-            private_delete_message_operation op;
-            op.requester = from;
-            op.from = from;
-            op.to = to;
-            op.nonce = nonce;
-            op.start_date = time_point_sec::min();
-            op.stop_date = time_point_sec::min();
-
-            private_message_plugin_operation pop = op;
-
-            custom_json_operation jop;
-            jop.id   = "private_message";
-            jop.json = fc::json::to_string(pop);
-            jop.required_posting_auths.insert(from);
-
-            signed_transaction trx;
-            trx.operations.push_back(jop);
-            trx.validate();
-
-            return my->sign_transaction(trx, broadcast);
+            return my->delete_private_message(from, from, to, nonce, broadcast);
         }
 
         annotated_signed_transaction wallet_api::delete_outbox_private_messages(
@@ -2906,28 +2899,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             const std::string& start_date, const std::string& stop_date,
             bool broadcast
         ) {
-            WALLET_CHECK_UNLOCKED();
-
-            private_delete_message_operation op;
-            op.requester = from;
-            op.from = from;
-            op.to = to;
-            op.nonce = 0;
-            op.start_date = time_converter(start_date, time_point::now(), time_point_sec::min()).time();
-            op.stop_date = time_converter(stop_date, time_point::now(), time_point::now()).time();
-
-            private_message_plugin_operation pop = op;
-
-            custom_json_operation jop;
-            jop.id   = "private_message";
-            jop.json = fc::json::to_string(pop);
-            jop.required_posting_auths.insert(from);
-
-            signed_transaction trx;
-            trx.operations.push_back(jop);
-            trx.validate();
-
-            return my->sign_transaction(trx, broadcast);
+            return my->delete_private_messages(from, from, to, start_date, stop_date, broadcast);
         }
 
         annotated_signed_transaction wallet_api::mark_private_message(
