@@ -476,13 +476,13 @@ namespace golos { namespace chain {
             string generate_anon_acct_name();
 
             template<typename Plugin>
-            Plugin *find_plugin() {
+            Plugin* find_plugin() {
                 return dynamic_cast<Plugin*>(appbase::app().find_plugin<Plugin>());
             }
 
-            typedef std::map<std::string,std::string> Options;
+            using plugin_options = std::map<std::string,std::string>;
             template<typename... Plugins>
-            void initialize(const Options& opts = {}) {
+            void initialize(const plugin_options& opts = {}) {
                 int argc = boost::unit_test::framework::master_test_suite().argc;
                 char** argv = boost::unit_test::framework::master_test_suite().argv;
 
@@ -497,7 +497,7 @@ namespace golos { namespace chain {
                                   << std::endl;
                     }
                 }
-    
+
                 ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
                 db_plugin = &appbase::app().register_plugin<golos::plugins::debug_node::plugin>();
                 sn_plugin = &appbase::app().register_plugin<golos::plugins::social_network::social_network>();
@@ -506,13 +506,16 @@ namespace golos { namespace chain {
 
                 ch_plugin->skip_startup = true;
 
-                std::vector<const char*> args;
                 std::vector<std::string> args_data;
-                args.push_back(argv[0]);
+                // fill all elements first so c_str() pointers stay valid
                 for (const auto& opt: opts) {
-                    args_data.push_back(std::string("--")+opt.first);
-                    args.push_back(args_data.back().c_str());
-                    args.push_back(opt.second.c_str());
+                    args_data.push_back(std::string("--") + opt.first);
+                    args_data.push_back(opt.second);
+                }
+                std::vector<const char*> args;
+                args.push_back(argv[0]);
+                for (const auto& arg: args_data) {
+                    args.push_back(arg.c_str());
                 }
                 for (int i = 1; i < argc; i++) {
                     args.push_back(argv[i]);
@@ -524,10 +527,10 @@ namespace golos { namespace chain {
                     golos::plugins::debug_node::plugin,
                     golos::plugins::social_network::social_network,
                     Plugins...
-                >( args.size(), const_cast<char**>(args.data()) );
-    
+                >(args.size(), const_cast<char**>(args.data()));
+
                 db_plugin->set_logging(false);
-    
+
                 db = &ch_plugin->db();
                 BOOST_REQUIRE(db);
             }
@@ -670,18 +673,18 @@ namespace golos { namespace chain {
         };
 
         struct add_operations_database_fixture : public database_fixture {
-            typedef golos::plugins::operation_history::plugin operation_history_plugin;
-            typedef std::map<std::string, std::string> Operations;
+            using operation_history_plugin = golos::plugins::operation_history::plugin;
+            using operations_map = std::map<std::string, std::string>;
 
             template<typename... Plugins>
-            void initialize(const Options& opts = {}) {
+            void initialize(const plugin_options& opts = {}) {
                 database_fixture::initialize<operation_history_plugin>(opts);
                 oh_plugin = find_plugin<operation_history_plugin>();
                 open_database();
                 startup();
             }
 
-            Operations add_operations();
+            operations_map add_operations();
 
             operation_history_plugin* oh_plugin = nullptr;
         };

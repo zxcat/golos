@@ -187,8 +187,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             vest("sam", 8000);
             fund("dave", 5000);
             vest("dave", 5000);
-            
-            db->set_clear_votes(0xFFFFFFFF);
 
             price exchange_rate(ASSET("1.000 GOLOS"), ASSET("1.000 GBG"));
             set_price_feed(exchange_rate);
@@ -358,15 +356,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             BOOST_REQUIRE(bob_author_reward.permlink == "test");
             BOOST_REQUIRE(bob_author_reward.sbd_payout == bob_comment_reward.sbd_payout());
             BOOST_REQUIRE(bob_author_reward.vesting_payout == bob_comment_reward.vesting_payout());
-
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment.id, alice_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment.id, bob_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment.id, sam_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment.id, dave_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment.id, alice_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment.id, bob_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment.id, sam_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment.id, dave_account.id)) == vote_idx.end());
+            // "removing old votes" tests removed from here, tested in chain.cpp now
             validate_database();
 
             BOOST_TEST_MESSAGE("Testing no payout when less than $0.02");
@@ -448,15 +438,6 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             BOOST_REQUIRE(sam_sbd_balance == sam_account.sbd_balance);
             BOOST_REQUIRE(dave_vest_shares == dave_account.vesting_shares);
             BOOST_REQUIRE(dave_sbd_balance == dave_account.sbd_balance);
-
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment1.id, alice_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment1.id, bob_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment1.id, sam_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(alice_comment1.id, dave_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment1.id, alice_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment1.id, bob_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment1.id, sam_account.id)) == vote_idx.end());
-            BOOST_REQUIRE(vote_idx.find(std::make_tuple(bob_comment1.id, dave_account.id)) == vote_idx.end());
             validate_database();
         }
         FC_LOG_AND_RETHROW()

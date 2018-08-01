@@ -103,6 +103,9 @@
         } \
     FC_MULTILINE_MACRO_END
 
+#define GOLOS_CHECK_OPTION(COND, MSG, ...) \
+    GOLOS_ASSERT((COND), golos::invalid_option, MSG, __VA_ARGS__)
+
 #define GOLOS_CHECK_VALUE(COND, MSG, ...) \
     GOLOS_ASSERT((COND), golos::invalid_value, MSG, __VA_ARGS__)
 
@@ -156,6 +159,10 @@ namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         unsupported_operation, operation_exception,
         1010000, "Unsupported operation");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        unsupported_api_method, unsupported_operation,
+        1010100, "Unsupported api method");
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         parameter_exception, operation_exception,
@@ -214,7 +221,6 @@ namespace golos {
             votes_are_not_allowed,
             does_not_have_voting_power,
             voting_weight_is_too_small,
-            cannot_vote_after_payout,
             cannot_vote_within_last_minute_before_payout,
             cannot_vote_with_zero_rshares,
             voter_has_used_maximum_vote_changes,
@@ -224,9 +230,6 @@ namespace golos {
             cannot_update_comment_because_nothing_changed,
             reached_comment_max_depth,
             replies_are_not_allowed,
-            discussion_is_frozen,
-            comment_is_archived,
-            comment_editable_during_first_24_hours,
             cannot_delete_comment_with_replies,
             cannot_delete_comment_with_positive_votes,
             comment_options_requires_no_rshares,
@@ -371,6 +374,10 @@ namespace golos {
         };
     };
 
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        invalid_option, golos_exception,
+        5000000, "invalid option");
+
 } // golos
 
 
@@ -474,7 +481,6 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (votes_are_not_allowed)
         (does_not_have_voting_power)
         (voting_weight_is_too_small)
-        (cannot_vote_after_payout)
         (cannot_vote_within_last_minute_before_payout)
         (cannot_vote_with_zero_rshares)
         (voter_has_used_maximum_vote_changes)
@@ -484,9 +490,6 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (cannot_update_comment_because_nothing_changed)
         (reached_comment_max_depth)
         (replies_are_not_allowed)
-        (discussion_is_frozen)
-        (comment_is_archived)
-        (comment_editable_during_first_24_hours)
         (cannot_delete_comment_with_replies)
         (cannot_delete_comment_with_positive_votes)
         (comment_options_requires_no_rshares)

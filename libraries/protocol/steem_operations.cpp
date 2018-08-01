@@ -270,13 +270,13 @@ namespace golos { namespace protocol {
 
         void custom_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            GOLOS_CHECK_PARAM(required_auths, 
+            GOLOS_CHECK_PARAM(required_auths,
                 GOLOS_CHECK_VALUE(required_auths.size() > 0, "at least one account must be specified"));
         }
 
         void custom_json_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
-            GOLOS_CHECK_PARAM(required_auths, 
+            GOLOS_CHECK_PARAM(required_auths,
                 GOLOS_CHECK_VALUE((required_auths.size() + required_posting_auths.size()) > 0, "at least on account must be specified"));
             GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
             GOLOS_CHECK_PARAM(json, {
@@ -288,7 +288,7 @@ namespace golos { namespace protocol {
         void custom_binary_operation::validate() const {
             /// required auth accounts are the ones whose bandwidth is consumed
             GOLOS_CHECK_PARAM(required_owner_auths,
-                GOLOS_CHECK_VALUE((required_owner_auths.size() + required_active_auths.size() + required_posting_auths.size()) > 0, 
+                GOLOS_CHECK_VALUE((required_owner_auths.size() + required_active_auths.size() + required_posting_auths.size()) > 0,
                     "at least one account must be specified"));
             GOLOS_CHECK_PARAM(id, GOLOS_CHECK_VALUE_MAX_SIZE(id, 32));
             GOLOS_CHECK_PARAM(required_auths, {

@@ -4,6 +4,8 @@
 
 namespace golos { namespace plugins { namespace tags {
 
+    using golos::plugins::social_network::comment_last_update_index;
+
     comment_metadata get_metadata(const std::string& json_metadata) {
         comment_metadata meta;
 
@@ -120,13 +122,28 @@ namespace golos { namespace plugins { namespace tags {
         db_.remove(tag);
     }
 
+    comment_date operation_visitor::get_comment_last_update(const comment_object& comment) const {
+        comment_date result;
+        if (db_.has_index<comment_last_update_index>()) {
+            const auto& clu_idx = db_.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+            auto clu_itr = clu_idx.find(comment.id);
+            if (clu_itr != clu_idx.end()) {
+                result.active = clu_itr->active;
+                result.last_update = clu_itr->last_update;
+                return result;
+            }
+        }
+        return result;
+    }
+
     void operation_visitor::update_tag(
         const tag_object& current, const comment_object& comment, double hot, double trending
     ) const {
         auto cashout_time = db_.calculate_discussion_payout_time(comment);
         remove_stats(current);
+
         db_.modify(current, [&](tag_object& obj) {
-            obj.active = comment.active;
+            obj.active = get_comment_last_update(comment).active;
             obj.cashout = cashout_time;
             obj.children = comment.children;
             obj.net_rshares = comment.net_rshares.value;
@@ -151,14 +168,16 @@ namespace golos { namespace plugins { namespace tags {
             parent = db_.get_comment(comment.parent_author, comment.parent_permlink).id;
         }
 
+        auto com_date = get_comment_last_update(comment);
+
         const auto& tag_obj = db_.create<tag_object>([&](tag_object& obj) {
             obj.name = name;
             obj.type = type;
             obj.comment = comment.id;
             obj.parent = parent;
             obj.created = comment.created;
-            obj.active = comment.active;
-            obj.updated = comment.last_update;
+            obj.active = com_date.active;
+            obj.updated = com_date.last_update;
             obj.cashout = comment.cashout_time;
             obj.net_votes = comment.net_votes;
             obj.children = comment.children;

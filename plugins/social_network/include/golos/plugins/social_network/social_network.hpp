@@ -7,7 +7,7 @@
 #include <golos/api/account_vote.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/api/discussion_helper.hpp>
-#include <golos/plugins/social_network/comment_content_object.hpp>
+#include <golos/plugins/social_network/social_network_types.hpp>
 
 namespace golos { namespace plugins { namespace social_network {
     using plugins::json_rpc::msg_pack;
@@ -67,7 +67,7 @@ namespace golos { namespace plugins { namespace social_network {
     };
 
 // Callback which is needed for correct work of discussion_helper
-    void fill_comment_content(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
+    void fill_comment_info(const golos::chain::database& db, const comment_object& co, comment_api_object& cao);
     std::string get_json_metadata(const golos::chain::database& db, const comment_object&);
 
 } } } // golos::plugins::social_network
