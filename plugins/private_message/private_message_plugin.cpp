@@ -452,8 +452,7 @@ namespace golos { namespace plugins { namespace private_message {
             auto contact_itr = contact_idx.find(stat_info.first);
             auto size_itr = size_idx.find(owner);
 
-            GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr && size_idx.end() != size_itr,
-                logic_errors::invalid_size, "Invalid size");
+            FC_ASSERT(contact_idx.end() != contact_itr && size_idx.end() != size_itr, "Invalid size");
 
             if (!contact_action(*contact_itr, *size_itr, size)) {
                 db.modify(*contact_itr, [&](auto& pco) {

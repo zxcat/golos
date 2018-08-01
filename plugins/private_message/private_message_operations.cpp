@@ -42,17 +42,17 @@ namespace golos { namespace plugins { namespace private_message {
             "You cannot write to yourself");
 
         GOLOS_CHECK_PARAM(to_memo_key, {
-            GOLOS_CHECK_VALUE(to_memo_key != public_key_type(), "to_key can't be empty");
+            GOLOS_CHECK_VALUE(to_memo_key != public_key_type(), "`to_key` can't be empty");
         });
 
         GOLOS_CHECK_PARAM(from_memo_key, {
-            GOLOS_CHECK_VALUE(from_memo_key != public_key_type(), "From_key can't be empty");
+            GOLOS_CHECK_VALUE(from_memo_key != public_key_type(), "`from_key` can't be empty");
         });
 
         GOLOS_CHECK_LOGIC(
             from_memo_key != to_memo_key,
             logic_errors::from_and_to_memo_keys_must_be_different,
-            "from_key can't be equal to to_key");
+            "`from_key` can't be equal to `to_key`");
 
         GOLOS_CHECK_PARAM(nonce, {
             GOLOS_CHECK_VALUE(nonce != 0, "Nonce can't be zero");
@@ -86,12 +86,12 @@ namespace golos { namespace plugins { namespace private_message {
             validate_account_name(requester);
             if (to.size() || from.size()) {
                 GOLOS_CHECK_VALUE(requester == to || requester == from,
-                    "Requester can't delete messages only from his inbox/outbox");
+                    "`requester` can delete messages only from his inbox/outbox");
             }
         });
 
         GOLOS_CHECK_PARAM(start_date, {
-            GOLOS_CHECK_VALUE(start_date <= stop_date, "start_date can't be greater then to_time");
+            GOLOS_CHECK_VALUE(start_date <= stop_date, "`start_date` can't be greater then to_time");
         });
 
         GOLOS_CHECK_PARAM(nonce, {
@@ -119,14 +119,14 @@ namespace golos { namespace plugins { namespace private_message {
         });
 
         GOLOS_CHECK_PARAM(start_date, {
-            GOLOS_CHECK_VALUE(start_date <= stop_date, "start_date can't be greater then to_time");
+            GOLOS_CHECK_VALUE(start_date <= stop_date, "`start_date` can't be greater then `stop_date`");
         });
 
         GOLOS_CHECK_PARAM(nonce, {
             if (nonce != 0) {
-                GOLOS_CHECK_VALUE(to.size(), "to and nonce should be set both");
-                GOLOS_CHECK_VALUE(start_date == time_point_sec::min(), "nonce and start_date can't be used together");
-                GOLOS_CHECK_VALUE(stop_date == time_point_sec::min(), "nonce and stop_date can't be used together");
+                GOLOS_CHECK_VALUE(to.size(), "Non-zero 'nonce' requires 'to' to be set too");
+                GOLOS_CHECK_VALUE(start_date == time_point_sec::min(), "Non-zero `nonce` can't be used with `start_date`");
+                GOLOS_CHECK_VALUE(stop_date == time_point_sec::min(), "Non-zero `nonce` can't be used with `stop_date`");
             }
         });
     }
