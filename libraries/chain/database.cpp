@@ -2238,22 +2238,6 @@ namespace golos { namespace chain {
             }
         }
 
-        void database::adjust_total_payout(
-                const comment_object &cur,
-                const asset &sbd_created,
-                const asset &curator_sbd_value,
-                const asset &beneficiary_value
-        ) {
-            modify(cur, [&](comment_object &c) {
-                if (c.total_payout_value.symbol == sbd_created.symbol) {
-                    c.total_payout_value += sbd_created;
-                    c.beneficiary_payout_value += beneficiary_value;
-                    c.curator_payout_value += curator_sbd_value;
-                }
-            });
-            /// TODO: potentially modify author's total payout numbers as well
-        }
-
 /**
  *  This method will iterate through all comment_vote_objects and give them
  *  (max_rewards * weight) / c.total_vote_weight.
@@ -2276,6 +2260,7 @@ namespace golos { namespace chain {
                         if (claim > 0) // min_amt is non-zero satoshis
                         {
                             unclaimed_rewards -= claim;
+
                             const auto &voter = get(itr->voter);
                             auto reward = create_vesting(voter, asset(claim, STEEM_SYMBOL));
 
@@ -2286,6 +2271,8 @@ namespace golos { namespace chain {
                                 a.curation_rewards += claim;
                             });
 #endif
+                        } else {
+                            break;
                         }
                         ++itr;
                     }
@@ -2342,19 +2329,6 @@ namespace golos { namespace chain {
                         auto vest_created = create_vesting(author, vesting_steem);
                         auto sbd_payout = create_sbd(author, sbd_steem);
 
-                        adjust_total_payout(
-                                comment,
-                                sbd_payout.first + to_sbd(sbd_payout.second + asset(vesting_steem, STEEM_SYMBOL)),
-                                to_sbd(asset(curation_tokens, STEEM_SYMBOL)),
-                                to_sbd(asset(total_beneficiary, STEEM_SYMBOL))
-                        );
-
-                        /*if( sbd_created.symbol == SBD_SYMBOL )
-                           adjust_total_payout( comment, sbd_created + to_sbd( asset( vesting_steem, STEEM_SYMBOL ) ), to_sbd( asset( reward_tokens.to_uint64() - author_tokens, STEEM_SYMBOL ) ) );
-                        else
-                           adjust_total_payout( comment, to_sbd( asset( vesting_steem + sbd_steem, STEEM_SYMBOL ) ), to_sbd( asset( reward_tokens.to_uint64() - author_tokens, STEEM_SYMBOL ) ) );
-                           */
-
                         // stats only.. TODO: Move to plugin...
                         total_payout = to_sbd(asset(reward_tokens.to_uint64(), STEEM_SYMBOL));
 
@@ -2362,10 +2336,6 @@ namespace golos { namespace chain {
                         push_virtual_operation(comment_reward_operation(comment.author, to_string(comment.permlink), total_payout));
 
 #ifndef IS_LOW_MEM
-                        modify(comment, [&](comment_object &c) {
-                            c.author_rewards += author_tokens;
-                        });
-
                         modify(get_account(comment.author), [&](account_object &a) {
                             a.posting_rewards += author_tokens;
                         });

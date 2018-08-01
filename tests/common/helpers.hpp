@@ -39,6 +39,10 @@
     BOOST_CHECK_EQUAL(posting_auths, POSTING);                     \
 }
 
+// Check if 2 numeric values are approximately equal
+#define APPROX_CHECK_EQUAL(X, Y, DELTA) {                          \
+    BOOST_CHECK(std::abs(X - Y) <= DELTA);                         \
+}
 
 // internals
 //-------------------------------------------------------------

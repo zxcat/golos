@@ -151,7 +151,7 @@ namespace golos { namespace chain {
         }
 
         asset total_payout() const {
-            return total_payout_;
+            return sbd_payout_ + db_.to_sbd(vesting_payout_ * db_.get_dynamic_global_properties().get_vesting_share_price());
         }
 
     private:
@@ -218,7 +218,6 @@ namespace golos { namespace chain {
             auto sbd_payout_value = comment_rewards_ / 2;
             auto vesting_payout_value = comment_rewards_ - sbd_payout_value;
 
-            total_payout_ = db_.to_sbd(asset(sbd_payout_value + vesting_payout_value, STEEM_SYMBOL));
             sbd_payout_ = asset(sbd_payout_value, SBD_SYMBOL);
             vesting_payout_ = fund_.create_vesting(asset(vesting_payout_value, STEEM_SYMBOL));
         }
@@ -240,7 +239,6 @@ namespace golos { namespace chain {
 
         asset sbd_payout_;
         asset vesting_payout_;
-        asset total_payout_;
     };
 
 } } // namespace golos::chain

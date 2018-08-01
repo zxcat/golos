@@ -257,9 +257,10 @@ namespace golos { namespace plugins { namespace chain {
                 "store-account-metadata-list", bpo::value<std::string>(),
                 "names of accounts to store metadata"
             ) (
-                "store-memo-in-savings-withdraws", bpo::bool_switch()->default_value(true),
+                "store-memo-in-savings-withdraws", bpo::value<bool>()->default_value(true),
                 "store memo for all savings withdraws"
             );
+        //  Do not use bool_switch() in cfg!
         cli.add_options()
             (
                 "replay-blockchain", bpo::bool_switch()->default_value(false),
