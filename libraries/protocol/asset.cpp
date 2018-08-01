@@ -66,18 +66,19 @@ namespace golos {
                 auto space_pos = s.find(" ");
                 auto dot_pos = s.find(".");
 
-                FC_ASSERT(space_pos != std::string::npos);
+                GOLOS_CHECK_VALUE(space_pos != std::string::npos, "Invalid asset notation");
 
                 asset result;
                 result.symbol = uint64_t(0);
                 auto sy = (char *)&result.symbol;
 
                 if (dot_pos != std::string::npos) {
-                    FC_ASSERT(space_pos > dot_pos);
+                    GOLOS_CHECK_VALUE(space_pos > dot_pos, "Invalid asset notation");
 
                     auto intpart = s.substr(0, dot_pos);
                     auto fractpart = "1" + s.substr(
                             dot_pos + 1, space_pos - dot_pos - 1);
+                    GOLOS_CHECK_VALUE(fractpart.size() - 1 < 15, "Asset fraction part is too long");
                     result.set_decimals(fractpart.size() - 1);
 
                     result.amount = fc::to_int64(intpart);
@@ -93,7 +94,7 @@ namespace golos {
                 size_t symbol_size = symbol.size();
 
                 if (symbol_size > 0) {
-                    FC_ASSERT(symbol_size <= 6);
+                    GOLOS_CHECK_VALUE(symbol_size <= 6, "Asset symbol is too long");
                     memcpy(sy + 1, symbol.c_str(), symbol_size);
                 }
 

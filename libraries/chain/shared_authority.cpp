@@ -1,4 +1,5 @@
 #include <golos/chain/shared_authority.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 namespace golos {
     namespace chain {
@@ -76,7 +77,8 @@ namespace golos {
 
         void shared_authority::validate() const {
             for (const auto &item : account_auths) {
-                FC_ASSERT(protocol::is_valid_account_name(item.first));
+                GOLOS_CHECK_VALUE(protocol::is_valid_account_name(item.first), 
+                        "Account name \"${account}\" is invalid", ("account",item.first));
             }
         }
 

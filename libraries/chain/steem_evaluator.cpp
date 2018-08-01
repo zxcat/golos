@@ -78,7 +78,7 @@ namespace golos { namespace chain {
                 GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.available_vesting_shares(false);
             case AVAILABLE_VESTING:
-                FC_ASSERT(symbol == VESTS_SYMBOL, "invalid symbol");
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
                 return account.available_vesting_shares(true);
             default: FC_ASSERT(false, "invalid balance type");
         }
@@ -97,9 +97,10 @@ namespace golos { namespace chain {
     }
 
         inline void validate_permlink_0_1(const string &permlink) {
-            FC_ASSERT(permlink.size() > STEEMIT_MIN_PERMLINK_LENGTH &&
-                      permlink.size() <
-                      STEEMIT_MAX_PERMLINK_LENGTH, "Permlink is not a valid size.");
+            GOLOS_CHECK_VALUE(permlink.size() > STEEMIT_MIN_PERMLINK_LENGTH &&
+                      permlink.size() < STEEMIT_MAX_PERMLINK_LENGTH, 
+                      "Permlink is not a valid size. Permlink length should be more ${min} and less ${max}",
+                      ("min", STEEMIT_MIN_PERMLINK_LENGTH)("max", STEEMIT_MAX_PERMLINK_LENGTH));
 
             for (auto c : permlink) {
                 switch (c) {

@@ -55,6 +55,9 @@
 #define GOLOS_CHECK_LOGIC(expr, TYPE, MSG, ...) \
         GOLOS_ASSERT(expr, golos::logic_exception, MSG, ("errid", TYPE)("namespace",golos::get_logic_error_namespace<decltype(TYPE)>())__VA_ARGS__)
 
+#define GOLOS_CHECK_DATABASE(expr, TYPE, MSG, ...) \
+        GOLOS_ASSERT(expr, golos::database_corrupted, MSG, ("errid", TYPE)__VA_ARGS__)
+
 
 // TODO Remove after done refactor errors in plugins #791
 //      This macros is obsolete and replaced with PLUGIN_API_VALIDATE_ARGS
@@ -289,7 +292,7 @@ namespace golos {
             delegation_limited_by_voting_power,
             cannot_delegate_below_minimum,
 
-            //proposals
+            //proposals and transactions
             proposal_depth_too_high,
             tx_with_both_posting_active_ops,
 
@@ -333,6 +336,12 @@ namespace golos {
             account_already_scheduled_for_work,
             cannot_specify_owner_key_unless_creating_account,
             witness_must_be_created_before_minning,
+
+            // custom operations
+            inner_authorities_does_not_match_outer,
+
+            // database logic
+            account_exceeded_bandwidth_per_vestring_share,
         };
     };
 
@@ -351,6 +360,19 @@ namespace golos {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         limit_too_large, invalid_value,
         4020100, "Exceeded limit value");
+
+    class database_corrupted : public internal_error {
+        GOLOS_DECLARE_DERIVED_EXCEPTION_BODY(
+            database_corrupted, internal_error,
+            4030000, "Database corrupted");
+    public:
+        enum error_types {
+            wrong_block_num_was_read,
+            wrong_position_marker_was_read,
+            append_index_file_at_wrong_position,
+            reading_data_beyond_end_of_file,
+        };
+    };
 
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         invalid_option, golos_exception,
@@ -432,6 +454,18 @@ namespace golos { namespace protocol {
     GOLOS_DECLARE_DERIVED_EXCEPTION(
         tx_duplicate_transaction, transaction_exception,
         3080000, "duplicate transaction");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        tx_too_long, transaction_exception,
+        3090000, "transaction too long");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        tx_expired, transaction_exception,
+        3100000, "expired transaction");
+
+    GOLOS_DECLARE_DERIVED_EXCEPTION(
+        tx_invalid_field, transaction_exception,
+        3110000, "invalid transaction field");
 
 
 } } // golos::protocol
@@ -562,6 +596,12 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (account_already_scheduled_for_work)
         (cannot_specify_owner_key_unless_creating_account)
         (witness_must_be_created_before_minning)
+
+        // custom operations
+        (inner_authorities_does_not_match_outer)
+
+        // database logic
+        (account_exceeded_bandwidth_per_vestring_share)
 );
 
 FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
@@ -569,4 +609,11 @@ FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
         (comment_bandwidth)
         (vote_bandwidth)
         (change_owner_authority_bandwidth)
+);
+
+FC_REFLECT_ENUM(golos::database_corrupted::error_types,
+        (wrong_block_num_was_read)
+        (wrong_position_marker_was_read)
+        (append_index_file_at_wrong_position)
+        (reading_data_beyond_end_of_file)
 );
