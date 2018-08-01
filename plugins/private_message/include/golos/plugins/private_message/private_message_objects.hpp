@@ -40,22 +40,27 @@ namespace golos { namespace plugins { namespace private_message {
 
         account_name_type from;
         account_name_type to;
-        uint64_t nonce; /// used as seed to secret generation
+        uint64_t nonce;
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        time_point_sec create_time;
-        time_point_sec receive_time; /// time received by blockchain
         uint32_t checksum = 0;
-        time_point_sec read_time;
         buffer_type encrypted_message;
+
+        time_point_sec inbox_create_date; // == time_point_sec::min() means removed message
+        time_point_sec outbox_create_date; // == time_point_sec::min() means removed message
+        time_point_sec receive_date;
+        time_point_sec read_date;
+        time_point_sec remove_date;
     };
 
     using message_id_type = message_object::id_type;
 
-    struct by_to_date;
-    struct by_from_date;
-    struct by_from_to_date;
+    struct by_inbox;
+    struct by_inbox_account;
+    struct by_outbox;
+    struct by_outbox_account;
     struct by_nonce;
+
     struct by_owner;
     struct by_contact;
 
@@ -66,40 +71,53 @@ namespace golos { namespace plugins { namespace private_message {
                 tag<by_id>,
                 member<message_object, message_id_type, &message_object::id>>,
             ordered_unique<
-                tag<by_to_date>,
+                tag<by_inbox>,
                 composite_key<
                     message_object,
                     member<message_object, account_name_type, &message_object::to>,
-                    member<message_object, time_point_sec, &message_object::create_time>,
+                    member<message_object, time_point_sec, &message_object::inbox_create_date>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
                     string_less,
                     std::greater<time_point_sec>,
-                    std::less<message_id_type>>>,
+                    std::greater<message_id_type>>>,
             ordered_unique<
-                tag<by_from_date>,
+                tag<by_inbox_account>,
+                composite_key<
+                    message_object,
+                    member<message_object, account_name_type, &message_object::to>,
+                    member<message_object, account_name_type, &message_object::from>,
+                    member<message_object, time_point_sec, &message_object::inbox_create_date>,
+                    member<message_object, message_id_type, &message_object::id>>,
+                composite_key_compare<
+                    string_less,
+                    string_less,
+                    std::greater<time_point_sec>,
+                    std::greater<message_id_type>>>,
+            ordered_unique<
+                tag<by_outbox>,
                 composite_key<
                     message_object,
                     member<message_object, account_name_type, &message_object::from>,
-                    member<message_object, time_point_sec, &message_object::create_time>,
+                    member<message_object, time_point_sec, &message_object::outbox_create_date>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
                     string_less,
                     std::greater<time_point_sec>,
-                    std::less<message_id_type>>>,
+                    std::greater<message_id_type>>>,
             ordered_unique<
-                tag<by_from_to_date>,
+                tag<by_outbox_account>,
                 composite_key<
                     message_object,
                     member<message_object, account_name_type, &message_object::from>,
                     member<message_object, account_name_type, &message_object::to>,
-                    member<message_object, time_point_sec, &message_object::create_time>,
+                    member<message_object, time_point_sec, &message_object::outbox_create_date>,
                     member<message_object, message_id_type, &message_object::id>>,
                 composite_key_compare<
                     string_less,
                     string_less,
                     std::greater<time_point_sec>,
-                    std::less<message_id_type>>>,
+                    std::greater<message_id_type>>>,
             ordered_unique<
                 tag<by_nonce>,
                 composite_key<

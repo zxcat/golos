@@ -1260,14 +1260,14 @@ namespace golos { namespace wallet {
              *
              * @param from account from which you send message
              * @param to account to which you send message
-             * @param from_date begin of date range
-             * @param to_date begin of date range
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
             annotated_signed_transaction delete_private_messages(
                 const std::string& from, const std::string& to,
-                const std::string& from_date, const std::string& to_date, bool broadcast);
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
 
             /**
              * Mark encrypted private message with read time
@@ -1286,14 +1286,14 @@ namespace golos { namespace wallet {
              *
              * @param from account from which you send message
              * @param to account to which you send message
-             * @param from_date begin of date range
-             * @param to_date begin of date range
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
              * @param broadcast true if you wish to broadcast the transaction
              * @return the signed version of the transaction
              */
             annotated_signed_transaction mark_private_messages(
                 const std::string& from, const std::string& to,
-                const std::string& from_date, const std::string& to_date, bool broadcast);
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
         };
 
         struct plain_keys {

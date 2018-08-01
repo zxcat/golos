@@ -9,11 +9,12 @@ namespace golos { namespace plugins { namespace private_message {
           nonce(o.nonce),
           from_memo_key(o.from_memo_key),
           to_memo_key(o.to_memo_key),
-          create_time(o.create_time),
-          receive_time(o.receive_time),
           checksum(o.checksum),
-          read_time(o.read_time),
-          encrypted_message(o.encrypted_message.begin(), o.encrypted_message.end()) {
+          encrypted_message(o.encrypted_message.begin(), o.encrypted_message.end()),
+          create_date(std::max(o.inbox_create_date, o.outbox_create_date)),
+          receive_date(o.receive_date),
+          read_date(o.read_date),
+          remove_date(o.remove_date) {
     }
 
     message_api_object::message_api_object() = default;

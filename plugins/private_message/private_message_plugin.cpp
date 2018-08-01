@@ -74,20 +74,24 @@ namespace golos { namespace plugins { namespace private_message {
         golos::chain::database& db_;
     };
 
+    static inline time_point_sec min_create_date() {
+        return time_point_sec(1);
+    }
+
     std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_inbox(
         const std::string& to, const inbox_query& query
     ) const {
         std::vector<message_api_object> result;
-        const auto& idx = db_.get_index<message_index>().indices().get<by_to_date>();
+        const auto& idx = db_.get_index<message_index>().indices().get<by_inbox>();
 
         auto itr = idx.lower_bound(std::make_tuple(to, query.start_date));
-        auto etr = idx.upper_bound(std::make_tuple(to, time_point::min()));
+        auto etr = idx.upper_bound(std::make_tuple(to, min_create_date()));
         auto offset = query.offset;
 
         auto filter = [&](const message_object& o) {
             return
                 (query.select_from.empty() || query.select_from.count(o.from)) &&
-                (!query.unread_only || o.read_time == time_point_sec::min());
+                (!query.unread_only || o.read_date == time_point_sec::min());
         };
 
         for (; itr != etr && offset; ++itr) {
@@ -111,16 +115,16 @@ namespace golos { namespace plugins { namespace private_message {
     ) const {
 
         std::vector<message_api_object> result;
-        const auto& idx = db_.get_index<message_index>().indices().get<by_from_date>();
+        const auto& idx = db_.get_index<message_index>().indices().get<by_outbox>();
 
         auto itr = idx.lower_bound(std::make_tuple(from, query.start_date));
-        auto etr = idx.upper_bound(std::make_tuple(from, time_point::min()));
+        auto etr = idx.upper_bound(std::make_tuple(from, min_create_date()));
         auto offset = query.offset;
 
         auto filter = [&](const message_object& o) {
             return
                 (query.select_to.empty() || query.select_to.count(o.to)) &&
-                (!query.unread_only || o.read_time == time_point_sec::min());
+                (!query.unread_only || o.read_date == time_point_sec::min());
         };
 
         for (; itr != etr && offset; ++itr) {
@@ -144,48 +148,51 @@ namespace golos { namespace plugins { namespace private_message {
     ) const {
 
         std::vector<message_api_object> result;
-        const auto& idx = db_.get_index<message_index>().indices().get<by_from_date>();
+        const auto& outbox_idx = db_.get_index<message_index>().indices().get<by_outbox_account>();
+        const auto& inbox_idx = db_.get_index<message_index>().indices().get<by_inbox_account>();
 
-        auto from_itr = idx.lower_bound(std::make_tuple(from, query.start_date));
-        auto from_etr = idx.upper_bound(std::make_tuple(from, time_point::min()));
-        auto to_itr = idx.lower_bound(std::make_tuple(to, query.start_date));
-        auto to_etr = idx.upper_bound(std::make_tuple(to, time_point::min()));
+        auto outbox_itr = outbox_idx.lower_bound(std::make_tuple(from, to, query.start_date));
+        auto outbox_etr = outbox_idx.upper_bound(std::make_tuple(from, to, min_create_date()));
+        auto inbox_itr = inbox_idx.lower_bound(std::make_tuple(from, to, query.start_date));
+        auto inbox_etr = inbox_idx.upper_bound(std::make_tuple(from, to, min_create_date()));
         auto offset = query.offset;
 
         auto filter = [&](const message_object& o) {
-            return (!query.unread_only || o.read_time == time_point_sec::min());
+            return (!query.unread_only || o.read_date == time_point_sec::min());
         };
 
-        auto select_itr = [&]() -> auto& {
-            if (from_itr != from_etr) {
-                if (to_itr != to_etr && from_itr->id < to_itr->id) {
-                    return to_itr;
+        auto itr_to_message = [&](auto& itr) -> const message_object& {
+            const message_object& result = *itr;
+            ++itr;
+            return result;
+        };
+
+        auto select_message = [&]() -> const message_object& {
+            if (outbox_itr != outbox_etr) {
+                if (inbox_itr == inbox_etr || outbox_itr->id > inbox_itr->id) {
+                    return itr_to_message(outbox_itr);
                 }
-                return from_itr;
-            } else {
-                return to_itr;
             }
+            return itr_to_message(inbox_itr);
         };
 
-        auto is_done = [&]() {
-            return from_itr == from_etr && to_itr == to_etr;
+        auto is_not_done = [&]() -> bool {
+            return outbox_itr != outbox_etr || inbox_itr != inbox_etr;
         };
 
-        while (!is_done() && offset) {
-            auto& itr = select_itr();
-            if (filter(*itr)){
+        while (is_not_done() && offset) {
+            auto& message = select_message();
+            if (filter(message)){
                 --offset;
             }
-            ++itr;
         }
 
         result.reserve(query.limit);
-        while (!is_done() && result.size() < query.limit) {
-            auto& itr = select_itr();
-            if (filter(*itr)) {
-                result.emplace_back(*itr);
+        while (is_not_done() && result.size() < query.limit) {
+            auto& message = select_message();
+            if (filter(message)) {
+                result.emplace_back(message);
             }
-            ++itr;
         }
 
         return result;
@@ -310,12 +317,14 @@ namespace golos { namespace plugins { namespace private_message {
             }
         });
 
+        auto now = d.head_block_time();
+
         auto set_message = [&](message_object& pmo) {
             pmo.from_memo_key = pm.from_memo_key;
             pmo.to_memo_key = pm.to_memo_key;
             pmo.checksum = pm.checksum;
-            pmo.read_time = time_point_sec::min();
-            pmo.receive_time = d.head_block_time();
+            pmo.read_date = time_point_sec::min();
+            pmo.receive_date = now;
             pmo.encrypted_message.resize(pm.encrypted_message.size());
             std::copy(
                 pm.encrypted_message.begin(), pm.encrypted_message.end(),
@@ -327,7 +336,9 @@ namespace golos { namespace plugins { namespace private_message {
                 pmo.from = pm.from;
                 pmo.to = pm.to;
                 pmo.nonce = pm.nonce;
-                pmo.create_time = d.head_block_time();
+                pmo.inbox_create_date = now;
+                pmo.outbox_create_date = now;
+                pmo.remove_date = time_point_sec::min();
                 set_message(pmo);
             });
         } else {
@@ -340,11 +351,11 @@ namespace golos { namespace plugins { namespace private_message {
         // Increment counters depends on side of communication
         auto inc_counters = [&](auto& o, const bool is_send) {
             if (is_send) {
-                o.total_send_messages++;
-                o.unread_send_messages++;
+                o.total_outbox_messages++;
+                o.unread_outbox_messages++;
             } else {
-                o.total_recv_messages++;
-                o.unread_recv_messages++;
+                o.total_inbox_messages++;
+                o.unread_inbox_messages++;
             }
         };
 
@@ -395,101 +406,83 @@ namespace golos { namespace plugins { namespace private_message {
         modify_contact(pm.to, pm.from, undefined, false);
     }
 
-    template <
-        typename Operation,
-        typename ProcessAction,
-        typename UpdateStat,
-        typename VerifyAction,
-        typename ContactAction>
-    void process_private_messages(
-        database& db, const Operation& po,
-        UpdateStat&& update_stat, ProcessAction&& process_action,
-        VerifyAction&& verify_action, ContactAction&& contact_action
-    ) {
-        std::map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
+    template <typename Direction, typename Operation, typename Action, typename... Args>
+    bool process_private_messages(database& db, const Operation& po, Action&& action, Args&&... args) {
+        auto start_date = std::max(po.start_date, min_create_date());
+        auto stop_date = std::max(po.stop_date, min_create_date());
 
-        auto process_range = [&](auto itr, auto etr) {
-            while (itr != etr) {
-                auto& m = (*itr);
-                ++itr;
-                update_stat(stat_map, m);
-                process_action(m);
-            }
-        };
+        auto& idx = db.get_index<message_index>().indices().get<Direction>();
+        auto itr = idx.lower_bound(std::make_tuple(std::forward<Args>(args)..., stop_date));
+        auto etr = idx.lower_bound(std::make_tuple(std::forward<Args>(args)..., start_date));
 
-        if (po.nonce != 0) {
-            auto& id_idx = db.get_index<message_index>().indices().get<by_nonce>();
-            auto id_itr = id_idx.find(std::make_tuple(po.from, po.to, po.nonce));
-
-            GOLOS_CHECK_OP_PARAM(po, nonce, {
-                if (id_itr == id_idx.end()) {
-                    GOLOS_THROW_MISSING_OBJECT("private_message",
-                        fc::mutable_variant_object()("from", po.from)("to", po.to)("nonce", po.nonce));
-                }
-            });
-
-            update_stat(stat_map, *id_itr);
-            process_action(*id_itr);
-        } else if (po.from.size() && po.to.size()) {
-            auto& to_idx = db.get_index<message_index>().indices().get<by_from_to_date>();
-            auto to_itr = to_idx.lower_bound(std::make_tuple(po.from, po.to, po.to_date));
-            auto to_etr = to_idx.upper_bound(std::make_tuple(po.from, po.to, po.from_date));
-
-            GOLOS_CHECK_OP_PARAM(po, from_date, {
-                if (to_itr == to_etr) {
-                    GOLOS_THROW_MISSING_OBJECT("private_message",
-                        fc::mutable_variant_object()("from", po.from)("to", po.to)
-                        ("from_date", po.from_date)("to_time", po.to_date));
-                }
-            });
-
-            process_range(to_itr, to_etr);
-        } else if (po.from.size()) {
-            auto& date_idx = db.get_index<message_index>().indices().get<by_from_date>();
-            auto date_itr = date_idx.lower_bound(std::make_tuple(po.from, po.to_date));
-            auto date_etr = date_idx.upper_bound(std::make_tuple(po.from, po.from_date));
-
-            GOLOS_CHECK_OP_PARAM(po, from, {
-                if (date_itr == date_etr) {
-                    GOLOS_THROW_MISSING_OBJECT("private_message",
-                        fc::mutable_variant_object()("from", po.from)
-                        ("from_date", po.from_date)("to_time", po.to_date));
-                }
-            });
-
-            process_range(date_itr, date_etr);
-        } else if (po.to.size()) {
-            auto& date_idx = db.get_index<message_index>().indices().get<by_to_date>();
-            auto date_itr = date_idx.lower_bound(std::make_tuple(po.to, po.to_date));
-            auto date_etr = date_idx.upper_bound(std::make_tuple(po.to, po.from_date));
-
-            GOLOS_CHECK_OP_PARAM(po, to, {
-                if (date_itr == date_etr) {
-                    GOLOS_THROW_MISSING_OBJECT("private_message",
-                        fc::mutable_variant_object()("to", po.to)
-                        ("from_date", po.from_date)("to_time", po.to_date));
-                }
-            });
-
-            process_range(date_itr, date_etr);
-        } else {
-            GOLOS_CHECK_LOGIC(false, logic_errors::invalid_range, "Invalid range");
+        if (itr == etr) {
+            return false;
         }
 
-        verify_action();
+        while (itr != etr) {
+            auto& message = (*itr);
+            ++itr;
+            if (!action(message)) {
+                break;
+            }
+        }
+        return true;
+    }
+
+    template <typename Operation, typename Map, typename ProcessAction, typename ContactAction>
+    void process_group_message_operation(
+        database& db, const Operation& po, const std::string& requester,
+        Map& map, ProcessAction&& process_action, ContactAction&& contact_action
+    ) {
+        if (po.nonce != 0) {
+            auto& idx = db.get_index<message_index>().indices().get<by_nonce>();
+            auto itr = idx.find(std::make_tuple(po.from, po.to, po.nonce));
+
+            if (itr == idx.end()) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("from", po.from)("to", po.to)("nonce", po.nonce));
+            }
+
+            process_action(*itr);
+        } else if (po.from.size() && po.to.size()) {
+            if (!process_private_messages<by_outbox_account>(db, po, process_action, po.from, po.to)) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("from", po.from)("to", po.to)
+                    ("start_date", po.start_date)("stop_date", po.stop_date));
+            }
+        } else if (po.from.size()) {
+            if (!process_private_messages<by_outbox>(db, po, process_action, po.from)) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("from", po.from)
+                    ("start_date", po.start_date)("stop_date", po.stop_date));
+            }
+        } else if (po.to.size()) {
+            if (!process_private_messages<by_inbox>(db, po, process_action, po.to)) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("to", po.to)
+                    ("start_date", po.start_date)("stop_date", po.stop_date));
+            }
+        } else {
+            if (!process_private_messages<by_inbox>(db, po, process_action, requester) &&
+                !process_private_messages<by_outbox>(db, po, process_action, requester)
+            ) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("requester", requester)
+                    ("start_date", po.start_date)("stop_date", po.stop_date));
+            }
+        }
 
         auto& contact_idx = db.get_index<contact_index>().indices().get<by_contact>();
         auto& size_idx = db.get_index<contact_size_index>().indices().get<by_owner>();
 
-        for (const auto& stat_info: stat_map) {
+        for (const auto& stat_info: map) {
             const auto& owner = std::get<0>(stat_info.first);
             const auto& size = stat_info.second;
             auto contact_itr = contact_idx.find(stat_info.first);
             auto size_itr = size_idx.find(owner);
 
             GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr && size_idx.end() != size_itr,
-                logic_errors::invalid_size,
-                "Invalid size");
+                logic_errors::invalid_size, "Invalid size");
 
             if (!contact_action(*contact_itr, *size_itr, size)) {
                 db.modify(*contact_itr, [&](auto& pco) {
@@ -504,24 +497,48 @@ namespace golos { namespace plugins { namespace private_message {
 
     void private_delete_message_evaluator::do_apply(const private_delete_message_operation& pdm) {
         database& d = db();
+        auto now = d.head_block_time();
+        fc::flat_map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
 
-        process_private_messages(
-            d, pdm,
-            /* update_stat */ [&](auto& stat_map, const message_object& m) {
-                auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
-                auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
-                if (m.read_time == time_point_sec::min()) {
-                    send_stat.unread_send_messages++;
-                    recv_stat.unread_recv_messages++;
+        process_group_message_operation(
+            d, pdm, pdm.requester, stat_map,
+            /* process_action */
+            [&](const message_object& m) -> bool {
+                uint32_t unread_messages = 0;
+
+                if (m.read_date == time_point_sec::min()) {
+                    unread_messages = 1;
                 }
-                send_stat.total_send_messages++;
-                recv_stat.total_recv_messages++;
-            },
-            /* process_action */ [&](const message_object& m) {
-                d.remove(m);
-            },
-            /* verify_action */ [&]() {
-                // nothing
+                if (pdm.requester == pdm.to) {
+                    // remove from inbox
+                    if (m.inbox_create_date == time_point_sec::min()) {
+                        return false;
+                    }
+                    auto& inbox_stat = stat_map[std::make_tuple(m.to, m.from)];
+                    inbox_stat.unread_inbox_messages += unread_messages;
+                    inbox_stat.total_inbox_messages++;
+                } else {
+                    // remove from outbox
+                    if (m.outbox_create_date == time_point_sec::min()) {
+                        return false;
+                    }
+                    auto& outbox_stat = stat_map[std::make_tuple(m.from, m.to)];
+                    outbox_stat.unread_outbox_messages += unread_messages;
+                    outbox_stat.total_outbox_messages++;
+                }
+                if (m.remove_date == time_point_sec::min()) {
+                    d.modify(m, [&](auto& m) {
+                        m.remove_date = now;
+                        if (pdm.requester == pdm.to) {
+                            m.inbox_create_date = time_point_sec::min(); // remove message from find requests
+                        } else {
+                            m.outbox_create_date = time_point_sec::min(); // remove message from find requests
+                        }
+                    });
+                } else {
+                    d.remove(m);
+                }
+                return true;
             },
             /* contact_action */
             [&](const contact_object& co, const contact_size_object& so, const contact_size_info& size) -> bool {
@@ -547,33 +564,38 @@ namespace golos { namespace plugins { namespace private_message {
 
         uint32_t total_marked_messages = 0;
         auto now = d.head_block_time();
+        fc::flat_map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
 
-        process_private_messages(
-            d, pmm,
-            /* update_stat */ [&](auto& stat_map, const message_object& m) {
-                if (m.read_time == time_point_sec::min()) {
-                    auto& recv_stat = stat_map[std::make_tuple(m.to, m.from)];
-                    auto& send_stat = stat_map[std::make_tuple(m.from, m.to)];
-                    send_stat.unread_send_messages++;
-                    recv_stat.unread_recv_messages++;
-                    total_marked_messages++;
+        process_group_message_operation(
+            d, pmm, "", stat_map,
+            /* process_action */
+            [&](const message_object& m) -> bool {
+                if (m.read_date != time_point_sec::min()) {
+                    return true;
                 }
-            },
-            /* process_action */ [&](const message_object& m) {
+                // only recipient can mark messages
+                stat_map[std::make_tuple(m.to, m.from)].unread_inbox_messages++;
+                // if sender hasn't yet removed the message
+                if (m.remove_date == time_point_sec::min()) {
+                    stat_map[std::make_tuple(m.from, m.to)].unread_outbox_messages++;
+                }
+                total_marked_messages++;
+
                 d.modify(m, [&](message_object& m){
-                    m.read_time = now;
+                    m.read_date = now;
                 });
+                return true;
             },
-            /* verify_action */ [&](){
-                GOLOS_CHECK_LOGIC(total_marked_messages > 0,
-                    logic_errors::no_unread_messages,
-                    "No unread messages in requested range");
-            },
+
             /* contact_action */
             [&](const contact_object&, const contact_size_object&, const contact_size_info&) -> bool {
                 return false;
             }
         );
+
+        GOLOS_CHECK_LOGIC(total_marked_messages > 0,
+            logic_errors::no_unread_messages,
+            "No unread messages in requested range");
     }
 
     void private_settings_evaluator::do_apply(const private_settings_operation& ps) {

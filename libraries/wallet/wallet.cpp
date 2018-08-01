@@ -2839,8 +2839,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from = from;
             op.to = to;
             op.nonce = nonce;
-            op.from_date = time_point_sec::min();
-            op.to_date = time_point_sec::min();
+            op.start_date = time_point_sec::min();
+            op.stop_date = time_point_sec::min();
 
             private_message_plugin_operation pop = op;
 
@@ -2858,7 +2858,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
 
         annotated_signed_transaction wallet_api::delete_private_messages(
             const std::string& from, const std::string& to,
-            const std::string& from_date, const std::string& to_date,
+            const std::string& start_date, const std::string& stop_date,
             bool broadcast
         ) {
             WALLET_CHECK_UNLOCKED();
@@ -2867,8 +2867,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from = from;
             op.to = to;
             op.nonce = 0;
-            op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point::now()).time();
+            op.start_date = time_converter(start_date, time_point::now(), time_point_sec::min()).time();
+            op.stop_date = time_converter(stop_date, time_point::now(), time_point::now()).time();
 
             private_message_plugin_operation pop = op;
 
@@ -2894,8 +2894,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from = from;
             op.to = to;
             op.nonce = nonce;
-            op.from_date = time_point_sec::min();
-            op.to_date = time_point_sec::min();
+            op.start_date = time_point_sec::min();
+            op.stop_date = time_point_sec::min();
 
             private_message_plugin_operation pop = op;
 
@@ -2913,7 +2913,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
 
         annotated_signed_transaction wallet_api::mark_private_messages(
             const std::string& from, const std::string& to,
-            const std::string& from_date, const std::string& to_date,
+            const std::string& start_date, const std::string& stop_date,
             bool broadcast
         ) {
             WALLET_CHECK_UNLOCKED();
@@ -2922,8 +2922,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.from = from;
             op.to = to;
             op.nonce = 0;
-            op.from_date = time_converter(from_date, time_point::now(), time_point_sec::min()).time();
-            op.to_date = time_converter(to_date, time_point::now(), time_point::now()).time();
+            op.start_date = time_converter(start_date, time_point::now(), time_point_sec::min()).time();
+            op.stop_date = time_converter(stop_date, time_point::now(), time_point::now()).time();
 
             private_message_plugin_operation pop = op;
 

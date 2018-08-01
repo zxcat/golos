@@ -21,11 +21,12 @@ namespace golos { namespace plugins { namespace private_message {
     };
 
     struct private_delete_message_operation: public base_operation {
+        account_name_type requester;
         account_name_type from;
         account_name_type to;
         uint64_t nonce = 0;
-        time_point_sec from_date;
-        time_point_sec to_date;
+        time_point_sec start_date;
+        time_point_sec stop_date;
 
         void validate() const;
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
@@ -35,8 +36,8 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type from;
         account_name_type to;
         uint64_t nonce = 0;
-        time_point_sec from_date;
-        time_point_sec to_date;
+        time_point_sec start_date;
+        time_point_sec stop_date;
 
         void validate() const;
         void get_required_posting_authorities(flat_set<account_name_type>& a) const;
@@ -86,11 +87,11 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::private_delete_message_operation),
-    (from)(to)(nonce)(from_date)(to_date))
+    (requester)(from)(to)(nonce)(start_date)(stop_date))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_mark_message_operation),
-    (from)(to)(nonce)(from_date)(to_date))
+    (from)(to)(nonce)(start_date)(stop_date))
 
 FC_REFLECT(
     (golos::plugins::private_message::private_settings_operation),
