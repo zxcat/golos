@@ -1060,24 +1060,20 @@ namespace golos { namespace wallet {
                     fc::sha512 shared_secret;
 
                     auto it = _keys.find(mo.from_memo_key);
+                    auto pub_key = mo.to_memo_key;
                     if (it == _keys.end()) {
                         it = _keys.find(mo.to_memo_key);
-                        if (it ==_keys.end()) {
-                            wlog("unable to find keys");
-                            return result;
-                        }
-                        auto priv_key = wif_to_key(it->second);
-                        if (!priv_key) {
-                            return result;
-                        }
-                        shared_secret = priv_key->get_shared_secret(mo.from_memo_key);
-                    } else {
-                        auto priv_key = wif_to_key(it->second);
-                        if (!priv_key) {
-                            return result;
-                        }
-                        shared_secret = priv_key->get_shared_secret(mo.to_memo_key);
+                        auto pub_key = mo.from_memo_key;
                     }
+                    if (it ==_keys.end()) {
+                        wlog("unable to find keys");
+                        return result;
+                    }
+                    auto priv_key = wif_to_key(it->second);
+                    if (!priv_key) {
+                        return result;
+                    }
+                    shared_secret = priv_key->get_shared_secret(pub_key);
 
                     fc::sha512::encoder enc;
                     fc::raw::pack(enc, mo.nonce);
