@@ -265,30 +265,28 @@ namespace golos { namespace plugins { namespace private_message {
         auto& cfg_idx = d.get_index<settings_index>().indices().get<by_owner>();
         auto cfg_itr = cfg_idx.find(pm.to);
 
-        GOLOS_CHECK_OP_PARAM(pm, to, {
-            d.get_account(pm.to);
-            GOLOS_CHECK_LOGIC(contact_itr == contact_idx.end() || contact_itr->type != ignored,
-                logic_errors::sender_in_ignore_list,
-                "Sender is in the ignore list of recipient");
-            GOLOS_CHECK_LOGIC(
-                (cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_unknown_contact) ||
-                (contact_itr != contact_idx.end() && contact_itr->type == pinned),
-                logic_errors::recepient_ignores_messages_from_unknown_contact,
-                "Recipient accepts messages only from his contact list");
-        });
+        d.get_account(pm.to);
+
+        GOLOS_CHECK_LOGIC(contact_itr == contact_idx.end() || contact_itr->type != ignored,
+            logic_errors::sender_in_ignore_list,
+            "Sender is in the ignore list of recipient");
+
+        GOLOS_CHECK_LOGIC(
+            (cfg_itr == cfg_idx.end() || !cfg_itr->ignore_messages_from_unknown_contact) ||
+            (contact_itr != contact_idx.end() && contact_itr->type == pinned),
+            logic_errors::recepient_ignores_messages_from_unknown_contact,
+            "Recipient accepts messages only from his contact list");
 
         auto& id_idx = d.get_index<message_index>().indices().get<by_nonce>();
         auto id_itr = id_idx.find(std::make_tuple(pm.from, pm.to, pm.nonce));
 
-        GOLOS_CHECK_OP_PARAM(pm, nonce, {
-            if (pm.update && id_itr == id_idx.end()) {
-                GOLOS_THROW_MISSING_OBJECT("private_message",
-                    fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
-            } else if (!pm.update && id_itr != id_idx.end()){
-                GOLOS_THROW_OBJECT_ALREADY_EXIST("private_message",
-                    fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
-            }
-        });
+        if (pm.update && id_itr == id_idx.end()) {
+            GOLOS_THROW_MISSING_OBJECT("private_message",
+                fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+        } else if (!pm.update && id_itr != id_idx.end()){
+            GOLOS_THROW_OBJECT_ALREADY_EXIST("private_message",
+                fc::mutable_variant_object()("from", pm.from)("to", pm.to)("nonce", pm.nonce));
+        }
 
         auto now = d.head_block_time();
 
@@ -599,20 +597,16 @@ namespace golos { namespace plugins { namespace private_message {
         auto& contact_idx = d.get_index<contact_index>().indices().get<by_contact>();
         auto contact_itr = contact_idx.find(std::make_tuple(pc.owner, pc.contact));
 
-        GOLOS_CHECK_OP_PARAM(pc, contact, {
-            d.get_account(pc.contact);
+        d.get_account(pc.contact);
 
-            if (d.is_producing()) {
-                GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr || pc.type != unknown,
-                    logic_errors::add_unknown_contact,
-                    "Can't add unknown contact");
+        GOLOS_CHECK_LOGIC(contact_idx.end() != contact_itr || pc.type != unknown,
+            logic_errors::add_unknown_contact,
+            "Can't add unknown contact");
 
-                std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
-                GOLOS_CHECK_LOGIC(contact_itr->type != pc.type || pc.json_metadata != json_metadata,
-                    logic_errors::contact_has_same_type,
-                    "Contact has the same type");
-            }
-        });
+        std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
+        GOLOS_CHECK_LOGIC(contact_itr->type != pc.type || pc.json_metadata != json_metadata,
+            logic_errors::contact_has_same_type,
+            "Contact has the same type");
 
         auto& owner_idx = d.get_index<contact_size_index>().indices().get<by_owner>();
         auto dst_itr = owner_idx.find(std::make_tuple(pc.owner, pc.type));
