@@ -1173,7 +1173,7 @@ namespace golos { namespace wallet {
                     custom_json_operation jop;
                     jop.id   = "private_message";
                     jop.json = fc::json::to_string(pop);
-                    jop.required_posting_auths.insert(to);
+                    jop.required_posting_auths.insert(requester);
 
                     signed_transaction trx;
                     trx.operations.push_back(jop);
@@ -1203,7 +1203,7 @@ namespace golos { namespace wallet {
                     custom_json_operation jop;
                     jop.id   = "private_message";
                     jop.json = fc::json::to_string(pop);
-                    jop.required_posting_auths.insert(to);
+                    jop.required_posting_auths.insert(requester);
 
                     signed_transaction trx;
                     trx.operations.push_back(jop);
