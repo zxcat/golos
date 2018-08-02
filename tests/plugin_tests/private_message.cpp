@@ -303,11 +303,11 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
 
         generate_block();
 
-        BOOST_TEST_MESSAGE("--- Same contact");
+        BOOST_TEST_MESSAGE("--- Contact hasn't changed");
 
         GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(trx, alice_private_key, jop),
             CHECK_ERROR(tx_invalid_operation, 0,
-                CHECK_ERROR(logic_exception, logic_errors::contact_has_same_type)));
+                CHECK_ERROR(logic_exception, logic_errors::contact_has_not_changed)));
 
         cop.json_metadata = "{\"name\":\"Mark\"}";
         pop = cop;

@@ -32,7 +32,7 @@ namespace golos { namespace plugins { namespace private_message {
 
     class settings_object;
 
-    struct settings_api_object {
+    struct settings_api_object final {
         settings_api_object(const settings_object& o);
         settings_api_object();
 
@@ -87,7 +87,7 @@ namespace golos { namespace plugins { namespace private_message {
      */
     class contact_object;
 
-    struct contact_api_object {
+    struct contact_api_object final {
         contact_api_object(const contact_object& o);
         contact_api_object();
 
@@ -111,8 +111,9 @@ namespace golos { namespace plugins { namespace private_message {
     /**
      * Query for inbox/outbox messages
      */
-    struct message_box_query {
+    struct message_box_query final {
         fc::flat_set<std::string> select_accounts;
+        fc::flat_set<std::string> filter_accounts;
         time_point_sec newest_date = time_point_sec::min();
         bool unread_only = false;
         uint16_t limit = PRIVATE_DEFAULT_LIMIT;
@@ -122,13 +123,50 @@ namespace golos { namespace plugins { namespace private_message {
     /**
      * Query for thread messages
      */
-    struct message_thread_query {
+    struct message_thread_query final {
         time_point_sec newest_date = time_point_sec::min();
         bool unread_only = false;
         uint16_t limit = PRIVATE_DEFAULT_LIMIT;
         uint32_t offset = 0;
     };
-    
+
+    /**
+     * Events for callbacks
+     */
+    enum class callback_event_type: uint8_t {
+        message,
+        mark,
+        remove_inbox,
+        remove_outbox,
+        contact,
+    };
+
+    /**
+     * Query for callback
+     */
+    struct callback_query final {
+        fc::flat_set<account_name_type> select_accounts;
+        fc::flat_set<account_name_type> filter_accounts;
+        fc::flat_set<callback_event_type> select_events;
+        fc::flat_set<callback_event_type> filter_events;
+    };
+
+    /**
+     * Callback event about message
+     */
+    struct callback_message_event final {
+        callback_event_type type;
+        message_api_object message;
+    };
+
+    /**
+     * Callback event about contact
+     */
+    struct callback_contact_event final {
+        callback_event_type type;
+        contact_api_object contact;
+    };
+
 } } } // golos::plugins::private_message
 
 FC_REFLECT(
@@ -158,8 +196,24 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::message_box_query),
-    (select_accounts)(newest_date)(unread_only)(limit)(offset))
+    (select_accounts)(filter_accounts)(newest_date)(unread_only)(limit)(offset))
 
 FC_REFLECT(
     (golos::plugins::private_message::message_thread_query),
     (newest_date)(unread_only)(limit)(offset))
+
+FC_REFLECT_ENUM(
+    golos::plugins::private_message::callback_event_type,
+    (message)(mark)(remove_inbox)(remove_outbox)(contact))
+
+FC_REFLECT(
+    (golos::plugins::private_message::callback_query),
+    (select_accounts)(filter_accounts)(select_events)(filter_events))
+
+FC_REFLECT(
+    (golos::plugins::private_message::callback_message_event),
+    (type)(message))
+
+FC_REFLECT(
+    (golos::plugins::private_message::callback_contact_event),
+    (type)(contact))

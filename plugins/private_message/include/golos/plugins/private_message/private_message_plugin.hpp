@@ -23,6 +23,7 @@ namespace golos { namespace plugins { namespace private_message {
     DEFINE_API_ARGS(get_contact_info,  json_rpc::msg_pack, contact_api_object)
     DEFINE_API_ARGS(get_contacts_size, json_rpc::msg_pack, contacts_size_api_object)
     DEFINE_API_ARGS(get_contacts,      json_rpc::msg_pack, std::vector<contact_api_object>)
+    DEFINE_API_ARGS(set_callback,      json_rpc::msg_pack, json_rpc::void_type)
 
     /**
      *   This plugin scans the blockchain for custom operations containing a valid message and authorized
@@ -47,8 +48,6 @@ namespace golos { namespace plugins { namespace private_message {
 
         void plugin_shutdown() override;
 
-        bool is_tracked_account(account_name_type) const;
-
         static const std::string& name();
 
         DECLARE_API(
@@ -59,6 +58,7 @@ namespace golos { namespace plugins { namespace private_message {
             (get_contact_info)
             (get_contacts_size)
             (get_contacts)
+            (set_callback)
         )
 
     private:

@@ -1173,7 +1173,7 @@ namespace golos { namespace wallet {
                     custom_json_operation jop;
                     jop.id   = "private_message";
                     jop.json = fc::json::to_string(pop);
-                    jop.required_posting_auths.insert(to);
+                    jop.required_posting_auths.insert(requester);
 
                     signed_transaction trx;
                     trx.operations.push_back(jop);
@@ -1203,7 +1203,7 @@ namespace golos { namespace wallet {
                     custom_json_operation jop;
                     jop.id   = "private_message";
                     jop.json = fc::json::to_string(pop);
-                    jop.required_posting_auths.insert(to);
+                    jop.required_posting_auths.insert(requester);
 
                     signed_transaction trx;
                     trx.operations.push_back(jop);
@@ -2731,6 +2731,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             message_box_query query;
             query.newest_date = time_converter(query_template.newest_date, time_point::now(), time_point::now()).time();
             query.select_accounts = query_template.select_accounts;
+            query.filter_accounts = query_template.filter_accounts;
             if (query_template.unread_only) {
                 query.unread_only = *query_template.unread_only;
             }
