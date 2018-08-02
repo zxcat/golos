@@ -876,6 +876,14 @@ namespace golos { namespace plugins { namespace private_message {
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
 
+        GOLOS_CHECK_PARAM(query.filter_accounts, {
+            for (auto& itr : query.filter_accounts) {
+                GOLOS_CHECK_VALUE(!query.select_accounts.count(itr),
+                    "Can't filter and select accounts '${account}' at the same time",
+                    ("account", itr));
+            }
+        });
+
         return my->db_.with_weak_read_lock([&]() {
             return my->get_message_box<by_inbox>(
                 to, query,
@@ -893,6 +901,14 @@ namespace golos { namespace plugins { namespace private_message {
         );
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
+
+        GOLOS_CHECK_PARAM(query.filter_accounts, {
+            for (auto& itr : query.filter_accounts) {
+                GOLOS_CHECK_VALUE(!query.select_accounts.count(itr),
+                    "Can't filter and select accounts '${account}' at the same time",
+                    ("account", itr));
+            }
+        });
 
         return my->db_.with_weak_read_lock([&]() {
             return my->get_message_box<by_outbox>(
