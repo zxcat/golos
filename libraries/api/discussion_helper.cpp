@@ -39,7 +39,7 @@ namespace golos { namespace api {
             const std::string& author, const std::string& permlink, uint32_t limit
         ) const ;
 
-        share_type get_curator_rewards_claim(const discussion& d, share_type max_rewards) const;
+        share_type get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const;
 
         void set_pending_payout(discussion& d) const;
 
@@ -174,8 +174,8 @@ namespace golos { namespace api {
         pimpl->select_active_votes(result, total_count, author, permlink, limit);
     }
 
-    share_type discussion_helper::impl::get_curator_rewards_claim(const discussion& d, share_type max_rewards) const {
-        share_type total_claim = max_rewards;
+    share_type discussion_helper::impl::get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const {
+        share_type unclaimed_rewards = max_rewards;
         auto& db = database();
         try {
             uint128_t total_weight(d.total_vote_weight);
@@ -186,17 +186,17 @@ namespace golos { namespace api {
                     for (auto itr = cvidx.lower_bound(d.id); itr != cvidx.end() && itr->comment == d.id; ++itr) {
                         auto claim = ((max_rewards.value * uint128_t(itr->weight)) / total_weight).to_uint64();
                         if (claim > 0) { // min_amt is non-zero satoshis
-                            total_claim += claim;
+                            unclaimed_rewards -= claim;
                         } else {
                             break;
                         }
                     }
-                } else {
-                    total_claim = 0;
                 }
+            } else {
+                unclaimed_rewards = 0;
             }
 
-            return total_claim;
+            return unclaimed_rewards;
         } FC_CAPTURE_AND_RETHROW()
     }
 
@@ -233,7 +233,8 @@ namespace golos { namespace api {
 
             share_type curation_tokens = ((reward_tokens * db.get_curation_rewards_percent())
                 / STEEMIT_100_PERCENT).to_uint64();
-            auto crs_claim = get_curator_rewards_claim(d, curation_tokens);
+            auto crs_unclaimed = get_curator_unclaimed_rewards(d, curation_tokens);
+            auto crs_claim = curation_tokens - crs_unclaimed;
             share_type author_tokens = reward_tokens.to_uint64() - crs_claim;
             if (d.allow_curation_rewards) {
                 d.pending_curator_payout_value = db.to_sbd(asset(crs_claim, STEEM_SYMBOL));
