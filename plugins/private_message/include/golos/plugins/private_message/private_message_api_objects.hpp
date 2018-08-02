@@ -4,6 +4,7 @@
 
 #include <golos/plugins/private_message/private_message_operations.hpp>
 
+#define PRIVATE_DEFAULT_LIMIT 100
 
 namespace golos { namespace plugins { namespace private_message {
 
@@ -20,10 +21,13 @@ namespace golos { namespace plugins { namespace private_message {
         uint64_t nonce = 0;
         public_key_type from_memo_key;
         public_key_type to_memo_key;
-        time_point_sec receive_time;
         uint32_t checksum = 0;
-        time_point_sec read_time;
         std::vector<char> encrypted_message;
+
+        time_point_sec create_date;
+        time_point_sec receive_date;
+        time_point_sec read_date;
+        time_point_sec remove_date;
     };
 
     class settings_object;
@@ -32,38 +36,50 @@ namespace golos { namespace plugins { namespace private_message {
         settings_api_object(const settings_object& o);
         settings_api_object();
 
-        bool ignore_messages_from_undefined_contact = false;
+        bool ignore_messages_from_unknown_contact = false;
     };
 
     struct contact_size_info {
-        fc::safe<uint32_t> total_send_messages = 0;
-        fc::safe<uint32_t> unread_send_messages = 0;
-        fc::safe<uint32_t> total_recv_messages = 0;
-        fc::safe<uint32_t> unread_recv_messages = 0;
+        uint32_t total_outbox_messages = 0;
+        uint32_t unread_outbox_messages = 0;
+        uint32_t total_inbox_messages = 0;
+        uint32_t unread_inbox_messages = 0;
 
         bool empty() const {
-            return !total_send_messages.value && !total_recv_messages.value;
+            return !total_outbox_messages && !total_inbox_messages;
         }
 
         contact_size_info& operator-=(const contact_size_info& s) {
-            total_send_messages -= s.total_send_messages;
-            unread_send_messages -= s.unread_send_messages;
-            total_recv_messages -= s.total_recv_messages;
-            unread_recv_messages -= s.unread_send_messages;
+            total_outbox_messages -= s.total_outbox_messages;
+            unread_outbox_messages -= s.unread_outbox_messages;
+            total_inbox_messages -= s.total_inbox_messages;
+            unread_inbox_messages -= s.unread_inbox_messages;
             return *this;
         }
 
         contact_size_info& operator+=(const contact_size_info& s) {
-            total_send_messages += s.total_send_messages;
-            unread_send_messages += s.unread_send_messages;
-            total_recv_messages += s.total_recv_messages;
-            unread_recv_messages += s.unread_send_messages;
+            total_outbox_messages += s.total_outbox_messages;
+            unread_outbox_messages += s.unread_outbox_messages;
+            total_inbox_messages += s.total_inbox_messages;
+            unread_inbox_messages += s.unread_inbox_messages;
             return *this;
+        }
+
+        bool operator==(const contact_size_info& s) const {
+            return
+                total_outbox_messages == s.total_outbox_messages &&
+                unread_outbox_messages == s.unread_outbox_messages &&
+                total_inbox_messages == s.total_inbox_messages &&
+                unread_inbox_messages == s.unread_inbox_messages;
+        }
+
+        bool operator!=(const contact_size_info& s) const {
+            return !(this->operator==(s));
         }
     };
 
     struct contacts_size_info final: public contact_size_info {
-        uint32_t total_contacts;
+        uint32_t total_contacts = 0;
     };
 
     /**
@@ -78,8 +94,8 @@ namespace golos { namespace plugins { namespace private_message {
         account_name_type owner;
         account_name_type contact;
         std::string json_metadata;
-        private_contact_type local_type = undefined;
-        private_contact_type remote_type = undefined;
+        private_contact_type local_type = unknown;
+        private_contact_type remote_type = unknown;
         contact_size_info size;
     };
 
@@ -92,19 +108,41 @@ namespace golos { namespace plugins { namespace private_message {
         fc::flat_map<private_contact_type, contacts_size_info> size;
     };
 
+    /**
+     * Query for inbox/outbox messages
+     */
+    struct message_box_query {
+        fc::flat_set<std::string> select_accounts;
+        time_point_sec newest_date = time_point_sec::min();
+        bool unread_only = false;
+        uint16_t limit = PRIVATE_DEFAULT_LIMIT;
+        uint32_t offset = 0;
+    };
+    
+    /**
+     * Query for thread messages
+     */
+    struct message_thread_query {
+        time_point_sec newest_date = time_point_sec::min();
+        bool unread_only = false;
+        uint16_t limit = PRIVATE_DEFAULT_LIMIT;
+        uint32_t offset = 0;
+    };
+    
 } } } // golos::plugins::private_message
 
 FC_REFLECT(
     (golos::plugins::private_message::message_api_object),
-    (from)(to)(from_memo_key)(to_memo_key)(nonce)(receive_time)(read_time)(checksum)(encrypted_message))
+    (from)(to)(from_memo_key)(to_memo_key)(nonce)(checksum)(encrypted_message)
+    (create_date)(receive_date)(read_date)(remove_date))
 
 FC_REFLECT(
     (golos::plugins::private_message::settings_api_object),
-    (ignore_messages_from_undefined_contact))
+    (ignore_messages_from_unknown_contact))
 
 FC_REFLECT(
     (golos::plugins::private_message::contact_size_info),
-    (total_send_messages)(unread_send_messages)(total_recv_messages)(unread_recv_messages))
+    (total_outbox_messages)(unread_outbox_messages)(total_inbox_messages)(unread_inbox_messages))
 
 FC_REFLECT_DERIVED(
     (golos::plugins::private_message::contacts_size_info), ((golos::plugins::private_message::contact_size_info)),
@@ -118,3 +156,10 @@ FC_REFLECT(
     (golos::plugins::private_message::contacts_size_api_object),
     (size))
 
+FC_REFLECT(
+    (golos::plugins::private_message::message_box_query),
+    (select_accounts)(newest_date)(unread_only)(limit)(offset))
+
+FC_REFLECT(
+    (golos::plugins::private_message::message_thread_query),
+    (newest_date)(unread_only)(limit)(offset))

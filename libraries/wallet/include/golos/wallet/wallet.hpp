@@ -45,6 +45,21 @@ namespace golos { namespace wallet {
             fc::optional<asset> min_delegation;
         };
 
+        struct optional_private_box_query {
+            fc::flat_set<std::string> select_accounts;
+            std::string newest_date;
+            fc::optional<bool> unread_only;
+            fc::optional<uint16_t> limit;
+            fc::optional<uint32_t> offset;
+        };
+
+        struct optional_private_thread_query {
+            std::string newest_date;
+            fc::optional<bool> unread_only;
+            fc::optional<uint16_t> limit;
+            fc::optional<uint32_t> offset;
+        };
+
         struct message_body {
             std::string subject;
             std::string body;
@@ -1123,11 +1138,23 @@ namespace golos { namespace wallet {
 
             annotated_signed_transaction decline_voting_rights( string account, bool decline, bool broadcast );
 
-            // Private message
-            vector<extended_message_object> get_inbox(
-                const std::string& to, const std::string& newest, uint16_t limit, std::uint32_t offset);
-            vector<extended_message_object> get_outbox(
-                const std::string& from, const std::string& newest, uint16_t limit, std::uint32_t offset);
+            /**
+             * Select inbox private messages for `to` account
+             */
+            vector<extended_message_object> get_private_inbox(
+                const std::string& to, const optional_private_box_query& query);
+
+            /**
+             * Select outbox private messages for `from` account
+             */
+            vector<extended_message_object> get_private_outbox(
+                const std::string& from, const optional_private_box_query& query);
+
+            /**
+             * Select thread private messages between `from ` and `to` accounts
+             */
+            vector<extended_message_object> get_private_thread(
+                const std::string& from, const std::string& to, const optional_private_thread_query& query);
 
             /**
              * Change settings for private messages
@@ -1182,6 +1209,7 @@ namespace golos { namespace wallet {
              * @return Contact
              */
             contact_api_object get_private_contact(const std::string& owner, const std::string& contact);
+
             /**
              * Send an encrypted private message from one account to other
              *
@@ -1194,7 +1222,97 @@ namespace golos { namespace wallet {
             annotated_signed_transaction send_private_message(
                 const std::string& from, const std::string& to, const message_body& message, bool broadcast);
 
-            message_body try_decrypt_message(const message_api_object& mo);
+            /**
+             * Edit an encrypted private message from one account to other
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param message to send
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction edit_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce,
+                const message_body& message, bool broadcast);
+
+            /**
+             * Delete encrypted private message from inbox
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_inbox_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
+
+            /**
+             * Delete encrypted private messages from inbox by date range
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_inbox_private_messages(
+                const std::string& from, const std::string& to,
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
+
+            /**
+             * Delete encrypted private message from outbox
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_outbox_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
+
+            /**
+             * Delete encrypted private messages from outbox by date range
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction delete_outbox_private_messages(
+                const std::string& from, const std::string& to,
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
+
+            /**
+             * Mark encrypted private message with read time
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param nonce of sended message
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction mark_private_message(
+                const std::string& from, const std::string& to, const uint64_t nonce, bool broadcast);
+
+            /**
+             * Mark encrypted private messages with read time by date range
+             *
+             * @param from account from which you send message
+             * @param to account to which you send message
+             * @param start_date begin of date range
+             * @param stop_date begin of date range
+             * @param broadcast true if you wish to broadcast the transaction
+             * @return the signed version of the transaction
+             */
+            annotated_signed_transaction mark_private_messages(
+                const std::string& from, const std::string& to,
+                const std::string& start_date, const std::string& stop_date, bool broadcast);
         };
 
         struct plain_keys {
@@ -1310,14 +1428,23 @@ FC_API( golos::wallet::wallet_api,
                 (get_active_witnesses)
                 (get_miner_queue)
                 (get_transaction)
-                (get_inbox)
-                (get_outbox)
+
+                (get_private_inbox)
+                (get_private_outbox)
+                (get_private_thread)
                 (set_private_settings)
                 (get_private_settings)
                 (get_private_contacts)
                 (get_private_contact)
                 (add_private_contact)
                 (send_private_message)
+                (edit_private_message)
+                (delete_inbox_private_message)
+                (delete_inbox_private_messages)
+                (delete_outbox_private_message)
+                (delete_outbox_private_messages)
+                (mark_private_message)
+                (mark_private_messages)
 )
 
 FC_REFLECT((golos::wallet::memo_data), (from)(to)(nonce)(check)(encrypted))
@@ -1327,6 +1454,14 @@ FC_REFLECT(
     (owner_approvals_to_add)(owner_approvals_to_remove)
     (posting_approvals_to_add)(posting_approvals_to_remove)
     (key_approvals_to_add)(key_approvals_to_remove))
+
+FC_REFLECT(
+    (golos::wallet::optional_private_box_query),
+    (select_accounts)(newest_date)(limit)(offset)(unread_only))
+
+FC_REFLECT(
+    (golos::wallet::optional_private_thread_query),
+    (newest_date)(limit)(offset)(unread_only))
 
 FC_REFLECT((golos::wallet::optional_chain_props),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate)
