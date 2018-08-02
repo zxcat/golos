@@ -263,7 +263,6 @@ namespace golos {
             }
 
             void witness_plugin::plugin_shutdown() {
-                golos::time::shutdown_ntp_time();
                 if (pimpl->mining_threads_) {
                     ilog("shutting downing mining threads");
                     pimpl->mining_service_.stop();
@@ -561,7 +560,7 @@ namespace golos {
                             op.props = _miner_prop_vote;
 
                             while (true) {
-                                if (golos::time::nonblocking_now() > stop) {
+                                if (golos::time::now() > stop) {
                                     // ilog( "stop mining due to time out, nonce: ${n}", ("n",op.nonce) );
                                     return;
                                 }
@@ -609,7 +608,7 @@ namespace golos {
                             op.props = _miner_prop_vote;
                             while (true) {
                                 //  if( ((op.nonce/num_threads) % 1000) == 0 ) idump((op.nonce));
-                                if (golos::time::nonblocking_now() > stop) {
+                                if (golos::time::now() > stop) {
                                     // ilog( "stop mining due to time out, nonce: ${n}", ("n",op.nonce) );
                                     return;
                                 }
