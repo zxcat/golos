@@ -78,9 +78,9 @@ namespace golos { namespace plugins { namespace private_message {
         return time_point_sec(1);
     }
 
-    template <typename Direction, typename Filter>
+    template <typename Direction, typename GetAccount>
     std::vector<message_api_object> private_message_plugin::private_message_plugin_impl::get_message_box(
-        const std::string& to, const message_box_query& query, Filter&& filter
+        const std::string& to, const message_box_query& query, GetAccount&& get_account
     ) const {
         std::vector<message_api_object> result;
         const auto& idx = db_.get_index<message_index>().indices().get<Direction>();
@@ -93,6 +93,14 @@ namespace golos { namespace plugins { namespace private_message {
         auto itr = idx.lower_bound(std::make_tuple(to, newest_date));
         auto etr = idx.upper_bound(std::make_tuple(to, min_create_date()));
         auto offset = query.offset;
+
+        auto filter = [&](const message_object& o) -> bool {
+            auto& account = get_account(o);
+            return
+                (query.select_accounts.empty() || query.select_accounts.count(account)) &&
+                (query.filter_accounts.empty() || !query.filter_accounts.count(account)) &&
+                (!query.unread_only || o.read_date == time_point_sec::min());
+        };
 
         for (; itr != etr && offset; ++itr) {
             if (filter(*itr)){
@@ -752,10 +760,8 @@ namespace golos { namespace plugins { namespace private_message {
         return my->db_.with_weak_read_lock([&]() {
             return my->get_message_box<by_inbox>(
                 to, query,
-                [&](const message_object& o) -> bool {
-                    return
-                        (query.select_accounts.empty() || query.select_accounts.count(o.from)) &&
-                        (!query.unread_only || o.read_date == time_point_sec::min());
+                [&](const message_object& o) -> const account_name_type& {
+                    return o.from;
                 }
             );
         });
@@ -772,10 +778,8 @@ namespace golos { namespace plugins { namespace private_message {
         return my->db_.with_weak_read_lock([&]() {
             return my->get_message_box<by_outbox>(
                 from, query,
-                [&](const message_object& o) -> bool {
-                    return
-                        (query.select_accounts.empty() || query.select_accounts.count(o.to)) &&
-                        (!query.unread_only || o.read_date == time_point_sec::min());
+                [&](const message_object& o) -> const account_name_type& {
+                    return o.to;
                 });
         });
     }

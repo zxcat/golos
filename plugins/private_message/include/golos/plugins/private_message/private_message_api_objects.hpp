@@ -113,6 +113,7 @@ namespace golos { namespace plugins { namespace private_message {
      */
     struct message_box_query {
         fc::flat_set<std::string> select_accounts;
+        fc::flat_set<std::string> filter_accounts;
         time_point_sec newest_date = time_point_sec::min();
         bool unread_only = false;
         uint16_t limit = PRIVATE_DEFAULT_LIMIT;
@@ -158,7 +159,7 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::plugins::private_message::message_box_query),
-    (select_accounts)(newest_date)(unread_only)(limit)(offset))
+    (select_accounts)(filter_accounts)(newest_date)(unread_only)(limit)(offset))
 
 FC_REFLECT(
     (golos::plugins::private_message::message_thread_query),

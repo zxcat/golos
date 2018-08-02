@@ -47,6 +47,7 @@ namespace golos { namespace wallet {
 
         struct optional_private_box_query {
             fc::flat_set<std::string> select_accounts;
+            fc::flat_set<std::string> filter_accounts;
             std::string newest_date;
             fc::optional<bool> unread_only;
             fc::optional<uint16_t> limit;
@@ -1457,7 +1458,7 @@ FC_REFLECT(
 
 FC_REFLECT(
     (golos::wallet::optional_private_box_query),
-    (select_accounts)(newest_date)(limit)(offset)(unread_only))
+    (select_accounts)(filter_accounts)(newest_date)(limit)(offset)(unread_only))
 
 FC_REFLECT(
     (golos::wallet::optional_private_thread_query),
