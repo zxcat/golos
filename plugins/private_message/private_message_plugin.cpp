@@ -12,6 +12,7 @@
 
 #include <fc/smart_ref_impl.hpp>
 
+#include <mutex>
 
 //
 template<typename T>
@@ -28,6 +29,18 @@ if( options.count(name) ) { \
 
 namespace golos { namespace plugins { namespace private_message {
 
+    struct callback_info final {
+        callback_query query;
+        std::shared_ptr<json_rpc::msg_pack> msg;
+
+        callback_info() = default;
+        callback_info(callback_query&& q, std::shared_ptr<json_rpc::msg_pack> m)
+            : query(q),
+              msg(m) {
+
+        }
+    };
+
     class private_message_plugin::private_message_plugin_impl final {
     public:
         private_message_plugin_impl(private_message_plugin& plugin)
@@ -36,11 +49,15 @@ namespace golos { namespace plugins { namespace private_message {
             custom_operation_interpreter_ = std::make_shared
                     <generic_custom_operation_interpreter<private_message::private_message_plugin_operation>>(db_);
 
-            custom_operation_interpreter_->register_evaluator<private_message_evaluator>(&plugin);
-            custom_operation_interpreter_->register_evaluator<private_delete_message_evaluator>(&plugin);
-            custom_operation_interpreter_->register_evaluator<private_mark_message_evaluator>(&plugin);
-            custom_operation_interpreter_->register_evaluator<private_settings_evaluator>(&plugin);
-            custom_operation_interpreter_->register_evaluator<private_contact_evaluator>(&plugin);
+            auto coi = custom_operation_interpreter_.get();
+
+            using impl = private_message_plugin_impl;
+
+            coi->register_evaluator<private_message_evaluator<impl>>(this);
+            coi->register_evaluator<private_delete_message_evaluator<impl>>(this);
+            coi->register_evaluator<private_mark_message_evaluator<impl>>(this);
+            coi->register_evaluator<private_settings_evaluator<impl>>(this);
+            coi->register_evaluator<private_contact_evaluator<impl>>(this);
 
             db_.set_custom_operation_interpreter(plugin.name(), custom_operation_interpreter_);
         }
@@ -63,6 +80,11 @@ namespace golos { namespace plugins { namespace private_message {
         std::vector<contact_api_object> get_contacts(
             const std::string& owner, const private_contact_type, uint16_t limit, uint32_t offset) const;
 
+        void call_callbacks(
+            const callback_event_type, const account_name_type& from, const account_name_type& to, fc::variant);
+
+        bool can_call_callbacks() const;
+
         ~private_message_plugin_impl() = default;
 
         bool is_tracked_account(account_name_type) const;
@@ -72,6 +94,9 @@ namespace golos { namespace plugins { namespace private_message {
         flat_set<std::string> tracked_account_list_;
 
         golos::chain::database& db_;
+
+        std::mutex callbacks_mutex_;
+        std::list<callback_info> callbacks_;
     };
 
     static inline time_point_sec min_create_date() {
@@ -260,13 +285,44 @@ namespace golos { namespace plugins { namespace private_message {
         return result;
     }
 
-    void private_message_evaluator::do_apply(const private_message_operation& pm) {
-        database& d = db();
+    bool private_message_plugin::private_message_plugin_impl::can_call_callbacks() const {
+        return !db_.is_producing() && !callbacks_.empty();
+    }
 
-        if (!plugin_->is_tracked_account(pm.from) && !plugin_->is_tracked_account(pm.to)) {
+    void private_message_plugin::private_message_plugin_impl::call_callbacks(
+        const callback_event_type event, const account_name_type& from, const account_name_type& to, fc::variant r
+    ) {
+        std::lock_guard<std::mutex> lock(callbacks_mutex_);
+        for (auto itr = callbacks_.begin(); callbacks_.end() != itr; ) {
+            auto& info = *itr;
+
+            if (info.query.filter_events.count(event) ||
+                (!info.query.select_events.empty() && !info.query.select_events.count(event)) ||
+                info.query.filter_accounts.count(from) ||
+                info.query.filter_accounts.count(to) ||
+                (to.size() && !info.query.select_accounts.empty() && !info.query.select_accounts.count(to)) ||
+                (from.size() && !info.query.select_accounts.empty() && !info.query.select_accounts.count(from))
+            ) {
+                ++itr;
+                continue;
+            }
+
+            try {
+                info.msg->unsafe_result(r);
+                ++itr;
+            } catch (...) {
+                callbacks_.erase(itr++);
+            }
+        }
+    }
+
+    template <typename Impl>
+    void private_message_evaluator<Impl>::do_apply(const private_message_operation& pm) {
+        if (!impl_->is_tracked_account(pm.from) && !impl_->is_tracked_account(pm.to)) {
             return;
         }
 
+        database& d = impl_->db_;
         auto& contact_idx = d.get_index<contact_index>().indices().get<by_contact>();
         auto contact_itr = contact_idx.find(std::make_tuple(pm.to, pm.from));
 
@@ -320,8 +376,15 @@ namespace golos { namespace plugins { namespace private_message {
                 pmo.remove_date = time_point_sec::min();
                 set_message(pmo);
             });
+            id_itr = id_idx.find(std::make_tuple(pm.from, pm.to, pm.nonce));
         } else {
             d.modify(*id_itr, set_message);
+        }
+
+        if (this->impl_->can_call_callbacks()) {
+            this->impl_->call_callbacks(
+                callback_event_type::message, pm.from, pm.to,
+                fc::variant(callback_message_event({callback_event_type::message, message_api_object(*id_itr)})));
         }
 
         // Ok, now update contact lists and counters in them
@@ -377,6 +440,14 @@ namespace golos { namespace plugins { namespace private_message {
                     inc_counters(pco.size, is_send);
                 });
                 is_new_contact = true;
+
+                if (this->impl_->can_call_callbacks()) {
+                    contact_itr = contact_idx.find(std::make_tuple(owner, contact));
+                    this->impl_->call_callbacks(
+                        callback_event_type::contact, owner, contact,
+                        fc::variant(callback_contact_event(
+                            {callback_event_type::contact, contact_api_object(*contact_itr)})));
+                }
             }
             modify_size(owner, type, is_new_contact, is_send);
         };
@@ -473,8 +544,16 @@ namespace golos { namespace plugins { namespace private_message {
         }
     }
 
-    void private_delete_message_evaluator::do_apply(const private_delete_message_operation& pdm) {
-        database& d = db();
+    template <typename Impl>
+    void private_delete_message_evaluator<Impl>::do_apply(const private_delete_message_operation& pdm) {
+        if (!impl_->is_tracked_account(pdm.from) &&
+            !impl_->is_tracked_account(pdm.to) &&
+            !impl_->is_tracked_account(pdm.requester)
+        ) {
+            return;
+        }
+
+        database& d = impl_->db_;
         auto now = d.head_block_time();
         fc::flat_map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
 
@@ -504,6 +583,24 @@ namespace golos { namespace plugins { namespace private_message {
                     outbox_stat.unread_outbox_messages += unread_messages;
                     outbox_stat.total_outbox_messages++;
                 }
+
+                if (this->impl_->can_call_callbacks()) {
+                    message_api_object ma(m);
+                    ma.remove_date = now;
+
+                    if (pdm.requester == pdm.to) {
+                        this->impl_->call_callbacks(
+                            callback_event_type::remove_inbox, m.from, m.to,
+                            fc::variant(callback_message_event(
+                                {callback_event_type::remove_inbox, ma})));
+                    } else {
+                        this->impl_->call_callbacks(
+                            callback_event_type::remove_outbox, m.from, m.to,
+                            fc::variant(callback_message_event(
+                                {callback_event_type::remove_outbox, ma})));
+                    }
+                }
+
                 if (m.remove_date == time_point_sec::min()) {
                     d.modify(m, [&](auto& m) {
                         m.remove_date = now;
@@ -537,8 +634,13 @@ namespace golos { namespace plugins { namespace private_message {
         );
     }
 
-    void private_mark_message_evaluator::do_apply(const private_mark_message_operation& pmm) {
-        database& d = db();
+    template <typename Impl>
+    void private_mark_message_evaluator<Impl>::do_apply(const private_mark_message_operation& pmm) {
+        if (!impl_->is_tracked_account(pmm.from) && !impl_->is_tracked_account(pmm.to)) {
+            return;
+        }
+
+        database& d = impl_->db_;
 
         uint32_t total_marked_messages = 0;
         auto now = d.head_block_time();
@@ -562,6 +664,12 @@ namespace golos { namespace plugins { namespace private_message {
                 d.modify(m, [&](message_object& m){
                     m.read_date = now;
                 });
+
+                if (this->impl_->can_call_callbacks()) {
+                    this->impl_->call_callbacks(
+                        callback_event_type::mark, m.from, m.to,
+                        fc::variant(callback_message_event({callback_event_type::mark, message_api_object(m)})));
+                }
                 return true;
             },
 
@@ -576,8 +684,13 @@ namespace golos { namespace plugins { namespace private_message {
             "No unread messages in requested range");
     }
 
-    void private_settings_evaluator::do_apply(const private_settings_operation& ps) {
-        database& d = db();
+    template <typename Impl>
+    void private_settings_evaluator<Impl>::do_apply(const private_settings_operation& ps) {
+        if (!impl_->is_tracked_account(ps.owner)) {
+            return;
+        }
+
+        database& d = impl_->db_;
 
         auto& idx = d.get_index<settings_index>().indices().get<by_owner>();
         auto itr = idx.find(ps.owner);
@@ -594,12 +707,13 @@ namespace golos { namespace plugins { namespace private_message {
         }
     }
 
-    void private_contact_evaluator::do_apply(const private_contact_operation& pc) {
-        database& d = db();
-
-        if (!plugin_->is_tracked_account(pc.owner) && !plugin_->is_tracked_account(pc.contact)) {
+    template <typename Impl>
+    void private_contact_evaluator<Impl>::do_apply(const private_contact_operation& pc) {
+        if (!impl_->is_tracked_account(pc.owner) && !impl_->is_tracked_account(pc.contact)) {
             return;
         }
+
+        database& d = impl_->db_;
 
         auto& contact_idx = d.get_index<contact_index>().indices().get<by_contact>();
         auto contact_itr = contact_idx.find(std::make_tuple(pc.owner, pc.contact));
@@ -667,6 +781,8 @@ namespace golos { namespace plugins { namespace private_message {
                 from_string(plo.json_metadata, pc.json_metadata);
             });
 
+            contact_itr = contact_idx.find(std::make_tuple(pc.owner, pc.contact));
+
             if (owner_idx.end() == dst_itr) {
                 d.create<contact_size_object>([&](auto& pcso) {
                     pcso.owner = pc.owner;
@@ -678,6 +794,13 @@ namespace golos { namespace plugins { namespace private_message {
                     pcso.size.total_contacts++;
                 });
             }
+        }
+
+        if (this->impl_->can_call_callbacks()) {
+            this->impl_->call_callbacks(
+                callback_event_type::contact, pc.owner, pc.contact,
+                fc::variant(callback_contact_event(
+                    {callback_event_type::contact, contact_api_object(*contact_itr)})));
         }
     }
 
@@ -743,10 +866,6 @@ namespace golos { namespace plugins { namespace private_message {
         return tracked_account_ranges_.end() != range_itr && name >= range_itr->first && name <= range_itr->second;
     }
 
-    bool private_message_plugin::is_tracked_account(account_name_type name) const {
-        return my->is_tracked_account(name);
-    }
-
     // Api Defines
 
     DEFINE_API(private_message_plugin, get_inbox) {
@@ -770,7 +889,7 @@ namespace golos { namespace plugins { namespace private_message {
     DEFINE_API(private_message_plugin, get_outbox) {
         PLUGIN_API_VALIDATE_ARGS(
             (std::string, from)
-                (message_box_query, query)
+            (message_box_query, query)
         );
 
         GOLOS_CHECK_LIMIT_PARAM(query.limit, PRIVATE_DEFAULT_LIMIT);
@@ -850,6 +969,36 @@ namespace golos { namespace plugins { namespace private_message {
         return my->db_.with_weak_read_lock([&](){
             return my->get_contacts(owner, type, limit, offset);
         });
+    }
+
+    DEFINE_API(private_message_plugin, set_callback) {
+        PLUGIN_API_VALIDATE_ARGS(
+            (callback_query, query)
+        );
+
+        GOLOS_CHECK_PARAM(query.filter_accounts, {
+            for (auto& itr : query.filter_accounts) {
+                GOLOS_CHECK_VALUE(!query.select_accounts.count(itr),
+                    "Can't filter and select accounts '${account}' at the same time",
+                    ("account", itr));
+            }
+        });
+
+        GOLOS_CHECK_PARAM(query.filter_events, {
+            for (auto& itr : query.filter_events) {
+                GOLOS_CHECK_VALUE(!query.select_events.count(itr),
+                    "Can't filter and select accounts '${event}' at the same time",
+                    ("event", itr));
+            }
+        });
+
+        json_rpc::msg_pack_transfer transfer(args);
+        {
+            std::lock_guard<std::mutex> lock(my->callbacks_mutex_);
+            my->callbacks_.emplace_back(std::move(query), transfer.msg());
+        };
+        transfer.complete();
+        return {};
     }
 
 } } } // golos::plugins::private_message
