@@ -726,8 +726,8 @@ namespace golos { namespace plugins { namespace private_message {
 
         std::string json_metadata(contact_itr->json_metadata.begin(), contact_itr->json_metadata.end());
         GOLOS_CHECK_LOGIC(contact_itr->type != pc.type || pc.json_metadata != json_metadata,
-            logic_errors::contact_has_same_type,
-            "Contact has the same type");
+            logic_errors::contact_has_not_changed,
+            "Contact hasn't changed");
 
         auto& owner_idx = d.get_index<contact_size_index>().indices().get<by_owner>();
         auto dst_itr = owner_idx.find(std::make_tuple(pc.owner, pc.type));
