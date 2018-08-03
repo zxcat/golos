@@ -60,16 +60,16 @@ namespace mongo_db {
              boost::program_options::value<string>()->default_value("mongodb://127.0.0.1:27017/Golos"),
              "Mongo DB connection string")
             ("mongodb-write-raw-blocks",
-             boost::program_options::value<bool>()->default_value(true),
+             boost::program_options::value<bool>()->default_value(false),
              "Write raw blocks into mongo or not")
             ("mongodb-write-operations",
              boost::program_options::value<std::vector<std::string>>()->multitoken()->zero_tokens()->composing(),
              "List of operations to write into mongo")
             ("mongodb-store-dgp-history",
-             boost::program_options::value<unsigned int>()->default_value(10),
+             boost::program_options::value<unsigned int>()->default_value(100),
              "Mode of storing global_property_object history for each N block")
             ("mongodb-store-wso-history",
-             boost::program_options::value<unsigned int>()->default_value(10),
+             boost::program_options::value<unsigned int>()->default_value(100),
              "Mode of storing witness_schedule_object history for each N block");
         cfg.add(cli);
     }

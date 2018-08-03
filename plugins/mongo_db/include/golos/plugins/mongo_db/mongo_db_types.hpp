@@ -74,8 +74,6 @@ namespace mongo_db {
 
     void bmi_insert_or_replace(db_map& bmi, named_document doc);
 
-    using named_document_ptr = std::unique_ptr<named_document>;
-
     inline std::string hex_md5(const std::string& input)
     {
        uint8_t digest[16];
@@ -92,7 +90,7 @@ namespace mongo_db {
        }
        digest_str[sizeof digest_str - 1] = '\0';
 
-       return std::string(bson_strdup (digest_str));
+       return std::string(digest_str);
     }
 
     inline std::string hash_oid(const std::string& value) {
@@ -136,11 +134,23 @@ namespace mongo_db {
     }
 
     inline void format_value(document& doc, const std::string& name, const fc::time_point_sec& value) {
-        doc << name << value.to_iso_string();
+        doc << name
+            << bsoncxx::types::b_date{
+                std::chrono::milliseconds(
+                    std::chrono::seconds(value.sec_since_epoch()))};
     }
 
     inline void format_value(document& doc, const std::string& name, const shared_string& value) {
         doc << name << to_string(value);
+    }
+
+    inline void format_json(document& doc, const std::string& name, const shared_string& value) {
+        auto str_value = to_string(value);
+        try {
+            doc << name << bsoncxx::from_json(str_value);
+        } catch (...) {
+            doc << name << str_value;
+        }
     }
 
     template <typename T>
