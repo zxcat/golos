@@ -2,7 +2,7 @@
 
 namespace golos { namespace plugins { namespace social_network {
     using namespace golos::chain;
-    
+
     #ifndef SOCIAL_NETWORK_SPACE_ID
     #define SOCIAL_NETWORK_SPACE_ID 10
     #endif
@@ -138,7 +138,7 @@ namespace golos { namespace plugins { namespace social_network {
 
 
 CHAINBASE_SET_INDEX_TYPE(
-    golos::plugins::social_network::comment_content_object, 
+    golos::plugins::social_network::comment_content_object,
     golos::plugins::social_network::comment_content_index
 )
 
