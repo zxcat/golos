@@ -74,8 +74,6 @@ namespace mongo_db {
 
     void bmi_insert_or_replace(db_map& bmi, named_document doc);
 
-    using named_document_ptr = std::unique_ptr<named_document>;
-
     inline std::string hex_md5(const std::string& input)
     {
        uint8_t digest[16];
@@ -92,7 +90,7 @@ namespace mongo_db {
        }
        digest_str[sizeof digest_str - 1] = '\0';
 
-       return std::string(bson_strdup (digest_str));
+       return std::string(digest_str);
     }
 
     inline std::string hash_oid(const std::string& value) {
