@@ -583,8 +583,9 @@ namespace mongo_db {
 
             if (!proposal.proposed_operations.empty()) {
                 array ops_array;
-                for (auto& op: proposal.proposed_operations) {
-                    ops_array << op;
+                auto operations = proposal.operations();
+                for (auto& op: operations) {
+                    ops_array << fc::json::to_string(op);
                 }
                 body << "proposed_operations" << ops_array;
             }
