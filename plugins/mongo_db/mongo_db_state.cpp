@@ -465,6 +465,7 @@ namespace mongo_db {
             format_value(body, "delegatee", delegation.delegatee);
             format_value(body, "vesting_shares", delegation.vesting_shares);
             format_value(body, "min_delegation_time", delegation.min_delegation_time);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -527,6 +528,7 @@ namespace mongo_db {
             format_value(body, "to_approved", escrow.to_approved);
             format_value(body, "agent_approved", escrow.agent_approved);
             format_value(body, "disputed", escrow.disputed);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -573,6 +575,7 @@ namespace mongo_db {
             format_value(body, "title", proposal.title);
 
             format_value(body, "memo", proposal.memo);
+            format_value(body, "timestamp", state_block.timestamp);
 
             if (proposal.review_period_time.valid()) {
                 format_value(body, "review_period_time", *(proposal.review_period_time));
@@ -800,6 +803,7 @@ namespace mongo_db {
         format_value(body, "to", op.to);
         format_value(body, "amount", op.amount);
         format_value(body, "memo", op.memo);
+        format_value(body, "timestamp", state_block.timestamp);
 
         std::vector<std::string> part;
         auto path = op.memo;
@@ -842,6 +846,7 @@ namespace mongo_db {
             format_value(body, "to", op.to);
             format_oid(body, "to_id", op.to);
             format_value(body, "amount", op.amount);
+            format_value(body, "timestamp", state_block.timestamp);
 
             asset amount_gests;
             amount_gests.amount = op.amount.amount /
@@ -858,7 +863,17 @@ namespace mongo_db {
     }
 
     auto state_writer::operator()(const withdraw_vesting_operation& op) -> result_type {
+        auto doc = create_document("withdraw_vesting", "", "");
+
+        auto& body = doc.doc;
+
+        format_value(body, "account", op.account);
+        format_value(body, "vesting_shares", op.vesting_shares);
+        format_value(body, "timestamp", state_block.timestamp);
+
         format_account(op.account);
+
+        all_docs.push_back(std::move(doc));
     }
 
     auto state_writer::operator()(const limit_order_create_operation& op) -> result_type {
@@ -882,6 +897,7 @@ namespace mongo_db {
             format_value(body, "orderid", loo.orderid);
             format_value(body, "for_sale", loo.for_sale);
             format_value(body, "sell_price", loo.sell_price);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1073,6 +1089,7 @@ namespace mongo_db {
             format_value(body, "to_account", std::string(to_account.name));
             format_value(body, "percent", wvro.percent);
             format_value(body, "auto_vest", wvro.auto_vest);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1105,6 +1122,7 @@ namespace mongo_db {
             format_value(body, "orderid", loo.orderid);
             format_value(body, "for_sale", loo.for_sale);
             format_value(body, "sell_price", loo.sell_price);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1266,6 +1284,7 @@ namespace mongo_db {
         format_oid(body, "to_id", op.to);
         format_value(body, "amount", op.amount);
         format_value(body, "memo", op.memo);
+        format_value(body, "timestamp", state_block.timestamp);
 
         all_docs.push_back(std::move(doc));
     }
@@ -1296,6 +1315,7 @@ namespace mongo_db {
             format_value(body, "request_id", swo.request_id);
             format_value(body, "amount", op.amount);
             format_value(body, "complete", swo.complete);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1450,6 +1470,7 @@ namespace mongo_db {
 
             format_value(body, "filled", true);
             format_value(body, "amount_out", op.amount_out);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1486,6 +1507,7 @@ namespace mongo_db {
             format_oid(body, "owner_id", op.owner);
             format_value(body, "owner", op.owner);
             format_value(body, "interest", op.interest);
+            format_value(body, "timestamp", state_block.timestamp);
 
             all_docs.push_back(std::move(doc));
         }
@@ -1512,6 +1534,7 @@ namespace mongo_db {
             format_value(body, "filled", true);
             format_value(body, "withdrawn", op.withdrawn);
             format_value(body, "deposited", op.deposited);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
