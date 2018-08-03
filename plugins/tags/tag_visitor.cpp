@@ -19,7 +19,7 @@ namespace golos { namespace plugins { namespace tags {
 
         std::set<std::string> lower_tags;
 
-        std::size_t tag_limit = 5;
+        std::size_t tag_limit = 15;
         for (const auto& name : meta.tags) {
             if (lower_tags.size() > tag_limit) {
                 break;
