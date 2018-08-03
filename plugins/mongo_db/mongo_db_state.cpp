@@ -1717,12 +1717,11 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::write_global_property_object(const dynamic_global_property_object& dgpo,
-        const signed_block& current_block, bool history) {
+    void state_writer::write_global_property_object(const dynamic_global_property_object& dgpo, bool history) {
         try {
             std::string oid;
             if (history) {
-                oid = current_block.timestamp;
+                oid = state_block.timestamp;
             } else {
                 oid = MONGO_ID_SINGLE;
             }
@@ -1739,7 +1738,7 @@ namespace mongo_db {
             format_oid(body, oid);
 
             if (history) {
-                format_value(body, "timestamp", current_block.timestamp);
+                format_value(body, "timestamp", state_block.timestamp);
             }
             format_value(body, "head_block_number", dgpo.head_block_number);
             format_value(body, "head_block_id", dgpo.head_block_id.str());
@@ -1792,12 +1791,11 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::write_witness_schedule_object(const witness_schedule_object& wso,
-        const signed_block& current_block, bool history) {
+    void state_writer::write_witness_schedule_object(const witness_schedule_object& wso, bool history) {
         try {
             std::string oid;
             if (history) {
-                oid = current_block.timestamp;
+                oid = state_block.timestamp;
             } else {
                 oid = MONGO_ID_SINGLE;
             }
@@ -1814,7 +1812,7 @@ namespace mongo_db {
             format_oid(body, oid);
 
             if (history) {
-                format_value(body, "timestamp", current_block.timestamp);
+                format_value(body, "timestamp", state_block.timestamp);
             }
             format_value(body, "current_virtual_time", wso.current_virtual_time);
             format_value(body, "next_shuffle_block_num", wso.next_shuffle_block_num);
