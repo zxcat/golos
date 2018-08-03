@@ -20,7 +20,7 @@ namespace golos {
                 }
             };
 
-            struct reblog_operation : base_operation{
+            struct reblog_operation : base_operation {
                 protocol::account_name_type account;
                 protocol::account_name_type author;
                 std::string permlink;
@@ -31,7 +31,18 @@ namespace golos {
                 }
             };
 
-            using follow_plugin_operation = fc::static_variant<follow_operation, reblog_operation>;
+            struct delete_reblog_operation : base_operation {
+                protocol::account_name_type account;
+                protocol::account_name_type author;
+                std::string permlink;
+
+                void validate() const;
+                void get_required_posting_authorities(flat_set<account_name_type>& a) const {
+                    a.insert(account);
+                }
+            };
+
+            using follow_plugin_operation = fc::static_variant<follow_operation, reblog_operation, delete_reblog_operation>;
 
         }
     }
@@ -39,6 +50,7 @@ namespace golos {
 
 FC_REFLECT((golos::plugins::follow::follow_operation), (follower)(following)(what));
 FC_REFLECT((golos::plugins::follow::reblog_operation), (account)(author)(permlink));
+FC_REFLECT((golos::plugins::follow::delete_reblog_operation), (account)(author)(permlink));
 
 FC_REFLECT_TYPENAME((golos::plugins::follow::follow_plugin_operation));
 DECLARE_OPERATION_TYPE(golos::plugins::follow::follow_plugin_operation)

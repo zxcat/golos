@@ -10,7 +10,7 @@ namespace golos {
             using protocol::share_type;
             using chainbase::object;
             using chainbase::object_id;
-            using chainbase::allocator ;
+            using chainbase::allocator;
             using chainbase::shared_vector;
             using golos::chain::comment_object;
             using golos::chain::by_id;

@@ -67,7 +67,7 @@ namespace golos {
                      limit(lim) {
                 }
 
-                follow_count_api_obj(const follow_count_api_obj &o) :
+                follow_count_api_obj(const follow_count_api_obj& o) :
                         account(o.account),
                         follower_count(o.follower_count),
                         following_count(o.following_count),
