@@ -143,6 +143,15 @@ namespace mongo_db {
         doc << name << to_string(value);
     }
 
+    inline void format_json(document& doc, const std::string& name, const shared_string& value) {
+        auto str_value = to_string(value);
+        try {
+            doc << name << bsoncxx::from_json(str_value);
+        } catch (...) {
+            doc << name << str_value;
+        }
+    }
+
     template <typename T>
     inline void format_value(document& doc, const std::string& name, const fc::fixed_string<T>& value) {
         doc << name << static_cast<std::string>(value);
