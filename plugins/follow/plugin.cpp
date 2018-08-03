@@ -573,7 +573,7 @@ namespace golos {
                 const auto& feed_idx = db.get_index<feed_index>().indices().get<by_feed>();
                 auto itr = feed_idx.lower_bound(boost::make_tuple(account, entry_id));
 
-                while (itr != feed_idx.end() /*&& itr->account == account*/ && result.size() < limit) {
+                while (itr != feed_idx.end() && itr->account == account && result.size() < limit) {
                     const auto& comment = db.get(itr->comment);
                     comment_feed_entry entry;
                     entry.comment = helper->create_comment_api_object(comment);
