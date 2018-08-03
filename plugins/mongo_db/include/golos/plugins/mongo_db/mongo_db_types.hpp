@@ -136,7 +136,10 @@ namespace mongo_db {
     }
 
     inline void format_value(document& doc, const std::string& name, const fc::time_point_sec& value) {
-        doc << name << value.to_iso_string();
+        doc << name
+            << bsoncxx::types::b_date{
+                std::chrono::milliseconds(
+                    std::chrono::seconds(value.sec_since_epoch()))};
     }
 
     inline void format_value(document& doc, const std::string& name, const shared_string& value) {
