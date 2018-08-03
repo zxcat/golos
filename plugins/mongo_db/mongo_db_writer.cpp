@@ -239,8 +239,7 @@ namespace mongo_db {
 
             filter << "_id" << bsoncxx::oid(named_doc.keyval); 
 
-            mongocxx::model::update_one msg{filter.view(), 
-                view};
+            mongocxx::model::update_one msg{filter.view(), view};
             msg.upsert(true);
             formatted_blocks[named_doc.collection_name]->append(msg);
         }

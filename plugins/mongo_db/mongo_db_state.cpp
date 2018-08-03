@@ -351,15 +351,15 @@ namespace mongo_db {
 
             std::string band_type;
             switch (type) {
-            case post:
-                band_type = "post";
-                break;
-            case forum:
-                band_type = "forum";
-                break;
-            case market:
-                band_type = "market";
-                break;
+                case post:
+                    band_type = "post";
+                    break;
+                case forum:
+                    band_type = "forum";
+                    break;
+                case market:
+                    band_type = "market";
+                    break;
             }
 
             auto oid = std::string(band->account).append("/").append(band_type);
@@ -763,13 +763,13 @@ namespace mongo_db {
     
     auto state_writer::operator()(const delete_comment_operation& op) -> result_type {
 
-	std::string author = op.author;
+	    std::string author = op.author;
 
         auto comment_oid = std::string(op.author).append("/").append(op.permlink);
         auto comment_oid_hash = hash_oid(comment_oid);
 
         // Will be updated with the following fields. If no one - created with these fields.
-	auto comment = create_document("comment_object", "_id", comment_oid_hash);
+	    auto comment = create_document("comment_object", "_id", comment_oid_hash);
 
         auto& body = comment.doc;
 
@@ -787,7 +787,7 @@ namespace mongo_db {
         bmi_insert_or_replace(all_docs, std::move(comment));
 
         // Will be updated with removed = true. If no one - nothing to do.
-	auto comment_vote = create_removal_document("comment_vote_object", "comment", comment_oid_hash);
+	    auto comment_vote = create_removal_document("comment_vote_object", "comment", comment_oid_hash);
         
         bmi_insert_or_replace(all_docs, std::move(comment_vote));
     }
