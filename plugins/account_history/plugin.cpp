@@ -280,250 +280,233 @@ if (options.count(name)) { \
             }
         }
 
+        void insert_account(account_name_type a, operation_direction d) {
+            impacted.insert(make_pair(a, d));
+        }
+        void insert_sender(account_name_type a) {
+            insert_account(a, operation_direction::sender);
+        }
+        void insert_receiver(account_name_type a) {
+            insert_account(a, operation_direction::receiver);
+        }
+        void insert_dual(account_name_type a) {
+            insert_account(a, operation_direction::dual);
+        }
+
+        void insert_pair(account_name_type sender, account_name_type receiver, bool have_receiver = true) {
+            if (sender == receiver) {
+                insert_dual(sender);
+            } else {
+                insert_sender(sender);
+                if (have_receiver)
+                    insert_receiver(receiver);
+            }
+        }
+
         void operator()(const account_create_operation& op) {
-            impacted.insert(make_pair(op.new_account_name, operation_direction::receiver));
-            impacted.insert(make_pair(op.creator, operation_direction::sender));
+            insert_pair(op.creator, op.new_account_name);
         }
 
         void operator()(const account_create_with_delegation_operation& op) {
-            impacted.insert(make_pair(op.new_account_name, operation_direction::receiver));
-            impacted.insert(make_pair(op.creator, operation_direction::sender));
+            insert_pair(op.creator, op.new_account_name);
         }
 
         void operator()(const account_update_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::dual));
+            insert_dual(op.account);
         }
 
         void operator()(const account_metadata_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::dual));
+            insert_dual(op.account);
         }
 
         void operator()(const comment_operation& op) {
-            if (op.author == op.parent_author) {
-                impacted.insert(make_pair(op.author, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.author, operation_direction::sender));
-                if (op.parent_author.size()) {
-                    impacted.insert(make_pair(op.parent_author, operation_direction::receiver));
-                }
-            }
+            insert_pair(op.author, op.parent_author, op.parent_author.size());
         }
 
         void operator()(const delete_comment_operation& op) {
-            impacted.insert(make_pair(op.author, operation_direction::dual));
+            insert_dual(op.author);
         }
 
         void operator()(const vote_operation& op) {
-            if (op.voter == op.author) {
-                impacted.insert(make_pair(op.voter, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.voter, operation_direction::sender));
-                impacted.insert(make_pair(op.author, operation_direction::receiver));
-            }
+            insert_pair(op.voter, op.author);
         }
 
         void operator()(const author_reward_operation& op) {
-            impacted.insert(make_pair(op.author, operation_direction::receiver));
+            insert_receiver(op.author);
         }
 
         void operator()(const curation_reward_operation& op) {
-            impacted.insert(make_pair(op.curator, operation_direction::receiver));
+            insert_receiver(op.curator);
         }
 
         void operator()(const liquidity_reward_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
         }
 
         void operator()(const interest_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
         }
 
         void operator()(const fill_convert_request_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
-        }
-
-        template<class op_type>
-        void insert_from_to_direction(const op_type& op) {
-            if (op.from == op.to) {
-                impacted.insert(make_pair(op.to, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.from, operation_direction::sender));
-                impacted.insert(make_pair(op.to, operation_direction::receiver));
-            }
+            insert_dual(op.owner);
         }
 
         void operator()(const transfer_operation& op) {
-            insert_from_to_direction(op);
+            insert_pair(op.from, op.to);
         }
 
         void operator()(const transfer_to_vesting_operation& op) {
-            if (op.from == op.to) {
-                impacted.insert(make_pair(op.to, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.from, operation_direction::sender));
-                if (op.to != golos::chain::account_name_type() && op.to != op.from) {
-                    impacted.insert(make_pair(op.from, operation_direction::receiver));
-                }
-            }
+            auto have_to = op.to != account_name_type();
+            insert_pair(op.from, have_to ? op.to: op.from);
         }
 
         void operator()(const withdraw_vesting_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::dual));
+            insert_dual(op.account);
         }
 
         void operator()(const witness_update_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
+        }
+
+        void operator()(const chain_properties_update_operation& op) {
+            insert_dual(op.owner);
         }
 
         void operator()(const account_witness_vote_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::sender));
-            impacted.insert(make_pair(op.witness, operation_direction::receiver));
+            insert_pair(op.account, op.witness);
         }
 
         void operator()(const account_witness_proxy_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::sender));
-            impacted.insert(make_pair(op.proxy, operation_direction::receiver));
+            insert_pair(op.account, op.proxy);
         }
 
         void operator()(const feed_publish_operation& op) {
-            impacted.insert(make_pair(op.publisher, operation_direction::dual));
+            insert_dual(op.publisher);
         }
 
         void operator()(const limit_order_create_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
         }
 
         void operator()(const fill_order_operation& op) {
-            impacted.insert(make_pair(op.current_owner, operation_direction::sender));
-            impacted.insert(make_pair(op.open_owner, operation_direction::receiver));
+            insert_pair(op.current_owner, op.open_owner);
         }
 
         void operator()(const limit_order_cancel_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
         }
 
         void operator()(const pow_operation& op) {
-            impacted.insert(make_pair(op.worker_account, operation_direction::dual));
+            insert_dual(op.worker_account);
         }
 
         void operator()(const fill_vesting_withdraw_operation& op) {
-            if (op.from_account == op.to_account) {
-                impacted.insert(make_pair(op.to_account, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.from_account, operation_direction::sender));
-                impacted.insert(make_pair(op.to_account, operation_direction::receiver));
-            }
+            insert_pair(op.from_account, op.to_account);
         }
 
         void operator()(const shutdown_witness_operation& op) {
-            impacted.insert(make_pair(op.owner, operation_direction::dual));
+            insert_dual(op.owner);
         }
 
         void operator()(const custom_operation& op) {
             for (auto& s: op.required_auths) {
-                impacted.insert(make_pair(s, operation_direction::dual));
+                insert_dual(s);
             }
         }
 
         void operator()(const request_account_recovery_operation& op) {
-            impacted.insert(make_pair(op.account_to_recover, operation_direction::dual));
+            insert_dual(op.account_to_recover);
         }
 
         void operator()(const recover_account_operation& op) {
-            impacted.insert(make_pair(op.account_to_recover, operation_direction::dual));
+            insert_dual(op.account_to_recover);
         }
 
         void operator()(const change_recovery_account_operation& op) {
-            impacted.insert(make_pair(op.account_to_recover, operation_direction::dual));
-            impacted.insert(make_pair(op.new_recovery_account, operation_direction::dual));
+            insert_pair(op.account_to_recover, op.new_recovery_account);
         }
 
         template<typename Op>
         void insert_from_to_agent_direction(const Op& op) {
-            impacted.insert(make_pair(op.from, operation_direction::sender));
-            impacted.insert(make_pair(op.to, operation_direction::receiver));
-            impacted.insert(make_pair(op.agent, operation_direction::receiver));
+            insert_sender(op.from);
+            insert_receiver(op.to);
+            insert_receiver(op.agent);
         }
 
         void operator()(const escrow_transfer_operation& op) {
             insert_from_to_agent_direction(op);
         }
 
+        // note: the initiator (signer) of escrow_approve_operation is who. he can be either to or agent
         void operator()(const escrow_approve_operation& op) {
             insert_from_to_agent_direction(op);
         }
 
+        // note: the initiator (signer) of escrow_dispute_operation is who. he can be either from or to
         void operator()(const escrow_dispute_operation& op) {
             insert_from_to_agent_direction(op);
         }
 
+        // note: the initiator (signer) of escrow_release_operation is who. he can be either from or to or agent.
+        //       the receiver receives funds, he can be either from or to
         void operator()(const escrow_release_operation& op) {
             insert_from_to_agent_direction(op);
         }
 
         void operator()(const transfer_to_savings_operation& op) {
-            insert_from_to_direction(op);
+            insert_pair(op.from, op.to);
         }
 
         void operator()(const transfer_from_savings_operation& op) {
-            insert_from_to_direction(op);
+            insert_pair(op.from, op.to);
         }
 
         void operator()(const cancel_transfer_from_savings_operation& op) {
-            impacted.insert(make_pair(op.from, operation_direction::dual));
+            insert_dual(op.from);
         }
 
         void operator()(const decline_voting_rights_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::dual));
+            insert_dual(op.account);
         }
 
         void operator()(const comment_benefactor_reward_operation& op) {
-            if (op.benefactor == op.author) {
-                impacted.insert(make_pair(op.author, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.benefactor, operation_direction::receiver));
-                impacted.insert(make_pair(op.author, operation_direction::sender));
-            }
+            insert_pair(op.author, op.benefactor);
         }
 
         void operator()(const producer_reward_operation& op) {
-            impacted.insert(make_pair(op.producer, operation_direction::receiver));
+            insert_receiver(op.producer);
         }
 
         void operator()(const delegate_vesting_shares_operation& op) {
-            impacted.insert(make_pair(op.delegator, operation_direction::sender));
-            impacted.insert(make_pair(op.delegatee, operation_direction::receiver));
+            insert_pair(op.delegator, op.delegatee);
         }
 
         void operator()(const return_vesting_delegation_operation& op) {
-            impacted.insert(make_pair(op.account, operation_direction::receiver));
+            insert_receiver(op.account);
         }
 
+        // todo: proposal tx signers are receivers
         void operator()(const proposal_create_operation& op) {
-            impacted.insert(make_pair(op.author, operation_direction::dual));
+            insert_dual(op.author);
         }
 
         void operator()(const proposal_update_operation& op) {
-            auto insert_fn = [this](const fc::flat_set<golos::chain::account_name_type>& impd) {
+            insert_receiver(op.author);
+            auto insert_set = [this](const fc::flat_set<golos::chain::account_name_type>& impd) {
                 for (auto i : impd) {
-                    impacted.insert(make_pair(i, operation_direction::dual));
+                    insert_dual(i);
                 }
             };
-            insert_fn(op.active_approvals_to_add);
-            insert_fn(op.owner_approvals_to_add);
-            insert_fn(op.posting_approvals_to_add);
-            insert_fn(op.active_approvals_to_remove);
-            insert_fn(op.owner_approvals_to_remove);
-            insert_fn(op.posting_approvals_to_remove);
+            insert_set(op.active_approvals_to_add);
+            insert_set(op.owner_approvals_to_add);
+            insert_set(op.posting_approvals_to_add);
+            insert_set(op.active_approvals_to_remove);
+            insert_set(op.owner_approvals_to_remove);
+            insert_set(op.posting_approvals_to_remove);
         }
 
         void operator()(const proposal_delete_operation& op) {
-            if (op.author == op.requester) {
-                impacted.insert(make_pair(op.author, operation_direction::dual));
-            } else {
-                impacted.insert(make_pair(op.author, operation_direction::receiver));
-                impacted.insert(make_pair(op.requester, operation_direction::sender));
-            }
+            insert_pair(op.requester, op.author);
         }
     };
 

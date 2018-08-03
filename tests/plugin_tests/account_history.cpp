@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(account_history_filter) {
     BOOST_TEST_MESSAGE("--- Test 'dual' direction");
     q.direction = operation_direction::dual;
     auto bob_dual = get_history("bob", -1, 10, q);
-    check_ops(bob_dual, "vote|delete_comment");
+    check_ops(bob_dual, "transfer_to_vesting|vote|delete_comment");
 
     BOOST_TEST_MESSAGE("--- Test virtual only select");
     q.direction = operation_direction::any;
