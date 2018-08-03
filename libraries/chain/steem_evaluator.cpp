@@ -1540,10 +1540,10 @@ namespace golos { namespace chain {
 
                     _db.modify(root, [&](comment_object &c) {
                         c.children_abs_rshares += abs_rshares;
+                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                             if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
                                 c.last_payout > fc::time_point_sec::min()
                             ) {
-                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                                 c.cashout_time = c.last_payout + STEEMIT_SECOND_CASHOUT_WINDOW;
                             } else {
                                 c.cashout_time = fc::time_point_sec(std::min(
