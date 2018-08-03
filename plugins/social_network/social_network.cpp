@@ -247,6 +247,20 @@ namespace golos { namespace plugins { namespace social_network {
                 }
 
                 impl.activate_parent_comments(comment);
+
+                auto& idx = impl.db.template get_index<comment_last_update_index>().indices().template get<by_comment>();
+                auto itr = idx.find(comment.id);
+                if (idx.end() != itr) {
+                    impl.db.remove(*itr);
+                }
+            }
+
+            if (impl.db.template has_index<comment_reward_index>()) {
+                auto& idx = impl.db.template get_index<comment_reward_index>().indices().template get<by_comment>();
+                auto itr = idx.find(comment.id);
+                if (idx.end() != itr) {
+                    impl.db.remove(*itr);
+                }
             }
         }
     };
@@ -382,33 +396,36 @@ namespace golos { namespace plugins { namespace social_network {
             asset curator_payout_golos = impl.curator_payout_gests * vesting_sp;
             asset curator_payout_gbg = db.to_sbd(curator_payout_golos);
 
-            const auto& cr_idx = db.get_index<comment_reward_index>().indices().get<golos::plugins::social_network::by_comment>();
-            auto cr_itr = cr_idx.find(comment.id);
-            if (cr_itr == cr_idx.end()) {
-                db.create<comment_reward_object>([&](golos::plugins::social_network::comment_reward_object& cr) {
-                    cr.comment = comment.id;
-                    cr.author_rewards = author_rewards;
-                    cr.author_gbg_payout_value = impl.author_gbg_payout_value;
-                    cr.author_golos_payout_value = impl.author_golos_payout_value;
-                    cr.author_gests_payout_value = impl.author_gests_payout_value;
-                    cr.total_payout_value = total_payout_gbg;
-                    cr.beneficiary_payout_value = benef_payout_gbg;
-                    cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
-                    cr.curator_payout_value = curator_payout_gbg;
-                    cr.curator_gests_payout_value = impl.curator_payout_gests;
-                });
-            } else {
-                db.modify(*cr_itr, [&](comment_reward_object& cr) {
-                    cr.author_rewards += author_rewards;
-                    cr.author_gbg_payout_value += impl.author_gbg_payout_value;
-                    cr.author_golos_payout_value += impl.author_golos_payout_value;
-                    cr.author_gests_payout_value += impl.author_gests_payout_value;
-                    cr.total_payout_value += total_payout_gbg;
-                    cr.beneficiary_payout_value += benef_payout_gbg;
-                    cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
-                    cr.curator_payout_value += curator_payout_gbg;
-                    cr.curator_gests_payout_value += impl.curator_payout_gests;
-                });
+            if (total_payout_golos.amount.value || benef_payout_golos.amount.value || curator_payout_golos.amount.value ) {
+                const auto& cr_idx = db.get_index<comment_reward_index>().indices()
+                    .get<golos::plugins::social_network::by_comment>();
+                auto cr_itr = cr_idx.find(comment.id);
+                if (cr_itr == cr_idx.end()) {
+                    db.create<comment_reward_object>([&](golos::plugins::social_network::comment_reward_object& cr) {
+                        cr.comment = comment.id;
+                        cr.author_rewards = author_rewards;
+                        cr.author_gbg_payout_value = impl.author_gbg_payout_value;
+                        cr.author_golos_payout_value = impl.author_golos_payout_value;
+                        cr.author_gests_payout_value = impl.author_gests_payout_value;
+                        cr.total_payout_value = total_payout_gbg;
+                        cr.beneficiary_payout_value = benef_payout_gbg;
+                        cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
+                        cr.curator_payout_value = curator_payout_gbg;
+                        cr.curator_gests_payout_value = impl.curator_payout_gests;
+                    });
+                } else {
+                    db.modify(*cr_itr, [&](comment_reward_object& cr) {
+                        cr.author_rewards += author_rewards;
+                        cr.author_gbg_payout_value += impl.author_gbg_payout_value;
+                        cr.author_golos_payout_value += impl.author_golos_payout_value;
+                        cr.author_gests_payout_value += impl.author_gests_payout_value;
+                        cr.total_payout_value += total_payout_gbg;
+                        cr.beneficiary_payout_value += benef_payout_gbg;
+                        cr.beneficiary_gests_payout_value = impl.benef_payout_gests;
+                        cr.curator_payout_value += curator_payout_gbg;
+                        cr.curator_gests_payout_value += impl.curator_payout_gests;
+                    });
+                }
             }
 
             impl.author_gbg_payout_value.amount = 0;
@@ -528,13 +545,13 @@ namespace golos { namespace plugins { namespace social_network {
         config_file_options.add_options()
             ( // Depth of comment_content information storage history.
                 "comment-title-depth", boost::program_options::value<uint32_t>(),
-                "max count of storing records of comment.title"
+                "If set, remove comment titles older than specified number of blocks"
             ) (
                 "comment-body-depth", boost::program_options::value<uint32_t>(),
-                "max count of storing records of comment.body"
+                "If set, remove comment bodies older than specified number of blocks."
             ) (
                 "comment-json-metadata-depth", boost::program_options::value<uint32_t>(),
-                "max count of storing records of comment.json_metadata"
+                "If set, remove comment json-metadatas older than specified number of blocks."
             ) (
                 "set-content-storing-depth-null-after-update", boost::program_options::value<bool>()->default_value(false),
                 "should content's depth be set to null after update"
@@ -849,6 +866,16 @@ namespace golos { namespace plugins { namespace social_network {
                 con.beneficiary_gests_payout_value = reward->beneficiary_gests_payout_value;
                 con.curator_payout_value = reward->curator_payout_value;
                 con.curator_gests_payout_value = reward->curator_gests_payout_value;
+            } else {
+                con.author_rewards = 0;
+                con.author_gbg_payout_value = asset(0, SBD_SYMBOL);
+                con.author_golos_payout_value = asset(0, STEEM_SYMBOL);
+                con.author_gests_payout_value = asset(0, VESTS_SYMBOL);
+                con.total_payout_value = asset(0, SBD_SYMBOL);
+                con.beneficiary_payout_value = asset(0, SBD_SYMBOL);
+                con.beneficiary_gests_payout_value = asset(0, VESTS_SYMBOL);
+                con.curator_payout_value = asset(0, SBD_SYMBOL);
+                con.curator_gests_payout_value = asset(0, VESTS_SYMBOL);
             }
         }
     }

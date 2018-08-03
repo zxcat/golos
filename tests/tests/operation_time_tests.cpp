@@ -601,8 +601,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             BOOST_CHECK(bob_cr_itr != cr_idx.end());
             BOOST_CHECK_EQUAL(bob_cr_itr->total_payout_value, bob_comment_reward.total_payout());
             auto sam_cr_itr = cr_idx.find(sam_comment.id);
-            BOOST_CHECK(sam_cr_itr != cr_idx.end());
-            BOOST_CHECK_EQUAL(sam_cr_itr->total_payout_value.amount.value, 0);
+            BOOST_CHECK(sam_cr_itr == cr_idx.end());
             auto dave_cr_itr = cr_idx.find(dave_comment.id);
             BOOST_CHECK(dave_cr_itr != cr_idx.end());
             BOOST_CHECK_EQUAL(dave_cr_itr->total_payout_value, dave_comment_reward.total_payout());

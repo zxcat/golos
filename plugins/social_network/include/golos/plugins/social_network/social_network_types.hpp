@@ -125,15 +125,14 @@ namespace golos { namespace plugins { namespace social_network {
         asset curator_gests_payout_value{0, VESTS_SYMBOL};
     };
 
-    typedef object_id<comment_reward_object> comment_reward_id_type;
+    using comment_reward_id_type = object_id<comment_reward_object>;
 
-    typedef multi_index_container<
+    using comment_reward_index = multi_index_container<
         comment_reward_object,
         indexed_by<
             ordered_unique<tag<by_id>, member<comment_reward_object, comment_reward_object::id_type, &comment_reward_object::id>>,
             ordered_unique<tag<by_comment>, member<comment_reward_object, comment_object::id_type, &comment_reward_object::comment>>>,
-        allocator<comment_reward_object>
-    > comment_reward_index;
+        allocator<comment_reward_object>>;
 } } }
 
 
