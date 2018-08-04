@@ -75,8 +75,7 @@ if (options.count(name)) { \
                 history.block = note.block;
                 history.account = account;
                 history.sequence = sequence;
-                history.dir = dir;
-                history.op_tag = note.op.which();
+                history.set_op_tag_dir(note.op.which(), dir);
                 history.op = operation_history::operation_id_type(note.db_id);
             });
         }
@@ -183,6 +182,10 @@ if (options.count(name)) { \
             sequenced_itr(op_itr_type itr): itr(itr) {
             }
 
+            bool is_good(const account_name_type& a, op_tag_type o, operation_direction d) const {
+                return itr->account == a && itr->get_op_tag() == o && itr->get_dir() == d;
+            }
+
             bool operator<(const sequenced_itr& other) const {
                 return itr->sequence < other.itr->sequence;
             }
@@ -217,7 +220,7 @@ if (options.count(name)) { \
             auto put_itr = [&](op_tag_type o, operation_direction d, bool force = false) {
                 if (force || operation_direction::any == dir || d == dir) {
                     auto i = sequenced_itr(idx, account, uint8_t(o), d, from);
-                    if (i.itr != end && i.itr->op_tag == o && i.itr->dir == d)
+                    if (i.itr != end && i.is_good(account, o, d))
                         itrs.push(i);
                 }
             };
@@ -232,10 +235,10 @@ if (options.count(name)) { \
                 auto itr = itrs.top().itr;
                 itrs.pop();
                 result[itr->sequence] = db.get(itr->op);
-                auto o = itr->op_tag;
-                auto d = itr->dir;
+                auto o = itr->get_op_tag();
+                auto d = itr->get_dir();
                 auto next = sequenced_itr(++itr);
-                if (next.itr != end && next.itr->op_tag == o && next.itr->dir == d)
+                if (next.itr != end && next.is_good(account, o, d))
                     itrs.push(next);
             }
             return result;
