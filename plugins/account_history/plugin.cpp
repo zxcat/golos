@@ -8,7 +8,9 @@
 
 #include <queue>
 
-#define ACCOUNT_HISTORY_MAX_LIMIT 1000
+#define ACCOUNT_HISTORY_MAX_LIMIT 10000
+#define ACCOUNT_HISTORY_MAX_FILTERED_LIMIT 1000
+#define ACCOUNT_HISTORY_DEFAULT_LIMIT 100
 #define GOLOS_OP_NAMESPACE "golos::protocol::"
 
 
@@ -16,7 +18,6 @@ namespace golos { namespace plugins { namespace account_history {
 
 using namespace golos::protocol;
 using namespace golos::chain;
-namespace bpo = boost::program_options;
 using impacted_accounts = fc::flat_map<golos::chain::account_name_type, operation_direction>;
 
 struct operation_visitor_filter;
@@ -33,14 +34,6 @@ if (options.count(name)) { \
     const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \
     std::transform(ops.begin(), ops.end(), std::inserter(container, container.end()), &dejsonify<type>); \
 }
-
-    struct op_name_visitor {
-        using result_type = std::string;
-        template<class T>
-        std::string operator()(const T&) const {
-            return fc::get_typename<T>::name();
-        }
-    };
 
     struct operation_visitor final {
         operation_visitor(
@@ -75,7 +68,8 @@ if (options.count(name)) { \
                 history.block = note.block;
                 history.account = account;
                 history.sequence = sequence;
-                history.set_op_tag_dir(note.op.which(), dir);
+                history.set_ts(note.timestamp);
+                history.set_op_props(note.op.which(), dir);
                 history.op = operation_history::operation_id_type(note.db_id);
             });
         }
@@ -123,13 +117,26 @@ if (options.count(name)) { \
 
         ///////////////////////////////////////////////////////
         // API
-        history_operations fetch_unfiltered(string account, uint32_t from, uint32_t limit) {
+        history_operations fetch_unfiltered(string account, uint32_t from, uint32_t limit, int64_t to = -1) {
             history_operations result;
             const auto& idx = db.get_index<account_history_index>().indices().get<by_account>();
-            auto itr = idx.lower_bound(std::make_tuple(account, from));
-            auto end = idx.upper_bound(std::make_tuple(account, std::max(int64_t(0), int64_t(itr->sequence) - limit)));
-            for (; itr != end; ++itr) {
-                result[itr->sequence] = db.get(itr->op);
+            auto fetch_ops = [&](auto itr, auto end) {
+                for (; itr != end; ++itr) {
+                    result[itr->sequence] = db.get(itr->op);
+                }
+            };
+            auto start = std::make_tuple(account, from);
+            if (to < 0 || from < to) {
+                limit = to < 0 ? limit : std::min(limit, uint32_t(to) - from);
+                auto itr = idx.lower_bound(start);
+                auto end = idx.upper_bound(std::make_tuple(account, std::max(int64_t(0), int64_t(itr->sequence) - limit)));
+                fetch_ops(itr, end);
+            } else {
+                limit = std::min(limit, from - uint32_t(to));
+                auto itr = idx.upper_bound(start);
+                auto end = idx.lower_bound(std::make_tuple(account, std::min(int64_t(0xFFFFFFFFul), int64_t(itr->sequence) + limit)));
+                using rev_itr = account_history_index::index<by_account>::type::const_reverse_iterator;
+                fetch_ops(rev_itr(itr), rev_itr(end));
             }
             return result;
         }
@@ -161,85 +168,218 @@ if (options.count(name)) { \
             }
             return result;
         }
-        bool is_all_ops(op_tags x) {
-            return x.size() == operation::count();
-        }
 
+        template<typename T, typename Less>
         struct sequenced_itr {
-            // TODO: if possible, change this decltypes to something more readable
-            using op_idx_type = decltype(database().get_index<account_history_index>().indices().get<by_operation>());
-            using op_itr_type = decltype(
-                database().get_index<account_history_index>().indices().get<by_operation>()
-                    .lower_bound(std::make_tuple("",uint8_t(0),operation_direction::any,uint32_t(0))));
+            using itr_type = T;
+            T itr;
+            bool limited;
+            uint32_t limit;
 
-            op_itr_type itr;
-
-            sequenced_itr(op_idx_type idx, account_name_type a, uint8_t o, operation_direction d, uint32_t s) {
-                itr = idx.lower_bound(std::make_tuple(a, o, d, s));
-            }
-
-            // reconstruct to put next value into queue (can't reuse previous because const in queue)
-            sequenced_itr(op_itr_type itr): itr(itr) {
+            sequenced_itr(T itr, bool limited, uint32_t limit): itr(itr), limited(limited), limit(limit) {
             }
 
             bool is_good(const account_name_type& a, op_tag_type o, operation_direction d) const {
-                return itr->account == a && itr->get_op_tag() == o && itr->get_dir() == d;
+                return itr->account == a && itr->get_op_tag() == o && itr->get_dir() == d && in_range();
+            }
+
+            bool in_range() const {
+                return !limited || Less()(itr->sequence, limit);
             }
 
             bool operator<(const sequenced_itr& other) const {
-                return itr->sequence < other.itr->sequence;
+                return Less()(itr->sequence, other.itr->sequence);
             }
         };
 
-        history_operations get_account_history(
-            std::string account,
-            uint32_t from,
-            uint32_t limit,
-            account_history_query query
-        ) {
+        history_operations get_account_history(std::string account, uint32_t from, uint32_t limit) {
             GOLOS_CHECK_LIMIT_PARAM(limit, ACCOUNT_HISTORY_MAX_LIMIT);
             GOLOS_CHECK_PARAM(from, GOLOS_CHECK_VALUE(from >= limit, "From must be greater then limit"));
+            return fetch_unfiltered(account, from, limit);
+        }
+
+        uint32_t ts2seconds(fc::time_point_sec ts) {
+            return ts.sec_since_epoch() / STEEMIT_BLOCK_INTERVAL;
+        }
+
+        struct seq_range {
+            seq_range(bool have_to): have_to(have_to) {
+            };
+
+            uint32_t from = 0;
+            uint32_t to = 0;
+            bool have_to;
+            bool got_from = true;
+            bool got_to = true;
+
+            bool empty() const {
+                return !got_from || (have_to && !got_to);
+            }
+        };
+
+        seq_range get_sequence_range(const account_history_query& q) {
+            account_name_type account = q.account;
+            auto r = seq_range(q.to || q.to_timestamp);
+
+            if (q.from_timestamp || q.to_timestamp) {
+                using seconds_idx = account_history_index::index<by_seconds>::type;
+                // using seconds_itr = account_history_index::index_const_iterator<by_seconds>::type;
+                const auto& idx = db.get_index<account_history_index>().indices().get<by_seconds>();
+                const auto end = idx.end();
+                auto a = q.from_timestamp ? ts2seconds(*q.from_timestamp) : 0;
+                auto b = q.to_timestamp ? ts2seconds(*q.to_timestamp) : 0;
+
+                if (q.from_timestamp && q.to_timestamp) {
+                    bool asc = a <= b;
+
+                    auto set_from_to = [&](auto low, auto high) {
+                        r.got_from = r.got_to = low != high && low->account == account;
+                        if (r.got_from) {
+                            --high;
+                            r.from = low->sequence;
+                            r.to = high->sequence + (asc ? 1 : -1);
+                        }
+                    };
+                    if (a == b) {
+                        auto p = idx.equal_range(std::make_tuple(account, a));
+                        set_from_to(p.first, p.second);
+                    } else if (asc) {
+                        set_from_to(
+                            idx.lower_bound(std::make_tuple(account, a)),
+                            idx.lower_bound(std::make_tuple(account, b)));
+                    } else {
+                        set_from_to(
+                            seconds_idx::reverse_iterator(idx.upper_bound(std::make_tuple(account, a))),
+                            seconds_idx::reverse_iterator(idx.upper_bound(std::make_tuple(account, b))));
+                    }
+                } else {
+                    // if only one ts, there is edge case when seq and ts timestamps equal and direction unknown.
+                    // ts converted to lower seq in this case.
+                    auto nearest_seq = [&](const auto sec, bool& got, uint32_t& seq) {
+                        auto i = idx.lower_bound(std::make_tuple(account, sec));
+                        auto upper = i != idx.begin() && (i == end || i->account != account);
+                        if (upper) {
+                            --i;    // move to upper bound to get nearest sequence
+                        }
+                        got = i != end && i->account == account;
+                        if (got) {
+                            seq = i->sequence + (upper ? 1 : 0);
+                        }
+                    };
+                    if (q.from_timestamp) {
+                        nearest_seq(a, r.got_from, r.from);
+                    } else {
+                        nearest_seq(b, r.got_to, r.to);
+                    }
+                }
+            }
+            if (q.from) {
+                r.from = *q.from;
+            }
+            if (q.to) {
+                r.to = *q.to;
+            }
+            return r;
+        }
+
+        history_operations filter_account_history(account_history_query query) {
+            const auto& q = query;
+            account_name_type account = q.account;
+            uint32_t limit = q.limit ? *q.limit : ACCOUNT_HISTORY_DEFAULT_LIMIT;
+            auto dir = q.direction ? *q.direction : operation_direction::any;
             op_tags select_ops;
             GOLOS_CHECK_PARAM(query, {
-                select_ops = op_names_to_tags(query.select_ops ? *query.select_ops : op_names({"ALL"}));
-                auto filter_ops = op_names_to_tags(query.filter_ops ? *query.filter_ops : op_names({}));
+                GOLOS_CHECK_LIMIT(limit, ACCOUNT_HISTORY_MAX_FILTERED_LIMIT);
+                select_ops = op_names_to_tags(q.select_ops ? *q.select_ops : op_names({"ALL"}));
+                auto filter_ops = op_names_to_tags(q.filter_ops ? *q.filter_ops : op_names({}));
                 for (auto t: filter_ops) {
                     select_ops.erase(t);
                 }
                 GOLOS_CHECK_VALUE(!select_ops.empty(), "Query contains no operations to select");
+                GOLOS_CHECK_VALUE((q.from || q.from_timestamp) && !(q.from && q.from_timestamp),
+                    "Query must contain either 'from' or 'from_timestamp'");
+                GOLOS_CHECK_VALUE(!(q.to && q.to_timestamp), "Query cannot contain both 'to' and 'to_timestamp'");
             });
-            auto dir = query.direction ? *query.direction : operation_direction::any;
 
-            if (is_all_ops(select_ops) && dir == operation_direction::any) {
-                return fetch_unfiltered(account, from, limit);
+            auto seqs = get_sequence_range(q);
+            if (seqs.empty())
+                return history_operations();
+
+            auto from = seqs.from;
+            auto is_all_ops = select_ops.size() == operation::count();
+            if (is_all_ops && dir == operation_direction::any) {
+                return fetch_unfiltered(account, from, limit, seqs.have_to ? int64_t(seqs.to) : -1);
             }
-            std::priority_queue<sequenced_itr> itrs;
+
             const auto& idx = db.get_index<account_history_index>().indices().get<by_operation>();
-            const auto& end = idx.end();
 
-            auto put_itr = [&](op_tag_type o, operation_direction d, bool force = false) {
-                if (force || operation_direction::any == dir || d == dir) {
-                    auto i = sequenced_itr(idx, account, uint8_t(o), d, from);
-                    if (i.itr != end && i.is_good(account, o, d))
-                        itrs.push(i);
+            auto fetch_ops = [&](auto& itrs, const auto& end, const auto&& create, const auto&& bound) {
+                history_operations result;
+                auto put_itr = [&](op_tag_type o, operation_direction d, bool force = false) {
+                    if (force || operation_direction::any == dir || d == dir) {
+                        auto itr = bound(std::make_tuple(account, uint8_t(o), d, from));
+                        auto i = create(itr);
+                        if (i.itr != end && i.is_good(account, o, d))
+                            itrs.push(i);
+                    }
+                };
+                for (const auto o: select_ops) {
+                    put_itr(o, operation_direction::sender);
+                    put_itr(o, operation_direction::receiver);
+                    put_itr(o, operation_direction::dual, dir == sender || dir == receiver);
                 }
+                while (!itrs.empty() && result.size() <= limit) {
+                    auto itr = itrs.top().itr;
+                    itrs.pop();
+                    result[itr->sequence] = db.get(itr->op);
+                    auto o = itr->get_op_tag();
+                    auto d = itr->get_dir();
+                    auto next = create(++itr);
+                    if (next.itr != end && next.is_good(account, o, d))
+                        itrs.push(next);
+                }
+                return result;
             };
-            for (const auto o: select_ops) {
-                put_itr(o, operation_direction::sender);
-                put_itr(o, operation_direction::receiver);
-                put_itr(o, operation_direction::dual, dir == sender || dir == receiver);
-            }
 
             history_operations result;
-            while (!itrs.empty() && result.size() <= limit) {
-                auto itr = itrs.top().itr;
-                itrs.pop();
-                result[itr->sequence] = db.get(itr->op);
-                auto o = itr->get_op_tag();
-                auto d = itr->get_dir();
-                auto next = sequenced_itr(++itr);
-                if (next.itr != end && next.is_good(account, o, d))
-                    itrs.push(next);
+            if (!seqs.have_to || from > seqs.to) {
+                using itr_type = account_history_index::index_const_iterator<by_operation>::type;
+                using seq_itr = sequenced_itr<itr_type, std::less<uint32_t>>;
+                std::priority_queue<seq_itr> itrs;
+                result = fetch_ops(itrs, idx.end(),
+                    [&](auto i){return seq_itr(i, seqs.have_to, seqs.to);},
+                    [&](auto a){return idx.lower_bound(a);}
+                );
+            } else {
+                using itr_type = account_history_index::index<by_operation>::type::const_reverse_iterator;
+                using seq_rev = sequenced_itr<itr_type, std::greater<uint32_t>>;
+                std::priority_queue<seq_rev> itrs;
+                result = fetch_ops(itrs, idx.rend(),
+                    [&](auto i){return seq_rev(i, seqs.have_to, seqs.to);},
+                    [&](auto a){return itr_type(idx.upper_bound(a));}
+                );
+            }
+            return result;
+        }
+
+        std::vector<uint32_t> get_account_history_seq_nums(
+            std::string account,
+            std::vector<fc::time_point_sec> tss
+        ) {
+            GOLOS_CHECK_PARAM(tss, {
+                GOLOS_CHECK_VALUE(tss.size() > 0, "Provide at least 1 timestamp");
+                // GOLOS_CHECK_VALUE(tss.size() <= ACCOUNT_HISTORY_MAX_TS_LIMIT,
+                //     "Can't accept more than " FC_STRINGIZE(ACCOUNT_HISTORY_MAX_TS_LIMIT) " timestamps");
+            });
+
+            const auto& idx = db.get_index<account_history_index>().indices().get<by_seconds>();
+            const auto& end = idx.end();
+            const auto& begin = idx.begin();
+            std::vector<uint32_t> result;
+            for (const auto& ts: tss) {
+                auto sec = (ts.sec_since_epoch() + STEEMIT_BLOCK_INTERVAL - 1) / STEEMIT_BLOCK_INTERVAL;
+                const auto& itr = idx.lower_bound(std::make_tuple(account, sec));
+                result.push_back(itr == end || itr->account != account ? 0xFFFFFFFF : itr->sequence);
             }
             return result;
         }
@@ -255,13 +395,32 @@ if (options.count(name)) { \
         PLUGIN_API_VALIDATE_ARGS(
             (account_name_type, account)
             (uint32_t, from, 0xFFFFFFFF)
-            (uint32_t, limit, 100)
-            (account_history_query, query, account_history_query())
+            (uint32_t, limit, ACCOUNT_HISTORY_DEFAULT_LIMIT)
         );
         return pimpl->db.with_weak_read_lock([&]() {
-            return pimpl->get_account_history(account, from, limit, query);
+            return pimpl->get_account_history(account, from, limit);
         });
     }
+
+    DEFINE_API(plugin, filter_account_history) {
+        PLUGIN_API_VALIDATE_ARGS(
+            (account_history_query, query)
+        );
+        return pimpl->db.with_weak_read_lock([&]() {
+            return pimpl->filter_account_history(query);
+        });
+    }
+
+    // DEFINE_API(plugin, get_account_history_seq_nums) {
+    //     PLUGIN_API_VALIDATE_ARGS(
+    //         (account_name_type, account)
+    //         (std::vector<fc::time_point_sec>, tss)
+    //     );
+
+    //     return pimpl->db.with_weak_read_lock([&]() {
+    //         return pimpl->get_account_history_seq_nums(account, tss);
+    //     });
+    // }
 
     struct get_impacted_account_visitor final {
         impacted_accounts& impacted;
@@ -527,6 +686,14 @@ if (options.count(name)) { \
         );
         cfg.add(cli);
     }
+
+    struct op_name_visitor {
+        using result_type = std::string;
+        template<class T>
+        std::string operator()(const T&) const {
+            return fc::get_typename<T>::name();
+        }
+    };
 
     void plugin::plugin_initialize(const bpo::variables_map& options) {
         ilog("account_history plugin: plugin_initialize() begin");

@@ -47,7 +47,7 @@ namespace golos { namespace plugins { namespace operation_history {
                     obj.trx_in_block = note.trx_in_block;
                     obj.op_in_trx = note.op_in_trx;
                     obj.virtual_op = note.virtual_op;
-                    obj.timestamp = database.head_block_time();
+                    obj.timestamp = note.timestamp;
 
                     const auto size = fc::raw::pack_size(note.op);
                     obj.serialized_op.resize(size);
@@ -84,7 +84,7 @@ namespace golos { namespace plugins { namespace operation_history {
                 }
             } else {
                 if (blacklist) {
-                   operation_visitor::operator()(op);
+                    operation_visitor::operator()(op);
                 }
             }
         }

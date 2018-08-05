@@ -643,7 +643,7 @@ namespace golos { namespace chain {
                 startup();
             }
 
-            operations_map add_operations();
+            operations_map add_operations(bool pause = false);
             operation_history_plugin* oh_plugin = nullptr;
         };
 

@@ -257,16 +257,23 @@ namespace golos { namespace chain {
             }
         };
 
-        add_operations_database_fixture::operations_map add_operations_database_fixture::add_operations() { try {
+        add_operations_database_fixture::operations_map add_operations_database_fixture::add_operations(bool pause) { try {
             operations_map _added_ops;
 
             ACTORS((alice)(bob)(sam))
+            if (pause) generate_blocks(200);
             fund("alice", 10000);
+            if (pause) generate_blocks(100);
             vest("alice", 10000);
+            if (pause) generate_blocks(100);
             fund("bob", 7500);
+            if (pause) generate_blocks(100);
             vest("bob", 7500);
+            if (pause) generate_blocks(100);
             fund("sam", 8000);
+            if (pause) generate_blocks(100);
             vest("sam", 8000);
+            if (pause) generate_blocks(200);
 
             comment_operation com;
             com.author = "bob";
@@ -280,6 +287,7 @@ namespace golos { namespace chain {
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "comment_operation"));
             ilog("Generate: " + tx.id().str() + " comment_operation");
+            if (pause) generate_blocks(200);
 
             tx.clear();
             vote_operation vote;
@@ -299,6 +307,7 @@ namespace golos { namespace chain {
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "vote_operation"));
             ilog("Generate: " + tx.id().str() + " vote_operation");
+            if (pause) generate_blocks(200);
 
             delete_comment_operation dco;
             dco.author = "bob";
@@ -307,6 +316,7 @@ namespace golos { namespace chain {
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "delete_comment_operation"));
             ilog("Generate: " + tx.id().str() + " delete_comment_operation");
+            if (pause) generate_blocks(200);
 
             account_create_operation aco;
             aco.new_account_name = "dave";
@@ -317,6 +327,7 @@ namespace golos { namespace chain {
             generate_block();
             _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "account_create_operation"));
             ilog("Generate: " + tx.id().str() + " account_create_operation");
+            if (pause) generate_blocks(100);
 
             validate_database();
 

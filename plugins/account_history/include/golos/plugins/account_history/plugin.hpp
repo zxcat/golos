@@ -36,13 +36,14 @@
 
 
 namespace golos { namespace plugins { namespace account_history {
+    namespace bpo = boost::program_options;
     using namespace chain;
-    using golos::plugins::operation_history::applied_operation;
     using plugins::json_rpc::msg_pack;
 
-    using history_operations = std::map<uint32_t, applied_operation>;
+    using history_operations = std::map<uint32_t, operation_history::applied_operation>;
 
     DEFINE_API_ARGS(get_account_history, msg_pack, history_operations)
+    DEFINE_API_ARGS(filter_account_history, msg_pack, history_operations)
 
    /**
     *  This plugin is designed to track a range of operations by account so that one node
@@ -61,11 +62,8 @@ namespace golos { namespace plugins { namespace account_history {
 
         static const std::string& name();
 
-        void set_program_options(
-            boost::program_options::options_description &cli,
-            boost::program_options::options_description &cfg) override;
-
-        void plugin_initialize(const boost::program_options::variables_map &options) override;
+        void set_program_options(bpo::options_description& cli, bpo::options_description& cfg) override;
+        void plugin_initialize(const bpo::variables_map& options) override;
         void plugin_startup() override;
         void plugin_shutdown() override;
 
@@ -79,14 +77,27 @@ namespace golos { namespace plugins { namespace account_history {
              *  @param account - name of account, which history requested.
              *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
              *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
-             *  @param query - filtering query - object with following optional fields:
-             *    {
-             *        select_ops - list of operations to include. special values: ALL, REAL, VIRTUAL. if skipped = ALL
-             *        filter_ops - blacklist. if skipped = empty list (nothing blacklisted)
-             *        dir - direction of operation in relation to account: any, sender, receiver, dual. Experimental
-             *    }
              */
             (get_account_history)
+
+            /**
+             *  Account operations have sequence numbers from 0 to N where N is the most recent operation.
+             *  This method returns operations of specified account filtered with query
+             *
+             *  @param query - filtering query - object with following optional fields:
+             *    {
+             *      account - name of account, which history requested. mandatory field
+             *      limit — limit size of result array (optional, 100 if not set, max 1000)
+             *      from - sequence number to begin from (required either `from` or `from_timestamp`)
+             *      to - sequence number to end at; it's possible result don't reach it if limited (optional)
+             *      from_timestamp - timestamp to begin from (optional, can't be used if `from` set)
+             *      to_timestamp - timestamp to end at (optional, can't be used if `to` set)
+             *      select_ops - list of operations to include. special values: ALL, REAL, VIRTUAL. if skipped = ALL
+             *      filter_ops - blacklist. if skipped = empty list (nothing blacklisted)
+             *      dir - direction of operation in relation to account: any, sender, receiver, dual. Experimental
+             *    }
+             */
+            (filter_account_history)
         )
 
     private:

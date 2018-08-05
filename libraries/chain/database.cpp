@@ -1291,24 +1291,25 @@ namespace golos { namespace chain {
             _enable_plugins_on_push_transaction = value;
         }
 
-        void database::notify_pre_apply_operation(operation_notification &note) {
+        void database::notify_pre_apply_operation(operation_notification& note) {
             note.trx_id = _current_trx_id;
             note.block = _current_block_num;
             note.trx_in_block = _current_trx_in_block;
             note.op_in_trx = _current_op_in_trx;
+            note.timestamp = head_block_time();
 
             if (!is_producing() || _enable_plugins_on_push_transaction) {
                 STEEMIT_TRY_NOTIFY(pre_apply_operation, note);
             }
         }
 
-        void database::notify_post_apply_operation(const operation_notification &note) {
+        void database::notify_post_apply_operation(const operation_notification& note) {
             if (!is_producing() || _enable_plugins_on_push_transaction) {
                 STEEMIT_TRY_NOTIFY(post_apply_operation, note);
             }
         }
 
-        inline const void database::push_virtual_operation(const operation &op, bool force) {
+        inline const void database::push_virtual_operation(const operation& op, bool force) {
             if (!force && _skip_virtual_ops ) {
                 return;
             }

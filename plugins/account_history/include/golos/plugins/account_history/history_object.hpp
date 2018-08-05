@@ -29,11 +29,17 @@
 #endif
 
 
+static constexpr auto number_of_operations = golos::protocol::operation::count();
+static_assert(number_of_operations >= 0, "protocol::operation::count() less than 0");
+
 namespace golos { namespace plugins { namespace account_history {
 
     enum account_object_types {
         account_history_object_type = (ACCOUNT_HISTORY_SPACE_ID << 8)
     };
+
+    using namespace golos::chain;
+    using namespace chainbase;
 
     enum operation_direction : uint8_t {
         any = 0,
@@ -43,27 +49,30 @@ namespace golos { namespace plugins { namespace account_history {
     };
 
     struct account_history_query final {
-        fc::optional<fc::flat_set<std::string>> select_ops;
-        fc::optional<fc::flat_set<std::string>> filter_ops;
-        fc::optional<operation_direction> direction;
+        account_name_type account;
+        optional<uint32_t> limit;
+        optional<uint32_t> from;                    // sequence number
+        optional<uint32_t> to;                      // sequence number
+        optional<time_point_sec> from_timestamp;
+        optional<time_point_sec> to_timestamp;
+
+        optional<flat_set<std::string>> select_ops;
+        optional<flat_set<std::string>> filter_ops;
+        optional<operation_direction> direction;
     };
 
-    using namespace golos::chain;
-    using namespace chainbase;
-
-    template<bool T> struct op_tag_dir;
+    template<bool T> struct op_filter_data;
     // compact version
-    template<> struct op_tag_dir<true> {
+    template<> struct op_filter_data<true> {
         uint8_t op_tag:6;
         operation_direction dir:2;
     };
     // normal version
-    template<> struct op_tag_dir<false> {
+    template<> struct op_filter_data<false> {
         uint8_t op_tag;
         operation_direction dir;
     };
-static_assert(protocol::operation::count() >= 0 && protocol::operation::count() <= 0xFF,
-    "There are more ops than u8 type can handle. Please, update op_tag type");
+static_assert(number_of_operations <= 0xFF, "There are more ops than u8 type can handle. Please, update op_tag type");
 
     using golos::plugins::operation_history::operation_id_type;
 
@@ -79,28 +88,23 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
         account_name_type account;
         uint32_t block = 0;
         uint32_t sequence = 0;
+        uint32_t seconds = 0;       // seconds from epoch divided by STEEMIT_BLOCK_INTERVAL; TODO: can be calculated from block if implement lookup tbl
         operation_id_type op;
 
-// #ifdef ACC_HISTORY_COMPACT_OBJ
-//         struct {
-//             uint8_t op_tag:6;
-//             operation_direction dir:2;
-//         };
-// #else
-//         uint8_t op_tag;
-//         operation_direction dir;
-// #endif  //ACC_HISTORY_COMPACT_OBJ
-        op_tag_dir<protocol::operation::count() >= 0 && protocol::operation::count() <= 0x3F> opdir;
+        op_filter_data<number_of_operations <= 0x3F> op_props;
 
         uint8_t get_op_tag() const {
-            return opdir.op_tag;
+            return op_props.op_tag;
         }
         operation_direction get_dir() const {
-            return opdir.dir;
+            return op_props.dir;
         }
-        void set_op_tag_dir(uint8_t tag, operation_direction d) {
-            opdir.op_tag = tag;
-            opdir.dir = d;
+        void set_op_props(uint8_t tag, operation_direction d) {
+            op_props.op_tag = tag;
+            op_props.dir = d;
+        }
+        void set_ts(time_point_sec ts) {
+            seconds = ts.sec_since_epoch() / STEEMIT_BLOCK_INTERVAL; // divide, so keys contain no gaps
         }
     };
 
@@ -108,7 +112,7 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
 
     struct by_location;
     struct by_operation;
-    struct by_timestamp;
+    struct by_seconds;
     struct by_account;
     using account_history_index = multi_index_container<
         account_history_object,
@@ -128,13 +132,18 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
                     member<account_history_object, uint32_t, &account_history_object::sequence>>,
                 composite_key_compare<
                     std::less<account_name_type>, std::less<uint8_t>, std::less<uint8_t>, std::greater<uint32_t>>>,
-            // ordered_unique<
-            //     tag<by_direction>,
-            //     composite_key<account_history_object,
-            //         member<account_history_object, account_name_type, &account_history_object::account>,
-            //         member<account_history_object, operation_direction, &account_history_object::dir>,
-            //         member<account_history_object, uint32_t, &account_history_object::sequence>>,
-            //     composite_key_compare<std::less<account_name_type>, std::less<uint8_t>, std::greater<uint32_t>>>,
+            ordered_unique<
+                tag<by_seconds>,
+                composite_key<account_history_object,
+                    member<account_history_object, account_name_type, &account_history_object::account>,
+                    // global_fun<const account_history_object&, time_point_sec, &account_history_object_ts>,
+                    // const_mem_fun<account_history_object, time_point_sec, &account_history_object::ts>,
+                    member<account_history_object, uint32_t, &account_history_object::seconds>,
+                    member<account_history_object, uint32_t, &account_history_object::sequence>
+                >,
+                composite_key_compare<
+                    std::less<account_name_type>, std::less<uint32_t>, std::greater<uint32_t>>
+            >,
             ordered_unique<
                 tag<by_account>,
                 composite_key<account_history_object,
@@ -148,9 +157,9 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
 FC_REFLECT_ENUM(golos::plugins::account_history::operation_direction, (any)(sender)(receiver)(dual))
 
 FC_REFLECT((golos::plugins::account_history::account_history_query),
+    (account)(limit)(from)(to)(from_timestamp)(to_timestamp)
     (select_ops)(filter_ops)(direction))
 
 CHAINBASE_SET_INDEX_TYPE(
     golos::plugins::account_history::account_history_object,
     golos::plugins::account_history::account_history_index)
-
