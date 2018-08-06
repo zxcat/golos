@@ -154,6 +154,16 @@ namespace mongo_db {
                     format_value(body, "curator_payout", cr_itr->curator_payout_value);
                     format_value(body, "curator_gests_payout", cr_itr->curator_gests_payout_value);
                     format_value(body, "total_payout", cr_itr->total_payout_value);
+                } else {
+                    format_value(body, "author_rewards", 0);
+                    format_value(body, "author_gbg_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "author_golos_payout", asset(0, STEEM_SYMBOL));
+                    format_value(body, "author_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "beneficiary_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "beneficiary_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "curator_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "curator_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "total_payout", asset(0, SBD_SYMBOL));
                 }
             }
 

@@ -19,19 +19,6 @@ namespace golos { namespace chain {
 
         const bool has_hf18 = _db.has_hardfork(STEEMIT_HARDFORK_0_18__673);
 
-        // TODO: remove this after HF 18
-        if (has_hf18) {
-            if (o.props.account_creation_fee.amount.value != STEEMIT_MIN_ACCOUNT_CREATION_FEE) {
-                wlog("The chain_properties_update_operation should be used to update account_creation_fee");
-            }
-            if (o.props.sbd_interest_rate != STEEMIT_DEFAULT_SBD_INTEREST_RATE) {
-                wlog("The chain_properties_update_operation should be used to update sbd_interest_rate");
-            }
-            if (o.props.maximum_block_size != STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2) {
-                wlog("The chain_properties_update_operation should be used to update maximum_block_size");
-            }
-        }
-
         auto update_witness = [&](witness_object& w) {
             from_string(w.url, o.url);
             w.signing_key = o.block_signing_key;

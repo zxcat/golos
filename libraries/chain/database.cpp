@@ -2266,11 +2266,9 @@ namespace golos { namespace chain {
 
                             push_virtual_operation(curation_reward_operation(voter.name, reward, c.author, to_string(c.permlink)));
 
-#ifndef IS_LOW_MEM
                             modify(voter, [&](account_object &a) {
                                 a.curation_rewards += claim;
                             });
-#endif
                         } else {
                             break;
                         }
@@ -2335,11 +2333,9 @@ namespace golos { namespace chain {
                         push_virtual_operation(author_reward_operation(comment.author, to_string(comment.permlink), sbd_payout.first, sbd_payout.second, vest_created));
                         push_virtual_operation(comment_reward_operation(comment.author, to_string(comment.permlink), total_payout));
 
-#ifndef IS_LOW_MEM
                         modify(get_account(comment.author), [&](account_object &a) {
                             a.posting_rewards += author_tokens;
                         });
-#endif
                     }
 
                     fc::uint128_t old_rshares2 = calculate_vshares(comment.net_rshares.value);
