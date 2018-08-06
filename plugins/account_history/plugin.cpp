@@ -6,6 +6,7 @@
 #include <golos/plugins/operation_history/history_object.hpp>
 #include <golos/plugins/json_rpc/api_helper.hpp>
 
+#include <boost/algorithm/string.hpp>
 #include <queue>
 
 #define ACCOUNT_HISTORY_MAX_LIMIT 10000
@@ -517,6 +518,12 @@ if (options.count(name)) { \
             bpo::value<std::vector<std::string>>()->composing()->multitoken(),
             "Defines a range of accounts to track as a json pair [\"from\",\"to\"] [from,to]. "
             "Can be specified multiple times"
+        )
+        (
+            "track-account",
+            bpo::value<std::vector<std::string>>()->composing(),
+            "Defines a individual account to track (in addition to ranges). "
+            "Can be specified multiple times"
         );
         cfg.add(cli);
     }
@@ -544,8 +551,31 @@ if (options.count(name)) { \
         add_plugin_index<account_history_index>(pimpl->db);
 
         using pairstring = std::pair<std::string, std::string>;
-        LOAD_VALUE_SET(options, "track-account-range", pimpl->tracked_accounts, pairstring);
+        fc::flat_map<std::string, std::string> ranges;
+        LOAD_VALUE_SET(options, "track-account-range", ranges, pairstring);
 
+        if (options.count("track-account") > 0) {
+            auto accounts = options.at("track-account").as<std::vector<std::string>>();
+            for (auto& a : accounts) {
+                std::vector<std::string> names;
+                boost::split(names, a, boost::is_any_of(" \t,"));
+                for (auto& n : names) {
+                    if (!n.empty())
+                        ranges[n] = n;          // construct "range" with 1 account name in it
+                }
+            }
+        }
+        // exclude embedded ranges (fix #701)
+        const auto end = ranges.end();
+        for (auto i = ranges.begin(); i < end; ++i) {
+            bool bad = false;
+            for (auto j = ranges.begin(); !bad && j < end && j->first <= i->second; ++j) {
+                if (j == i) continue;
+                bad = i->first >= j->first && i->second <= j->second;
+            }
+            if (!bad)
+                pimpl->tracked_accounts[i->first] = i->second;
+        }
         ilog("account_history: tracked_accounts ${s}", ("s", pimpl->tracked_accounts));
 
         // prepare map to convert operation name to operation tag

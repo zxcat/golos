@@ -23,8 +23,6 @@
  */
 #pragma once
 
-#include <boost/program_options.hpp>
-
 #include <appbase/application.hpp>
 
 #include <golos/plugins/chain/plugin.hpp>
@@ -33,6 +31,8 @@
 #include <golos/plugins/operation_history/plugin.hpp>
 #include <golos/plugins/operation_history/applied_operation.hpp>
 #include <golos/plugins/account_history/history_object.hpp>
+
+#include <boost/program_options.hpp>
 
 
 namespace golos { namespace plugins { namespace account_history {

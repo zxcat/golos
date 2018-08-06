@@ -1,6 +1,6 @@
 #pragma once
 
-#include <golos/plugins/account_history/history_object.hpp>
+#include <golos/plugins/account_history/plugin.hpp>
 #include <golos/plugins/database_api/forward.hpp>
 #include <golos/plugins/database_api/plugin.hpp>
 #include <golos/plugins/database_api/state.hpp>
@@ -89,8 +89,7 @@ struct remote_operation_history {
  * Class is used by wallet to send formatted API calls to operation_history plugin on remote node.
  */
 struct remote_account_history {
-    map<uint32_t, golos::plugins::operation_history::applied_operation>
-        get_account_history(account_name_type, uint64_t, uint32_t, account_history_query);
+    history_operations get_account_history(account_name_type, uint64_t, uint32_t, account_history_query);
 };
 
 /**

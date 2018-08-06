@@ -3,13 +3,10 @@
 #include <golos/protocol/authority.hpp>
 #include <golos/protocol/operations.hpp>
 #include <golos/protocol/steem_operations.hpp>
-
-#include <chainbase/chainbase.hpp>
-
+#include <golos/plugins/operation_history/history_object.hpp>
 #include <golos/chain/index.hpp>
 #include <golos/chain/steem_object_types.hpp>
-
-#include <golos/plugins/operation_history/history_object.hpp>
+#include <chainbase/chainbase.hpp>
 
 #include <boost/multi_index/composite_key.hpp>
 

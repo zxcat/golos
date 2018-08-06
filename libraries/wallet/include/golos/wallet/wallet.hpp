@@ -3,7 +3,7 @@
 #include <golos/wallet/remote_node_api.hpp>
 #include <golos/wallet/time_converter.hpp>
 #include <golos/plugins/private_message/private_message_plugin.hpp>
-#include <golos/plugins/account_history/history_object.hpp>
+#include <golos/plugins/account_history/plugin.hpp>
 #include <golos/protocol/exceptions.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
@@ -21,7 +21,6 @@ namespace golos { namespace wallet {
         using namespace golos::protocol;
         using namespace golos::plugins::private_message;
         using namespace golos::plugins::account_history;
-        using history_operations = map<uint32_t, golos::plugins::operation_history::applied_operation>;
 
         typedef uint16_t transaction_handle_type;
 
