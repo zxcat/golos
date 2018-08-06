@@ -8,7 +8,7 @@ if(PERL_FOUND AND DOXYGEN_FOUND AND NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/doxygen/perlmod/DoxyDocs.pm
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             COMMAND ${DOXYGEN_EXECUTABLE}
-            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile ${CMAKE_CURRENT_SOURCE_DIR}/include/steemit/wallet/wallet.hpp)
+            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile ${CMAKE_CURRENT_SOURCE_DIR}/include/golos/wallet/wallet.hpp)
 
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp
             COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/generate_api_documentation.pl ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp.new
@@ -30,7 +30,9 @@ list(APPEND ${CURRENT_TARGET}_HEADERS
         include/golos/wallet/wallet.hpp
 )
 
+# don't remove "api_documentation.cpp", it's required to auto-generate help
 list(APPEND ${CURRENT_TARGET}_SOURCES
+        api_documentation.cpp
         api_documentation_standin.cpp
         wallet.cpp
         )
