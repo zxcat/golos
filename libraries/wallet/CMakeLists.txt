@@ -32,7 +32,7 @@ list(APPEND ${CURRENT_TARGET}_HEADERS
 
 # don't remove "api_documentation.cpp", it's required to auto-generate help
 list(APPEND ${CURRENT_TARGET}_SOURCES
-        api_documentation.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/api_documentation.cpp
         api_documentation_standin.cpp
         wallet.cpp
         )
