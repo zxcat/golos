@@ -1182,7 +1182,7 @@ namespace golos { namespace wallet {
              * @return the signed version of the transaction
              */
             annotated_signed_transaction set_private_settings(
-                const std::string& owner, const settings_api_object& s, bool broadcast);
+                const std::string& owner, const settings_api_object& settings, bool broadcast);
 
             /**
              * Get settings for private messages
@@ -1203,7 +1203,7 @@ namespace golos { namespace wallet {
              * @return the signed version of the transaction
              */
             annotated_signed_transaction add_private_contact(
-                const std::string& owner, const std::string& contact, private_contact_type,
+                const std::string& owner, const std::string& contact, private_contact_type type,
                 fc::optional<std::string> json_metadata, bool broadcast);
 
             /**
@@ -1492,9 +1492,9 @@ FC_REFLECT((golos::wallet::optional_chain_props),
 
 FC_REFLECT(
     (golos::wallet::message_body),
-    (subject)(body));
+    (subject)(body))
 
 FC_REFLECT_DERIVED(
     (golos::wallet::extended_message_object),
     ((golos::plugins::private_message::message_api_object)),
-    (message));
+    (message))
