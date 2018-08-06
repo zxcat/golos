@@ -23,34 +23,26 @@
  */
 #pragma once
 
-#include <boost/program_options.hpp>
-
 #include <appbase/application.hpp>
 
-#include <golos/chain/database.hpp>
-
 #include <golos/plugins/chain/plugin.hpp>
-
 #include <golos/plugins/json_rpc/utility.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
-
 #include <golos/plugins/operation_history/plugin.hpp>
 #include <golos/plugins/operation_history/applied_operation.hpp>
-
 #include <golos/plugins/account_history/history_object.hpp>
+
+#include <boost/program_options.hpp>
+
 
 namespace golos { namespace plugins { namespace account_history {
     using namespace chain;
-
     using golos::plugins::operation_history::applied_operation;
-
-    using get_account_history_return_type = std::map<uint32_t, applied_operation>;
-
-    using plugins::json_rpc::void_type;
     using plugins::json_rpc::msg_pack;
-    using plugins::json_rpc::msg_pack_transfer;
 
-    DEFINE_API_ARGS(get_account_history, msg_pack, get_account_history_return_type)
+    using history_operations = std::map<uint32_t, applied_operation>;
+
+    DEFINE_API_ARGS(get_account_history, msg_pack, history_operations)
 
    /**
     *  This plugin is designed to track a range of operations by account so that one node
@@ -81,11 +73,18 @@ namespace golos { namespace plugins { namespace account_history {
 
         DECLARE_API(
             /**
-             *  Account operations have sequence numbers from 0 to N where N is the most recent operation. This method
-             *  returns operations in the range [from-limit, from]
+             *  Account operations have sequence numbers from 0 to N where N is the most recent operation.
+             *  This method returns operations in the range [from-limit, from]
              *
+             *  @param account - name of account, which history requested.
              *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
              *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
+             *  @param query - filtering query - object with following optional fields:
+             *    {
+             *        select_ops - list of operations to include. special values: ALL, REAL, VIRTUAL. if skipped = ALL
+             *        filter_ops - blacklist. if skipped = empty list (nothing blacklisted)
+             *        dir - direction of operation in relation to account: any, sender, receiver, dual. Experimental
+             *    }
              */
             (get_account_history)
         )

@@ -25,7 +25,7 @@ namespace golos { namespace plugins { namespace tags {
     using golos::chain::comment_object;
     using golos::api::comment_api_object;
     using golos::api::discussion;
-    
+
     /**
      * @class discussion_query
      * @brief The discussion_query structure implements the RPC API param set.

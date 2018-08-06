@@ -562,7 +562,7 @@ namespace golos { namespace wallet {
 
                 fc::ecc::private_key get_private_key(const public_key_type& id)const {
                     auto has_key = try_get_private_key( id );
-                    if (!has_key) 
+                    if (!has_key)
                         GOLOS_THROW_MISSING_OBJECT("private_key", id);
                     return *has_key;
                 }
@@ -741,14 +741,14 @@ namespace golos { namespace wallet {
                             req_active_approvals.insert(a.first);
 
                     // collects all keys to common set and accounts to common map
-                    
+
                     flat_map<string, golos::api::account_api_object> approving_account_lut;
 
                     flat_set<public_key_type> approving_key_set;
 
-                    std::vector<account_name_type> active_account_auths; 
-                    std::vector<account_name_type> owner_account_auths; 
-                    std::vector<account_name_type> posting_account_auths; 
+                    std::vector<account_name_type> active_account_auths;
+                    std::vector<account_name_type> owner_account_auths;
+                    std::vector<account_name_type> posting_account_auths;
 
                     auto fetch_keys = [&](const authority& auth) {
                         for (const public_key_type& approving_key : auth.get_keys()) {
@@ -756,7 +756,7 @@ namespace golos { namespace wallet {
                             approving_key_set.insert( approving_key );
                         }
                     };
-                    
+
                     if (!req_active_approvals.empty()) {
                         auto req_active_accs =_remote_database_api->get_accounts(std::vector<account_name_type>(
                             req_active_approvals.begin(), req_active_approvals.end()));
@@ -815,7 +815,7 @@ namespace golos { namespace wallet {
 
                     auto get_account_from_lut = [&]( const std::string& name ) -> const golos::api::account_api_object& {
                         auto it = approving_account_lut.find( name );
-                        GOLOS_CHECK_LOGIC( it != approving_account_lut.end(), 
+                        GOLOS_CHECK_LOGIC( it != approving_account_lut.end(),
                                 logic_errors::no_account_in_lut,
                                 "No account in lut: '${name}'", ("name",name) );
                         return it->second;
@@ -925,16 +925,16 @@ namespace golos { namespace wallet {
                             << std::right << std::setw(16) << fc::variant(total_sbd).as_string() <<"\n";
                         return out.str();
                     };
-                    m["get_account_history"] = []( variant result, const fc::variants& a ) {
+                    auto acc_history_formatter = [](variant result, const fc::variants& a) {
                         std::stringstream ss;
-                        ss << std::left << std::setw( 5 )  << "#" << " ";
-                        ss << std::left << std::setw( 10 ) << "BLOCK #" << " ";
-                        ss << std::left << std::setw( 15 ) << "TRX ID" << " ";
-                        ss << std::left << std::setw( 20 ) << "OPERATION" << " ";
-                        ss << std::left << std::setw( 50 ) << "DETAILS" << "\n";
+                        ss << std::left << std::setw(5)  << "#" << " ";
+                        ss << std::left << std::setw(10) << "BLOCK #" << " ";
+                        ss << std::left << std::setw(15) << "TRX ID" << " ";
+                        ss << std::left << std::setw(20) << "OPERATION" << " ";
+                        ss << std::left << std::setw(50) << "DETAILS" << "\n";
                         ss << "-------------------------------------------------------------------------------\n";
                         const auto& results = result.get_array();
-                        for( const auto& item : results ) {
+                        for (const auto& item : results) {
                             ss << std::left << std::setw(5) << item.get_array()[0].as_string() << " ";
                             const auto& op = item.get_array()[1].get_object();
                             ss << std::left << std::setw(10) << op["block"].as_string() << " ";
@@ -945,6 +945,9 @@ namespace golos { namespace wallet {
                         }
                         return ss.str();
                     };
+                    m["get_account_history"] = acc_history_formatter;
+                    m["filter_account_history"] = acc_history_formatter;
+
                     /*m["get_open_orders"] = []( variant result, const fc::variants& a ) {
                         auto orders = result.as<vector<database_api::extended_limit_order>>();
 
@@ -2238,7 +2241,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             for( auto& key_weight_pair : account.owner.key_auths )
             {
                 for( auto& key : keys )
-                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key, 
+                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key,
                             logic_errors::detected_private_key_in_memo,
                             "Detected ${type} private key in memo field",
                             ("type","owner"));
@@ -2247,7 +2250,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             for( auto& key_weight_pair : account.active.key_auths )
             {
                 for( auto& key : keys )
-                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key, 
+                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key,
                             logic_errors::detected_private_key_in_memo,
                             "Detected ${type} private key in memo field",
                             ("type","active"));
@@ -2256,7 +2259,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             for( auto& key_weight_pair : account.posting.key_auths )
             {
                 for( auto& key : keys )
-                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key, 
+                    GOLOS_CHECK_LOGIC(key_weight_pair.first != key,
                             logic_errors::detected_private_key_in_memo,
                             "Detected ${type} private key in memo field",
                             ("type","posting"));
@@ -2264,7 +2267,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
 
             const auto& memo_key = account.memo_key;
             for( auto& key : keys )
-                GOLOS_CHECK_LOGIC(memo_key != key, 
+                GOLOS_CHECK_LOGIC(memo_key != key,
                         logic_errors::detected_private_key_in_memo,
                         "Detected ${type} private key in memo field",
                         ("type","memo"));
@@ -2273,7 +2276,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             for( auto& key_pair : my->_keys )
             {
                 for( auto& key : keys )
-                    GOLOS_CHECK_LOGIC(key_pair.first != key, 
+                    GOLOS_CHECK_LOGIC(key_pair.first != key,
                             logic_errors::detected_private_key_in_memo,
                             "Detected ${type} private key in memo field",
                             ("type","imported"));
@@ -2620,25 +2623,34 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction( tx, broadcast );
         }
 
-        map< uint32_t, golos::plugins::operation_history::applied_operation> wallet_api::get_account_history( string account, uint32_t from, uint32_t limit ) {
-            auto result = my->_remote_account_history->get_account_history( account, from, limit );
-            if( !is_locked() ) {
-                for( auto& item : result ) {
-                    if( item.second.op.which() == operation::tag<transfer_operation>::value ) {
+        history_operations wallet_api::get_account_history(string account, uint32_t from, uint32_t limit) {
+            auto result = my->_remote_account_history->get_account_history(account, from, limit, account_history_query());
+            decrypt_history_memos(result);
+            return result;
+        }
+        history_operations wallet_api::filter_account_history(string account, uint32_t from, uint32_t limit, account_history_query q) {
+            auto result = my->_remote_account_history->get_account_history(account, from, limit, q);
+            decrypt_history_memos(result);
+            return result;
+        }
+
+        void wallet_api::decrypt_history_memos(history_operations& result) {
+            if (!is_locked()) {
+                for (auto& item : result) {
+                    if (item.second.op.which() == operation::tag<transfer_operation>::value) {
                         auto& top = item.second.op.get<transfer_operation>();
-                        top.memo = decrypt_memo( top.memo );
+                        top.memo = decrypt_memo(top.memo);
                     }
-                    else if( item.second.op.which() == operation::tag<transfer_from_savings_operation>::value ) {
+                    else if (item.second.op.which() == operation::tag<transfer_from_savings_operation>::value) {
                         auto& top = item.second.op.get<transfer_from_savings_operation>();
-                        top.memo = decrypt_memo( top.memo );
+                        top.memo = decrypt_memo(top.memo);
                     }
-                    else if( item.second.op.which() == operation::tag<transfer_to_savings_operation>::value ) {
+                    else if (item.second.op.which() == operation::tag<transfer_to_savings_operation>::value) {
                         auto& top = item.second.op.get<transfer_to_savings_operation>();
-                        top.memo = decrypt_memo( top.memo );
+                        top.memo = decrypt_memo(top.memo);
                     }
                 }
             }
-            return result;
         }
 
         vector< database_api::withdraw_vesting_route_api_object > wallet_api::get_withdraw_routes( string account, database_api::withdraw_route_type type )const {

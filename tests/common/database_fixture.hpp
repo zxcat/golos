@@ -17,48 +17,11 @@
 
 #define INITIAL_TEST_SUPPLY (10000000000ll)
 
-extern uint32_t ( STEEMIT_TESTING_GENESIS_TIMESTAMP );
+extern uint32_t STEEMIT_TESTING_GENESIS_TIMESTAMP;
 
-#define PUSH_TX \
-   golos::chain::test::_push_transaction
-
-#define PUSH_BLOCK \
-   golos::chain::test::_push_block
-
-// See below
-#define REQUIRE_OP_VALIDATION_SUCCESS(op, field, value) { \
-   const auto temp = op.field; \
-   op.field = value; \
-   op.validate(); \
-   op.field = temp; \
-}
-#define REQUIRE_OP_EVALUATION_SUCCESS(op, field, value) { \
-   const auto temp = op.field; \
-   op.field = value; \
-   trx.operations.back() = op; \
-   op.field = temp; \
-   db.push_transaction( trx, ~0 ); \
-}
-
-/*#define STEEMIT_REQUIRE_THROW( expr, exc_type ) {       \
-   std::string req_throw_info = fc::json::to_string(      \
-      fc::mutable_variant_object()                        \
-      ("source_file", __FILE__)                           \
-      ("source_lineno", __LINE__)                         \
-      ("expr", #expr)                                     \
-      ("exc_type", #exc_type)                             \
-      );                                                  \
-   if( fc::enable_record_assert_trip )                    \
-      std::cout << "STEEMIT_REQUIRE_THROW begin "        \
-         << req_throw_info << std::endl;                  \
-   BOOST_REQUIRE_THROW( expr, exc_type );                 \
-   if( fc::enable_record_assert_trip )                    \
-      std::cout << "STEEMIT_REQUIRE_THROW end "          \
-         << req_throw_info << std::endl;                  \
-}*/
 
 #define STEEMIT_REQUIRE_THROW(expr, exc_type)          \
-   BOOST_REQUIRE_THROW( expr, exc_type );
+   BOOST_REQUIRE_THROW(expr, exc_type);
 
 #define STEEMIT_CHECK_THROW(expr, exc_type) {             \
    std::string req_throw_info = fc::json::to_string(      \
@@ -464,16 +427,12 @@ namespace golos { namespace chain {
             optional<fc::temp_directory> data_dir;
             bool skip_key_index_test = false;
 
-            uint32_t anon_acct_count;
-
             database_fixture() {
             }
 
             virtual ~database_fixture();
 
             static fc::ecc::private_key generate_private_key(string seed);
-
-            string generate_anon_acct_name();
 
             template<typename Plugin>
             Plugin* find_plugin() {
@@ -685,7 +644,6 @@ namespace golos { namespace chain {
             }
 
             operations_map add_operations();
-
             operation_history_plugin* oh_plugin = nullptr;
         };
 

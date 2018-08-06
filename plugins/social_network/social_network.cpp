@@ -115,7 +115,7 @@ namespace golos { namespace plugins { namespace social_network {
         discussion get_content(std::string author, std::string permlink, uint32_t limit) const;
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
- 
+
         void set_depth_parameters(const comment_depth_params& params);
 
         // Looks for a comment_operation, fills the comment_content state objects.
@@ -187,14 +187,14 @@ namespace golos { namespace plugins { namespace social_network {
                 if (set_last_update) {
                     clu.last_update = clu.active;
                 }
-            }); 
+            });
             return true;
         } else {
             db.create<comment_last_update_object>([&](comment_last_update_object& clu) {
                 clu.comment = comment.id;
                 clu.author = comment.author;
                 clu.parent_author = comment.parent_author;
-                clu.active = active; 
+                clu.active = active;
                 if (set_last_update) {
                     clu.last_update = clu.active;
                 }
@@ -328,7 +328,7 @@ namespace golos { namespace plugins { namespace social_network {
                         // Set depth null if needed (this parameter is given in config)
                         if (dp.set_null_after_update) {
                             con.block_number = db.head_block_num();
-                        } 
+                        }
                     });
                 } else {
                     // Creation case
@@ -337,7 +337,7 @@ namespace golos { namespace plugins { namespace social_network {
                         if (!dp.has_comment_title_depth || dp.comment_title_depth > 0) {
                             from_string(con.title, o.title);
                         }
-                    
+
                         if ((!dp.has_comment_body_depth || dp.comment_body_depth > 0) && o.body.size() < 1024*1024*128) {
                             from_string(con.body, o.body);
                         }
@@ -398,7 +398,7 @@ namespace golos { namespace plugins { namespace social_network {
 
             if (total_payout_golos.amount.value || benef_payout_golos.amount.value || curator_payout_golos.amount.value ) {
                 const auto& cr_idx = db.get_index<comment_reward_index>().indices()
-                    .get<golos::plugins::social_network::by_comment>();
+                    .template get<golos::plugins::social_network::by_comment>();
                 auto cr_itr = cr_idx.find(comment.id);
                 if (cr_itr == cr_idx.end()) {
                     db.create<comment_reward_object>([&](golos::plugins::social_network::comment_reward_object& cr) {
@@ -512,7 +512,7 @@ namespace golos { namespace plugins { namespace social_network {
                 ++itr;
 
                 auto& comment = db.get_comment(clu.comment);
-                
+
                 auto delta = head_block_num - clu.block_number;
                 if (comment.mode == archived && depth_parameters.should_delete_last_update_object(delta)) {
                     db.remove(clu);
