@@ -8,12 +8,6 @@ Specifies whether to build with or without optimization and without or with
 the symbol table for debugging. Unless you are specifically debugging or
 running tests, it is recommended to build as release.
 
-### LOW_MEMORY_NODE=[FALSE/TRUE]
-
-Builds golosd to be a consensus-only low memory node. Data and fields not
-needed for consensus are not stored in the object database.  This option is
-recommended for witnesses and seed-nodes.
-
 ### BUILD_GOLOS_TESTNET=[FALSE/TRUE]
 
 Builds golos for use in a private testnet. Also required for building unit tests.

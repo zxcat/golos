@@ -179,13 +179,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(acct.sbd_balance.amount.value, ASSET("0.000 GBG").amount.value);
             BOOST_CHECK_EQUAL(acct.id._id, acct_auth.id._id);
 
-            /* This is being moved out of consensus...
-      #ifndef IS_LOW_MEM
-         BOOST_CHECK_EQUAL( acct.json_metadata, op.json_metadata );
-      #else
-         BOOST_CHECK_EQUAL( acct.json_metadata, "" );
-      #endif
-      */
+            auto meta = db->find<account_metadata_object, by_account>(acct.name);
+            BOOST_CHECK(nullptr != meta);
+            if (nullptr != meta) {
+                BOOST_CHECK_EQUAL(to_string(meta->json_metadata), op.json_metadata);
+            }
 
             /// because init_witness has created vesting shares and blocks have been produced, 100 STEEM is worth less than 100 vesting shares due to rounding
             BOOST_CHECK_EQUAL(acct.vesting_shares.amount.value, (op.fee * (vest_shares / vests)).amount.value);
@@ -374,13 +372,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(acct_auth.active, authority(2, new_private_key.get_public_key(), 2));
             BOOST_CHECK_EQUAL(acct.memo_key, new_private_key.get_public_key());
 
-            /* This is being moved out of consensus
-      #ifndef IS_LOW_MEM
-         BOOST_CHECK_EQUAL( acct.json_metadata, "{\"bar\":\"foo\"}" );
-      #else
-         BOOST_CHECK_EQUAL( acct.json_metadata, "" );
-      #endif
-      */
+            auto meta = db->find<account_metadata_object, by_account>(acct.name);
+            BOOST_CHECK(nullptr != meta);
+            if (nullptr != meta) {
+                BOOST_CHECK_EQUAL(to_string(meta->json_metadata), op.json_metadata);
+            }
 
             validate_database();
 

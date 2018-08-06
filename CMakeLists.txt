@@ -73,16 +73,6 @@ if(MAX_19_VOTED_WITNESSES AND BUILD_GOLOS_TESTNET)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSTEEMIT_MAX_VOTED_WITNESSES=19")
 endif()
 
-option(LOW_MEMORY_NODE "Build source for low memory node (ON OR OFF)" FALSE)
-message(STATUS "LOW_MEMORY_NODE: ${LOW_MEMORY_NODE}")
-if(LOW_MEMORY_NODE)
-    message(STATUS "     ")
-    message(STATUS "             CONFIGURING FOR LOW MEMORY NODE      ")
-    message(STATUS "     ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_LOW_MEM")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DIS_LOW_MEM")
-endif()
-
 option(CHAINBASE_CHECK_LOCKING "Check locks in chainbase (ON or OFF)" TRUE)
 message(STATUS "CHAINBASE_CHECK_LOCKING: ${CHAINBASE_CHECK_LOCKING}")
 if(CHAINBASE_CHECK_LOCKING)
@@ -284,11 +274,4 @@ if(BUILD_GOLOS_TESTNET)
 else()
     message(STATUS "\n\n             CONFIGURED FOR GOLOS NETWORK             \n\n")
 endif()
-
-if(LOW_MEMORY_NODE)
-    message(STATUS "\n\n             CONFIGURED FOR LOW MEMORY NODE          \n\n")
-else()
-    message(STATUS "\n\n             CONFIGURED FOR FULL NODE                \n\n")
-endif()
-
 
