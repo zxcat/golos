@@ -76,7 +76,6 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
 
     using account_history_id_type = object_id<account_history_object>;
 
-    // struct by_direction;
     struct by_operation;
     struct by_location;
     struct by_account;
@@ -98,13 +97,6 @@ static_assert(protocol::operation::count() >= 0 && protocol::operation::count() 
                     member<account_history_object, uint32_t, &account_history_object::sequence>>,
                 composite_key_compare<
                     std::less<account_name_type>, std::less<uint8_t>, std::less<uint8_t>, std::greater<uint32_t>>>,
-            // ordered_unique<
-            //     tag<by_direction>,
-            //     composite_key<account_history_object,
-            //         member<account_history_object, account_name_type, &account_history_object::account>,
-            //         member<account_history_object, operation_direction, &account_history_object::dir>,
-            //         member<account_history_object, uint32_t, &account_history_object::sequence>>,
-            //     composite_key_compare<std::less<account_name_type>, std::less<uint8_t>, std::greater<uint32_t>>>,
             ordered_unique<
                 tag<by_account>,
                 composite_key<account_history_object,
@@ -123,4 +115,3 @@ FC_REFLECT((golos::plugins::account_history::account_history_query),
 CHAINBASE_SET_INDEX_TYPE(
     golos::plugins::account_history::account_history_object,
     golos::plugins::account_history::account_history_index)
-

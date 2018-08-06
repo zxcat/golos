@@ -8,7 +8,8 @@
 
 #include <queue>
 
-#define ACCOUNT_HISTORY_MAX_LIMIT 1000
+#define ACCOUNT_HISTORY_MAX_LIMIT 10000
+#define ACCOUNT_HISTORY_DEFAULT_LIMIT 100
 #define GOLOS_OP_NAMESPACE "golos::protocol::"
 
 
@@ -162,21 +163,15 @@ if (options.count(name)) { \
             }
             return result;
         }
-        bool is_all_ops(op_tags x) {
-            return x.size() == operation::count();
-        }
 
         struct sequenced_itr {
-            // TODO: if possible, change this decltypes to something more readable
-            using op_idx_type = decltype(database().get_index<account_history_index>().indices().get<by_operation>());
-            using op_itr_type = decltype(
-                database().get_index<account_history_index>().indices().get<by_operation>()
-                    .lower_bound(std::make_tuple("",uint8_t(0),operation_direction::any,uint32_t(0))));
+            using op_idx_type = account_history_index::index<by_operation>::type;
+            using op_itr_type = account_history_index::index_const_iterator<by_operation>::type;
 
             op_itr_type itr;
 
-            sequenced_itr(op_idx_type idx, account_name_type a, uint8_t o, operation_direction d, uint32_t s) {
-                itr = idx.lower_bound(std::make_tuple(a, o, d, s));
+            sequenced_itr(const op_idx_type& idx, account_name_type a, uint8_t o, operation_direction d, uint32_t s)
+                : itr(idx.lower_bound(std::make_tuple(a, o, d, s))) {
             }
 
             // reconstruct to put next value into queue (can't reuse previous because const in queue)
@@ -207,7 +202,8 @@ if (options.count(name)) { \
             });
             auto dir = query.direction ? *query.direction : operation_direction::any;
 
-            if (is_all_ops(select_ops) && dir == operation_direction::any) {
+            bool is_all_ops = select_ops.size() == operation::count();
+            if (is_all_ops && dir == operation_direction::any) {
                 return fetch_unfiltered(account, from, limit);
             }
             std::priority_queue<sequenced_itr> itrs;
@@ -252,7 +248,7 @@ if (options.count(name)) { \
         PLUGIN_API_VALIDATE_ARGS(
             (account_name_type, account)
             (uint32_t, from, 0xFFFFFFFF)
-            (uint32_t, limit, 100)
+            (uint32_t, limit, ACCOUNT_HISTORY_DEFAULT_LIMIT)
             (account_history_query, query, account_history_query())
         );
         return pimpl->db.with_weak_read_lock([&]() {

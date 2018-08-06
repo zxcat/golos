@@ -1,24 +1,26 @@
 #pragma once
 
-#include <golos/plugins/database_api/plugin.hpp>
+#include <golos/plugins/account_history/history_object.hpp>
 #include <golos/plugins/database_api/forward.hpp>
+#include <golos/plugins/database_api/plugin.hpp>
 #include <golos/plugins/database_api/state.hpp>
-#include <golos/plugins/operation_history/applied_operation.hpp>
-#include <fc/api.hpp>
+#include <golos/plugins/follow/follow_api_object.hpp>
+#include <golos/plugins/follow/plugin.hpp>
+#include <golos/plugins/market_history/market_history_objects.hpp>
 #include <golos/plugins/network_broadcast_api/network_broadcast_api_plugin.hpp>
+#include <golos/plugins/operation_history/applied_operation.hpp>
+#include <golos/plugins/private_message/private_message_api_objects.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 #include <golos/plugins/tags/tag_api_object.hpp>
-#include <golos/api/discussion.hpp>
 #include <golos/plugins/tags/discussion_query.hpp>
+#include <golos/plugins/witness_api/plugin.hpp>
+
+#include <golos/api/account_api_object.hpp>
 #include <golos/api/account_vote.hpp>
+#include <golos/api/discussion.hpp>
 #include <golos/api/vote_state.hpp>
 
-#include <golos/plugins/market_history/market_history_objects.hpp>
-#include <golos/plugins/follow/plugin.hpp>
-#include <golos/plugins/follow/follow_api_object.hpp>
-#include <golos/plugins/private_message/private_message_api_objects.hpp>
-#include <golos/api/account_api_object.hpp>
-#include <golos/plugins/social_network/social_network.hpp>
-#include <golos/plugins/witness_api/plugin.hpp>
+#include <fc/api.hpp>
 
 namespace golos { namespace wallet {
 
@@ -28,7 +30,6 @@ using fc::optional;
 
 using namespace chain;
 using namespace plugins;
-//using namespace plugins::condenser_api;
 using namespace plugins::database_api;
 using namespace plugins::follow;
 using namespace plugins::social_network;
@@ -36,8 +37,9 @@ using namespace plugins::tags;
 using namespace plugins::market_history;
 using namespace plugins::network_broadcast_api;
 using namespace plugins::private_message;
-using namespace golos::api;
 using namespace plugins::witness_api;
+using namespace plugins::account_history;
+using namespace golos::api;
 
 /**
  * This is a dummy class exists only to provide method signature information to fc::api, not to execute calls.
@@ -87,7 +89,8 @@ struct remote_operation_history {
  * Class is used by wallet to send formatted API calls to operation_history plugin on remote node.
  */
 struct remote_account_history {
-    map<uint32_t, golos::plugins::operation_history::applied_operation> get_account_history( account_name_type, uint64_t, uint32_t );
+    map<uint32_t, golos::plugins::operation_history::applied_operation>
+        get_account_history(account_name_type, uint64_t, uint32_t, account_history_query);
 };
 
 /**

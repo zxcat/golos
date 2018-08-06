@@ -20,6 +20,8 @@ namespace golos { namespace wallet {
         using namespace golos::utilities;
         using namespace golos::protocol;
         using namespace golos::plugins::private_message;
+        using namespace golos::plugins::account_history;
+        using history_operations = map<uint32_t, golos::plugins::operation_history::applied_operation>;
 
         typedef uint16_t transaction_handle_type;
 
@@ -1095,8 +1097,23 @@ namespace golos { namespace wallet {
              *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
              *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
              */
-            map< uint32_t, golos::plugins::operation_history::applied_operation >
-                get_account_history( string account, uint32_t from, uint32_t limit );
+            history_operations get_account_history(string account, uint32_t from, uint32_t limit);
+
+            /**
+             *  Account operations have sequence numbers from 0 to N where N is the most recent operation.
+             *  This method returns operations in the range [from-limit, from]
+             *
+             *  @param account - name of account, which history requested.
+             *  @param from - the absolute sequence number, -1 means most recent, limit is the number of operations before from.
+             *  @param limit - the maximum number of items that can be queried (0 to 1000], must be less than from
+             *  @param query - filtering query - object with following optional fields:
+             *    {
+             *        select_ops - list of operations to include. special values: ALL, REAL, VIRTUAL. if skipped = ALL
+             *        filter_ops - blacklist. if skipped = empty list (nothing blacklisted)
+             *        dir - direction of operation in relation to account: any, sender, receiver, dual. Experimental
+             *    }
+             */
+            history_operations filter_account_history(string account, uint32_t from, uint32_t limit, account_history_query query);
 
 
             FC_TODO(Supplement API argument description)
@@ -1314,6 +1331,10 @@ namespace golos { namespace wallet {
             annotated_signed_transaction mark_private_messages(
                 const std::string& from, const std::string& to,
                 const std::string& start_date, const std::string& stop_date, bool broadcast);
+
+        private:
+            void decrypt_history_memos(history_operations& result);
+
         };
 
         struct plain_keys {
@@ -1364,6 +1385,7 @@ FC_API( golos::wallet::wallet_api,
                 (get_feed_history)
                 (get_conversion_requests)
                 (get_account_history)
+                (filter_account_history)
                 (get_withdraw_routes)
 
                 /// transaction api
