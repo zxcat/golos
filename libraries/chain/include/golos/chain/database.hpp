@@ -49,7 +49,7 @@ namespace golos { namespace chain {
             }
 
             bool _is_producing = false;
-
+            bool _is_testing = false;           ///< set for tests to avoid low free memory spam
             bool _log_hardforks = true;
 
             enum validation_steps {
@@ -70,6 +70,12 @@ namespace golos { namespace chain {
                 skip_block_log = 1 << 13,  ///< used to skip block logging on reindex
                 skip_apply_transaction = 1 << 14, ///< used to skip apply transaction
                 skip_database_locking = 1 << 15 ///< used to skip locking of database
+            };
+
+            enum store_metadata_modes {
+                store_metadata_for_all,
+                store_metadata_for_listed,
+                store_metadata_for_nobody
             };
 
             /**
@@ -96,9 +102,14 @@ namespace golos { namespace chain {
             void set_block_num_check_free_size(uint32_t);
             void check_free_memory(bool skip_print, uint32_t current_block_num);
 
-            void set_clear_votes(uint32_t clear_votes_block);
             void set_skip_virtual_ops();
-            bool clear_votes();
+
+            void set_store_account_metadata(store_metadata_modes store_account_metadata);
+            void set_accounts_to_store_metadata(const std::vector<std::string>& accounts_to_store_metadata);
+            bool store_metadata_for_account(const std::string& name) const;
+
+            void set_store_memo_in_savings_withdraws(bool store_memo_in_savings_withdraws);
+            bool store_memo_in_savings_withdraws() const;
 
             /**
              * @brief wipe Delete database from disk, and potentially the raw chain as well.
@@ -138,6 +149,9 @@ namespace golos { namespace chain {
 
             chain_id_type get_chain_id() const;
 
+            void throw_if_exists_limit_order(const account_name_type &account, uint32_t id) const;
+
+            void throw_if_exists_account(const account_name_type &account) const;
 
             const witness_object &get_witness(const account_name_type &name) const;
 
@@ -148,8 +162,8 @@ namespace golos { namespace chain {
             const account_object *find_account(const account_name_type &name) const;
 
             const proposal_object& get_proposal(const account_name_type&, const std::string&) const;
-
             const proposal_object* find_proposal(const account_name_type&, const std::string&) const;
+            void        throw_if_exists_proposal(const account_name_type&, const std::string&) const;
 
             const comment_object &get_comment(const account_name_type &author, const shared_string &permlink) const;
 
@@ -159,9 +173,7 @@ namespace golos { namespace chain {
 
             const comment_object *find_comment(const account_name_type &author, const string &permlink) const;
 
-            const comment_content_object &get_comment_content(const comment_id_type &comment) const;
-
-            const comment_content_object *find_comment_content(const comment_id_type &comment) const;
+            const comment_object &get_comment(const comment_id_type &comment) const;
 
             const escrow_object &get_escrow(const account_name_type &name, uint32_t escrow_id) const;
 
@@ -171,9 +183,17 @@ namespace golos { namespace chain {
 
             const limit_order_object *find_limit_order(const account_name_type &owner, uint32_t id) const;
 
-            const savings_withdraw_object &get_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
+            const convert_request_object &get_convert_request(const account_name_type &owner, uint32_t id) const;
 
-            const savings_withdraw_object *find_savings_withdraw(const account_name_type &owner, uint32_t request_id) const;
+            const convert_request_object *find_convert_request(const account_name_type &owner, uint32_t id) const;
+
+            void throw_if_exists_convert_request(const account_name_type &owner, uint32_t id) const;
+
+            const savings_withdraw_object& get_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
+            const savings_withdraw_object* find_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
+            void                throw_if_exists_savings_withdraw(const account_name_type& owner, uint32_t request_id) const;
+
+            const account_authority_object &get_authority(const account_name_type &name) const;
 
             const dynamic_global_property_object &get_dynamic_global_properties() const;
 
@@ -182,6 +202,8 @@ namespace golos { namespace chain {
             const witness_schedule_object &get_witness_schedule_object() const;
 
             const hardfork_property_object &get_hardfork_property_object() const;
+
+            const block_summary_object &get_block_summary(const block_summary_id_type &ref_block_num) const;
 
 
             const time_point_sec calculate_discussion_payout_time(const comment_object &comment) const;
@@ -349,8 +371,6 @@ namespace golos { namespace chain {
 
             asset create_vesting(const account_object &to_account, asset steem);
 
-            void adjust_total_payout(const comment_object &a, const asset &sbd, const asset &curator_sbd_value, const asset& beneficiary_value);
-
             void update_witness_schedule();
 
             void adjust_liquidity_reward(const account_object &owner, const asset &volume, bool is_bid);
@@ -419,13 +439,9 @@ namespace golos { namespace chain {
             share_type claim_rshare_reward(share_type rshares, uint16_t reward_weight, asset max_steem);
 
             asset get_liquidity_reward() const;
-
             asset get_content_reward() const;
-
-            asset get_producer_reward();
-
+            asset get_producer_reward() const;
             asset get_curation_reward() const;
-
             asset get_pow_reward() const;
 
             uint16_t get_curation_rewards_percent() const;
@@ -595,6 +611,8 @@ namespace golos { namespace chain {
             template<typename MultiIndexType>
             friend void add_plugin_index(database &db);
 
+            friend struct database_fixture;
+
             fc::signal<void()> _plugin_index_signal;
 
             transaction_id_type _current_trx_id;
@@ -618,6 +636,11 @@ namespace golos { namespace chain {
             uint32_t _clear_votes_block = 0;
             bool _skip_virtual_ops = false;
             bool _enable_plugins_on_push_transaction = true;
+
+            store_metadata_modes _store_account_metadata = store_metadata_for_all;
+            std::vector<std::string> _accounts_to_store_metadata;
+
+            bool _store_memo_in_savings_withdraws = true;
 
             flat_map<std::string, std::shared_ptr<custom_operation_interpreter>> _custom_operation_interpreters;
             std::string _json_schema;

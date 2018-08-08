@@ -50,9 +50,12 @@ namespace golos { namespace plugins { namespace tags { namespace sort {
 
     struct by_active {
         bool operator()(const discussion& first, const discussion& second) const {
-            if (std::greater<time_point_sec>()(first.active, second.active)) {
+            if (!first.active.valid() || !second.active.valid()) {
+                return false;
+            }
+            if (std::greater<time_point_sec>()(*first.active, *second.active)) {
                 return true;
-            } else if (std::equal_to<time_point_sec>()(first.active, second.active)) {
+            } else if (std::equal_to<time_point_sec>()(*first.active, *second.active)) {
                 return std::less<comment_object::id_type>()(first.id, second.id);
             }
             return false;
@@ -61,9 +64,12 @@ namespace golos { namespace plugins { namespace tags { namespace sort {
 
     struct by_updated {
         bool operator()(const discussion& first, const discussion& second) const {
-            if (std::greater<time_point_sec>()(first.last_update, second.last_update)) {
+            if (!first.last_update.valid() || !second.last_update.valid()) {
+                return false;
+            }
+            if (std::greater<time_point_sec>()(*first.last_update, *second.last_update)) {
                 return true;
-            } else if (std::equal_to<time_point_sec>()(first.last_update, second.last_update)) {
+            } else if (std::equal_to<time_point_sec>()(*first.last_update, *second.last_update)) {
                 return std::less<comment_object::id_type>()(first.id, second.id);
             }
             return false;

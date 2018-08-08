@@ -15,24 +15,36 @@ namespace golos {
             public:
                 typedef follow_operation operation_type;
 
-                follow_evaluator(database &db, plugin *plugin) : golos::chain::evaluator_impl<follow_evaluator, follow_plugin_operation>(db), _plugin(plugin) {
+                follow_evaluator(database& db, plugin* plugin) : golos::chain::evaluator_impl<follow_evaluator, follow_plugin_operation>(db), _plugin(plugin) {
                 }
 
-                void do_apply(const follow_operation &o);
+                void do_apply(const follow_operation& o);
 
-                plugin *_plugin;
+                plugin* _plugin;
             };
 
             class reblog_evaluator : public golos::chain::evaluator_impl<reblog_evaluator, follow_plugin_operation> {
             public:
                 typedef reblog_operation operation_type;
 
-                reblog_evaluator(database &db, plugin *plugin) : golos::chain::evaluator_impl<reblog_evaluator, follow_plugin_operation>(db), _plugin(plugin) {
+                reblog_evaluator(database& db, plugin* plugin) : golos::chain::evaluator_impl<reblog_evaluator, follow_plugin_operation>(db), _plugin(plugin) {
                 }
 
-                void do_apply(const reblog_operation &o);
+                void do_apply(const reblog_operation& o);
 
-                plugin *_plugin;
+                plugin* _plugin;
+            };
+
+            class delete_reblog_evaluator : public golos::chain::evaluator_impl<delete_reblog_evaluator, follow_plugin_operation> {
+            public:
+                typedef delete_reblog_operation operation_type;
+
+                delete_reblog_evaluator(database& db, plugin* plugin) : golos::chain::evaluator_impl<delete_reblog_evaluator, follow_plugin_operation>(db), _plugin(plugin) {
+                }
+
+                void do_apply(const delete_reblog_operation& o);
+
+                plugin* _plugin;
             };
         }
     }

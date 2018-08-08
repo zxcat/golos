@@ -48,10 +48,14 @@
 #define JSON_RPC_METHOD_NOT_FOUND   (-32601)
 #define JSON_RPC_INVALID_PARAMS     (-32602)
 #define JSON_RPC_INTERNAL_ERROR     (-32603)
-#define JSON_RPC_SERVER_ERROR       (-32000)
-#define JSON_RPC_NO_PARAMS          (-32001)
-#define JSON_RPC_PARSE_PARAMS_ERROR (-32002)
-#define JSON_RPC_ERROR_DURING_CALL  (-32003)
+
+#define SERVER_INTERNAL_ERROR        (-32000)
+#define SERVER_UNSUPPORTED_OPERATION (-32001)   // unsupported_operation
+#define SERVER_INVALID_PARAMETER     (-32002)   // parameter_exception (invalid_arguments_count, missing_object, object_already_exist)
+#define SERVER_BUSINESS_LOGIC_ERROR  (-32003)   // business_exception (bandwidth_exception, insufficient_funds, logic_exception)
+#define SERVER_MISSING_AUTHORITY     (-32004)   // tx_missing_authority
+#define SERVER_INVALID_OPERATION     (-32005)   // tx_invalid_operation (client must check inner exception)
+#define SERVER_INVALID_TRANSACTION   (-32006)   // transaction_exception
 
 namespace golos {
     namespace plugins {

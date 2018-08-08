@@ -29,7 +29,7 @@
 
 namespace golos { namespace plugins { namespace operation_history {
 
-    enum account_object_types {
+    enum operation_object_types {
         operation_object_type = (OPERATION_HISTORY_SPACE_ID << 8),
     };
 

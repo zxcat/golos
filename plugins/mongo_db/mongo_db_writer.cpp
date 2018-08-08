@@ -93,17 +93,17 @@ namespace mongo_db {
                             write_raw_block(head_iter->second, virtual_ops[head_iter->first]);
                         }
 
-                        state_writer st_writer(all_docs, block);
+                        state_writer st_writer(all_docs, head_iter->second);
 
                         if (store_history_mode_dgp != 0 && (head_iter->second.block_num() % store_history_mode_dgp == 0)) {
-                            st_writer.write_global_property_object(dgp_s[head_iter->first], head_iter->second, true);
+                            st_writer.write_global_property_object(dgp_s[head_iter->first], true);
                         }
-                        st_writer.write_global_property_object(dgp_s[head_iter->first], head_iter->second, false);
+                        st_writer.write_global_property_object(dgp_s[head_iter->first], false);
 
                         if (store_history_mode_wso != 0 && (head_iter->second.block_num() % store_history_mode_wso == 0)) {
-                            st_writer.write_witness_schedule_object(wso_s[head_iter->first], head_iter->second, true);
+                            st_writer.write_witness_schedule_object(wso_s[head_iter->first], true);
                         }
-                        st_writer.write_witness_schedule_object(wso_s[head_iter->first], head_iter->second, false);
+                        st_writer.write_witness_schedule_object(wso_s[head_iter->first], false);
 
                         // Parsing all transactions. st_writer writes all results to all_docs
 
@@ -239,8 +239,7 @@ namespace mongo_db {
 
             filter << "_id" << bsoncxx::oid(named_doc.keyval); 
 
-            mongocxx::model::update_one msg{filter.view(), 
-                view};
+            mongocxx::model::update_one msg{filter.view(), view};
             msg.upsert(true);
             formatted_blocks[named_doc.collection_name]->append(msg);
         }

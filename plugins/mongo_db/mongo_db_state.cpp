@@ -1,11 +1,10 @@
 #include <golos/plugins/mongo_db/mongo_db_state.hpp>
-#include <golos/plugins/follow/follow_objects.hpp>
-#include <golos/plugins/follow/plugin.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/chain/comment_object.hpp>
 #include <golos/chain/account_object.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/chain/proposal_object.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/value_context.hpp>
@@ -22,7 +21,6 @@ namespace mongo_db {
     using bsoncxx::builder::stream::document;
     using bsoncxx::builder::stream::open_document;
     using bsoncxx::builder::stream::close_document;
-    using namespace golos::plugins::follow;
 
     using golos::chain::by_account;
     using golos::chain::decline_voting_rights_request_index;
@@ -68,25 +66,22 @@ namespace mongo_db {
 
             format_value(body, "removed", false);
 
+            format_value(body, "block_num", state_block.block_num());
+
             format_value(body, "author", auth);
             format_value(body, "permlink", perm);
             format_value(body, "abs_rshares", comment.abs_rshares);
-            format_value(body, "active", comment.active);
 
             format_value(body, "allow_curation_rewards", comment.allow_curation_rewards);
             format_value(body, "allow_replies", comment.allow_replies);
             format_value(body, "allow_votes", comment.allow_votes);
-            format_value(body, "author_rewards", comment.author_rewards);
-            format_value(body, "beneficiary_payout", comment.beneficiary_payout_value);
             format_value(body, "cashout_time", comment.cashout_time);
             format_value(body, "children", comment.children);
             format_value(body, "children_abs_rshares", comment.children_abs_rshares);
             format_value(body, "children_rshares2", comment.children_rshares2);
             format_value(body, "created", comment.created);
-            format_value(body, "curator_payout", comment.curator_payout_value);
             format_value(body, "depth", comment.depth);
             format_value(body, "last_payout", comment.last_payout);
-            format_value(body, "last_update", comment.last_update);
             format_value(body, "max_accepted_payout", comment.max_accepted_payout);
             format_value(body, "max_cashout_time", comment.max_cashout_time);
             format_value(body, "net_rshares", comment.net_rshares);
@@ -95,7 +90,6 @@ namespace mongo_db {
             format_value(body, "parent_permlink", comment.parent_permlink);
             format_value(body, "percent_steem_dollars", comment.percent_steem_dollars);
             format_value(body, "reward_weight", comment.reward_weight);
-            format_value(body, "total_payout", comment.total_payout_value);
             format_value(body, "total_vote_weight", comment.total_vote_weight);
             format_value(body, "vote_rshares", comment.vote_rshares);
 
@@ -128,11 +122,50 @@ namespace mongo_db {
 
             format_value(body, "mode", comment_mode);
 
-            auto& content = db_.get_comment_content(comment_id_type(comment.id));
+            if (db_.has_index<golos::plugins::social_network::comment_content_index>()) {
+                const auto& con_idx = db_.get_index<golos::plugins::social_network::comment_content_index>().indices().get<golos::plugins::social_network::by_comment>();
+                auto con_itr = con_idx.find(comment.id);
+                if (con_itr != con_idx.end()) {
+                    format_value(body, "title", con_itr->title);
+                    format_value(body, "body", con_itr->body);
+                    format_json(body, "json_metadata", con_itr->json_metadata);
+                }
+            }
 
-            format_value(body, "title", content.title);
-            format_value(body, "body", content.body);
-            format_value(body, "json_metadata", content.json_metadata);
+            if (db_.has_index<golos::plugins::social_network::comment_last_update_index>()) {
+                const auto& clu_idx = db_.get_index<golos::plugins::social_network::comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+                auto clu_itr = clu_idx.find(comment.id);
+                if (clu_itr != clu_idx.end()) {
+                    format_value(body, "active", clu_itr->active);
+                    format_value(body, "last_update", clu_itr->last_update);
+                }
+            }
+
+            if (db_.has_index<golos::plugins::social_network::comment_reward_index>()) {
+                const auto& cr_idx = db_.get_index<golos::plugins::social_network::comment_reward_index>().indices().get<golos::plugins::social_network::by_comment>();
+                auto cr_itr = cr_idx.find(comment.id);
+                if (cr_itr != cr_idx.end()) {
+                    format_value(body, "author_rewards", cr_itr->author_rewards);
+                    format_value(body, "author_gbg_payout", cr_itr->author_gbg_payout_value);
+                    format_value(body, "author_golos_payout", cr_itr->author_golos_payout_value);
+                    format_value(body, "author_gests_payout", cr_itr->author_gests_payout_value);
+                    format_value(body, "beneficiary_payout", cr_itr->beneficiary_payout_value);
+                    format_value(body, "beneficiary_gests_payout", cr_itr->beneficiary_gests_payout_value);
+                    format_value(body, "curator_payout", cr_itr->curator_payout_value);
+                    format_value(body, "curator_gests_payout", cr_itr->curator_gests_payout_value);
+                    format_value(body, "total_payout", cr_itr->total_payout_value);
+                } else {
+                    format_value(body, "author_rewards", 0);
+                    format_value(body, "author_gbg_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "author_golos_payout", asset(0, STEEM_SYMBOL));
+                    format_value(body, "author_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "beneficiary_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "beneficiary_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "curator_payout", asset(0, SBD_SYMBOL));
+                    format_value(body, "curator_gests_payout", asset(0, VESTS_SYMBOL));
+                    format_value(body, "total_payout", asset(0, SBD_SYMBOL));
+                }
+            }
 
             std::string category, root_oid;
             if (comment.parent_author == STEEMIT_ROOT_POST_PARENT) {
@@ -239,11 +272,10 @@ namespace mongo_db {
 
             format_value(body, "last_post", account.last_post);
 
-#ifndef IS_LOW_MEM
-            auto& account_metadata = db_.get<account_metadata_object, by_account>(account.name);
-            
-            format_value(body, "json_metadata", account_metadata.json_metadata);
-#endif
+            auto account_metadata = db_.find<account_metadata_object, by_account>(account.name);
+            if (account_metadata != nullptr) {
+                format_json(body, "json_metadata", account_metadata->json_metadata);
+            }
 
             body << close_document;
 
@@ -329,15 +361,15 @@ namespace mongo_db {
 
             std::string band_type;
             switch (type) {
-            case post:
-                band_type = "post";
-                break;
-            case forum:
-                band_type = "forum";
-                break;
-            case market:
-                band_type = "market";
-                break;
+                case post:
+                    band_type = "post";
+                    break;
+                case forum:
+                    band_type = "forum";
+                    break;
+                case market:
+                    band_type = "market";
+                    break;
             }
 
             auto oid = std::string(band->account).append("/").append(band_type);
@@ -443,6 +475,7 @@ namespace mongo_db {
             format_value(body, "delegatee", delegation.delegatee);
             format_value(body, "vesting_shares", delegation.vesting_shares);
             format_value(body, "min_delegation_time", delegation.min_delegation_time);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -505,6 +538,7 @@ namespace mongo_db {
             format_value(body, "to_approved", escrow.to_approved);
             format_value(body, "agent_approved", escrow.agent_approved);
             format_value(body, "disputed", escrow.disputed);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -551,6 +585,7 @@ namespace mongo_db {
             format_value(body, "title", proposal.title);
 
             format_value(body, "memo", proposal.memo);
+            format_value(body, "timestamp", state_block.timestamp);
 
             if (proposal.review_period_time.valid()) {
                 format_value(body, "review_period_time", *(proposal.review_period_time));
@@ -558,8 +593,9 @@ namespace mongo_db {
 
             if (!proposal.proposed_operations.empty()) {
                 array ops_array;
-                for (auto& op: proposal.proposed_operations) {
-                    ops_array << op;
+                auto operations = proposal.operations();
+                for (auto& op: operations) {
+                    ops_array << fc::json::to_string(op);
                 }
                 body << "proposed_operations" << ops_array;
             }
@@ -637,6 +673,50 @@ namespace mongo_db {
         }
     }
 
+    void state_writer::format_liquidity_reward_balance(const liquidity_reward_balance_object& lrbo,
+        const account_name_type& owner) {
+        try {
+            auto oid = std::string(owner);
+            auto oid_hash = hash_oid(oid);
+
+            auto doc = create_document("liquidity_reward_balance_object", "_id", oid_hash);
+
+            // We don't need any 'owner_id' because oid is owner
+
+            auto& body = doc.doc;
+
+            body << "$set" << open_document;
+
+            format_oid(body, oid);
+
+            format_value(body, "owner", owner);
+            format_value(body, "steem_volume", lrbo.steem_volume);
+            format_value(body, "sbd_volume", lrbo.sbd_volume);
+            //format_value(body, "weight", lrbo.weight); // weight not exported now
+            format_value(body, "last_update", lrbo.last_update);
+
+            body << close_document;
+
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        } catch (...) {
+            //
+        }
+    }
+
+    void state_writer::format_liquidity_reward_balance(const account_name_type& owner) {
+        try {
+            auto &obj_owner = db_.get_account(owner);
+            const auto &ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
+            auto itr = ridx.find(obj_owner.id);
+            if (ridx.end() != itr) {
+                format_liquidity_reward_balance(*itr, owner);
+            }
+        }
+        catch (...) {
+            //
+        }
+    }
+
     auto state_writer::operator()(const vote_operation& op) -> result_type {
         format_comment(op.author, op.permlink);
         
@@ -697,13 +777,13 @@ namespace mongo_db {
     
     auto state_writer::operator()(const delete_comment_operation& op) -> result_type {
 
-	std::string author = op.author;
+	    std::string author = op.author;
 
         auto comment_oid = std::string(op.author).append("/").append(op.permlink);
         auto comment_oid_hash = hash_oid(comment_oid);
 
         // Will be updated with the following fields. If no one - created with these fields.
-	auto comment = create_document("comment_object", "_id", comment_oid_hash);
+	    auto comment = create_document("comment_object", "_id", comment_oid_hash);
 
         auto& body = comment.doc;
 
@@ -721,7 +801,7 @@ namespace mongo_db {
         bmi_insert_or_replace(all_docs, std::move(comment));
 
         // Will be updated with removed = true. If no one - nothing to do.
-	auto comment_vote = create_removal_document("comment_vote_object", "comment", comment_oid_hash);
+	    auto comment_vote = create_removal_document("comment_vote_object", "comment", comment_oid_hash);
         
         bmi_insert_or_replace(all_docs, std::move(comment_vote));
     }
@@ -734,6 +814,7 @@ namespace mongo_db {
         format_value(body, "to", op.to);
         format_value(body, "amount", op.amount);
         format_value(body, "memo", op.memo);
+        format_value(body, "timestamp", state_block.timestamp);
 
         std::vector<std::string> part;
         auto path = op.memo;
@@ -757,10 +838,53 @@ namespace mongo_db {
     auto state_writer::operator()(const transfer_to_vesting_operation& op) -> result_type {
         format_account(op.from);
         format_account(op.to);
+        try {
+            const auto &dgp = db_.get_dynamic_global_properties();
+
+            auto doc = create_document("transfer_to_vesting", "", "");
+            auto& body = doc.doc;
+
+            document from_index;
+            from_index << "from_id" << 1;
+            doc.indexes_to_create.push_back(std::move(from_index));
+
+            document to_index;
+            to_index << "to_id" << 1;
+            doc.indexes_to_create.push_back(std::move(to_index));
+
+            format_value(body, "from", op.from);
+            format_oid(body, "from_id", op.from);
+            format_value(body, "to", op.to);
+            format_oid(body, "to_id", op.to);
+            format_value(body, "amount", op.amount);
+            format_value(body, "timestamp", state_block.timestamp);
+
+            asset amount_gests;
+            amount_gests.amount = op.amount.amount /
+                (dgp.total_reward_fund_steem.amount / dgp.total_vesting_shares.amount);
+            amount_gests.symbol = VESTS_SYMBOL;
+
+            format_value(body, "amount_gests", amount_gests);
+
+            all_docs.push_back(std::move(doc));
+        }
+        catch (...) {
+            //
+        }
     }
 
     auto state_writer::operator()(const withdraw_vesting_operation& op) -> result_type {
+        auto doc = create_document("withdraw_vesting", "", "");
+
+        auto& body = doc.doc;
+
+        format_value(body, "account", op.account);
+        format_value(body, "vesting_shares", op.vesting_shares);
+        format_value(body, "timestamp", state_block.timestamp);
+
         format_account(op.account);
+
+        all_docs.push_back(std::move(doc));
     }
 
     auto state_writer::operator()(const limit_order_create_operation& op) -> result_type {
@@ -784,6 +908,7 @@ namespace mongo_db {
             format_value(body, "orderid", loo.orderid);
             format_value(body, "for_sale", loo.for_sale);
             format_value(body, "sell_price", loo.sell_price);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -820,6 +945,7 @@ namespace mongo_db {
 
                 format_oid(body, oid);
 
+                format_value(body, "filled", false);
                 format_value(body, "owner", std::string(op.owner));
                 format_value(body, "requestid", op.requestid);
                 format_value(body, "amount", op.amount);
@@ -969,10 +1095,12 @@ namespace mongo_db {
 
             format_oid(body, oid);
 
+            format_value(body, "filled", false);
             format_value(body, "from_account", std::string(from_account.name));
             format_value(body, "to_account", std::string(to_account.name));
             format_value(body, "percent", wvro.percent);
             format_value(body, "auto_vest", wvro.auto_vest);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1005,6 +1133,7 @@ namespace mongo_db {
             format_value(body, "orderid", loo.orderid);
             format_value(body, "for_sale", loo.for_sale);
             format_value(body, "sell_price", loo.sell_price);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1147,6 +1276,28 @@ namespace mongo_db {
     auto state_writer::operator()(const transfer_to_savings_operation& op) -> result_type {
         format_account(op.from);
         format_account(op.to);
+
+        auto doc = create_document("transfer_to_savings", "", "");
+
+        document from_index;
+        from_index << "from_id" << 1;
+        doc.indexes_to_create.push_back(std::move(from_index));
+
+        document to_index;
+        to_index << "to_id" << 1;
+        doc.indexes_to_create.push_back(std::move(to_index));
+
+        auto& body = doc.doc;
+
+        format_value(body, "from", op.from);
+        format_oid(body, "from_id", op.from);
+        format_value(body, "to", op.to);
+        format_oid(body, "to_id", op.to);
+        format_value(body, "amount", op.amount);
+        format_value(body, "memo", op.memo);
+        format_value(body, "timestamp", state_block.timestamp);
+
+        all_docs.push_back(std::move(doc));
     }
 
     auto state_writer::operator()(const transfer_from_savings_operation& op) -> result_type {
@@ -1169,12 +1320,13 @@ namespace mongo_db {
             format_value(body, "removed", false);
             format_value(body, "from", op.from);
             format_value(body, "to", op.to);
-#ifndef IS_LOW_MEM
-            format_value(body, "memo", op.memo);
-#endif
+            if (db_.store_memo_in_savings_withdraws()) {
+                format_value(body, "memo", op.memo);
+            }
             format_value(body, "request_id", swo.request_id);
             format_value(body, "amount", op.amount);
             format_value(body, "complete", swo.complete);
+            format_value(body, "timestamp", state_block.timestamp);
 
             body << close_document;
 
@@ -1313,23 +1465,126 @@ namespace mongo_db {
     }
 
     auto state_writer::operator()(const fill_convert_request_operation& op) -> result_type {
-        
+        try {
+            format_account(op.owner);
+
+            auto oid = std::string(op.owner).append("/").append(std::to_string(op.requestid));
+            auto oid_hash = hash_oid(oid);
+
+            auto cro = create_document("convert_request_object", "_id", oid_hash);
+
+            auto& body = cro.doc;
+
+            body << "$set" << open_document;
+
+            format_oid(body, oid);
+
+            format_value(body, "filled", true);
+            format_value(body, "amount_out", op.amount_out);
+            format_value(body, "timestamp", state_block.timestamp);
+
+            body << close_document;
+
+            bmi_insert_or_replace(all_docs, std::move(cro));
+        }
+        catch (...) {
+            //
+        }
     }
 
     auto state_writer::operator()(const liquidity_reward_operation& op) -> result_type {
-        
+        try {
+            auto &owner = db_.get_account(op.owner);
+            const auto &ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
+            auto itr = ridx.find(owner.id);
+            if (ridx.end() != itr) {
+                format_liquidity_reward_balance(*itr, op.owner);
+            }
+        }
+        catch (...) {
+            //
+        }
     }
 
     auto state_writer::operator()(const interest_operation& op) -> result_type {
-        
+        try {
+            auto doc = create_document("interest", "", "");
+            auto& body = doc.doc;
+
+            document owner_index;
+            owner_index << "owner_id" << 1;
+            doc.indexes_to_create.push_back(std::move(owner_index));
+
+            format_oid(body, "owner_id", op.owner);
+            format_value(body, "owner", op.owner);
+            format_value(body, "interest", op.interest);
+            format_value(body, "timestamp", state_block.timestamp);
+
+            all_docs.push_back(std::move(doc));
+        }
+        catch (...) {
+            //
+        }
     }
 
     auto state_writer::operator()(const fill_vesting_withdraw_operation& op) -> result_type {
-        
+        try {
+            format_account(op.from_account);
+            format_account(op.to_account);
+            auto oid = op.from_account + "/" + op.to_account;
+            auto oid_hash = hash_oid(oid);
+
+            auto doc = create_document("withdraw_vesting_route_object", "_id", oid_hash);
+
+            auto &body = doc.doc;
+
+            body << "$set" << open_document;
+
+            format_oid(body, oid);
+
+            format_value(body, "filled", true);
+            format_value(body, "withdrawn", op.withdrawn);
+            format_value(body, "deposited", op.deposited);
+            format_value(body, "timestamp", state_block.timestamp);
+
+            body << close_document;
+
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
+        catch (...) { 
+            //
+        }
     }
 
     auto state_writer::operator()(const fill_order_operation& op) -> result_type {
-        
+        format_liquidity_reward_balance(op.current_owner);
+        format_liquidity_reward_balance(op.open_owner);
+        try {
+            auto doc = create_document("fill_order_id", "", "");
+            auto& body = doc.doc;
+
+            document current_owner_index;
+            current_owner_index << "current_owner" << 1;
+            doc.indexes_to_create.push_back(std::move(current_owner_index));
+
+            document open_owner_index;
+            open_owner_index << "open_owner_id" << 1;
+            doc.indexes_to_create.push_back(std::move(open_owner_index));
+
+            format_value(body, "current_owner", op.current_owner);
+            format_oid(body, "current_owner_id", op.current_owner);
+            format_value(body, "current_orderid", op.current_orderid);
+            format_value(body, "current_pays", op.current_pays);
+            format_value(body, "open_owner", op.open_owner);
+            format_oid(body, "open_owner_id", op.open_owner);
+            format_value(body, "open_orderid", op.open_orderid);
+            format_value(body, "open_pays", op.open_pays);
+
+            all_docs.push_back(std::move(doc));
+        }
+        catch (...) {
+            //
+        }
     }
 
     auto state_writer::operator()(const shutdown_witness_operation& op) -> result_type {
@@ -1337,11 +1592,26 @@ namespace mongo_db {
     }
 
     auto state_writer::operator()(const fill_transfer_from_savings_operation& op) -> result_type {
-        
+        try {
+            format_account(op.from);
+            format_account(op.to);
+            db_.get_savings_withdraw(op.from, op.request_id);
+        } catch (...) {
+            auto oid = std::string(op.from).append("/").append(std::to_string(op.request_id));
+            auto oid_hash = hash_oid(oid);
+
+            auto doc = create_removal_document("savings_withdraw_object", "_id", oid_hash);
+
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
     }
 
     auto state_writer::operator()(const hardfork_operation& op) -> result_type {
         
+    }
+
+    auto state_writer::operator()(const producer_reward_operation& op) -> result_type {
+
     }
 
     auto state_writer::operator()(const comment_payout_update_operation& op) -> result_type {
@@ -1481,12 +1751,11 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::write_global_property_object(const dynamic_global_property_object& dgpo,
-        const signed_block& current_block, bool history) {
+    void state_writer::write_global_property_object(const dynamic_global_property_object& dgpo, bool history) {
         try {
             std::string oid;
             if (history) {
-                oid = current_block.timestamp;
+                oid = state_block.timestamp;
             } else {
                 oid = MONGO_ID_SINGLE;
             }
@@ -1503,7 +1772,7 @@ namespace mongo_db {
             format_oid(body, oid);
 
             if (history) {
-                format_value(body, "timestamp", current_block.timestamp);
+                format_value(body, "timestamp", state_block.timestamp);
             }
             format_value(body, "head_block_number", dgpo.head_block_number);
             format_value(body, "head_block_id", dgpo.head_block_id.str());
@@ -1556,12 +1825,11 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::write_witness_schedule_object(const witness_schedule_object& wso,
-        const signed_block& current_block, bool history) {
+    void state_writer::write_witness_schedule_object(const witness_schedule_object& wso, bool history) {
         try {
             std::string oid;
             if (history) {
-                oid = current_block.timestamp;
+                oid = state_block.timestamp;
             } else {
                 oid = MONGO_ID_SINGLE;
             }
@@ -1578,7 +1846,7 @@ namespace mongo_db {
             format_oid(body, oid);
 
             if (history) {
-                format_value(body, "timestamp", current_block.timestamp);
+                format_value(body, "timestamp", state_block.timestamp);
             }
             format_value(body, "current_virtual_time", wso.current_virtual_time);
             format_value(body, "next_shuffle_block_num", wso.next_shuffle_block_num);

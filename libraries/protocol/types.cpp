@@ -1,10 +1,32 @@
 #include <golos/protocol/config.hpp>
 #include <golos/protocol/types.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 #include <fc/crypto/base58.hpp>
 
 namespace golos {
+
+    template<>
+    std::string get_logic_error_namespace<golos::logic_exception::error_types>() {
+        return "";
+    }
+
     namespace protocol {
+
+        template<typename binary_key>
+        binary_key key_data_from_string(const std::string &base58str) {
+            std::string prefix(STEEMIT_ADDRESS_PREFIX);
+
+            const size_t prefix_len = prefix.size();
+            GOLOS_CHECK_VALUE(base58str.size() > prefix_len, "Public key is too short");
+            GOLOS_CHECK_VALUE(base58str.substr(0, prefix_len) == prefix, "Invalid public key prefix", ("base58str", base58str));
+            auto bin = fc::from_base58(base58str.substr(prefix_len));
+            auto bin_key = fc::raw::unpack<binary_key>(bin);  // TODO catch exceptions from unpack
+            auto key_data = bin_key.data;
+            GOLOS_CHECK_VALUE(fc::ripemd160::hash(key_data.data, key_data.size())._hash[0] == bin_key.check,
+                    "Invalid public key");
+            return bin_key;
+        }
 
         public_key_type::public_key_type() : key_data() {
         };
@@ -20,18 +42,7 @@ namespace golos {
         public_key_type::public_key_type(const std::string &base58str) {
             // TODO:  Refactor syntactic checks into static is_valid()
             //        to make public_key_type API more similar to address API
-            std::string prefix(STEEMIT_ADDRESS_PREFIX);
-
-            const size_t prefix_len = prefix.size();
-            FC_ASSERT(base58str.size() > prefix_len);
-            FC_ASSERT(base58str.substr(0, prefix_len) ==
-                      prefix, "", ("base58str", base58str));
-            auto bin = fc::from_base58(base58str.substr(prefix_len));
-            auto bin_key = fc::raw::unpack<binary_key>(bin);
-            key_data = bin_key.data;
-            FC_ASSERT(
-                    fc::ripemd160::hash(key_data.data, key_data.size())._hash[0] ==
-                    bin_key.check);
+            key_data = key_data_from_string<binary_key>(base58str).data;
         };
 
 
@@ -78,18 +89,7 @@ namespace golos {
         };
 
         extended_public_key_type::extended_public_key_type(const std::string &base58str) {
-            std::string prefix(STEEMIT_ADDRESS_PREFIX);
-
-            const size_t prefix_len = prefix.size();
-            FC_ASSERT(base58str.size() > prefix_len);
-            FC_ASSERT(base58str.substr(0, prefix_len) ==
-                      prefix, "", ("base58str", base58str));
-            auto bin = fc::from_base58(base58str.substr(prefix_len));
-            auto bin_key = fc::raw::unpack<binary_key>(bin);
-            FC_ASSERT(
-                    fc::ripemd160::hash(bin_key.data.data, bin_key.data.size())._hash[0] ==
-                    bin_key.check);
-            key_data = bin_key.data;
+            key_data = key_data_from_string<binary_key>(base58str).data;
         }
 
         extended_public_key_type::operator fc::ecc::extended_public_key() const {
@@ -131,18 +131,7 @@ namespace golos {
         };
 
         extended_private_key_type::extended_private_key_type(const std::string &base58str) {
-            std::string prefix(STEEMIT_ADDRESS_PREFIX);
-
-            const size_t prefix_len = prefix.size();
-            FC_ASSERT(base58str.size() > prefix_len);
-            FC_ASSERT(base58str.substr(0, prefix_len) ==
-                      prefix, "", ("base58str", base58str));
-            auto bin = fc::from_base58(base58str.substr(prefix_len));
-            auto bin_key = fc::raw::unpack<binary_key>(bin);
-            FC_ASSERT(
-                    fc::ripemd160::hash(bin_key.data.data, bin_key.data.size())._hash[0] ==
-                    bin_key.check);
-            key_data = bin_key.data;
+            key_data = key_data_from_string<binary_key>(base58str).data;
         }
 
         extended_private_key_type::operator fc::ecc::extended_private_key() const {

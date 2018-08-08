@@ -1,9 +1,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/program_options.hpp>
 
-#include <golos/time/time.hpp>
 #include <graphene/utilities/tempdir.hpp>
-
+#include <golos/time/time.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/plugins/account_history/history_object.hpp>
 
@@ -11,10 +10,120 @@
 #include <fc/smart_ref_impl.hpp>
 
 #include "database_fixture.hpp"
+#include "helpers.hpp"
 
-//using namespace golos::chain::test;
+
+#define STEEM_NAMESPACE_PREFIX std::string("golos::protocol::")
 
 uint32_t STEEMIT_TESTING_GENESIS_TIMESTAMP = 1431700000;
+
+
+namespace fc {
+
+std::ostream& operator<<(std::ostream& out, const fc::exception& e) {
+    out << e.to_detail_string();
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::time_point& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::uint128_t& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::fixed_string<fc::uint128_t>& v) {
+    out << static_cast<std::string>(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const fc::variant_object &v) {
+    out << fc::json::to_string(v);
+    return out;
+}
+
+bool compare(const fc::variant &left, const fc::variant &right) {
+    if (left.get_type() != right.get_type()) return false;
+    switch (left.get_type()) {
+        case variant::null_type:   return true;
+        case variant::int64_type:  return left.as_int64() == right.as_int64();
+        case variant::uint64_type: return left.as_uint64() == right.as_uint64();
+        case variant::double_type: return left.as_double() == right.as_double();
+        case variant::bool_type:   return left.as_bool() == right.as_bool();
+        case variant::string_type: return left.get_string() == right.get_string();
+        case variant::array_type:
+            {
+                const variants &l = left.get_array();
+                const variants &r = right.get_array();
+                if (l.size() != r.size()) return false;
+                return std::equal(l.begin(), l.end(), r.begin(), compare);
+            }
+        case variant::object_type: return left.get_object() == right.get_object();
+        case variant::blob_type:   return left.get_string() == right.get_string();
+        default: return false;
+    }
+}
+
+bool operator==(const fc::variant_object &left, const fc::variant_object &right) {
+    if (left.size() != right.size()) return false;
+    for (const auto &v: left) {
+        const auto &ptr = right.find(v.key());
+        if (ptr == right.end()) return false;
+        if (false == compare(v.value(), ptr->value())) return false;
+    }
+    return true;
+}
+
+} // namespace fc
+
+
+namespace fc { namespace ecc {
+
+std::ostream& operator<<(std::ostream& out, const public_key& v) {
+    out << v.to_base58();
+    return out;
+}
+
+} } // namespace fc::ecc
+
+
+namespace golos { namespace protocol {
+
+std::ostream& operator<<(std::ostream& out, const asset& v) {
+    out << v.to_string();
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const public_key_type& v) {
+    out << std::string(v);
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const authority& v) {
+    out << v.weight_threshold << " / " << v.account_auths << " / " << v.key_auths;
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const price& v) {
+    out << v.base << '/' << v.quote << '=' << v.to_real();
+    return out;
+}
+
+} } // namespace golos::protocol
+
+
+namespace golos { namespace chain {
+
+std::ostream& operator<<(std::ostream& out, const shared_authority& v) {
+    out << static_cast<golos::protocol::authority>(v);
+    return out;
+}
+
+} } // namespace golos::chain
+
 
 namespace golos { namespace chain {
 
@@ -24,6 +133,28 @@ namespace golos { namespace chain {
         using golos::plugins::json_rpc::msg_pack;
 
 
+        fc::variant_object make_comment_id(const std::string& author, const std::string& permlink) {
+            auto res = fc::mutable_variant_object()("account",author)("permlink",permlink);
+            return fc::variant_object(res);
+        }
+
+        fc::variant_object make_limit_order_id(const std::string& author, uint32_t orderid) {
+            auto res = fc::mutable_variant_object()("account",author)("order_id",orderid);
+            return fc::variant_object(res);
+        }
+
+        fc::variant_object make_convert_request_id(const std::string& account, uint32_t requestid) {
+            auto res = fc::mutable_variant_object()("account",account)("request_id",requestid);
+            return fc::variant_object(res);
+        }
+
+        fc::variant_object make_escrow_id(const string& name, uint32_t escrow_id) {
+            auto res = fc::mutable_variant_object()("account",name)("escrow",escrow_id);
+            return fc::variant_object(res);
+        }
+
+
+
         database_fixture::~database_fixture() {
             if (db_plugin) {
                 // clear all debug updates
@@ -31,6 +162,10 @@ namespace golos { namespace chain {
             }
 
             close_database();
+            db->_plugin_index_signal = fc::signal<void()>();
+            appbase::app().quit();
+            appbase::app().shutdown();
+            appbase::reset();
         }
 
         clean_database_fixture::clean_database_fixture() {
@@ -97,46 +232,100 @@ namespace golos { namespace chain {
             FC_LOG_AND_RETHROW()
         }
 
+        struct app_initialise {
+            app_initialise() = default;
+            ~app_initialise() = default;
+
+            template<class plugin_type>
+            plugin_type* get_plugin() {
+                int argc = boost::unit_test::framework::master_test_suite().argc;
+                char **argv = boost::unit_test::framework::master_test_suite().argv;
+                for (int i = 1; i < argc; i++) {
+                    const std::string arg = argv[i];
+                    if (arg == "--record-assert-trip") {
+                        fc::enable_record_assert_trip = true;
+                    }
+                    if (arg == "--show-test-names") {
+                        std::cout << "running test "
+                                  << boost::unit_test::framework::current_test_case().p_name
+                                  << std::endl;
+                    }
+                }
+                auto plg = &appbase::app().register_plugin<plugin_type>();
+                appbase::app().initialize<plugin_type>(argc, argv);
+                return plg;
+            }
+        };
+
+        add_operations_database_fixture::operations_map add_operations_database_fixture::add_operations() { try {
+            operations_map _added_ops;
+
+            ACTORS((alice)(bob)(sam))
+            fund("alice", 10000);
+            vest("alice", 10000);
+            fund("bob", 7500);
+            vest("bob", 7500);
+            fund("sam", 8000);
+            vest("sam", 8000);
+
+            comment_operation com;
+            com.author = "bob";
+            com.permlink = "test";
+            com.parent_author = "";
+            com.parent_permlink = "test";
+            com.title = "foo";
+            com.body = "bar";
+            signed_transaction tx;
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, com));
+            generate_block();
+            _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "comment_operation"));
+            ilog("Generate: " + tx.id().str() + " comment_operation");
+
+            tx.clear();
+            vote_operation vote;
+            vote.voter = "alice";
+            vote.author = "bob";
+            vote.permlink = "test";
+            vote.weight = -1;               // Necessary to allow delete_comment_operation
+            tx.operations.push_back(vote);
+            vote.voter = "bob";
+            tx.operations.push_back(vote);
+            vote.voter = "sam";
+            tx.operations.push_back(vote);
+            tx.sign(alice_private_key, db->get_chain_id());
+            tx.sign(bob_private_key, db->get_chain_id());
+            tx.sign(sam_private_key, db->get_chain_id());
+            GOLOS_CHECK_NO_THROW(db->push_transaction(tx, 0));
+            generate_block();
+            _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "vote_operation"));
+            ilog("Generate: " + tx.id().str() + " vote_operation");
+
+            delete_comment_operation dco;
+            dco.author = "bob";
+            dco.permlink = "test";
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, dco));
+            generate_block();
+            _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "delete_comment_operation"));
+            ilog("Generate: " + tx.id().str() + " delete_comment_operation");
+
+            account_create_operation aco;
+            aco.new_account_name = "dave";
+            aco.creator = STEEMIT_INIT_MINER_NAME;
+            aco.owner = authority(1, init_account_pub_key, 1);
+            aco.active = aco.owner;
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, init_account_priv_key, aco));
+            generate_block();
+            _added_ops.insert(std::make_pair(tx.id().str(), STEEM_NAMESPACE_PREFIX + "account_create_operation"));
+            ilog("Generate: " + tx.id().str() + " account_create_operation");
+
+            validate_database();
+
+            return _added_ops;
+        } FC_LOG_AND_RETHROW(); }
+
+
         fc::ecc::private_key database_fixture::generate_private_key(string seed) {
             return fc::ecc::private_key::regenerate(fc::sha256::hash(seed));
-        }
-
-        string database_fixture::generate_anon_acct_name() {
-            // names of the form "anon-acct-x123" ; the "x" is necessary
-            //    to workaround issue #46
-            return "anon-acct-x" + std::to_string(anon_acct_count++);
-        }
-
-        void database_fixture::initialize() {
-            int argc = boost::unit_test::framework::master_test_suite().argc;
-            char **argv = boost::unit_test::framework::master_test_suite().argv;
-            for (int i = 1; i < argc; i++) {
-                const std::string arg = argv[i];
-                if (arg == "--record-assert-trip") {
-                    fc::enable_record_assert_trip = true;
-                }
-                if (arg == "--show-test-names") {
-                    std::cout << "running test "
-                              << boost::unit_test::framework::current_test_case().p_name
-                              << std::endl;
-                }
-            }
-
-            ch_plugin = &appbase::app().register_plugin<golos::plugins::chain::plugin>();
-            oh_plugin = &appbase::app().register_plugin<operation_history::plugin>();
-            ah_plugin = &appbase::app().register_plugin<account_history::plugin>();
-            db_plugin = &appbase::app().register_plugin<debug_node::plugin>();
-
-            appbase::app().initialize<
-                    golos::plugins::chain::plugin,
-                    account_history::plugin,
-                    debug_node::plugin
-            >( argc, argv );
-
-            db_plugin->set_logging(false);
-
-            db = &ch_plugin->db();
-            BOOST_REQUIRE( db );
         }
 
         void database_fixture::startup(bool generate_hardfork) {
@@ -149,18 +338,16 @@ namespace golos { namespace chain {
             vest(STEEMIT_INIT_MINER_NAME, 10000);
 
             // Fill up the rest of the required miners
-            for (int i = STEEMIT_NUM_INIT_MINERS;
-                 i < STEEMIT_MAX_WITNESSES; i++) {
+            for (int i = STEEMIT_NUM_INIT_MINERS; i < STEEMIT_MAX_WITNESSES; i++) {
                 account_create(STEEMIT_INIT_MINER_NAME + fc::to_string(i), init_account_pub_key);
                 fund(STEEMIT_INIT_MINER_NAME + fc::to_string(i), STEEMIT_MIN_PRODUCER_REWARD.amount.value);
-                witness_create(STEEMIT_INIT_MINER_NAME + fc::to_string(i),
-                               init_account_priv_key, "foo.bar", init_account_pub_key,
-                               STEEMIT_MIN_PRODUCER_REWARD.amount);
+                witness_create(
+                    STEEMIT_INIT_MINER_NAME + fc::to_string(i),
+                    init_account_priv_key, "foo.bar", init_account_pub_key,
+                    STEEMIT_MIN_PRODUCER_REWARD.amount);
             }
 
-            oh_plugin->plugin_startup();
-            ah_plugin->plugin_startup();
-            db_plugin->plugin_startup();
+            appbase::app().startup();
 
             validate_database();
         }
@@ -169,9 +356,9 @@ namespace golos { namespace chain {
             if (!data_dir) {
                 data_dir = fc::temp_directory(golos::utilities::temp_directory_path());
                 db->_log_hardforks = false;
+                db->_is_testing = true;
                 db->open(data_dir->path(), data_dir->path(), INITIAL_TEST_SUPPLY,
-                        1024 * 1024 *
-                        8, chainbase::database::read_write); // 8 MB file for testing
+                    1024 * 1024 * 10, chainbase::database::read_write); // 10 MB file for testing
             }
         }
 
@@ -449,14 +636,12 @@ namespace golos { namespace chain {
 
         vector<operation> database_fixture::get_last_operations(uint32_t num_ops) {
             vector<operation> ops;
-            const auto &acc_hist_idx = db->get_index<golos::plugins::account_history::account_history_index>().indices().get<by_id>();
+            const auto& acc_hist_idx = db->get_index<golos::plugins::account_history::account_history_index>().indices().get<by_id>();
             auto itr = acc_hist_idx.end();
-
             while (itr != acc_hist_idx.begin() && ops.size() < num_ops) {
                 itr--;
                 ops.push_back(fc::raw::unpack<golos::chain::operation>(db->get(itr->op).serialized_op));
             }
-
             return ops;
         }
 

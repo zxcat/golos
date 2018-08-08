@@ -1,5 +1,6 @@
 #include <golos/plugins/debug_node/plugin.hpp>
 
+#include <golos/protocol/exceptions.hpp>
 #include <golos/chain/witness_objects.hpp>
 
 #include <fc/io/buffered_iostream.hpp>
@@ -478,7 +479,7 @@ bool plugin::plugin_impl::debug_has_hardfork( uint32_t hardfork_id ) {
 //
 
 
-#include <golos/plugins/debug_node/api_helper.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 
 #define DEFINE_PLUGIN_API(name) DEFINE_API(plugin, name)
 

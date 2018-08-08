@@ -78,16 +78,15 @@ namespace mongo_db {
         result_type operator()(const shutdown_witness_operation& op);
         result_type operator()(const fill_transfer_from_savings_operation& op);
         result_type operator()(const hardfork_operation& op);
+        result_type operator()(const producer_reward_operation& op);
         result_type operator()(const comment_payout_update_operation& op);
         result_type operator()(const comment_benefactor_reward_operation& op);
         result_type operator()(const return_vesting_delegation_operation& op);
         result_type operator()(const chain_properties_update_operation& op);
 
-        void write_global_property_object(const dynamic_global_property_object& dgpo,
-            const signed_block& current_block, bool history);
+        void write_global_property_object(const dynamic_global_property_object& dgpo, bool history);
 
-        void write_witness_schedule_object(const witness_schedule_object& wso,
-            const signed_block& current_block, bool history);
+        void write_witness_schedule_object(const witness_schedule_object& wso, bool history);
 
     private:
         database &db_;
@@ -127,6 +126,11 @@ namespace mongo_db {
 
         void format_required_approval(const required_approval_object& reqapp,
             const account_name_type& proposal_author, const std::string& proposal_title);
+
+        void format_liquidity_reward_balance(const liquidity_reward_balance_object& lrbo,
+            const account_name_type& owner);
+
+        void format_liquidity_reward_balance(const account_name_type& owner);
 
         named_document create_document(const std::string& name,
             const std::string& key, const std::string& keyval);

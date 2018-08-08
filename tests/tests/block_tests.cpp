@@ -46,6 +46,10 @@ using namespace golos::plugins;
 
 #define TEST_SHARED_MEM_SIZE (1024 * 1024 * 8)
 
+#define PUSH_TX     golos::chain::test::_push_transaction
+#define PUSH_BLOCK  golos::chain::test::_push_block
+
+
 BOOST_AUTO_TEST_SUITE(block_tests)
 
     BOOST_AUTO_TEST_CASE(generate_empty_blocks) {

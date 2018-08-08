@@ -1,6 +1,5 @@
 #include <golos/protocol/version.hpp>
-
-#include <fc/exception/exception.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 namespace golos {
     namespace protocol {
@@ -52,12 +51,12 @@ namespace fc {
         s >> major >> dot_a >> hardfork >> dot_b >> revision;
 
         // We'll accept either m.h.v or m_h_v as canonical version strings
-        FC_ASSERT((dot_a == '.' || dot_a == '_') && dot_a ==
-                                                    dot_b, "Variant does not contain proper dotted decimal format");
-        FC_ASSERT(major <= 0xFF, "Major version is out of range");
-        FC_ASSERT(hardfork <= 0xFF, "Hardfork version is out of range");
-        FC_ASSERT(revision <= 0xFFFF, "Revision version is out of range");
-        FC_ASSERT(s.eof(), "Extra information at end of version string");
+        GOLOS_CHECK_VALUE((dot_a == '.' || dot_a == '_') && dot_a == dot_b, 
+                "Variant does not contain proper dotted decimal format");
+        GOLOS_CHECK_VALUE(major <= 0xFF, "Major version is out of range");
+        GOLOS_CHECK_VALUE(hardfork <= 0xFF, "Hardfork version is out of range");
+        GOLOS_CHECK_VALUE(revision <= 0xFFFF, "Revision version is out of range");
+        GOLOS_CHECK_VALUE(s.eof(), "Extra information at end of version string");
 
         v.v_num = 0 | (major << 24) | (hardfork << 16) | revision;
     }

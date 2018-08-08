@@ -1,6 +1,8 @@
 #include <golos/plugins/json_rpc/plugin.hpp>
 #include <golos/plugins/json_rpc/utility.hpp>
 
+#include <golos/protocol/exceptions.hpp>
+
 #include <boost/algorithm/string.hpp>
 
 #include <fc/log/logger_config.hpp>
@@ -123,13 +125,6 @@ namespace golos {
                }
             }
 
-            void msg_pack::error(std::string message, fc::optional<fc::variant> data) {
-                error(JSON_RPC_SERVER_ERROR, std::move(message), std::move(data));
-            }
-
-            void msg_pack::error(const fc::exception &e) {
-                error(JSON_RPC_SERVER_ERROR, e);
-            }
 
             void msg_pack::error(int32_t code, const fc::exception &e) {
                 error(code, e.to_string(), fc::variant(*(e.dynamic_copy_exception())));
@@ -166,92 +161,114 @@ namespace golos {
                     _methods.push_back(canonical_name.str());
                 }
 
-                api_method *find_api_method(std::string api, std::string method) {
+                api_method *find_api_method(std::string api, std::string method, msg_pack& msg) {
                     auto api_itr = _registered_apis.find(api);
-                    FC_ASSERT(api_itr != _registered_apis.end(), "Could not find API ${api}", ("api", api));
+                    if (api_itr == _registered_apis.end()) {
+                        msg.error(JSON_RPC_METHOD_NOT_FOUND, "Could not find API ${api}", 
+                                fc::mutable_variant_object()("api", api));
+                        return nullptr;
+                    }
 
                     auto method_itr = api_itr->second.find(method);
-                    FC_ASSERT(method_itr != api_itr->second.end(), "Could not find method ${method}",
-                              ("method", method));
+                    if (method_itr == api_itr->second.end()) {
+                        msg.error(JSON_RPC_METHOD_NOT_FOUND, "Could not find method ${method}",
+                                fc::mutable_variant_object()("method", method));
+                        return nullptr;
+                    }
 
                     return &(method_itr->second);
                 }
 
-                api_method *process_params(string method, const fc::variant_object &request, msg_pack &func_args) {
+                api_method *process_params(const fc::variant_object &request, msg_pack &func_args) {
                     api_method *ret = nullptr;
 
-                    if (method == "call") {
-                        FC_ASSERT(request.contains("params"));
+                    if (!request.contains("params")) {
+                        func_args.error(JSON_RPC_INVALID_REQUEST, "A member \"params\" does not exist");
+                        return nullptr;
+                    }
 
-                        std::vector<fc::variant> v;
+                    std::vector<fc::variant> v;
 
-                        if (request["params"].is_array()) {
-                            v = request["params"].as<std::vector<fc::variant> >();
-                        }
+                    if (request["params"].is_array()) {
+                        v = request["params"].as<std::vector<fc::variant> >();
+                    }
 
-                        FC_ASSERT(v.size() == 2 || v.size() == 3, "params should be {\"api\", \"method\", \"args\"");
+                    if (v.size() < 2 || v.size() > 3) {
+                        func_args.error(JSON_RPC_INVALID_REQUEST, "A member \"params\" should be [\"api\", \"method\", \"args\"]");
+                        return nullptr;
+                    }
 
-                        ret = find_api_method(v[0].as_string(), v[1].as_string());
-                        func_args.plugin = v[0].as_string();
-                        func_args.method = v[1].as_string();
-                        fc::variant tmp = (v.size() == 3) ? v[2] : fc::json::from_string("{}");
+                    if (nullptr == (ret = find_api_method(v[0].as_string(), v[1].as_string(), func_args))) {
+                        return nullptr;
+                    }
+
+                    func_args.plugin = v[0].as_string();
+                    func_args.method = v[1].as_string();
+                    fc::variant tmp = (v.size() == 3) ? v[2] : fc::json::from_string("[]");
+
+                    try {
                         func_args.args = tmp.as<std::vector<fc::variant>>();
-                    } else {
-                        vector<std::string> v;
-                        boost::split(v, method, boost::is_any_of("."));
-
-                        FC_ASSERT(v.size() == 2, "method specification invalid. Should be api.method");
-
-                        ret = find_api_method(v[0], v[1]);
-                        func_args.plugin = v[0];
-                        func_args.method = v[1];
-                        fc::variant tmp = (v.size() == 3) ? v[2] : fc::json::from_string("{}");
-                        func_args.args = tmp.as<std::vector<fc::variant>>();
+                    } catch (const fc::bad_cast_exception& e) {
+                        func_args.error(JSON_RPC_INVALID_REQUEST, "A member \"args\" should be array", static_cast<const fc::exception&>(e));
+                        return nullptr;
                     }
 
                     return ret;
                 }
 
-                void rpc_jsonrpc(const fc::variant_object &request, msg_pack &msg) {
-                    // TODO: id is optional value or not?
-                    if (request.contains("id")) {
-                        msg.rpc_id(request["id"]);
-                    }
-
-                    if (!request.contains("jsonrpc") || request["jsonrpc"].as_string() != "2.0") {
-                        return msg.error(JSON_RPC_INVALID_REQUEST, "jsonrpc value is not \"2.0\"");
-                    } else if (!request.contains("method")) {
-                        return msg.error(JSON_RPC_INVALID_REQUEST, "A member \"method\" does not exist");
-                    }
-
-                    string method;
+                void rpc_jsonrpc(const fc::variant &data, msg_pack &msg) {
+                    fc::variant_object request;
 
                     try {
-                        method = request["method"].as_string();
-                    } catch (const fc::assert_exception &e) {
-                        return msg.error(JSON_RPC_METHOD_NOT_FOUND, e);
+                        request = data.get_object();
+
+                        // TODO: id is optional value or not?
+                        if (request.contains("id")) {
+                            msg.rpc_id(request["id"]);
+                        }
+
+                        if (!request.contains("jsonrpc") || request["jsonrpc"].as_string() != "2.0") {
+                            return msg.error(JSON_RPC_INVALID_REQUEST, "jsonrpc value is not \"2.0\"");
+                        }
+
+                        if (!request.contains("method") || request["method"].as_string() != "call") {
+                            return msg.error(JSON_RPC_INVALID_REQUEST, "A member \"method\" is not \"call\"");
+                        }
+                    } catch (const fc::bad_cast_exception& e) {
+                        return msg.error(JSON_RPC_INVALID_REQUEST, "Invalid request structure", static_cast<const fc::exception&>(e));
                     }
 
-                    // This is to maintain backwards compatibility with existing call structure.
-                    if ((method == "call" && request.contains("params")) || method != "call") {
-                        api_method *call = nullptr;
 
-                        try {
-                            call = process_params(method, request, msg);
-                        } catch (const fc::assert_exception &e) {
-                            return msg.error(JSON_RPC_PARSE_PARAMS_ERROR, e);
-                        }
+                    api_method *call = process_params(request, msg);
+                    if (call == nullptr) {
+                        return;
+                    }
 
-                        try {
-                            auto result = (*call)(msg);
-                            if (msg.valid()) {
-                                msg.result(std::move(result));
-                            }
-                        } catch (const fc::assert_exception &e) {
-                            return msg.error(JSON_RPC_ERROR_DURING_CALL, e);
+                    try {
+                        auto result = (*call)(msg);
+                        if (msg.valid()) {
+                            msg.result(std::move(result));
                         }
-                    } else {
-                        return msg.error(JSON_RPC_NO_PARAMS, "A member \"params\" does not exist");
+                    } catch (const golos::unsupported_operation& e) {
+                        msg.error(SERVER_UNSUPPORTED_OPERATION, e);
+
+                    } catch (const golos::parameter_exception& e) {
+                        msg.error(SERVER_INVALID_PARAMETER, e);
+
+                    } catch (const golos::business_exception& e) {
+                        msg.error(SERVER_BUSINESS_LOGIC_ERROR, e);
+
+                    } catch (const golos::protocol::tx_missing_authority& e) {
+                        msg.error(SERVER_MISSING_AUTHORITY, e);
+
+                    } catch (const golos::protocol::tx_invalid_operation& e) {
+                        msg.error(SERVER_INVALID_OPERATION, e);
+
+                    } catch (const golos::protocol::transaction_exception& e) {
+                        msg.error(SERVER_INVALID_TRANSACTION, e);
+
+                    } catch (const golos::golos_exception& e) {
+                        msg.error(SERVER_INTERNAL_ERROR, e);
                     }
                 }
 
@@ -291,21 +308,16 @@ namespace golos {
                     dump_rpc_time dump(data);
 
                     try {
-                        rpc_jsonrpc(data.get_object(), msg);
-                    } catch (const fc::parse_error_exception& e) {
-                        msg.error(JSON_RPC_INVALID_PARAMS, e);
-                        dump.error("invalid params");
-                    } catch (const fc::bad_cast_exception& e) {
-                        msg.error(JSON_RPC_INVALID_PARAMS, e);
-                        dump.error("invalid types");
+                        rpc_jsonrpc(data, msg);
+
                     } catch (const fc::exception& e) {
-                        msg.error(e);
+                        msg.error(JSON_RPC_INTERNAL_ERROR, std::string("Internal error: ") + e.to_string(), e);
                         dump.error("invalid request");
                     } catch (const std::exception& e) {
-                        msg.error(e.what());
+                        msg.error(JSON_RPC_INTERNAL_ERROR, std::string("Internal error: ") + e.what());
                         dump.error(e.what());
                     } catch (...) {
-                        msg.error("Unknown error - parsing rpc message failed");
+                        msg.error(JSON_RPC_INTERNAL_ERROR, "Unknown error - parsing rpc message failed");
                         dump.error("unknown");
                     }
                 }
@@ -333,6 +345,41 @@ namespace golos {
                     }
 
                     next_handler();
+                }
+
+                void call(const string &message, response_handler_type response_handler) {
+                    auto send_error = [response_handler](int32_t code, const std::string& msg, fc::optional<fc::variant> d = fc::optional<fc::variant>()) {
+                        json_rpc_response response;
+                        response.error = json_rpc_error(code, msg, d);
+                        response_handler(fc::json::to_string(response));
+                    };
+
+                    try {
+                        fc::variant v;
+
+                        try {
+                            v = fc::json::from_string(message);
+                        } catch (const fc::exception& e) {
+                            return send_error(JSON_RPC_PARSE_ERROR, "Invalid JSON-structure", e);
+                        }
+
+                        if (v.is_array()) {
+                            vector<fc::variant> messages = v.as<vector<fc::variant>>();
+
+                            if(messages.size() == 0) {
+                                return send_error(JSON_RPC_INVALID_REQUEST, "Array of requests must be non-empty");
+                            }
+                            rpc(messages, response_handler);
+                        } else {
+                            msg_pack msg([response_handler](json_rpc_response &response){
+                                    response_handler(fc::json::to_string(response));
+                                    });
+
+                            rpc(v, msg);
+                        }
+                    } catch (const fc::exception &e) {
+                        return send_error(JSON_RPC_INTERNAL_ERROR, e.to_string(), e);
+                    }
                 }
 
                 void initialize() {
@@ -400,26 +447,7 @@ namespace golos {
             }
 
             void plugin::call(const string &message, response_handler_type response_handler) {
-                try {
-                    fc::variant v = fc::json::from_string(message);
-
-                    if (v.is_array()) {
-                        vector<fc::variant> messages = v.as<vector<fc::variant>>();
-
-                        FC_ASSERT(messages.size(), "Array is invalid");
-                        pimpl->rpc(messages, response_handler);
-                    } else {
-                        msg_pack msg([response_handler](json_rpc_response &response){
-                            response_handler(fc::json::to_string(response));
-                        });
-
-                        pimpl->rpc(v, msg);
-                    }
-                } catch (const fc::exception &e) {
-                    json_rpc_response response;
-                    response.error = json_rpc_error(JSON_RPC_SERVER_ERROR, e.to_string(), fc::variant(*(e.dynamic_copy_exception())));
-                    response_handler(fc::json::to_string(response));
-                }
+                pimpl->call(message, response_handler);
             }
         }
     }

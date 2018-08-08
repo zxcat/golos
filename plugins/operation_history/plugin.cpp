@@ -1,14 +1,15 @@
 #include <golos/plugins/operation_history/plugin.hpp>
 #include <golos/plugins/operation_history/history_object.hpp>
 
+#include <golos/plugins/json_rpc/api_helper.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/chain/operation_notification.hpp>
 
 #include <boost/algorithm/string.hpp>
 
 #define STEEM_NAMESPACE_PREFIX "golos::protocol::"
+#define OPERATION_POSTFIX "_operation"
 
-#define CHECK_ARG_SIZE(s) \
-   FC_ASSERT( args.args->size() == s, "Expected #s argument(s), was ${n}", ("n", args.args->size()) );
 
 namespace golos { namespace plugins { namespace operation_history {
 
@@ -20,35 +21,40 @@ namespace golos { namespace plugins { namespace operation_history {
     struct operation_visitor {
         operation_visitor(
             golos::chain::database& db,
-            golos::chain::operation_notification& op_note)
+            golos::chain::operation_notification& op_note,
+            uint32_t start_block)
             : database(db),
-              note(op_note) {
+              note(op_note),
+              start_block(start_block) {
         }
 
         using result_type = void;
 
         golos::chain::database& database;
         golos::chain::operation_notification& note;
+        uint32_t start_block;
 
         template<typename Op>
         void operator()(Op&&) const {
-            note.stored_in_db = true;
+            if (start_block <= database.head_block_num()) {
+                note.stored_in_db = true;
 
-            database.create<operation_object>([&](operation_object& obj) {
-                note.db_id = obj.id._id;
+                database.create<operation_object>([&](operation_object& obj) {
+                    note.db_id = obj.id._id;
 
-                obj.trx_id = note.trx_id;
-                obj.block = note.block;
-                obj.trx_in_block = note.trx_in_block;
-                obj.op_in_trx = note.op_in_trx;
-                obj.virtual_op = note.virtual_op;
-                obj.timestamp = database.head_block_time();
+                    obj.trx_id = note.trx_id;
+                    obj.block = note.block;
+                    obj.trx_in_block = note.trx_in_block;
+                    obj.op_in_trx = note.op_in_trx;
+                    obj.virtual_op = note.virtual_op;
+                    obj.timestamp = database.head_block_time();
 
-                const auto size = fc::raw::pack_size(note.op);
-                obj.serialized_op.resize(size);
-                fc::datastream<char*> ds(obj.serialized_op.data(), size);
-                fc::raw::pack(ds, note.op);
-            });
+                    const auto size = fc::raw::pack_size(note.op);
+                    obj.serialized_op.resize(size);
+                    fc::datastream<char*> ds(obj.serialized_op.data(), size);
+                    fc::raw::pack(ds, note.op);
+                });
+            }
         }
     };
 
@@ -60,7 +66,7 @@ namespace golos { namespace plugins { namespace operation_history {
             const fc::flat_set<std::string>& ops_list,
             bool is_blacklist,
             uint32_t block)
-            : operation_visitor(db, note),
+            : operation_visitor(db, note, block),
               filter(ops_list),
               blacklist(is_blacklist),
               start_block(block) {
@@ -72,9 +78,6 @@ namespace golos { namespace plugins { namespace operation_history {
 
         template <typename T>
         void operator()(const T& op) const {
-            if (database.head_block_num() < start_block) {
-                return;
-            }
             if (filter.find(fc::get_typename<T>::name()) != filter.end()) {
                 if (!blacklist) {
                     operation_visitor::operator()(op);
@@ -94,11 +97,26 @@ namespace golos { namespace plugins { namespace operation_history {
 
         ~plugin_impl() = default;
 
+        void erase_old_blocks() {
+            uint32_t head_block = database.head_block_num();
+            if (history_blocks <= head_block) {
+                uint32_t need_block = head_block - history_blocks;
+                const auto& idx = database.get_index<operation_index>().indices().get<by_location>();
+                auto it = idx.begin();
+                while (it != idx.end() && it->block <= need_block) {
+                    auto next_it = it;
+                    ++next_it;
+                    database.remove(*it);
+                    it = next_it;
+                }
+            }
+        }
+
         void on_operation(golos::chain::operation_notification& note) {
             if (filter_content) {
                 note.op.visit(operation_visitor_filter(database, note, ops_list, blacklist, start_block));
             } else {
-                note.op.visit(operation_visitor(database, note));
+                note.op.visit(operation_visitor(database, note, start_block));
             }
         }
 
@@ -130,28 +148,31 @@ namespace golos { namespace plugins { namespace operation_history {
                 result.transaction_num = itr->trx_in_block;
                 return result;
             }
-            FC_ASSERT(false, "Unknown Transaction ${t}", ("t", id));
+            GOLOS_THROW_MISSING_OBJECT("transaction", id);
         }
 
         bool filter_content = false;
         uint32_t start_block = 0;
-        bool blacklist = false;
+        uint32_t history_blocks = UINT32_MAX;
+        bool blacklist = true;
         fc::flat_set<std::string> ops_list;
         golos::chain::database& database;
     };
 
     DEFINE_API(plugin, get_ops_in_block) {
-        CHECK_ARG_SIZE(2)
-        auto block_num = args.args->at(0).as<uint32_t>();
-        auto only_virtual = args.args->at(1).as<bool>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (uint32_t, block_num)
+            (bool,     only_virtual)
+        );
         return pimpl->database.with_weak_read_lock([&](){
             return pimpl->get_ops_in_block(block_num, only_virtual);
         });
     }
 
     DEFINE_API(plugin, get_transaction) {
-        CHECK_ARG_SIZE(1)
-        auto id = args.args->at(0).as<transaction_id_type>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (transaction_id_type, id)
+        );
         return pimpl->database.with_weak_read_lock([&](){
             return pimpl->get_transaction(id);
         });
@@ -171,11 +192,13 @@ namespace golos { namespace plugins { namespace operation_history {
             "Defines a list of operations which will be explicitly ignored."
         ) (
             "history-start-block",
-            boost::program_options::value<uint32_t>()->composing(),
+            boost::program_options::value<uint32_t>(),
             "Defines starting block from which recording stats."
+        ) (
+            "history-blocks",
+            boost::program_options::value<uint32_t>(),
+            "Defines depth of history for recording stats."
         );
-
-        cfg.add(cli);
     }
 
     void plugin::plugin_initialize(const boost::program_options::variables_map& options) {
@@ -196,15 +219,19 @@ namespace golos { namespace plugins { namespace operation_history {
 
                 for (const auto& op : ops) {
                     if (op.size()) {
-                        pimpl->ops_list.insert(STEEM_NAMESPACE_PREFIX + op);
+                        std::size_t pos = op.find(OPERATION_POSTFIX);
+                        if (pos not_eq std::string::npos and (pos + strlen(OPERATION_POSTFIX)) == op.size()) {
+                            pimpl->ops_list.insert(STEEM_NAMESPACE_PREFIX + op);
+                        } else {
+                            pimpl->ops_list.insert(STEEM_NAMESPACE_PREFIX + op + OPERATION_POSTFIX);
+                        }
                     }
                 }
             }
         };
 
         if (options.count("history-whitelist-ops")) {
-            FC_ASSERT(
-                !options.count("history-blacklist-ops"),
+            GOLOS_CHECK_OPTION(!options.count("history-blacklist-ops"),
                 "history-blacklist-ops and history-whitelist-ops can't be specified together");
 
             pimpl->filter_content = true;
@@ -225,6 +252,18 @@ namespace golos { namespace plugins { namespace operation_history {
             pimpl->start_block = 0;
         }
         ilog("operation_history: start_block ${s}", ("s", pimpl->start_block));
+
+        if (options.count("history-blocks")) {
+            uint32_t history_blocks = options.at("history-blocks").as<uint32_t>();
+            pimpl->history_blocks = history_blocks;
+            pimpl->database.applied_block.connect([&](const signed_block& block){
+                pimpl->erase_old_blocks();
+            });
+        } else {
+            pimpl->history_blocks = UINT32_MAX;
+        }
+        ilog("operation_history: history-blocks ${s}", ("s", pimpl->history_blocks));
+
         JSON_RPC_REGISTER_API(name());
         ilog("operation_history plugin: plugin_initialize() end");
     }

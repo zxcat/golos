@@ -47,10 +47,22 @@ namespace golos {
                     operation_get_required_authorities(inner_o, inner_active, inner_owner, inner_posting, inner_other);
                 }
 
-                FC_ASSERT(inner_owner == outer_owner);
-                FC_ASSERT(inner_active == outer_active);
-                FC_ASSERT(inner_posting == outer_posting);
-                FC_ASSERT(inner_other == outer_other);
+                GOLOS_CHECK_LOGIC(inner_owner == outer_owner,
+                        logic_exception::inner_authorities_does_not_match_outer,
+                        "Owner authorities for inner operations are not equal to those for operation",
+                        ("authority","owner")("inner",inner_owner)("outer",outer_owner));
+                GOLOS_CHECK_LOGIC(inner_active == outer_active,
+                        logic_exception::inner_authorities_does_not_match_outer,
+                        "Active authorities for inner operations are not equal to those for operation",
+                        ("authority","active")("inner",inner_active)("outer",outer_active));
+                GOLOS_CHECK_LOGIC(inner_posting == outer_posting,
+                        logic_exception::inner_authorities_does_not_match_outer,
+                        "Posting authorities for inner operations are not equal to those for operation",
+                        ("authority","posting")("inner",inner_posting)("outer",outer_posting));
+                GOLOS_CHECK_LOGIC(inner_other == outer_other,
+                        logic_exception::inner_authorities_does_not_match_outer,
+                        "Other authorities for inner operations are not equal to those for operation",
+                        ("authority","other")("inner",inner_other)("outer",outer_other));
 
                 for (const CustomOperationType &inner_o : custom_operations) {
                     // gcc errors if this-> is not here

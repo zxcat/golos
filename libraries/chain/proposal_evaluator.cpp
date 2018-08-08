@@ -1,6 +1,7 @@
 #include <fc/io/datastream.hpp>
 
 #include <golos/protocol/proposal_operations.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <golos/chain/steem_evaluator.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/steem_objects.hpp>
@@ -97,32 +98,32 @@ namespace golos { namespace chain {
     }
 
     void proposal_create_evaluator::do_apply(const proposal_create_operation& o) { try {
-        ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__542, "Proposal transaction creating"); // remove after hf
-
         safe_int_increment depth_increment(depth_);
 
         if (_db.is_producing()) {
-            FC_ASSERT(
+            GOLOS_CHECK_LOGIC(
                 depth_ <= STEEMIT_MAX_PROPOSAL_DEPTH,
+                logic_exception::proposal_depth_too_high,
                 "You can't create more than ${depth} nested proposals",
                 ("depth", STEEMIT_MAX_PROPOSAL_DEPTH));
         }
 
-        FC_ASSERT(nullptr == _db.find_proposal(o.author, o.title), "Proposal already exists.");
+        GOLOS_CHECK_OBJECT_MISSING(_db, proposal, o.author, o.title);
 
         const auto now = _db.head_block_time();
-        FC_ASSERT(
-            o.expiration_time > now,
-            "Proposal has already expired on creation.");
-        FC_ASSERT(
-            o.expiration_time <= now + STEEMIT_MAX_PROPOSAL_LIFETIME_SEC,
-            "Proposal expiration time is too far in the future.");
-        FC_ASSERT(
-            !o.review_period_time || *o.review_period_time > now,
-            "Proposal review period has expired on creation.");
-        FC_ASSERT(
-            !o.review_period_time || *o.review_period_time < o.expiration_time,
-            "Proposal review period must be less than its overall lifetime.");
+        GOLOS_CHECK_OP_PARAM(o, expiration_time, {
+            GOLOS_CHECK_VALUE(o.expiration_time > now, "Proposal has already expired on creation.");
+            GOLOS_CHECK_VALUE(o.expiration_time <= now + STEEMIT_MAX_PROPOSAL_LIFETIME_SEC,
+                "Proposal expiration time is too far i  n the future.");
+        });
+        if (o.review_period_time) {
+            GOLOS_CHECK_OP_PARAM(o, review_period_time, {
+                GOLOS_CHECK_VALUE(*o.review_period_time > now,
+                    "Proposal review period has expired on creation.");
+                GOLOS_CHECK_VALUE(*o.review_period_time < o.expiration_time,
+                    "Proposal review period must be less than its overall lifetime.");
+            });
+        }
 
         //Populate the required approval sets
         flat_set<account_name_type> required_owner;
@@ -134,7 +135,7 @@ namespace golos { namespace chain {
         for (const auto& op : o.proposed_operations) {
             operation_get_required_authorities(op.op, required_active, required_owner, required_posting, other);
         }
-        FC_ASSERT(other.size() == 0); // TODO: what about other???
+        GOLOS_ASSERT(other.size() == 0, golos::internal_error, "other size > 0"); // TODO: what about other???
 
         // All accounts which must provide both owner and active authority should be omitted from
         // the active authority set. Owner authority approval implies active authority approval.
@@ -143,20 +144,21 @@ namespace golos { namespace chain {
         required_total.insert(required_active.begin(), required_active.end());
 
         // For more information, see transaction.cpp
-        FC_ASSERT(
+        GOLOS_CHECK_LOGIC(
             required_posting.empty() != required_total.empty(),
+            logic_exception::tx_with_both_posting_active_ops,
             "Can't combine operations required posting authority and active or owner authority");
         required_total.insert(required_posting.begin(), required_posting.end());
 
         // Doesn't allow proposal with combination of create_account() + some_operation()
         //  because it will be never approved.
         for (const auto& account: required_total) {
-            FC_ASSERT(
-                nullptr != _db.find_account(account),
-                "Account '${account}' for proposed operation doesn't exist", ("account", account));
+            _db.get_account(account); // will throw if no account
+            // "Account '${account}' for proposed operation doesn't exist", ("account", account));
         }
 
-        FC_ASSERT(required_total.size(), "No operations require approvals");
+        // Looks like it's impossible to fail because other = 0 and proposed_ops.size > 0
+        GOLOS_ASSERT(required_total.size(), golos::internal_error, "No operations require approvals");
 
         transaction trx;
         for (const auto& op : o.proposed_operations) {
@@ -170,6 +172,7 @@ namespace golos { namespace chain {
             golos::chain::database::skip_tapos_check |
             golos::chain::database::skip_database_locking;
 
+        // This not only validates proposal operations but also pre-apply them to execute evaluators' checks
         _db.validate_transaction(trx, skip_steps);
 
         auto ops_size = fc::raw::pack_size(trx.operations);
@@ -204,13 +207,12 @@ namespace golos { namespace chain {
     }
 
     void proposal_update_evaluator::do_apply(const proposal_update_operation& o) { try {
-        ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__542, "Proposal transaction updating"); // remove after hf
-
         safe_int_increment depth_increment(depth_);
 
         if (_db.is_producing()) {
-            FC_ASSERT(
+            GOLOS_CHECK_LOGIC(
                 depth_ <= STEEMIT_MAX_PROPOSAL_DEPTH,
+                logic_exception::proposal_depth_too_high,
                 "You can't create more than ${depth} nested proposals",
                 ("depth", STEEMIT_MAX_PROPOSAL_DEPTH));
         }
@@ -219,17 +221,20 @@ namespace golos { namespace chain {
         const auto now = _db.head_block_time();
 
         if (proposal.review_period_time && now >= *proposal.review_period_time) {
-            FC_ASSERT(
-                o.active_approvals_to_add.empty() &&
+            GOLOS_CHECK_LOGIC(
                 o.owner_approvals_to_add.empty() &&
+                o.active_approvals_to_add.empty() &&
                 o.posting_approvals_to_add.empty() &&
                 o.key_approvals_to_add.empty(),
-                "This proposal is in its review period. No new approvals may be added.");
+                logic_exception::cannot_add_approval_in_review_period,
+                "This proposal is in it's review period. No new approvals may be added.");
         }
 
         auto check_existing = [&](const auto& to_remove, const auto& dst) {
             for (const auto& a: to_remove) {
-                FC_ASSERT(dst.find(a) != dst.end(), "Can't remove the non existing approval '${id}'", ("id", a));
+                GOLOS_CHECK_LOGIC(dst.find(a) != dst.end(),
+                    logic_exception::non_existing_approval,
+                    "Can't remove the non existing approval '${id}'", ("id", a));
             }
         };
 
@@ -240,7 +245,9 @@ namespace golos { namespace chain {
 
         auto check_duplicate = [&](const auto& to_add, const auto& dst) {
             for (const auto& a: to_add) {
-                FC_ASSERT(dst.find(a) == dst.end(), "Can't add already exist approval '${id}'", ("id", a));
+                GOLOS_CHECK_LOGIC(dst.find(a) == dst.end(),
+                    logic_exception::already_existing_approval,
+                    "Can't add already exist approval '${id}'", ("id", a));
             }
         };
 
@@ -291,14 +298,13 @@ namespace golos { namespace chain {
     } FC_CAPTURE_AND_RETHROW((o)) }
 
     void proposal_delete_evaluator::do_apply(const proposal_delete_operation& o) { try {
-        ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__542, "Proposal transaction deleting"); // remove after hf
         const auto& proposal = _db.get_proposal(o.author, o.title);
-
-        FC_ASSERT(
+        GOLOS_CHECK_LOGIC(
             proposal.author == o.requester ||
             proposal.required_active_approvals.count(o.requester) ||
             proposal.required_owner_approvals.count(o.requester) ||
             proposal.required_posting_approvals.count(o.requester),
+            logic_exception::proposal_delete_not_allowed,                       // or should it be auth-related?
             "Provided authority is not authoritative for this proposal.",
             ("author", o.author)("title", o.title)("requester", o.requester));
 

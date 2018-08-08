@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <fstream>
 #include <golos/chain/block_log.hpp>
+#include <golos/protocol/exceptions.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread/shared_mutex.hpp>
@@ -43,7 +44,11 @@ namespace golos { namespace chain {
 
             uint64_t get_uint64(const boost::iostreams::mapped_file& mapped_file, std::size_t pos) const {
                 uint64_t value;
-                FC_ASSERT(get_mapped_size(mapped_file) >= pos + sizeof(value));
+                auto file_size = get_mapped_size(mapped_file);
+                GOLOS_CHECK_DATABASE(pos + sizeof(value) <= file_size,
+                        database_corrupted::reading_data_beyond_end_of_file,
+                        "Reading data beyond end of file",
+                        ("pos", pos)("size", sizeof(value))("file_size", file_size));
 
                 auto* ptr = mapped_file.data() + pos;
                 value = *reinterpret_cast<uint64_t*>(ptr);
@@ -52,10 +57,13 @@ namespace golos { namespace chain {
 
             uint64_t get_last_uint64(const boost::iostreams::mapped_file& mapped_file) const {
                 uint64_t value;
-                auto size = get_mapped_size(mapped_file);
-                FC_ASSERT(size >= sizeof(value));
+                auto file_size = get_mapped_size(mapped_file);
+                GOLOS_CHECK_DATABASE(sizeof(value) <= file_size,
+                        database_corrupted::reading_data_beyond_end_of_file,
+                        "Reading data beyond end of file",
+                        ("size", sizeof(value))("file_size", file_size));
 
-                auto* ptr = mapped_file.data() + size - sizeof(value);
+                auto* ptr = mapped_file.data() + file_size - sizeof(value);
                 value = *reinterpret_cast<uint64_t*>(ptr);
                 return value;
             }
@@ -72,7 +80,10 @@ namespace golos { namespace chain {
 
             uint64_t read_block(uint64_t pos, signed_block& block) const {
                 const auto file_size = get_mapped_size(block_mapped_file);
-                FC_ASSERT(file_size > pos);
+                GOLOS_CHECK_DATABASE(pos < file_size,
+                        database_corrupted::reading_data_beyond_end_of_file,
+                        "Reading data beyond end of file",
+                        ("pos", pos)("file_size", file_size));
 
                 const auto* ptr = block_mapped_file.data() + pos;
                 const auto available_size = file_size - pos;
@@ -82,7 +93,11 @@ namespace golos { namespace chain {
                 fc::raw::unpack(ds, block);
 
                 const auto end_pos = pos + ds.tellp();
-                FC_ASSERT(get_uint64(block_mapped_file, end_pos) == pos);
+                const auto block_pos = get_uint64(block_mapped_file, end_pos);
+                GOLOS_CHECK_DATABASE(block_pos == pos,
+                        database_corrupted::wrong_position_marker_was_read,
+                        "Wrong position makers was read (read ${block_pos}, expected ${expected})",
+                        ("block_pos", block_pos)("expected", pos));
 
                 return end_pos + sizeof(uint64_t);
             }
@@ -195,8 +210,8 @@ namespace golos { namespace chain {
             uint64_t append(const signed_block& b, const std::vector<char>& data) { try {
                 const auto index_pos = get_mapped_size(index_mapped_file);
 
-                FC_ASSERT(
-                    index_pos == sizeof(uint64_t) * (b.block_num() - 1),
+                GOLOS_CHECK_DATABASE(index_pos == sizeof(uint64_t) * (b.block_num() - 1),
+                    database_corrupted::append_index_file_at_wrong_position,
                     "Append to index file occuring at wrong position.",
                     ("position", index_pos)
                     ("expected", (b.block_num() - 1) * sizeof(uint64_t)));
@@ -274,11 +289,10 @@ namespace golos { namespace chain {
         if (pos != npos) {
             signed_block block;
             my->read_block(pos, block);
-            FC_ASSERT(
-                block.block_num() == block_num,
-                "Wrong block was read from block log (${returned} != ${expected}).",
-                ("returned", block.block_num())
-                ("expected", block_num));
+            GOLOS_CHECK_DATABASE(block.block_num() == block_num,
+                database_corrupted::wrong_block_num_was_read,
+                "Wrong block was read from block log (read ${block_num}, expected ${expected}).",
+                ("block_num", block.block_num())("expected", block_num));
             result = std::move(block);
         }
         return result;

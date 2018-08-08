@@ -40,9 +40,8 @@ BOOST_PP_CAT( method, _return ) method( BOOST_PP_CAT( method, _args )& );
 #define DEFINE_API(class, api_name)                                   \
 api_name ## _return class :: api_name ( api_name ## _args& args )
 
-namespace golos {
-    namespace plugins {
-        namespace json_rpc {
+namespace golos { namespace plugins { namespace json_rpc {
+
             class msg_pack final {
             public:
                 fc::variant id;
@@ -80,11 +79,7 @@ namespace golos {
                 // Pass error to remote connection
                 void error(int32_t code, std::string message, fc::optional<fc::variant> data = fc::optional<fc::variant>());
 
-                void error(std::string message, fc::optional<fc::variant> data = fc::optional<fc::variant>());
-
                 void error(int32_t code, const fc::exception &);
-
-                void error(const fc::exception &);
 
                 fc::optional<std::string> error() const;
 
@@ -128,8 +123,6 @@ namespace golos {
             struct void_type {
             };
 
-        }
-    }
-} // golos::plugins::json_rpc
+} } } // golos::plugins::json_rpc
 
 FC_REFLECT((golos::plugins::json_rpc::void_type),)

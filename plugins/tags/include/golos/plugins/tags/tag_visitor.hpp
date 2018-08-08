@@ -5,7 +5,13 @@
 #include <golos/chain/account_object.hpp>
 #include <boost/algorithm/string.hpp>
 
+
 namespace golos { namespace plugins { namespace tags {
+    using golos::api::discussion_helper;
+
+    comment_metadata get_metadata(const std::string& json_metadata);
+
+    struct comment_date { time_point_sec active; time_point_sec last_update; };
 
     struct operation_visitor {
         operation_visitor(database& db);
@@ -20,6 +26,8 @@ namespace golos { namespace plugins { namespace tags {
         void remove_tag(const tag_object& tag) const;
 
         const tag_stats_object& get_stats(const tag_object&) const;
+
+        comment_date get_comment_last_update(const comment_object& comment) const;
 
         void update_tag(const tag_object&, const comment_object&, double hot, double trending) const;
 
@@ -46,9 +54,9 @@ namespace golos { namespace plugins { namespace tags {
             return sign * order + double(created.sec_since_epoch()) / double(T);
         }
 
-        inline double calculate_hot(const share_type& score, const time_point_sec& created) const;
+        double calculate_hot(const share_type& score, const time_point_sec& created) const;
 
-        inline double calculate_trending(const share_type& score, const time_point_sec& created) const;
+        double calculate_trending(const share_type& score, const time_point_sec& created) const;
 
         /** finds tags that have been added or removed or updated */
         void create_update_tags(const account_name_type& author, const std::string& permlink) const;

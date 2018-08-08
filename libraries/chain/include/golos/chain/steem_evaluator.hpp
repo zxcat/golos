@@ -5,7 +5,9 @@
 #include <golos/chain/evaluator.hpp>
 
 #define ASSERT_REQ_HF(HF, FEATURE) \
-    FC_ASSERT(db().has_hardfork(HF), FEATURE " is not enabled until HF " BOOST_PP_STRINGIZE(HF));
+    GOLOS_ASSERT(db().has_hardfork(HF), unsupported_operation, \
+        "${feature} is not enabled until HF ${hardfork}", \
+        ("feature",FEATURE)("hardfork",BOOST_PP_STRINGIZE(HF)));
 
 namespace golos { namespace chain {
         using namespace golos::protocol;

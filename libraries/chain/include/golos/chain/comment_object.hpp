@@ -40,25 +40,6 @@ namespace golos {
             archived
         };
 
-        class comment_content_object
-                : public object<comment_content_object_type, comment_content_object> {
-        public:
-            comment_content_object() = delete;
-
-            template<typename Constructor, typename Allocator>
-            comment_content_object(Constructor &&c, allocator <Allocator> a)
-                    :title(a), body(a), json_metadata(a) {
-                c(*this);
-            }
-
-            id_type id;
-
-            comment_id_type   comment;
-
-            shared_string title;
-            shared_string body;
-            shared_string json_metadata;
-        };
 
         class comment_object
                 : public object<comment_object_type, comment_object> {
@@ -78,9 +59,7 @@ namespace golos {
             account_name_type author;
             shared_string permlink;
 
-            time_point_sec last_update;
             time_point_sec created;
-            time_point_sec active; ///< the last time this post was "touched" by voting or reply
             time_point_sec last_payout;
 
             uint16_t depth = 0; ///< used to track max nested depth
@@ -105,13 +84,6 @@ namespace golos {
             uint64_t total_vote_weight = 0; /// the total weight of voting rewards, used to calculate pro-rata share of curation payouts
 
             uint16_t reward_weight = 0;
-
-            /** tracks the total payout this comment has received over time, measured in SBD */
-            asset total_payout_value = asset(0, SBD_SYMBOL);
-            asset curator_payout_value = asset(0, SBD_SYMBOL);
-            asset beneficiary_payout_value = asset(0, SBD_SYMBOL);
-
-            share_type author_rewards = 0;
 
             int32_t net_votes = 0;
 
@@ -149,62 +121,53 @@ namespace golos {
             int64_t rshares = 0; ///< The number of rshares this vote is responsible for
             int16_t vote_percent = 0; ///< The percent weight of the vote
             time_point_sec last_update; ///< The time of the last update of the vote
-            int8_t num_changes = 0;
+            int8_t num_changes = 0; ///< Count of vote changes (while consensus). If = -1 then related post is archived & vote no more needed for consensus
         };
 
         struct by_comment_voter;
         struct by_voter_comment;
         struct by_comment_weight_voter;
-        struct by_voter_last_update;
-        typedef multi_index_container <
-        comment_vote_object,
-        indexed_by<
-                ordered_unique < tag <
-                by_id>, member<comment_vote_object, comment_vote_id_type, &comment_vote_object::id>>,
-        ordered_unique <tag<by_comment_voter>,
-        composite_key<comment_vote_object,
-                member <
-                comment_vote_object, comment_id_type, &comment_vote_object::comment>,
-        member<comment_vote_object, account_id_type, &comment_vote_object::voter>
-        >
-        >,
-        ordered_unique <tag<by_voter_comment>,
-        composite_key<comment_vote_object,
-                member <
-                comment_vote_object, account_id_type, &comment_vote_object::voter>,
-        member<comment_vote_object, comment_id_type, &comment_vote_object::comment>
-        >
-        >,
-        ordered_unique <tag<by_voter_last_update>,
-        composite_key<comment_vote_object,
-                member <
-                comment_vote_object, account_id_type, &comment_vote_object::voter>,
-        member<comment_vote_object, time_point_sec, &comment_vote_object::last_update>,
-        member<comment_vote_object, comment_id_type, &comment_vote_object::comment>
-        >,
-        composite_key_compare <std::less<account_id_type>, std::greater<time_point_sec>, std::less<comment_id_type>>
-        >,
-        ordered_unique <tag<by_comment_weight_voter>,
-        composite_key<comment_vote_object,
-                member <
-                comment_vote_object, comment_id_type, &comment_vote_object::comment>,
-        member<comment_vote_object, uint64_t, &comment_vote_object::weight>,
-        member<comment_vote_object, account_id_type, &comment_vote_object::voter>
-        >,
-        composite_key_compare <std::less<comment_id_type>, std::greater<uint64_t>, std::less<account_id_type>>
-        >
-        >,
-        allocator <comment_vote_object>
-        >
-        comment_vote_index;
+        struct by_vote_last_update;
+        using comment_vote_index = multi_index_container<
+            comment_vote_object,
+            indexed_by<
+                ordered_unique<tag<by_id>,
+                    member<comment_vote_object, comment_vote_id_type, &comment_vote_object::id>>,
+                ordered_unique<tag<by_comment_voter>,
+                    composite_key<comment_vote_object,
+                        member<comment_vote_object, comment_id_type, &comment_vote_object::comment>,
+                        member<comment_vote_object, account_id_type, &comment_vote_object::voter>
+                    >
+                >,
+                ordered_unique<tag<by_voter_comment>,
+                    composite_key<comment_vote_object,
+                        member<comment_vote_object, account_id_type, &comment_vote_object::voter>,
+                        member<comment_vote_object, comment_id_type, &comment_vote_object::comment>
+                    >
+                >,
+                ordered_non_unique<tag<by_vote_last_update>,
+                    composite_key<comment_vote_object,
+                        member<comment_vote_object, int8_t, &comment_vote_object::num_changes>,
+                        member<comment_vote_object, time_point_sec, &comment_vote_object::last_update>
+                    >
+                >,
+                ordered_unique<tag<by_comment_weight_voter>,
+                    composite_key<comment_vote_object,
+                        member<comment_vote_object, comment_id_type, &comment_vote_object::comment>,
+                        member<comment_vote_object, uint64_t, &comment_vote_object::weight>,
+                        member<comment_vote_object, account_id_type, &comment_vote_object::voter>
+                    >,
+                    composite_key_compare<std::less<comment_id_type>, std::greater<uint64_t>, std::less<account_id_type>>
+                >
+            >,
+            allocator<comment_vote_object>
+        >;
 
 
         struct by_cashout_time; /// cashout_time
         struct by_permlink; /// author, perm
         struct by_root;
         struct by_parent;
-        struct by_last_update; /// parent_auth, last_update
-        struct by_author_last_update;
 
         /**
          * @ingroup object_index
@@ -213,7 +176,6 @@ namespace golos {
 
             comment_object,
             indexed_by<
-                /// CONSENUSS INDICIES - used by evaluators
                 ordered_unique <
                     tag <by_id>, member<comment_object, comment_id_type, &comment_object::id>>,
                 ordered_unique <
@@ -238,40 +200,11 @@ namespace golos {
                         member <comment_object, account_name_type, &comment_object::parent_author>,
                         member<comment_object, shared_string, &comment_object::parent_permlink>,
                         member<comment_object, comment_id_type, &comment_object::id>>,
-            composite_key_compare <std::less<account_name_type>, strcmp_less, std::less<comment_id_type>> >
-        /// NON_CONSENSUS INDICIES - used by APIs
-#ifndef IS_LOW_MEM
-                ,
-                ordered_unique <
-                    tag<by_last_update>,
-                        composite_key<comment_object,
-                        member <comment_object, account_name_type, &comment_object::parent_author>,
-                        member<comment_object, time_point_sec, &comment_object::last_update>,
-                        member<comment_object, comment_id_type, &comment_object::id>>,
-                    composite_key_compare <std::less<account_name_type>, std::greater<time_point_sec>, std::less<comment_id_type>>>,
-                ordered_unique <
-                    tag<by_author_last_update>,
-                        composite_key<comment_object,
-                        member <comment_object, account_name_type, &comment_object::author>,
-                        member<comment_object, time_point_sec, &comment_object::last_update>,
-                        member<comment_object, comment_id_type, &comment_object::id>>,
-                    composite_key_compare <std::less<account_name_type>, std::greater<time_point_sec>, std::less<comment_id_type>>>
-#endif
+                    composite_key_compare <std::less<account_name_type>, strcmp_less, std::less<comment_id_type>> >
             >,
             allocator <comment_object>
         >
         comment_index;
-
-
-    struct by_comment;
-
-    typedef multi_index_container<
-          comment_content_object,
-          indexed_by<
-             ordered_unique< tag< by_id >, member< comment_content_object, comment_content_id_type, &comment_content_object::id > >,
-             ordered_unique< tag< by_comment >, member< comment_content_object, comment_id_type, &comment_content_object::comment > > >,
-        allocator< comment_content_object >
-    > comment_content_index;
 
     }
 } // golos::chain
@@ -279,8 +212,6 @@ namespace golos {
 FC_REFLECT_ENUM(golos::chain::comment_mode, (not_set)(first_payout)(second_payout)(archived))
 
 CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_object, golos::chain::comment_index)
-
-CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_content_object, golos::chain::comment_content_index)
 
 CHAINBASE_SET_INDEX_TYPE(golos::chain::comment_vote_object, golos::chain::comment_vote_index)
 

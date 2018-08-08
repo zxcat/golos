@@ -2,21 +2,19 @@
 
 #include <appbase/application.hpp>
 
-#include <boost/signals2.hpp>
 #include <golos/protocol/types.hpp>
-#include <golos/chain/database.hpp>
 #include <golos/protocol/block.hpp>
-
-#include <golos/plugins/json_rpc/utility.hpp>
+#include <golos/chain/database.hpp>
 #include <golos/plugins/json_rpc/plugin.hpp>
-// for api
-#include <fc/optional.hpp>
 
-namespace golos {
-    namespace plugins {
-        namespace chain {
+#include <boost/signals2.hpp>
 
-            using golos::plugins::json_rpc::msg_pack;
+
+namespace golos { namespace chain {
+struct database_fixture;
+} } // golos::chain
+
+namespace golos { namespace plugins { namespace chain {
 
             class plugin final : public appbase::plugin<plugin> {
             public:
@@ -26,9 +24,9 @@ namespace golos {
 
                 ~plugin();
 
-                constexpr const static char *plugin_name = "chain";
+                constexpr const static char* plugin_name = "chain";
 
-                static const std::string &name() {
+                static const std::string& name() {
                     static std::string name = plugin_name;
                     return name;
                 }
@@ -90,10 +88,10 @@ namespace golos {
                 boost::signals2::signal<void()> on_sync;
 
             private:
-                class plugin_impl;
+                class impl;
+                std::unique_ptr<impl> my;
 
-                std::unique_ptr<plugin_impl> my;
+                friend struct golos::chain::database_fixture;  // need to set skip_startup field
+                bool skip_startup = false;
             };
-        }
-    }
-} // golos::plugins::chain
+} } } // golos::plugins::chain

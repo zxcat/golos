@@ -1,34 +1,22 @@
 #include <boost/program_options/options_description.hpp>
 #include <golos/plugins/tags/plugin.hpp>
 #include <golos/plugins/tags/tags_object.hpp>
+#include <golos/plugins/json_rpc/api_helper.hpp>
 #include <golos/chain/index.hpp>
 #include <golos/api/discussion.hpp>
 #include <golos/plugins/tags/discussion_query.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/api/discussion_helper.hpp>
-// These visitors creates additional tables, we don't really need them in LOW_MEM mode
 #include <golos/plugins/tags/tag_visitor.hpp>
 #include <golos/chain/operation_notification.hpp>
+#include <golos/protocol/exceptions.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
-#define CHECK_ARG_SIZE(_S)                                 \
-   FC_ASSERT(                                              \
-       args.args->size() == _S,                            \
-       "Expected #_S argument(s), was ${n}",               \
-       ("n", args.args->size()) );
-
-#define CHECK_ARG_MIN_SIZE(_S, _M)                         \
-   FC_ASSERT(                                              \
-       args.args->size() >= _S && args.args->size() <= _M, \
-       "Expected #_S (maximum #_M) argument(s), was ${n}", \
-       ("n", args.args->size()) );
-
-#define GET_OPTIONAL_ARG(_I, _T, _D)   \
-   (args.args->size() > _I) ?          \
-   (args.args->at(_I).as<_T>()) :      \
-   static_cast<_T>(_D)
 
 namespace golos { namespace plugins { namespace tags {
+
+    using golos::plugins::social_network::comment_last_update_index;
 
     using golos::chain::feed_history_object;
     using golos::api::discussion_helper;
@@ -38,22 +26,21 @@ namespace golos { namespace plugins { namespace tags {
             helper = std::make_unique<discussion_helper>(
                 database_,
                 follow::fill_account_reputation,
-                fill_promoted);
+                fill_promoted,
+                social_network::fill_comment_info);
         }
 
         ~impl() {}
 
         void on_operation(const operation_notification& note) {
-#ifndef IS_LOW_MEM
             try {
                 /// plugins shouldn't ever throw
-                note.op.visit(tags::operation_visitor(database()));
+                note.op.visit(tags::operation_visitor(database_));
             } catch (const fc::exception& e) {
                 edump((e.to_detail_string()));
             } catch (...) {
                 elog("unhandled exception");
             }
-#endif
         }
 
         golos::chain::database& database() {
@@ -79,8 +66,8 @@ namespace golos { namespace plugins { namespace tags {
 
         bool filter_query(discussion_query& query) const;
 
-        template<typename DatabaseIndex, typename DiscussionIndex>
-        std::vector<discussion> select_unordered_discussions(discussion_query& query) const;
+        template<typename DatabaseIndex, typename DiscussionIndex, typename Fill>
+        std::vector<discussion> select_unordered_discussions(discussion_query&, Fill&&) const;
 
         template<typename Iterator, typename Order, typename Select, typename Exit>
         void select_discussions(
@@ -114,6 +101,9 @@ namespace golos { namespace plugins { namespace tags {
         discussion create_discussion(const comment_object& o) const;
         discussion create_discussion(const comment_object& o, const discussion_query& query) const;
         void fill_discussion(discussion& d, const discussion_query& query) const;
+        void fill_comment_api_object(const comment_object& o, discussion& d) const;
+
+        comment_api_object create_comment_api_object(const comment_object & o) const;
 
         get_languages_result get_languages();
 
@@ -144,6 +134,10 @@ namespace golos { namespace plugins { namespace tags {
 
     discussion tags_plugin::impl::create_discussion(const comment_object& o) const {
         return helper->create_discussion(o);
+    }
+
+    void tags_plugin::impl::fill_comment_api_object(const comment_object& o, discussion& d) const {
+        helper->fill_comment_api_object(o, d);
     }
 
     void tags_plugin::impl::fill_discussion(discussion& d, const discussion_query& query) const {
@@ -178,7 +172,12 @@ namespace golos { namespace plugins { namespace tags {
         return d;
     }
 
+    comment_api_object tags_plugin::impl::create_comment_api_object(const comment_object & o) const {
+        return helper->create_comment_api_object( o );
+    }
+
     DEFINE_API(tags_plugin, get_languages) {
+        PLUGIN_API_VALIDATE_ARGS();
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_languages();
         });
@@ -208,8 +207,6 @@ namespace golos { namespace plugins { namespace tags {
 
     void tags_plugin::plugin_initialize(const boost::program_options::variables_map& options) {
         pimpl.reset(new impl());
-// Disable index creation for tag visitor
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
         db.post_apply_operation.connect([&](const operation_notification& note) {
             pimpl->on_operation(note);
@@ -218,7 +215,6 @@ namespace golos { namespace plugins { namespace tags {
         add_plugin_index<tags::tag_stats_index>(db);
         add_plugin_index<tags::author_tag_stats_index>(db);
         add_plugin_index<tags::language_index>(db);
-#endif
         JSON_RPC_REGISTER_API (name());
 
     }
@@ -282,7 +278,13 @@ namespace golos { namespace plugins { namespace tags {
             if (!comment) {
                 return false;
             }
+
             query.start_comment = create_discussion(*comment, query);
+            auto& d = query.start_comment;
+            operation_visitor v(database_);
+
+            d.hot = v.calculate_hot(d.net_rshares, d.created);
+            d.trending = v.calculate_trending(d.net_rshares, d.created);
         }
         return true;
     }
@@ -314,8 +316,12 @@ namespace golos { namespace plugins { namespace tags {
 
     template<
         typename DatabaseIndex,
-        typename DiscussionIndex>
-    std::vector<discussion> tags_plugin::impl::select_unordered_discussions(discussion_query& query) const {
+        typename DiscussionIndex,
+        typename Fill>
+    std::vector<discussion> tags_plugin::impl::select_unordered_discussions(
+        discussion_query& query,
+        Fill&& fill
+    ) const {
         std::vector<discussion> result;
 
         if (!filter_start_comment(query) || !filter_query(query)) {
@@ -367,7 +373,8 @@ namespace golos { namespace plugins { namespace tags {
                 }
 
                 fill_discussion(d, query);
-                result.push_back(d);
+                fill(d, *itr);
+                result.push_back(std::move(d));
             }
         }
         return result;
@@ -495,7 +502,6 @@ namespace golos { namespace plugins { namespace tags {
                     }
                     query.reset_start_comment();
                     itr = idx.iterator_to(*citr);
-                    ++itr;
                 }
 
                 unordered.reserve(query.limit);
@@ -536,60 +542,74 @@ namespace golos { namespace plugins { namespace tags {
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_blog) {
-        CHECK_ARG_SIZE(1)
-        std::vector<discussion> result;
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
 
-        auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-        FC_ASSERT(query.select_authors.size(), "Must get blogs for specific authors");
+        GOLOS_CHECK_PARAM(query.select_authors,
+            GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get blogs for specific authors"));
 
-
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
-        FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_api_method, 
+                "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
-            return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(query);
+            return pimpl->select_unordered_discussions<follow::blog_index, follow::by_blog>(
+                query,
+                [&](discussion& d, const follow::blog_object& b) {
+                    d.first_reblogged_on = b.reblogged_on;
+                });
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_feed) {
-        CHECK_ARG_SIZE(1)
-        std::vector<discussion> result;
-
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-        FC_ASSERT(query.select_authors.size(), "Must get feeds for specific authors");
+        GOLOS_CHECK_PARAM(query.select_authors,
+            GOLOS_CHECK_VALUE(query.select_authors.size(), "Must get feeds for specific authors"));
 
-#ifndef IS_LOW_MEM
         auto& db = pimpl->database();
-        FC_ASSERT(db.has_index<follow::feed_index>(), "Node is not running the follow plugin");
+        GOLOS_ASSERT(db.has_index<follow::feed_index>(), golos::unsupported_api_method,
+                "Node is not running the follow plugin");
 
         return db.with_weak_read_lock([&]() {
-            return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(query);
+            return pimpl->select_unordered_discussions<follow::feed_index, follow::by_feed>(
+                query,
+                [&](discussion& d, const follow::feed_object& f) {
+                    d.reblogged_by.assign(f.reblogged_by.begin(), f.reblogged_by.end());
+                    d.first_reblogged_by = f.first_reblogged_by;
+                    d.first_reblogged_on = f.first_reblogged_on;
+                });
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_comments) {
-        CHECK_ARG_SIZE(1)
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         std::vector<discussion> result;
-#ifndef IS_LOW_MEM
-        auto query = args.args->at(0).as<discussion_query>();
         query.prepare();
         query.validate();
-        FC_ASSERT(!!query.start_author, "Must get comments for a specific author");
+        GOLOS_CHECK_PARAM(query.start_author,
+            GOLOS_CHECK_VALUE(!!query.start_author, "Must get comments for specific authors"));
 
         auto& db = pimpl->database();
+
+        if (!db.has_index<comment_last_update_index>()) {
+            return result;
+        }
+
         return db.with_weak_read_lock([&]() {
-            const auto &idx = db.get_index<comment_index>().indices().get<by_author_last_update>();
-            auto itr = idx.lower_bound(*query.start_author);
-            if (itr == idx.end()) {
+            const auto& clu_cmt_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+            const auto& clu_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_author_last_update>();
+
+            auto itr = clu_idx.lower_bound(*query.start_author);
+            if (itr == clu_idx.end()) {
                 return result;
             }
 
@@ -599,7 +619,12 @@ namespace golos { namespace plugins { namespace tags {
                 if (litr == lidx.end()) {
                     return result;
                 }
-                itr = idx.iterator_to(*litr);
+                auto clu_itr = clu_cmt_idx.find(litr->id);
+                if (clu_itr == clu_cmt_idx.end()) {
+                    return result;
+                } else {
+                    itr = clu_idx.iterator_to(*clu_itr);
+                }
             }
 
             if (!pimpl->filter_query(query)) {
@@ -608,171 +633,158 @@ namespace golos { namespace plugins { namespace tags {
 
             result.reserve(query.limit);
 
-            for (; itr != idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
+            for (; itr != clu_idx.end() && itr->author == *query.start_author && result.size() < query.limit; ++itr) {
                 if (itr->parent_author.size() > 0) {
-                    discussion p(db.get<comment_object>(itr->root_comment), db);
+                    discussion p;
+                    auto& comment = db.get_comment(itr->comment);
+                    pimpl->fill_comment_api_object(db.get_comment(comment.root_comment), p);
                     if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
                         continue;
                     }
-                    result.emplace_back(discussion(*itr, db));
+                    discussion d;
+                    pimpl->fill_comment_api_object(comment, d);
+                    result.push_back(std::move(d));
                     pimpl->fill_discussion(result.back(), query);
                 }
             }
             return result;
         });
-#endif
-        return result;
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_trending) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_trending>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_promoted) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_promoted>(
             query,
             [&](const discussion& d) -> bool {
                 return !!d.promoted && d.promoted->amount > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_created) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_created>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_active) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
+        auto& db = pimpl->database();
+        if (!db.has_index<comment_last_update_index>()) {
+            return std::vector<discussion>();
+        }
         return pimpl->select_ordered_discussions<sort::by_active>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_cashout) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_cashout>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_payout) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_net_rshares>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_votes) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_net_votes>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_children) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_children>(
             query,
             [&](const discussion& d) -> bool {
                 return true;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     DEFINE_API(tags_plugin, get_discussions_by_hot) {
-        CHECK_ARG_SIZE(1)
-        auto query = args.args->at(0).as<discussion_query>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (discussion_query, query)
+        );
         query.prepare();
         query.validate();
-#ifndef IS_LOW_MEM
         return pimpl->select_ordered_discussions<sort::by_hot>(
             query,
             [&](const discussion& d) -> bool {
                 return d.net_rshares > 0;
             }
         );
-#endif
-        return std::vector<discussion>();
     }
 
     std::vector<tag_api_object>
     tags_plugin::impl::get_trending_tags(const std::string& after, uint32_t limit) const {
         limit = std::min(limit, uint32_t(1000));
         std::vector<tag_api_object> result;
-#ifndef IS_LOW_MEM
         result.reserve(limit);
 
         const auto& nidx = database().get_index<tags::tag_stats_index>().indices().get<tags::by_tag>();
@@ -800,14 +812,14 @@ namespace golos { namespace plugins { namespace tags {
 
             result.emplace_back(push_object);
         }
-#endif
         return result;
     }
 
     DEFINE_API(tags_plugin, get_trending_tags) {
-        CHECK_ARG_SIZE(2)
-        auto after = args.args->at(0).as<string>();
-        auto limit = args.args->at(1).as<uint32_t>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,   after)
+            (uint32_t, limit)
+        );
 
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_trending_tags(after, limit);
@@ -818,7 +830,6 @@ namespace golos { namespace plugins { namespace tags {
         const std::string& author
     ) const {
         std::vector<std::pair<std::string, uint32_t>> result;
-#ifndef IS_LOW_MEM
         auto& db = database();
         const auto* acnt = db.find_account(author);
         if (acnt == nullptr) {
@@ -835,13 +846,13 @@ namespace golos { namespace plugins { namespace tags {
                 }
             }
         }
-#endif
         return result;
     }
 
     DEFINE_API(tags_plugin, get_tags_used_by_author) {
-        CHECK_ARG_SIZE(1)
-        auto author = args.args->at(0).as<string>();
+        PLUGIN_API_VALIDATE_ARGS(
+            (string, author)
+        );
         return pimpl->database().with_weak_read_lock([&]() {
             return pimpl->get_tags_used_by_author(author);
         });
@@ -850,15 +861,14 @@ namespace golos { namespace plugins { namespace tags {
     DEFINE_API(tags_plugin, get_discussions_by_author_before_date) {
         std::vector<discussion> result;
 
-        CHECK_ARG_MIN_SIZE(4, 5)
-#ifndef IS_LOW_MEM
-        auto author = args.args->at(0).as<std::string>();
-        auto start_permlink = args.args->at(1).as<std::string>();
-        auto before_date = args.args->at(2).as<time_point_sec>();
-        auto limit = args.args->at(3).as<uint32_t>();
-        auto vote_limit = GET_OPTIONAL_ARG(4, uint32_t, DEFAULT_VOTE_LIMIT);
-
-        FC_ASSERT(limit <= 100);
+        PLUGIN_API_VALIDATE_ARGS(
+            (string,         author)
+            (string,         start_permlink)
+            (time_point_sec, before_date)
+            (uint32_t,       limit)
+            (uint32_t,       vote_limit, DEFAULT_VOTE_LIMIT)
+        );
+        GOLOS_CHECK_LIMIT_PARAM(limit, 100);
 
         result.reserve(limit);
 
@@ -868,32 +878,38 @@ namespace golos { namespace plugins { namespace tags {
 
         auto& db = pimpl->database();
 
+        if (!db.has_index<comment_last_update_index>()) {
+            return result;
+        }
+
         return db.with_weak_read_lock([&]() {
             try {
                 uint32_t count = 0;
-                const auto& didx = db.get_index<comment_index>().indices().get<by_author_last_update>();
+                const auto& clu_cmt_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+                const auto& clu_idx = db.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_author_last_update>();
 
-                auto itr = didx.lower_bound(std::make_tuple(author, before_date));
+                auto itr = clu_idx.lower_bound(std::make_tuple(author, before_date));
                 if (start_permlink.size()) {
-                    const auto& comment = db.get_comment(author, start_permlink);
-                    if (comment.last_update < before_date) {
-                        itr = didx.iterator_to(comment);
+                    const auto comment = db.find_comment(author, start_permlink);
+                    if (comment == nullptr) {
+                        return result;
+                    }
+                    auto clu_itr = clu_cmt_idx.find(comment->id);
+                    if (clu_itr != clu_cmt_idx.end() && clu_itr->last_update < before_date) {
+                        itr = clu_idx.iterator_to(*clu_itr);
                     }
                 }
 
-                while (itr != didx.end() && itr->author == author && count < limit) {
+                for (; itr != clu_idx.end() && itr->author == author && count < limit; ++itr) {
                     if (itr->parent_author.size() == 0) {
-                        result.push_back(pimpl->get_discussion(*itr, vote_limit));
+                        result.push_back(pimpl->get_discussion(db.get_comment(itr->comment), vote_limit));
                         ++count;
                     }
-                    ++itr;
                 }
 
                 return result;
             } FC_CAPTURE_AND_RETHROW((author)(start_permlink)(before_date)(limit))
         });
-#endif
-        return result;
     }
 
     // Needed for correct work of golos::api::discussion_helper::set_pending_payout and etc api methods

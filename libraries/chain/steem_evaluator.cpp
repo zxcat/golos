@@ -4,31 +4,87 @@
 #include <golos/chain/steem_objects.hpp>
 #include <golos/chain/block_summary_object.hpp>
 
-#ifndef IS_LOW_MEM
+#define GOLOS_CHECK_BALANCE(ACCOUNT, TYPE, REQUIRED ...) \
+    FC_EXPAND_MACRO( \
+        FC_MULTILINE_MACRO_BEGIN \
+            asset exist = get_balance(ACCOUNT, TYPE, (REQUIRED).symbol); \
+            if( UNLIKELY( exist < (REQUIRED) )) { \
+                FC_THROW_EXCEPTION( golos::insufficient_funds, \
+                        "Account \"${account}\" does not have enough ${balance}: required ${required}, exist ${exist}", \
+                        ("account",ACCOUNT.name)("balance",get_balance_name(TYPE))("required",REQUIRED)("exist",exist)); \
+            } \
+        FC_MULTILINE_MACRO_END \
+    )
 
-#include <diff_match_patch.h>
-#include <boost/locale/encoding_utf.hpp>
-
-using boost::locale::conv::utf_to_utf;
-
-std::wstring utf8_to_wstring(const std::string &str) {
-    return utf_to_utf<wchar_t>(str.c_str(), str.c_str() + str.size());
-}
-
-std::string wstring_to_utf8(const std::wstring &str) {
-    return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
-}
-
-#endif
-
+#define GOLOS_CHECK_BANDWIDTH(NOW, NEXT, TYPE, MSG, ...) \
+    GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
+            ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
 
 namespace golos { namespace chain {
         using fc::uint128_t;
 
+    enum balance_type {
+        MAIN_BALANCE,
+        SAVINGS,
+        VESTING,
+        EFFECTIVE_VESTING,
+        HAVING_VESTING,
+        AVAILABLE_VESTING
+    };
+
+    asset get_balance(const account_object &account, balance_type type, asset_symbol_type symbol) {
+        switch(type) {
+            case MAIN_BALANCE:
+                switch (symbol) {
+                    case STEEM_SYMBOL:
+                        return account.balance;
+                    case SBD_SYMBOL:
+                        return account.sbd_balance;
+                    default:
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
+                }
+            case SAVINGS:
+                switch (symbol) {
+                    case STEEM_SYMBOL:
+                        return account.savings_balance;
+                    case SBD_SYMBOL:
+                        return account.savings_sbd_balance;
+                    default:
+                        GOLOS_CHECK_VALUE(false, "invalid symbol");
+                }
+            case VESTING:
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
+                return account.vesting_shares;
+            case EFFECTIVE_VESTING:
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
+                return account.effective_vesting_shares();
+            case HAVING_VESTING:
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
+                return account.available_vesting_shares(false);
+            case AVAILABLE_VESTING:
+                GOLOS_CHECK_VALUE(symbol == VESTS_SYMBOL, "invalid symbol");
+                return account.available_vesting_shares(true);
+            default: FC_ASSERT(false, "invalid balance type");
+        }
+    }
+
+    std::string get_balance_name(balance_type type) {
+        switch(type) {
+            case MAIN_BALANCE: return "fund";
+            case SAVINGS: return "savings";
+            case VESTING: return "vesting shares";
+            case EFFECTIVE_VESTING: return "effective vesting shares";
+            case HAVING_VESTING: return "having vesting shares";
+            case AVAILABLE_VESTING: return "available vesting shares";
+            default: FC_ASSERT(false, "invalid balance type");
+        }
+    }
+
         inline void validate_permlink_0_1(const string &permlink) {
-            FC_ASSERT(permlink.size() > STEEMIT_MIN_PERMLINK_LENGTH &&
-                      permlink.size() <
-                      STEEMIT_MAX_PERMLINK_LENGTH, "Permlink is not a valid size.");
+            GOLOS_CHECK_VALUE(permlink.size() > STEEMIT_MIN_PERMLINK_LENGTH &&
+                      permlink.size() < STEEMIT_MAX_PERMLINK_LENGTH, 
+                      "Permlink is not a valid size. Permlink length should be more ${min} and less ${max}",
+                      ("min", STEEMIT_MIN_PERMLINK_LENGTH)("max", STEEMIT_MAX_PERMLINK_LENGTH));
 
             for (auto c : permlink) {
                 switch (c) {
@@ -71,8 +127,8 @@ namespace golos { namespace chain {
                     case '-':
                         break;
                     default:
-                        FC_ASSERT(false, "Invalid permlink character: ${s}", ("s",
-                                std::string() + c));
+                        FC_THROW_EXCEPTION(invalid_value, "Invalid permlink character: ${s}",
+                                ("s", std::string() + c));
                 }
             }
         }
@@ -87,7 +143,14 @@ namespace golos { namespace chain {
         void store_account_json_metadata(
             database& db, const account_name_type& account, const string& json_metadata, bool skip_empty = false
         ) {
-#ifndef IS_LOW_MEM
+            if (!db.store_metadata_for_account(account)) {
+                auto meta = db.find<account_metadata_object, by_account>(account);
+                if (meta != nullptr) {
+                    db.remove(*meta);
+                }
+                return;
+            }
+
             if (skip_empty && json_metadata.size() == 0)
                 return;
 
@@ -104,20 +167,20 @@ namespace golos { namespace chain {
                     from_string(a.json_metadata, json_metadata);
                 });
             }
-#endif
         }
 
         void account_create_evaluator::do_apply(const account_create_operation &o) {
             const auto& creator = _db.get_account(o.creator);
 
-            FC_ASSERT(creator.balance >= o.fee,
-                "Insufficient balance to create account.", ("creator.balance", creator.balance)("required", o.fee));
+            GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
 
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                 const auto& median_props = _db.get_witness_schedule_object().median_props;
                 auto min_fee = median_props.account_creation_fee;
-                FC_ASSERT(o.fee >= min_fee,
-                    "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                GOLOS_CHECK_OP_PARAM(o, fee,
+                    GOLOS_CHECK_VALUE(o.fee >= min_fee,
+                        "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_fee)("p", o.fee));
+                );
             }
 
             if (_db.is_producing() ||
@@ -138,6 +201,8 @@ namespace golos { namespace chain {
             _db.modify(creator, [&](account_object &c) {
                 c.balance -= o.fee;
             });
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, account, o.new_account_name);
 
             const auto& props = _db.get_dynamic_global_properties();
             const auto& new_account = _db.create<account_object>([&](account_object& acc) {
@@ -169,16 +234,9 @@ namespace golos { namespace chain {
         }
 
         void account_create_with_delegation_evaluator::do_apply(const account_create_with_delegation_operation& o) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__535, "Account creation with delegation");
-
             const auto& creator = _db.get_account(o.creator);
-            FC_ASSERT(creator.balance >= o.fee, "Insufficient balance to create account.",
-                ("creator.balance", creator.balance)("required", o.fee));
-            FC_ASSERT(creator.available_vesting_shares(true) >= o.delegation,
-                "Insufficient vesting shares to delegate to new account.",
-                ("creator.vesting_shares", creator.vesting_shares)
-                ("creator.delegated_vesting_shares", creator.delegated_vesting_shares)
-                ("required", o.delegation));
+            GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
+            GOLOS_CHECK_BALANCE(creator, AVAILABLE_VESTING, o.delegation);
 
             const auto& v_share_price = _db.get_dynamic_global_properties().get_vesting_share_price();
             const auto& median_props = _db.get_witness_schedule_object().median_props;
@@ -191,11 +249,15 @@ namespace golos { namespace chain {
 #endif
             auto current_delegation = o.fee * target.amount.value / min_fee * v_share_price + o.delegation;
 
-            FC_ASSERT(current_delegation >= target_delegation,
-                "Inssufficient Delegation ${f} required, ${p} provided.",
+            GOLOS_CHECK_LOGIC(current_delegation >= target_delegation,
+                logic_exception::not_enough_delegation,
+                "Insufficient Delegation ${f} required, ${p} provided.",
                 ("f", target_delegation)("p", current_delegation)("o.fee", o.fee) ("o.delegation", o.delegation));
-            FC_ASSERT(o.fee >= median_props.create_account_min_golos_fee,
-                "Insufficient Fee: ${f} required, ${p} provided.", ("f", median_props.create_account_min_golos_fee)("p", o.fee));
+            auto min_golos = median_props.create_account_min_golos_fee;
+            GOLOS_CHECK_OP_PARAM(o, fee, {
+                GOLOS_CHECK_VALUE(o.fee >= min_golos,
+                    "Insufficient Fee: ${f} required, ${p} provided.", ("f", min_golos)("p", o.fee));
+            });
 
             for (auto& a : o.owner.account_auths) {
                 _db.get_account(a.first);
@@ -231,7 +293,7 @@ namespace golos { namespace chain {
                 auth.posting = o.posting;
                 auth.last_owner_update = fc::time_point_sec::min();
             });
-            if (o.delegation.amount > 0) {  // Is it needed to allow zero delegation in this method ?
+            if (o.delegation.amount > 0) {
                 _db.create<vesting_delegation_object>([&](vesting_delegation_object& d) {
                     d.delegator = o.creator;
                     d.delegatee = o.new_account_name;
@@ -245,10 +307,10 @@ namespace golos { namespace chain {
         }
 
         void account_update_evaluator::do_apply(const account_update_operation &o) {
-            database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_1))
-                FC_ASSERT(o.account !=
-                          STEEMIT_TEMP_ACCOUNT, "Cannot update temp account.");
+                GOLOS_CHECK_OP_PARAM(o, account,
+                    GOLOS_CHECK_VALUE(o.account != STEEMIT_TEMP_ACCOUNT,
+                          "Cannot update temp account."));
 
             if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
                  _db.is_producing()) && o.posting) { // TODO: Add HF 15
@@ -256,14 +318,15 @@ namespace golos { namespace chain {
             }
 
             const auto &account = _db.get_account(o.account);
-            const auto &account_auth = _db.get<account_authority_object, by_account>(o.account);
+            const auto &account_auth = _db.get_authority(o.account);
 
             if (o.owner) {
 #ifndef STEEMIT_BUILD_TESTNET
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    FC_ASSERT(_db.head_block_time() -
-                              account_auth.last_owner_update >
-                              STEEMIT_OWNER_UPDATE_LIMIT, "Owner authority can only be updated once an hour.");
+                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(),
+                            account_auth.last_owner_update + STEEMIT_OWNER_UPDATE_LIMIT,
+                            bandwidth_exception::change_owner_authority_bandwidth,
+                            "Owner authority can only be updated once an hour.");
 #endif
 
                 if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
@@ -320,7 +383,6 @@ namespace golos { namespace chain {
         }
 
         void account_metadata_evaluator::do_apply(const account_metadata_operation& o) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__196, "account_metadata_operation"); //TODO: Delete after hardfork
             const auto& account = _db.get_account(o.account);
             _db.modify(account, [&](account_object& a) {
                 a.last_account_update = _db.head_block_time();
@@ -332,20 +394,22 @@ namespace golos { namespace chain {
  *  Because net_rshares is 0 there is no need to update any pending payout calculations or parent posts.
  */
         void delete_comment_evaluator::do_apply(const delete_comment_operation &o) {
-            database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                 const auto &auth = _db.get_account(o.author);
-                FC_ASSERT(!(auth.owner_challenged ||
-                            auth.active_challenged), "Operation cannot be processed because account is currently challenged.");
+                GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
+                        logic_exception::account_is_currently_challenged,
+                        "Operation cannot be processed because account is currently challenged.");
             }
 
             const auto &comment = _db.get_comment(o.author, o.permlink);
-            FC_ASSERT(comment.children ==
-                      0, "Cannot delete a comment with replies.");
+            GOLOS_CHECK_LOGIC(comment.children == 0,
+                    logic_exception::cannot_delete_comment_with_replies,
+                    "Cannot delete a comment with replies.");
 
             if (_db.is_producing()) {
-                FC_ASSERT(comment.net_rshares <=
-                          0, "Cannot delete a comment with network positive votes.");
+                GOLOS_CHECK_LOGIC(comment.net_rshares <= 0,
+                        logic_exception::cannot_delete_comment_with_positive_votes,
+                        "Cannot delete a comment with network positive votes.");
             }
             if (comment.net_rshares > 0) {
                 return;
@@ -365,26 +429,18 @@ namespace golos { namespace chain {
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__80) &&
                 comment.parent_author != STEEMIT_ROOT_POST_PARENT) {
                 auto parent = &_db.get_comment(comment.parent_author, comment.parent_permlink);
-                auto now = _db.head_block_time();
                 while (parent) {
                     _db.modify(*parent, [&](comment_object &p) {
                         p.children--;
-                        p.active = now;
                     });
-#ifndef IS_LOW_MEM
                     if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                         parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                     } else
-#endif
                     {
                         parent = nullptr;
                     }
                 }
             }
-#ifndef IS_LOW_MEM
-            auto& content = _db.get_comment_content(comment.id);
-            _db.remove(content);
-#endif
             _db.remove(comment);
         }
 
@@ -400,17 +456,21 @@ namespace golos { namespace chain {
 
             void operator()(const comment_payout_beneficiaries &cpb) const {
                 if (_db.is_producing()) {
-                    FC_ASSERT(cpb.beneficiaries.size() <= STEEMIT_MAX_COMMENT_BENEFICIARIES,
-                              "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
+                    GOLOS_CHECK_LOGIC(cpb.beneficiaries.size() <= STEEMIT_MAX_COMMENT_BENEFICIARIES,
+                            logic_exception::cannot_specify_more_beneficiaries,
+                            "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
                 }
 
-                FC_ASSERT(_c.beneficiaries.size() == 0, "Comment already has beneficiaries specified.");
-                FC_ASSERT(_c.abs_rshares == 0, "Comment must not have been voted on before specifying beneficiaries.");
+                GOLOS_CHECK_LOGIC(_c.beneficiaries.size() == 0,
+                        logic_exception::comment_already_has_beneficiaries,
+                        "Comment already has beneficiaries specified.");
+                GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                        logic_exception::comment_must_not_have_been_voted,
+                        "Comment must not have been voted on before specifying beneficiaries.");
 
                 _db.modify(_c, [&](comment_object &c) {
                     for (auto &b : cpb.beneficiaries) {
-                        auto acc = _db.find< account_object, by_name >( b.account );
-                        FC_ASSERT( acc != nullptr, "Beneficiary \"${a}\" must exist.", ("a", b.account) );
+                        _db.get_account(b.account);   // check beneficiary exists
                         c.beneficiaries.push_back(b);
                     }
                 });
@@ -421,30 +481,31 @@ namespace golos { namespace chain {
             database &_db = db();
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                 const auto &auth = _db.get_account(o.author);
-                FC_ASSERT(!(auth.owner_challenged || auth.active_challenged),
-                          "Operation cannot be processed because account is currently challenged.");
+                GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
+                        logic_exception::account_is_currently_challenged,
+                        "Operation cannot be processed because account is currently challenged.");
             }
 
 
             const auto &comment = _db.get_comment(o.author, o.permlink);
             if (!o.allow_curation_rewards || !o.allow_votes || o.max_accepted_payout < comment.max_accepted_payout) {
-                FC_ASSERT(comment.abs_rshares == 0,
-                          "One of the included comment options requires the comment to have no rshares allocated to it.");
+                GOLOS_CHECK_LOGIC(comment.abs_rshares == 0,
+                        logic_exception::comment_options_requires_no_rshares,
+                        "One of the included comment options requires the comment to have no rshares allocated to it.");
             }
 
-            if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__432)) {// TODO: Remove after hardfork 17
-                FC_ASSERT(o.extensions.size() == 0,
-                          "Operation extensions for the comment_options_operation are not currently supported.");
-            }
-
-            FC_ASSERT(comment.allow_curation_rewards >= o.allow_curation_rewards,
-                      "Curation rewards cannot be re-enabled.");
-            FC_ASSERT(comment.allow_votes >= o.allow_votes,
-                      "Voting cannot be re-enabled.");
-            FC_ASSERT(comment.max_accepted_payout >= o.max_accepted_payout,
-                      "A comment cannot accept a greater payout.");
-            FC_ASSERT(comment.percent_steem_dollars >= o.percent_steem_dollars,
-                      "A comment cannot accept a greater percent SBD.");
+            GOLOS_CHECK_LOGIC(comment.allow_curation_rewards >= o.allow_curation_rewards,
+                    logic_exception::curation_rewards_cannot_be_reenabled,
+                    "Curation rewards cannot be re-enabled.");
+            GOLOS_CHECK_LOGIC(comment.allow_votes >= o.allow_votes,
+                    logic_exception::voting_cannot_be_reenabled,
+                    "Voting cannot be re-enabled.");
+            GOLOS_CHECK_LOGIC(comment.max_accepted_payout >= o.max_accepted_payout,
+                    logic_exception::comment_cannot_accept_greater_payout,
+                    "A comment cannot accept a greater payout.");
+            GOLOS_CHECK_LOGIC(comment.percent_steem_dollars >= o.percent_steem_dollars,
+                    logic_exception::comment_cannot_accept_greater_percent_GBG,
+                    "A comment cannot accept a greater percent SBD.");
 
             _db.modify(comment, [&](comment_object &c) {
                 c.max_accepted_payout = o.max_accepted_payout;
@@ -460,12 +521,11 @@ namespace golos { namespace chain {
 
         void comment_evaluator::do_apply(const comment_operation &o) {
             try {
-                database &_db = db();
-
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__55))
-                    FC_ASSERT(o.title.size() + o.body.size() +
-                              o.json_metadata.size(), "Cannot update comment because nothing appears to be changing.");
+                    GOLOS_CHECK_LOGIC(o.title.size() + o.body.size() + o.json_metadata.size(),
+                            logic_exception::cannot_update_comment_because_nothing_changed,
+                            "Cannot update comment because nothing appears to be changing.");
 
                 const auto &by_permlink_idx = _db.get_index<comment_index>().indices().get<by_permlink>();
                 auto itr = by_permlink_idx.find(boost::make_tuple(o.author, o.permlink));
@@ -473,8 +533,9 @@ namespace golos { namespace chain {
                 const auto &auth = _db.get_account(o.author); /// prove it exists
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    FC_ASSERT(!(auth.owner_challenged ||
-                                auth.active_challenged), "Operation cannot be processed because account is currently challenged.");
+                    GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
+                            logic_exception::account_is_currently_challenged,
+                            "Operation cannot be processed because account is currently challenged.");
 
                 comment_id_type id;
 
@@ -487,20 +548,18 @@ namespace golos { namespace chain {
                     } else if (_db.is_producing()) {
                         max_depth = STEEMIT_SOFT_MAX_COMMENT_DEPTH;
                     }
-                    FC_ASSERT(parent->depth < max_depth,
-                              "Comment is nested ${x} posts deep, maximum depth is ${y}.",
-                              ("x", parent->depth)("y", max_depth));
+                    GOLOS_CHECK_LOGIC(parent->depth < max_depth,
+                            logic_exception::reached_comment_max_depth,
+                            "Comment is nested ${x} posts deep, maximum depth is ${y}.",
+                            ("x", parent->depth)("y", max_depth));
                 }
                 auto now = _db.head_block_time();
 
                 if (itr == by_permlink_idx.end()) {
                     if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
-                        FC_ASSERT(_db.get(parent->root_comment).allow_replies, "The parent comment has disabled replies.");
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) && !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536) ) {
-                            FC_ASSERT(
-                                    _db.calculate_discussion_payout_time(*parent) !=
-                                    fc::time_point_sec::maximum(), "Discussion is frozen.");
-                        }
+                        GOLOS_CHECK_LOGIC(_db.get(parent->root_comment).allow_replies,
+                                logic_exception::replies_are_not_allowed,
+                                "The parent comment has disabled replies.");
                     }
 
                     auto band = _db.find<account_bandwidth_object, by_account_bandwidth_type>(std::make_tuple(o.author, bandwidth_type::post));
@@ -513,21 +572,26 @@ namespace golos { namespace chain {
 
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            FC_ASSERT((now - band->last_bandwidth_update) >
-                                      STEEMIT_MIN_ROOT_COMMENT_INTERVAL, "You may only post once every 5 minutes.", ("now", now)("last_root_post", band->last_bandwidth_update));
+                            GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                                    bandwidth_exception::post_bandwidth,
+                                    "You may only post once every 5 minutes.");
                         else
-                            FC_ASSERT((now - auth.last_post) >
-                                      STEEMIT_MIN_REPLY_INTERVAL, "You may only comment once every 20 seconds.", ("now", now)("auth.last_post", auth.last_post));
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
+                                    golos::bandwidth_exception::comment_bandwidth,
+                                    "You may only comment once every 20 seconds.");
                     } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            FC_ASSERT((now - auth.last_post) >
-                                      STEEMIT_MIN_ROOT_COMMENT_INTERVAL, "You may only post once every 5 minutes.", ("now", now)("auth.last_post", auth.last_post));
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                                    bandwidth_exception::post_bandwidth,
+                                    "You may only post once every 5 minutes.");
                         else
-                            FC_ASSERT((now - auth.last_post) >
-                                      STEEMIT_MIN_REPLY_INTERVAL, "You may only comment once every 20 seconds.", ("now", now)("auth.last_post", auth.last_post));
+                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
+                                bandwidth_exception::comment_bandwidth,
+                                "You may only comment once every 20 seconds.");
                     } else {
-                        FC_ASSERT((now - auth.last_post) >
-                                  fc::seconds(60), "You may only post once per minute.", ("now", now)("auth.last_post", auth.last_post));
+                        GOLOS_CHECK_BANDWIDTH(now, auth.last_post + 60,
+                                bandwidth_exception::post_bandwidth,
+                                "You may only post once per minute.");
                     }
 
                     uint16_t reward_weight = STEEMIT_100_PERCENT;
@@ -562,17 +626,15 @@ namespace golos { namespace chain {
                         a.post_count++;
                     });
 
-                    const auto &new_comment = _db.create<comment_object>([&](comment_object &com) {
+                    _db.create<comment_object>([&](comment_object &com) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
-                            validate_permlink_0_1(o.parent_permlink);
-                            validate_permlink_0_1(o.permlink);
+                            GOLOS_CHECK_OP_PARAM(o, parent_permlink, validate_permlink_0_1(o.parent_permlink));
+                            GOLOS_CHECK_OP_PARAM(o, permlink,        validate_permlink_0_1(o.permlink));
                         }
 
                         com.author = o.author;
                         from_string(com.permlink, o.permlink);
-                        com.last_update = _db.head_block_time();
-                        com.created = com.last_update;
-                        com.active = com.last_update;
+                        com.created = _db.head_block_time();
                         com.last_payout = fc::time_point_sec::min();
                         com.max_cashout_time = fc::time_point_sec::maximum();
                         com.reward_weight = reward_weight;
@@ -599,120 +661,50 @@ namespace golos { namespace chain {
                         }
 
                     });
-                    id = new_comment.id;
-#ifndef IS_LOW_MEM
-                    _db.create<comment_content_object>([&](comment_content_object& con) {
-                        con.comment = id;
-                        from_string(con.title, o.title);
-                        if (o.body.size() < 1024*1024*128) {
-                            from_string(con.body, o.body);
-                        }
-                        if (fc::is_utf8(o.json_metadata)) {
-                            from_string(con.json_metadata, o.json_metadata);
-                        } else {
-                            wlog("Comment ${a}/${p} contains invalid UTF-8 metadata",
-                                 ("a", o.author)("p", o.permlink));
-                        }
-                    });
-#endif
-/// this loop can be skiped for validate-only nodes as it is merely gathering stats for indicies
-                    auto now = _db.head_block_time();
+
                     while (parent) {
                         _db.modify(*parent, [&](comment_object &p) {
                             p.children++;
-                            p.active = now;
                         });
-#ifndef IS_LOW_MEM
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
                             parent = &_db.get_comment(parent->parent_author, parent->parent_permlink);
                         } else
-#endif
                         {
                             parent = nullptr;
                         }
                     }
 
-                } else // start edit case
-                {
-                    const auto &comment = *itr;
-                    if ( !_db.has_hardfork( STEEMIT_HARDFORK_0_18__536 ) ) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__306)) {
-                            FC_ASSERT(_db.calculate_discussion_payout_time(comment) != fc::time_point_sec::maximum(),
-                                      "The comment is archived.");
-                        } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
-                            FC_ASSERT(comment.last_payout == fc::time_point_sec::min(),
-                                      "Can only edit during the first 24 hours.");
-                        }
-                    }
-
-                    _db.modify(comment, [&](comment_object &com) {
-                        com.last_update = _db.head_block_time();
-                        com.active = com.last_update;
+                } else {
+                    // start edit case
+                    const auto& comment = *itr;
+                    _db.modify(comment, [&](comment_object& com) {
                         strcmp_equal equal;
 
-                        if (!parent) {
-                            FC_ASSERT(com.parent_author ==
-                                      account_name_type(), "The parent of a comment cannot change.");
-                            FC_ASSERT(equal(com.parent_permlink, o.parent_permlink), "The permlink of a comment cannot change.");
-                        } else {
-                            FC_ASSERT(com.parent_author ==
-                                      o.parent_author, "The parent of a comment cannot change.");
-                            FC_ASSERT(equal(com.parent_permlink, o.parent_permlink), "The permlink of a comment cannot change.");
-                        }
+                        GOLOS_CHECK_LOGIC(com.parent_author == (parent ? o.parent_author : account_name_type()),
+                                logic_exception::parent_of_comment_cannot_change,
+                                "The parent of a comment cannot change.");
+                        GOLOS_CHECK_LOGIC(equal(com.parent_permlink, o.parent_permlink),
+                                logic_exception::parent_perlink_of_comment_cannot_change,
+                                "The parent permlink of a comment cannot change.");
 
                     });
-#ifndef IS_LOW_MEM
-                    _db.modify(_db.get< comment_content_object, by_comment >( comment.id ), [&]( comment_content_object& con ) {
-                        if (o.title.size())
-                            from_string(con.title, o.title);
-                        if (o.json_metadata.size()) {
-                            if (fc::is_utf8(o.json_metadata))
-                                from_string(con.json_metadata, o.json_metadata );
-                            else
-                                wlog("Comment ${a}/${p} contains invalid UTF-8 metadata", ("a", o.author)("p", o.permlink));
-                        }
-                        if (o.body.size()) {
-                            try {
-                                diff_match_patch<std::wstring> dmp;
-                                auto patch = dmp.patch_fromText(utf8_to_wstring(o.body));
-                                if (patch.size()) {
-                                    auto result = dmp.patch_apply(patch, utf8_to_wstring(to_string(con.body)));
-                                    auto patched_body = wstring_to_utf8(result.first);
-                                    if(!fc::is_utf8(patched_body)) {
-                                        idump(("invalid utf8")(patched_body));
-                                        from_string(con.body, fc::prune_invalid_utf8(patched_body));
-                                    }
-                                    else {
-                                        from_string(con.body, patched_body);
-                                    }
-                                }
-                                else { // replace
-                                    from_string(con.body, o.body);
-                                }
-                            } catch ( ... ) {
-                                from_string(con.body, o.body);
-                            }
-                        }
-                    });
-#endif
-
                 } // end EDIT case
 
             } FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_transfer_evaluator::do_apply(const escrow_transfer_operation &o) {
+        void escrow_transfer_evaluator::do_apply(const escrow_transfer_operation& o) {
             try {
-                database &_db = db();
-
-                const auto &from_account = _db.get_account(o.from);
+                const auto& from_account = _db.get_account(o.from);
                 _db.get_account(o.to);
                 _db.get_account(o.agent);
 
-                FC_ASSERT(o.ratification_deadline >
-                          _db.head_block_time(), "The escorw ratification deadline must be after head block time.");
-                FC_ASSERT(o.escrow_expiration >
-                          _db.head_block_time(), "The escrow expiration must be after head block time.");
+                GOLOS_CHECK_LOGIC(o.ratification_deadline > _db.head_block_time(),
+                    logic_exception::escrow_time_in_past,
+                    "The escrow ratification deadline must be after head block time.");
+                GOLOS_CHECK_LOGIC(o.escrow_expiration > _db.head_block_time(),
+                    logic_exception::escrow_time_in_past,
+                    "The escrow expiration must be after head block time.");
 
                 asset steem_spent = o.steem_amount;
                 asset sbd_spent = o.sbd_amount;
@@ -721,16 +713,12 @@ namespace golos { namespace chain {
                 } else {
                     sbd_spent += o.fee;
                 }
-
-                FC_ASSERT(from_account.balance >=
-                          steem_spent, "Account cannot cover STEEM costs of escrow. Required: ${r} Available: ${a}", ("r", steem_spent)("a", from_account.balance));
-                FC_ASSERT(from_account.sbd_balance >=
-                          sbd_spent, "Account cannot cover SBD costs of escrow. Required: ${r} Available: ${a}", ("r", sbd_spent)("a", from_account.sbd_balance));
-
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, steem_spent);
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, sbd_spent);
                 _db.adjust_balance(from_account, -steem_spent);
                 _db.adjust_balance(from_account, -sbd_spent);
 
-                _db.create<escrow_object>([&](escrow_object &esc) {
+                _db.create<escrow_object>([&](escrow_object& esc) {
                     esc.escrow_id = o.escrow_id;
                     esc.from = o.from;
                     esc.to = o.to;
@@ -745,34 +733,36 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_approve_evaluator::do_apply(const escrow_approve_operation &o) {
+        void escrow_approve_evaluator::do_apply(const escrow_approve_operation& o) {
             try {
-                database &_db = db();
-                const auto &escrow = _db.get_escrow(o.from, o.escrow_id);
-
-                FC_ASSERT(escrow.to ==
-                          o.to, "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o", o.to)("e", escrow.to));
-                FC_ASSERT(escrow.agent ==
-                          o.agent, "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o", o.agent)("e", escrow.agent));
-                FC_ASSERT(escrow.ratification_deadline >=
-                          _db.head_block_time(), "The escrow ratification deadline has passed. Escrow can no longer be ratified.");
+                const auto& escrow = _db.get_escrow(o.from, o.escrow_id);
+                GOLOS_CHECK_LOGIC(escrow.to == o.to,
+                    logic_exception::escrow_bad_to,
+                    "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o",o.to)("e",escrow.to));
+                GOLOS_CHECK_LOGIC(escrow.agent == o.agent,
+                    logic_exception::escrow_bad_agent,
+                    "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o",o.agent)("e",escrow.agent));
+                GOLOS_CHECK_LOGIC(escrow.ratification_deadline >= _db.head_block_time(),
+                    logic_exception::ratification_deadline_passed,
+                    "The escrow ratification deadline has passed. Escrow can no longer be ratified.");
 
                 bool reject_escrow = !o.approve;
-
                 if (o.who == o.to) {
-                    FC_ASSERT(!escrow.to_approved, "Account 'to' (${t}) has already approved the escrow.", ("t", o.to));
-
+                    GOLOS_CHECK_LOGIC(!escrow.to_approved,
+                        logic_exception::account_already_approved_escrow,
+                        "Account 'to' (${t}) has already approved the escrow.", ("t",o.to));
                     if (!reject_escrow) {
-                        _db.modify(escrow, [&](escrow_object &esc) {
+                        _db.modify(escrow, [&](escrow_object& esc) {
                             esc.to_approved = true;
                         });
                     }
                 }
                 if (o.who == o.agent) {
-                    FC_ASSERT(!escrow.agent_approved, "Account 'agent' (${a}) has already approved the escrow.", ("a", o.agent));
-
+                    GOLOS_CHECK_LOGIC(!escrow.agent_approved,
+                        logic_exception::account_already_approved_escrow,
+                        "Account 'agent' (${a}) has already approved the escrow.", ("a",o.agent));
                     if (!reject_escrow) {
-                        _db.modify(escrow, [&](escrow_object &esc) {
+                        _db.modify(escrow, [&](escrow_object& esc) {
                             esc.agent_approved = true;
                         });
                     }
@@ -783,13 +773,11 @@ namespace golos { namespace chain {
                     _db.adjust_balance(from_account, escrow.steem_balance);
                     _db.adjust_balance(from_account, escrow.sbd_balance);
                     _db.adjust_balance(from_account, escrow.pending_fee);
-
                     _db.remove(escrow);
                 } else if (escrow.to_approved && escrow.agent_approved) {
                     const auto &agent_account = _db.get_account(o.agent);
                     _db.adjust_balance(agent_account, escrow.pending_fee);
-
-                    _db.modify(escrow, [&](escrow_object &esc) {
+                    _db.modify(escrow, [&](escrow_object& esc) {
                         esc.pending_fee.amount = 0;
                     });
                 }
@@ -797,65 +785,81 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_dispute_evaluator::do_apply(const escrow_dispute_operation &o) {
+        void escrow_dispute_evaluator::do_apply(const escrow_dispute_operation& o) {
             try {
-                database &_db = db();
                 _db.get_account(o.from); // Verify from account exists
+                const auto& e = _db.get_escrow(o.from, o.escrow_id);
+                GOLOS_CHECK_LOGIC(_db.head_block_time() < e.escrow_expiration,
+                    logic_exception::cannot_dispute_expired_escrow,
+                    "Disputing the escrow must happen before expiration.");
+                GOLOS_CHECK_LOGIC(e.to_approved && e.agent_approved,
+                    logic_exception::escrow_must_be_approved_first,
+                    "The escrow must be approved by all parties before a dispute can be raised.");
+                GOLOS_CHECK_LOGIC(!e.disputed,
+                    logic_exception::escrow_already_disputed,
+                    "The escrow is already under dispute.");
+                GOLOS_CHECK_LOGIC(e.to == o.to,
+                    logic_exception::escrow_bad_to,
+                    "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o",o.to)("e",e.to));
+                GOLOS_CHECK_LOGIC(e.agent == o.agent,
+                    logic_exception::escrow_bad_agent,
+                    "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o",o.agent)("e",e.agent));
 
-                const auto &e = _db.get_escrow(o.from, o.escrow_id);
-                FC_ASSERT(_db.head_block_time() <
-                          e.escrow_expiration, "Disputing the escrow must happen before expiration.");
-                FC_ASSERT(e.to_approved &&
-                          e.agent_approved, "The escrow must be approved by all parties before a dispute can be raised.");
-                FC_ASSERT(!e.disputed, "The escrow is already under dispute.");
-                FC_ASSERT(e.to ==
-                          o.to, "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o", o.to)("e", e.to));
-                FC_ASSERT(e.agent ==
-                          o.agent, "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o", o.agent)("e", e.agent));
-
-                _db.modify(e, [&](escrow_object &esc) {
+                _db.modify(e, [&](escrow_object& esc) {
                     esc.disputed = true;
                 });
             }
             FC_CAPTURE_AND_RETHROW((o))
         }
 
-        void escrow_release_evaluator::do_apply(const escrow_release_operation &o) {
+        void escrow_release_evaluator::do_apply(const escrow_release_operation& o) {
             try {
-                database &_db = db();
                 _db.get_account(o.from); // Verify from account exists
-                const auto &receiver_account = _db.get_account(o.receiver);
+                const auto& receiver_account = _db.get_account(o.receiver);
 
-                const auto &e = _db.get_escrow(o.from, o.escrow_id);
-                FC_ASSERT(e.steem_balance >=
-                          o.steem_amount, "Release amount exceeds escrow balance. Amount: ${a}, Balance: ${b}", ("a", o.steem_amount)("b", e.steem_balance));
-                FC_ASSERT(e.sbd_balance >=
-                          o.sbd_amount, "Release amount exceeds escrow balance. Amount: ${a}, Balance: ${b}", ("a", o.sbd_amount)("b", e.sbd_balance));
-                FC_ASSERT(e.to ==
-                          o.to, "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o", o.to)("e", e.to));
-                FC_ASSERT(e.agent ==
-                          o.agent, "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o", o.agent)("e", e.agent));
-                FC_ASSERT(o.receiver == e.from || o.receiver ==
-                                                  e.to, "Funds must be released to 'from' (${f}) or 'to' (${t})", ("f", e.from)("t", e.to));
-                FC_ASSERT(e.to_approved &&
-                          e.agent_approved, "Funds cannot be released prior to escrow approval.");
+                const auto& e = _db.get_escrow(o.from, o.escrow_id);
+                GOLOS_CHECK_LOGIC(e.steem_balance >= o.steem_amount,
+                    logic_exception::release_amount_exceeds_escrow_balance,
+                    "Release amount exceeds escrow balance. Amount: ${a}, Balance: ${b}",
+                    ("a",o.steem_amount)("b",e.steem_balance));
+                GOLOS_CHECK_LOGIC(e.sbd_balance >= o.sbd_amount,
+                    logic_exception::release_amount_exceeds_escrow_balance,
+                    "Release amount exceeds escrow balance. Amount: ${a}, Balance: ${b}",
+                    ("a",o.sbd_amount)("b",e.sbd_balance));
+                GOLOS_CHECK_LOGIC(e.to == o.to,
+                    logic_exception::escrow_bad_to,
+                    "Operation 'to' (${o}) does not match escrow 'to' (${e}).", ("o",o.to)("e",e.to));
+                GOLOS_CHECK_LOGIC(e.agent == o.agent,
+                    logic_exception::escrow_bad_agent,
+                    "Operation 'agent' (${a}) does not match escrow 'agent' (${e}).", ("o",o.agent)("e",e.agent));
+                GOLOS_CHECK_LOGIC(o.receiver == e.from || o.receiver == e.to,
+                    logic_exception::escrow_bad_receiver,
+                    "Funds must be released to 'from' (${f}) or 'to' (${t})", ("f",e.from)("t",e.to));
+                GOLOS_CHECK_LOGIC(e.to_approved && e.agent_approved,
+                    logic_exception::escrow_must_be_approved_first,
+                    "Funds cannot be released prior to escrow approval.");
 
                 // If there is a dispute regardless of expiration, the agent can release funds to either party
                 if (e.disputed) {
-                    FC_ASSERT(o.who ==
-                              e.agent, "Only 'agent' (${a}) can release funds in a disputed escrow.", ("a", e.agent));
+                    GOLOS_CHECK_LOGIC(o.who == e.agent,
+                        logic_exception::only_agent_can_release_disputed,
+                        "Only 'agent' (${a}) can release funds in a disputed escrow.", ("a",e.agent));
                 } else {
-                    FC_ASSERT(o.who == e.from || o.who ==
-                                                 e.to, "Only 'from' (${f}) and 'to' (${t}) can release funds from a non-disputed escrow", ("f", e.from)("t", e.to));
+                    GOLOS_CHECK_LOGIC(o.who == e.from || o.who == e.to,
+                        logic_exception::only_from_to_can_release_non_disputed,
+                        "Only 'from' (${f}) and 'to' (${t}) can release funds from a non-disputed escrow",
+                        ("f",e.from)("t",e.to));
 
                     if (e.escrow_expiration > _db.head_block_time()) {
                         // If there is no dispute and escrow has not expired, either party can release funds to the other.
                         if (o.who == e.from) {
-                            FC_ASSERT(o.receiver ==
-                                      e.to, "Only 'from' (${f}) can release funds to 'to' (${t}).", ("f", e.from)("t", e.to));
+                            GOLOS_CHECK_LOGIC(o.receiver == e.to,
+                                logic_exception::from_can_release_only_to_to,
+                                "Only 'from' (${f}) can release funds to 'to' (${t}).", ("f",e.from)("t",e.to));
                         } else if (o.who == e.to) {
-                            FC_ASSERT(o.receiver ==
-                                      e.from, "Only 'to' (${t}) can release funds to 'from' (${t}).", ("f", e.from)("t", e.to));
+                            GOLOS_CHECK_LOGIC(o.receiver == e.from,
+                                logic_exception::to_can_release_only_to_from,
+                                "Only 'to' (${t}) can release funds to 'from' (${t}).", ("f",e.from)("t",e.to));
                         }
                     }
                 }
@@ -864,7 +868,7 @@ namespace golos { namespace chain {
                 _db.adjust_balance(receiver_account, o.steem_amount);
                 _db.adjust_balance(receiver_account, o.sbd_amount);
 
-                _db.modify(e, [&](escrow_object &esc) {
+                _db.modify(e, [&](escrow_object& esc) {
                     esc.steem_balance -= o.steem_amount;
                     esc.sbd_balance -= o.sbd_amount;
                 });
@@ -876,8 +880,8 @@ namespace golos { namespace chain {
             FC_CAPTURE_AND_RETHROW((o))
         }
 
+
         void transfer_evaluator::do_apply(const transfer_operation &o) {
-            database &_db = db();
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = _db.get_account(o.to);
 
@@ -888,34 +892,30 @@ namespace golos { namespace chain {
                 });
             }
 
-            FC_ASSERT(_db.get_balance(from_account, o.amount.symbol) >=
-                      o.amount, "Account does not have sufficient funds for transfer.");
-            _db.adjust_balance(from_account, -o.amount);
-            _db.adjust_balance(to_account, o.amount);
+            GOLOS_CHECK_OP_PARAM(o, amount, {
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount);
+                _db.adjust_balance(from_account, -o.amount);
+                _db.adjust_balance(to_account, o.amount);
+            });
         }
 
         void transfer_to_vesting_evaluator::do_apply(const transfer_to_vesting_operation &o) {
-            database &_db = db();
-
             const auto &from_account = _db.get_account(o.from);
             const auto &to_account = o.to.size() ? _db.get_account(o.to)
                                                  : from_account;
 
-            FC_ASSERT(_db.get_balance(from_account, STEEM_SYMBOL) >=
-                      o.amount, "Account does not have sufficient GOLOS for transfer.");
-            _db.adjust_balance(from_account, -o.amount);
-            _db.create_vesting(to_account, o.amount);
+            GOLOS_CHECK_OP_PARAM(o, amount, {
+                GOLOS_CHECK_BALANCE(from_account, MAIN_BALANCE, o.amount);
+                _db.adjust_balance(from_account, -o.amount);
+                _db.create_vesting(to_account, o.amount);
+            });
         }
 
         void withdraw_vesting_evaluator::do_apply(const withdraw_vesting_operation &o) {
-            database &_db = db();
-
             const auto &account = _db.get_account(o.account);
 
-            FC_ASSERT(account.vesting_shares.amount >= 0,
-                "Account does not have sufficient Golos Power for withdraw.");
-            FC_ASSERT(account.available_vesting_shares() >= o.vesting_shares,
-                "Account does not have sufficient Golos Power for withdraw.");
+            GOLOS_CHECK_BALANCE(account, VESTING, asset(0, VESTS_SYMBOL));
+            GOLOS_CHECK_BALANCE(account, HAVING_VESTING, o.vesting_shares);
 
             if (!account.mined && _db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                 const auto &props = _db.get_dynamic_global_properties();
@@ -925,17 +925,19 @@ namespace golos { namespace chain {
                                   props.get_vesting_share_price();
                 min_vests.amount.value *= 10;
 
-                FC_ASSERT(account.vesting_shares.amount > min_vests.amount ||
+                GOLOS_CHECK_LOGIC(account.vesting_shares.amount > min_vests.amount ||
                           (_db.has_hardfork(STEEMIT_HARDFORK_0_16__562) &&
                            o.vesting_shares.amount == 0),
+                           logic_exception::insufficient_fee_for_powerdown_registered_account,
                         "Account registered by another account requires 10x account creation fee worth of Golos Power before it can be powered down.");
             }
 
             if (o.vesting_shares.amount == 0) {
                 if (_db.is_producing() ||
                     _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                    FC_ASSERT(account.vesting_withdraw_rate.amount !=
-                              0, "This operation would not change the vesting withdraw rate.");
+                    GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate.amount != 0,
+                            logic_exception::operation_would_not_change_vesting_withdraw_rate,
+                            "This operation would not change the vesting withdraw rate.");
 
                 _db.modify(account, [&](account_object &a) {
                     a.vesting_withdraw_rate = asset(0, VESTS_SYMBOL);
@@ -959,8 +961,9 @@ namespace golos { namespace chain {
 
                     if (_db.is_producing() ||
                         _db.has_hardfork(STEEMIT_HARDFORK_0_5__57))
-                        FC_ASSERT(account.vesting_withdraw_rate !=
-                                  new_vesting_withdraw_rate, "This operation would not change the vesting withdraw rate.");
+                        GOLOS_CHECK_LOGIC(account.vesting_withdraw_rate != new_vesting_withdraw_rate,
+                                logic_exception::operation_would_not_change_vesting_withdraw_rate,
+                                "This operation would not change the vesting withdraw rate.");
 
                     a.vesting_withdraw_rate = new_vesting_withdraw_rate;
                     a.next_vesting_withdrawal = _db.head_block_time() +
@@ -973,17 +976,19 @@ namespace golos { namespace chain {
 
         void set_withdraw_vesting_route_evaluator::do_apply(const set_withdraw_vesting_route_operation &o) {
             try {
-                database &_db = db();
                 const auto &from_account = _db.get_account(o.from_account);
                 const auto &to_account = _db.get_account(o.to_account);
                 const auto &wd_idx = _db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
                 auto itr = wd_idx.find(boost::make_tuple(from_account.id, to_account.id));
 
                 if (itr == wd_idx.end()) {
-                    FC_ASSERT(
-                            o.percent != 0, "Cannot create a 0% destination.");
-                    FC_ASSERT(from_account.withdraw_routes <
-                              STEEMIT_MAX_WITHDRAW_ROUTES, "Account already has the maximum number of routes.");
+                    GOLOS_CHECK_LOGIC(o.percent != 0,
+                            logic_exception::cannot_create_zero_percent_destination,
+                            "Cannot create a 0% destination.");
+                    GOLOS_CHECK_LOGIC(from_account.withdraw_routes < STEEMIT_MAX_WITHDRAW_ROUTES,
+                            logic_exception::reached_maxumum_number_of_routes,
+                            "Account already has the maximum number of routes (${max}).",
+                            ("max",STEEMIT_MAX_WITHDRAW_ROUTES));
 
                     _db.create<withdraw_vesting_route_object>([&](withdraw_vesting_route_object &wvdo) {
                         wvdo.from_account = from_account.id;
@@ -1011,7 +1016,7 @@ namespace golos { namespace chain {
                 }
 
                 itr = wd_idx.upper_bound(boost::make_tuple(from_account.id, account_id_type()));
-                uint16_t total_percent = 0;
+                fc::safe<uint32_t> total_percent = 0;
 
                 while (itr->from_account == from_account.id &&
                        itr != wd_idx.end()) {
@@ -1019,18 +1024,22 @@ namespace golos { namespace chain {
                     ++itr;
                 }
 
-                FC_ASSERT(total_percent <=
-                          STEEMIT_100_PERCENT, "More than 100% of vesting withdrawals allocated to destinations.");
+                GOLOS_CHECK_LOGIC(total_percent <= STEEMIT_100_PERCENT,
+                        logic_exception::more_100percent_allocated_to_destinations,
+                        "More than 100% of vesting withdrawals allocated to destinations.");
             }
             FC_CAPTURE_AND_RETHROW()
         }
 
         void account_witness_proxy_evaluator::do_apply(const account_witness_proxy_operation &o) {
-            database &_db = db();
             const auto &account = _db.get_account(o.account);
-            FC_ASSERT(account.proxy != o.proxy, "Proxy must change.");
+            GOLOS_CHECK_LOGIC(account.proxy != o.proxy,
+                    logic_exception::proxy_must_change,
+                    "Proxy must change.");
 
-            FC_ASSERT(account.can_vote, "Account has declined the ability to vote and cannot proxy votes.");
+            GOLOS_CHECK_LOGIC(account.can_vote,
+                    logic_exception::voter_declined_voting_rights,
+                    "Account has declined the ability to vote and cannot proxy votes.");
 
             /// remove all current votes
             std::array<share_type, STEEMIT_MAX_PROXY_RECURSION_DEPTH + 1> delta;
@@ -1050,10 +1059,13 @@ namespace golos { namespace chain {
                 auto cprox = &new_proxy;
                 while (cprox->proxy.size() != 0) {
                     const auto next_proxy = _db.get_account(cprox->proxy);
-                    FC_ASSERT(proxy_chain.insert(next_proxy.id).second, "This proxy would create a proxy loop.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.insert(next_proxy.id).second,
+                            logic_exception::proxy_would_create_loop,
+                            "This proxy would create a proxy loop.");
                     cprox = &next_proxy;
-                    FC_ASSERT(proxy_chain.size() <=
-                              STEEMIT_MAX_PROXY_RECURSION_DEPTH, "Proxy chain is too long.");
+                    GOLOS_CHECK_LOGIC(proxy_chain.size() <= STEEMIT_MAX_PROXY_RECURSION_DEPTH,
+                            logic_exception::proxy_chain_is_too_long,
+                            "Proxy chain is too long.");
                 }
 
                 /// clear all individual vote records
@@ -1077,13 +1089,15 @@ namespace golos { namespace chain {
 
 
         void account_witness_vote_evaluator::do_apply(const account_witness_vote_operation &o) {
-            database &_db = db();
             const auto &voter = _db.get_account(o.account);
-            FC_ASSERT(voter.proxy.size() ==
-                      0, "A proxy is currently set, please clear the proxy before voting for a witness.");
+            GOLOS_CHECK_LOGIC(voter.proxy.size() == 0,
+                    logic_exception::cannot_vote_when_route_are_set,
+                    "A proxy is currently set, please clear the proxy before voting for a witness.");
 
             if (o.approve)
-                FC_ASSERT(voter.can_vote, "Account has declined its voting rights.");
+                GOLOS_CHECK_LOGIC(voter.can_vote,
+                        logic_exception::voter_declined_voting_rights,
+                        "Account has declined its voting rights.");
 
             const auto &witness = _db.get_witness(o.witness);
 
@@ -1091,11 +1105,15 @@ namespace golos { namespace chain {
             auto itr = by_account_witness_idx.find(boost::make_tuple(voter.id, witness.id));
 
             if (itr == by_account_witness_idx.end()) {
-                FC_ASSERT(o.approve, "Vote doesn't exist, user must indicate a desire to approve witness.");
+                GOLOS_CHECK_LOGIC(o.approve,
+                        logic_exception::witness_vote_does_not_exist,
+                        "Vote doesn't exist, user must indicate a desire to approve witness.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_2)) {
-                    FC_ASSERT(voter.witnesses_voted_for <
-                              STEEMIT_MAX_ACCOUNT_WITNESS_VOTES, "Account has voted for too many witnesses."); // TODO: Remove after hardfork 2
+                    GOLOS_CHECK_LOGIC(voter.witnesses_voted_for < STEEMIT_MAX_ACCOUNT_WITNESS_VOTES,
+                            logic_exception::account_has_too_many_witness_votes,
+                            "Account has voted for too many witnesses.",
+                            ("max_votes", STEEMIT_MAX_ACCOUNT_WITNESS_VOTES)); // TODO: Remove after hardfork 2
 
                     _db.create<witness_vote_object>([&](witness_vote_object &v) {
                         v.witness = witness.id;
@@ -1124,7 +1142,9 @@ namespace golos { namespace chain {
                 });
 
             } else {
-                FC_ASSERT(!o.approve, "Vote currently exists, user must indicate a desire to reject witness.");
+                GOLOS_CHECK_LOGIC(!o.approve,
+                        logic_exception::witness_vote_already_exist,
+                        "Vote currently exists, user must indicate a desire to reject witness.");
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_2)) {
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_3)) {
@@ -1144,85 +1164,79 @@ namespace golos { namespace chain {
             }
         }
 
-        void vote_evaluator::do_apply(const vote_operation &o) {
+        void vote_evaluator::do_apply(const vote_operation& o) {
             try {
-                database &_db = db();
+                const auto& comment = _db.get_comment(o.author, o.permlink);
+                const auto& voter = _db.get_account(o.voter);
 
-                const auto &comment = _db.get_comment(o.author, o.permlink);
-                const auto &voter = _db.get_account(o.voter);
+                GOLOS_CHECK_LOGIC(!(voter.owner_challenged || voter.active_challenged),
+                    logic_exception::account_is_currently_challenged,
+                    "Account \"${account}\" is currently challenged", ("account", voter.name));
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
-                    FC_ASSERT(!(voter.owner_challenged ||
-                                voter.active_challenged), "Operation cannot be processed because the account is currently challenged.");
+                GOLOS_CHECK_LOGIC(voter.can_vote, logic_exception::voter_declined_voting_rights,
+                    "Voter has declined their voting rights");
 
-                FC_ASSERT(voter.can_vote, "Voter has declined their voting rights.");
+                if (o.weight > 0) {
+                    GOLOS_CHECK_LOGIC(comment.allow_votes, logic_exception::votes_are_not_allowed,
+                        "Votes are not allowed on the comment.");
+                }
 
-                if (o.weight > 0)
-                    FC_ASSERT(comment.allow_votes, "Votes are not allowed on the comment.");
-
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
-                    _db.calculate_discussion_payout_time(comment) ==
-                    fc::time_point_sec::maximum()
-                ) {
-                    if(!_db.clear_votes()) {
-                        const auto& comment_vote_idx = _db.get_index< comment_vote_index >().indices().get< by_comment_voter >();
-                        auto itr = comment_vote_idx.find( std::make_tuple( comment.id, voter.id ) );
-
-                        if( itr == comment_vote_idx.end() )
-                            _db.create< comment_vote_object >( [&]( comment_vote_object& cvo ) {
-                                cvo.voter = voter.id;
-                                cvo.comment = comment.id;
-                                cvo.vote_percent = o.weight;
-                                cvo.last_update = _db.head_block_time();
-                            });
-                        else
-                            _db.modify( *itr, [&]( comment_vote_object& cvo ) {
-                                cvo.vote_percent = o.weight;
-                                cvo.last_update = _db.head_block_time();
+                if (_db.calculate_discussion_payout_time(comment) == fc::time_point_sec::maximum()) {
+                    // non-consensus vote (after cashout)
+                    const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                    auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
+                    if (itr == comment_vote_idx.end()) {
+                        _db.create<comment_vote_object>([&](comment_vote_object& cvo) {
+                            cvo.voter = voter.id;
+                            cvo.comment = comment.id;
+                            cvo.vote_percent = o.weight;
+                            cvo.last_update = _db.head_block_time();
+                            cvo.num_changes = -1;           // mark vote that it's ready to be removed (archived comment)
+                        });
+                    } else {
+                        _db.modify(*itr, [&](comment_vote_object& cvo) {
+                            cvo.vote_percent = o.weight;
+                            cvo.last_update = _db.head_block_time();
                         });
                     }
                     return;
                 }
 
-                const auto &comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
+                const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                 auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
 
-                int64_t elapsed_seconds = (_db.head_block_time() -
-                                           voter.last_vote_time).to_seconds();
+                int64_t elapsed_seconds = (_db.head_block_time() - voter.last_vote_time).to_seconds();
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_11))
-                    FC_ASSERT(elapsed_seconds >=
-                              STEEMIT_MIN_VOTE_INTERVAL_SEC, "Can only vote once every 3 seconds.");
+                GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
+                        bandwidth_exception::vote_bandwidth, "Can only vote once every 3 seconds.");
 
                 int64_t regenerated_power =
                         (STEEMIT_100_PERCENT * elapsed_seconds) /
                         STEEMIT_VOTE_REGENERATION_SECONDS;
-                int64_t current_power = std::min(int64_t(voter.voting_power +
-                                                         regenerated_power), int64_t(STEEMIT_100_PERCENT));
-                FC_ASSERT(current_power >
-                          0, "Account currently does not have voting power.");
+                int64_t current_power = std::min(
+                    int64_t(voter.voting_power + regenerated_power),
+                    int64_t(STEEMIT_100_PERCENT));
+                GOLOS_CHECK_LOGIC(current_power > 0, logic_exception::does_not_have_voting_power,
+                        "Account currently does not have voting power.");
 
                 int64_t abs_weight = abs(o.weight);
-                int64_t used_power =
-                        (current_power * abs_weight) / STEEMIT_100_PERCENT;
+                int64_t used_power = (current_power * abs_weight) / STEEMIT_100_PERCENT;
 
                 const dynamic_global_property_object &dgpo = _db.get_dynamic_global_properties();
 
                 // used_power = (current_power * abs_weight / STEEMIT_100_PERCENT) * (reserve / max_vote_denom)
                 // The second multiplication is rounded up as of HF 259
                 int64_t max_vote_denom = dgpo.vote_regeneration_per_day *
-                                         STEEMIT_VOTE_REGENERATION_SECONDS /
-                                         (60 * 60 * 24);
-                FC_ASSERT(max_vote_denom > 0);
+                    STEEMIT_VOTE_REGENERATION_SECONDS / (60 * 60 * 24);
+                GOLOS_ASSERT(max_vote_denom > 0, golos::internal_error, "max_vote_denom is too small");
 
                 if (!_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
                     used_power = (used_power / max_vote_denom) + 1;
                 } else {
-                    used_power =
-                            (used_power + max_vote_denom - 1) / max_vote_denom;
+                    used_power = (used_power + max_vote_denom - 1) / max_vote_denom;
                 }
-                FC_ASSERT(used_power <=
-                          current_power, "Account does not have enough power to vote.");
+                GOLOS_CHECK_LOGIC(used_power <= current_power, logic_exception::does_not_have_voting_power,
+                        "Account does not have enough power to vote.");
 
                 int64_t abs_rshares = (
                     (uint128_t(voter.effective_vesting_shares().amount.value) * used_power) /
@@ -1232,36 +1246,25 @@ namespace golos { namespace chain {
                 }
 
                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
-                    FC_ASSERT(abs_rshares > 30000000 || o.weight ==
-                                                        0, "Voting weight is too small, please accumulate more voting power or steem power.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || o.weight == 0,
+                            logic_exception::voting_weight_is_too_small,
+                            "Voting weight is too small, please accumulate more voting power or steem power.");
                 } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_13__248)) {
-                    FC_ASSERT(abs_rshares > 30000000 || abs_rshares ==
-                                                        1, "Voting weight is too small, please accumulate more voting power or steem power.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 30000000 || abs_rshares == 1,
+                            logic_exception::voting_weight_is_too_small,
+                            "Voting weight is too small, please accumulate more voting power or steem power.");
                 }
 
-
-
-                // Lazily delete vote
-                if (itr != comment_vote_idx.end() && itr->num_changes == -1) {
-                    if (_db.is_producing() ||
-                        _db.has_hardfork(STEEMIT_HARDFORK_0_12__177))
-                        FC_ASSERT(false, "Cannot vote again on a comment after payout.");
-
-                    _db.remove(*itr);
-                    itr = comment_vote_idx.end();
-                }
 
                 if (itr == comment_vote_idx.end()) {
-                    FC_ASSERT(o.weight != 0, "Vote weight cannot be 0.");
+                    GOLOS_CHECK_OP_PARAM(o, weight, GOLOS_CHECK_VALUE(o.weight != 0, "Vote weight cannot be 0"));
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
-
                     if (rshares > 0) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            FC_ASSERT(_db.head_block_time() <
-                                      _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
-                                      "Cannot increase reward of post within the last minute before payout.");
-                        }
+                        GOLOS_CHECK_LOGIC(_db.head_block_time() <
+                            _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                            logic_exception::cannot_vote_within_last_minute_before_payout,
+                            "Cannot increase reward of post within the last minute before payout.");
                     }
 
                     //used_power /= (50*7); /// a 100% vote means use .28% of voting power which should force users to spread their votes around over 50+ posts day for a week
@@ -1296,7 +1299,8 @@ namespace golos { namespace chain {
                     }
 
 
-                    FC_ASSERT(abs_rshares > 0, "Cannot vote with 0 rshares.");
+                    GOLOS_CHECK_LOGIC(abs_rshares > 0, logic_exception::cannot_vote_with_zero_rshares,
+                            "Cannot vote with 0 rshares.");
 
                     auto old_vote_rshares = comment.vote_rshares;
 
@@ -1311,10 +1315,8 @@ namespace golos { namespace chain {
                         } else {
                             c.net_votes--;
                         }
-                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_6__114) &&
-                            c.net_rshares == -c.abs_rshares)
-                            FC_ASSERT(c.net_votes <
-                                      0, "Comment has negative network votes?");
+                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_6__114) && c.net_rshares == -c.abs_rshares)
+                            GOLOS_ASSERT(c.net_votes < 0, golos::internal_error, "Comment has negative network votes?");
                     });
 
                     _db.modify(root, [&](comment_object &c) {
@@ -1387,8 +1389,7 @@ namespace golos { namespace chain {
                                 rshares3 = rshares3 * rshares3 * rshares3;
 
                                 total2 *= total2;
-                                cv.weight = static_cast<uint64_t>( rshares3 /
-                                                                   total2 );
+                                cv.weight = static_cast<uint64_t>(rshares3 / total2);
                             } else {// cv.weight = W(R_1) - W(R_0)
                                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                                     uint64_t old_weight = (
@@ -1441,35 +1442,33 @@ namespace golos { namespace chain {
                         }
                     });
 
-                    if (max_vote_weight) // Optimization
-                    {
-                        _db.modify(comment, [&](comment_object &c) {
+                    if (max_vote_weight) {
+                        // Optimization
+                        _db.modify(comment, [&](comment_object& c) {
                             c.total_vote_weight += max_vote_weight;
                         });
                     }
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 } else {
-                    FC_ASSERT(itr->num_changes <
-                              STEEMIT_MAX_VOTE_CHANGES, "Voter has used the maximum number of vote changes on this comment.");
-
-                    if (_db.is_producing() ||
-                        _db.has_hardfork(STEEMIT_HARDFORK_0_6__112))
-                        FC_ASSERT(itr->vote_percent !=
-                                  o.weight, "You have already voted in a similar way.");
+                    GOLOS_CHECK_LOGIC(itr->num_changes < STEEMIT_MAX_VOTE_CHANGES,
+                            logic_exception::voter_has_used_maximum_vote_changes,
+                            "Voter has used the maximum number of vote changes on this comment.");
+                    GOLOS_CHECK_LOGIC(itr->vote_percent != o.weight,
+                            logic_exception::already_voted_in_similar_way,
+                            "You have already voted in a similar way.");
 
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
 
                     if (itr->rshares < rshares) {
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_7)) {
-                            FC_ASSERT(_db.head_block_time() <
-                                      _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
-                                      "Cannot increase reward of post within the last minute before payout.");
-                        }
+                        GOLOS_CHECK_LOGIC(_db.head_block_time() <
+                            _db.calculate_discussion_payout_time(comment) - STEEMIT_UPVOTE_LOCKOUT,
+                            logic_exception::cannot_vote_within_last_minute_before_payout,
+                            "Cannot increase reward of post within the last minute before payout.");
                     }
 
-                    _db.modify(voter, [&](account_object &a) {
+                    _db.modify(voter, [&](account_object& a) {
                         a.voting_power = current_power - used_power;
                         a.last_vote_time = _db.head_block_time();
                     });
@@ -1481,7 +1480,7 @@ namespace golos { namespace chain {
 
                     fc::uint128_t avg_cashout_sec = 0;
 
-                    if (!_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
+                    if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                         fc::uint128_t cur_cashout_time_sec = _db.calculate_discussion_payout_time(comment).sec_since_epoch();
                         fc::uint128_t new_cashout_time_sec = _db.head_block_time().sec_since_epoch();
 
@@ -1525,20 +1524,19 @@ namespace golos { namespace chain {
 
                     _db.modify(root, [&](comment_object &c) {
                         c.children_abs_rshares += abs_rshares;
-                        if (!_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
+                        if (!_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                             if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__177) &&
                                 c.last_payout > fc::time_point_sec::min()
                             ) {
                                 c.cashout_time = c.last_payout + STEEMIT_SECOND_CASHOUT_WINDOW;
                             } else {
-                                c.cashout_time = fc::time_point_sec(
-                                        std::min(uint32_t(avg_cashout_sec.to_uint64()),
-                                                 c.max_cashout_time.sec_since_epoch()));
+                                c.cashout_time = fc::time_point_sec(std::min(
+                                    uint32_t(avg_cashout_sec.to_uint64()), c.max_cashout_time.sec_since_epoch()));
                             }
 
                             if (c.max_cashout_time == fc::time_point_sec::maximum()) {
                                 c.max_cashout_time =
-                                        _db.head_block_time() + fc::seconds(STEEMIT_MAX_CASHOUT_WINDOW_SECONDS);
+                                    _db.head_block_time() + fc::seconds(STEEMIT_MAX_CASHOUT_WINDOW_SECONDS);
                             }
                         }
                     });
@@ -1582,7 +1580,7 @@ namespace golos { namespace chain {
             }
             catch (const fc::exception &e) {
                 if (d.is_producing()) {
-                    throw e;
+                    throw;
                 }
             }
             catch (...) {
@@ -1593,7 +1591,6 @@ namespace golos { namespace chain {
 
         void custom_binary_evaluator::do_apply(const custom_binary_operation &o) {
             database &d = db();
-            FC_ASSERT(d.has_hardfork(STEEMIT_HARDFORK_0_14__317));
 
             std::shared_ptr<custom_operation_interpreter> eval = d.get_custom_json_evaluator(o.id);
             if (!eval) {
@@ -1605,7 +1602,7 @@ namespace golos { namespace chain {
             }
             catch (const fc::exception &e) {
                 if (d.is_producing()) {
-                    throw e;
+                    throw;
                 }
             }
             catch (...) {
@@ -1622,9 +1619,9 @@ namespace golos { namespace chain {
                 db.has_hardfork(STEEMIT_HARDFORK_0_5__59)) {
                 const auto &witness_by_work = db.get_index<witness_index>().indices().get<by_work>();
                 auto work_itr = witness_by_work.find(o.work.work);
-                if (work_itr != witness_by_work.end()) {
-                    FC_ASSERT(!"DUPLICATE WORK DISCOVERED", "${w}  ${witness}", ("w", o)("witness", *work_itr));
-                }
+                GOLOS_CHECK_LOGIC(work_itr == witness_by_work.end(),
+                        logic_exception::duplicate_work_discovered,
+                        "Duplicate work discovered (${work} ${witness})", ("work", o)("witness", *work_itr));
             }
 
             const auto& name = o.get_worker_account();
@@ -1654,23 +1651,30 @@ namespace golos { namespace chain {
             }
 
             const auto &worker_account = db.get_account(name); // verify it exists
-            const auto &worker_auth = db.get<account_authority_object, by_account>(name);
-            FC_ASSERT(worker_auth.active.num_auths() ==
-                      1, "Miners can only have one key authority. ${a}", ("a", worker_auth.active));
-            FC_ASSERT(worker_auth.active.key_auths.size() ==
-                      1, "Miners may only have one key authority.");
-            FC_ASSERT(worker_auth.active.key_auths.begin()->first ==
-                      o.work.worker, "Work must be performed by key that signed the work.");
-            FC_ASSERT(
-                    o.block_id == db.head_block_id(), "pow not for last block");
+            const auto &worker_auth = db.get_authority(name);
+            GOLOS_CHECK_LOGIC(worker_auth.active.num_auths() == 1,
+                    logic_exception::miners_can_only_have_one_key_authority,
+                    "Miners can only have one key authority. ${a}", ("a", worker_auth.active));
+            GOLOS_CHECK_LOGIC(worker_auth.active.key_auths.size() == 1,
+                    logic_exception::miners_can_only_have_one_key_authority,
+                    "Miners may only have one key authority.");
+            GOLOS_CHECK_LOGIC(worker_auth.active.key_auths.begin()->first == o.work.worker,
+                    logic_exception::work_must_be_performed_by_signed_key,
+                    "Work must be performed by key that signed the work.");
+            GOLOS_CHECK_LOGIC(o.block_id == db.head_block_id(),
+                    logic_exception::work_not_for_last_block,
+                    "pow not for last block");
+
             if (db.has_hardfork(STEEMIT_HARDFORK_0_13__256))
-                FC_ASSERT(worker_account.last_account_update <
-                          db.head_block_time(), "Worker account must not have updated their account this block.");
+                GOLOS_CHECK_LOGIC(worker_account.last_account_update < db.head_block_time(),
+                        logic_exception::account_must_not_be_updated_in_this_block,
+                        "Worker account must not have updated their account this block.");
 
             fc::sha256 target = db.get_pow_target();
 
-            FC_ASSERT(
-                    o.work.work < target, "Work lacks sufficient difficulty.");
+            GOLOS_CHECK_LOGIC(o.work.work < target,
+                    logic_exception::insufficient_work_difficalty,
+                    "Work lacks sufficient difficulty.");
 
             db.modify(dgp, [&](dynamic_global_property_object &p) {
                 p.total_pow++; // make sure this doesn't break anything...
@@ -1680,8 +1684,9 @@ namespace golos { namespace chain {
 
             const witness_object *cur_witness = db.find_witness(worker_account.name);
             if (cur_witness) {
-                FC_ASSERT(cur_witness->pow_worker ==
-                          0, "This account is already scheduled for pow block production.");
+                GOLOS_CHECK_LOGIC(cur_witness->pow_worker == 0,
+                        logic_exception::account_already_scheduled_for_work,
+                        "This account is already scheduled for pow block production.");
                 db.modify(*cur_witness, [&](witness_object &w) {
                     w.props = o.props;
                     w.pow_worker = dgp.total_pow;
@@ -1713,7 +1718,9 @@ namespace golos { namespace chain {
         }
 
         void pow_evaluator::do_apply(const pow_operation &o) {
-            FC_ASSERT(!db().has_hardfork(STEEMIT_HARDFORK_0_13__256), "pow is deprecated. Use pow2 instead");
+            if (db().has_hardfork(STEEMIT_HARDFORK_0_13__256)) {
+                FC_THROW_EXCEPTION(golos::unsupported_operation, "pow is deprecated. Use pow2 instead");
+            }
             pow_apply(db(), o);
         }
 
@@ -1726,26 +1733,32 @@ namespace golos { namespace chain {
 
             if (db.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
                 const auto &work = o.work.get<equihash_pow>();
-                FC_ASSERT(work.prev_block ==
-                          db.head_block_id(), "Equihash pow op not for last block");
+                GOLOS_CHECK_LOGIC(work.prev_block == db.head_block_id(),
+                        logic_exception::work_not_for_last_block,
+                        "Equihash pow op not for last block");
                 auto recent_block_num = protocol::block_header::num_from_id(work.input.prev_block);
-                FC_ASSERT(recent_block_num > dgp.last_irreversible_block_num,
+                GOLOS_CHECK_LOGIC(recent_block_num > dgp.last_irreversible_block_num,
+                        logic_exception::work_for_block_older_last_irreversible_block,
                         "Equihash pow done for block older than last irreversible block num");
-                FC_ASSERT(work.pow_summary <
-                          target_pow, "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
+                GOLOS_CHECK_LOGIC(work.pow_summary < target_pow,
+                        logic_exception::insufficient_work_difficalty,
+                        "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
                 worker_account = work.input.worker_account;
             } else {
                 const auto &work = o.work.get<pow2>();
-                FC_ASSERT(work.input.prev_block ==
-                          db.head_block_id(), "Work not for last block");
-                FC_ASSERT(work.pow_summary <
-                          target_pow, "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
+                GOLOS_CHECK_LOGIC(work.input.prev_block == db.head_block_id(),
+                        logic_exception::work_not_for_last_block,
+                        "Work not for last block");
+                GOLOS_CHECK_LOGIC(work.pow_summary < target_pow,
+                        logic_exception::insufficient_work_difficalty,
+                        "Insufficient work difficulty. Work: ${w}, Target: ${t}", ("w", work.pow_summary)("t", target_pow));
                 worker_account = work.input.worker_account;
             }
 
-            FC_ASSERT(o.props.maximum_block_size >=
-                      STEEMIT_MIN_BLOCK_SIZE_LIMIT *
-                      2, "Voted maximum block size is too small.");
+            GOLOS_CHECK_OP_PARAM(o, props.maximum_block_size,
+                GOLOS_CHECK_VALUE(o.props.maximum_block_size >= STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2,
+                    "Voted maximum block size is too small. Must be more then ${max} bytes.",
+                    ("max", STEEMIT_MIN_BLOCK_SIZE_LIMIT * 2)));
 
             db.modify(dgp, [&](dynamic_global_property_object &p) {
                 p.total_pow++;
@@ -1755,7 +1768,8 @@ namespace golos { namespace chain {
             const auto &accounts_by_name = db.get_index<account_index>().indices().get<by_name>();
             auto itr = accounts_by_name.find(worker_account);
             if (itr == accounts_by_name.end()) {
-                FC_ASSERT(o.new_owner_key.valid(), "New owner key is not valid.");
+                GOLOS_CHECK_OP_PARAM(o, new_owner_key,
+                    GOLOS_CHECK_VALUE(o.new_owner_key.valid(), "Key is not valid."));
                 db.create<account_object>([&](account_object &acc) {
                     acc.name = worker_account;
                     acc.memo_key = *o.new_owner_key;
@@ -1779,11 +1793,16 @@ namespace golos { namespace chain {
                     w.pow_worker = dgp.total_pow;
                 });
             } else {
-                FC_ASSERT(!o.new_owner_key.valid(), "Cannot specify an owner key unless creating account.");
+                GOLOS_CHECK_LOGIC(!o.new_owner_key.valid(),
+                        logic_exception::cannot_specify_owner_key_unless_creating_account,
+                        "Cannot specify an owner key unless creating account.");
                 const witness_object *cur_witness = db.find_witness(worker_account);
-                FC_ASSERT(cur_witness, "Witness must be created for existing account before mining.");
-                FC_ASSERT(cur_witness->pow_worker ==
-                          0, "This account is already scheduled for pow block production.");
+                GOLOS_CHECK_LOGIC(cur_witness,
+                        logic_exception::witness_must_be_created_before_minning,
+                        "Witness must be created for existing account before mining.");
+                GOLOS_CHECK_LOGIC(cur_witness->pow_worker == 0,
+                        logic_exception::account_already_scheduled_for_work,
+                        "This account is already scheduled for pow block production.");
                 db.modify(*cur_witness, [&](witness_object &w) {
                     w.props = o.props;
                     w.pow_worker = dgp.total_pow;
@@ -1801,7 +1820,6 @@ namespace golos { namespace chain {
         }
 
         void feed_publish_evaluator::do_apply(const feed_publish_operation &o) {
-            database &_db = db();
             const auto &witness = _db.get_witness(o.publisher);
             _db.modify(witness, [&](witness_object &w) {
                 w.sbd_exchange_rate = o.exchange_rate;
@@ -1810,20 +1828,22 @@ namespace golos { namespace chain {
         }
 
         void convert_evaluator::do_apply(const convert_operation &o) {
-            database &_db = db();
             const auto &owner = _db.get_account(o.owner);
-            FC_ASSERT(_db.get_balance(owner, o.amount.symbol) >=
-                      o.amount, "Account does not have sufficient balance for conversion.");
+            GOLOS_CHECK_BALANCE(owner, MAIN_BALANCE, o.amount);
 
             _db.adjust_balance(owner, -o.amount);
 
             const auto &fhistory = _db.get_feed_history();
-            FC_ASSERT(!fhistory.current_median_history.is_null(), "Cannot convert SBD because there is no price feed.");
+            GOLOS_CHECK_LOGIC(!fhistory.current_median_history.is_null(),
+                    logic_exception::no_price_feed_yet,
+                    "Cannot convert SBD because there is no price feed.");
 
             auto steem_conversion_delay = STEEMIT_CONVERSION_DELAY_PRE_HF_16;
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
                 steem_conversion_delay = STEEMIT_CONVERSION_DELAY;
             }
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, convert_request, o.owner, o.requestid);
 
             _db.create<convert_request_object>([&](convert_request_object &obj) {
                 obj.owner = o.owner;
@@ -1835,17 +1855,18 @@ namespace golos { namespace chain {
 
         }
 
-        void limit_order_create_evaluator::do_apply(const limit_order_create_operation &o) {
-            database &_db = db();
-            FC_ASSERT(o.expiration >
-                      _db.head_block_time(), "Limit order has to expire after head block time.");
+        void limit_order_create_evaluator::do_apply(const limit_order_create_operation& o) {
+            GOLOS_CHECK_OP_PARAM(o, expiration, {
+                GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(),
+                        "Limit order has to expire after head block time.");
+            });
 
             const auto &owner = _db.get_account(o.owner);
 
-            FC_ASSERT(_db.get_balance(owner, o.amount_to_sell.symbol) >=
-                      o.amount_to_sell, "Account does not have sufficient funds for limit order.");
-
+            GOLOS_CHECK_BALANCE(owner, MAIN_BALANCE, o.amount_to_sell);
             _db.adjust_balance(owner, -o.amount_to_sell);
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, limit_order, o.owner, o.orderid);
 
             const auto &order = _db.create<limit_order_object>([&](limit_order_object &obj) {
                 obj.created = _db.head_block_time();
@@ -1859,20 +1880,22 @@ namespace golos { namespace chain {
             bool filled = _db.apply_order(order);
 
             if (o.fill_or_kill)
-                FC_ASSERT(filled, "Cancelling order because it was not filled.");
+                GOLOS_CHECK_LOGIC(filled, logic_exception::cancelling_not_filled_order,
+                        "Cancelling order because it was not filled.");
         }
 
-        void limit_order_create2_evaluator::do_apply(const limit_order_create2_operation &o) {
-            database &_db = db();
-            FC_ASSERT(o.expiration >
-                      _db.head_block_time(), "Limit order has to expire after head block time.");
+        void limit_order_create2_evaluator::do_apply(const limit_order_create2_operation& o) {
+            GOLOS_CHECK_OP_PARAM(o, expiration, {
+                GOLOS_CHECK_VALUE(o.expiration > _db.head_block_time(),
+                        "Limit order has to expire after head block time.");
+            });
 
             const auto &owner = _db.get_account(o.owner);
 
-            FC_ASSERT(_db.get_balance(owner, o.amount_to_sell.symbol) >=
-                      o.amount_to_sell, "Account does not have sufficient funds for limit order.");
-
+            GOLOS_CHECK_BALANCE(owner, MAIN_BALANCE, o.amount_to_sell);
             _db.adjust_balance(owner, -o.amount_to_sell);
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, limit_order, o.owner, o.orderid);
 
             const auto &order = _db.create<limit_order_object>([&](limit_order_object &obj) {
                 obj.created = _db.head_block_time();
@@ -1886,33 +1909,34 @@ namespace golos { namespace chain {
             bool filled = _db.apply_order(order);
 
             if (o.fill_or_kill)
-                FC_ASSERT(filled, "Cancelling order because it was not filled.");
+                GOLOS_CHECK_LOGIC(filled, logic_exception::cancelling_not_filled_order,
+                        "Cancelling order because it was not filled.");
         }
 
         void limit_order_cancel_evaluator::do_apply(const limit_order_cancel_operation &o) {
-            database &_db = db();
             _db.cancel_order(_db.get_limit_order(o.owner, o.orderid));
         }
 
         void report_over_production_evaluator::do_apply(const report_over_production_operation &o) {
-            database &_db = db();
-            FC_ASSERT(!_db.has_hardfork(STEEMIT_HARDFORK_0_4), "report_over_production_operation is disabled.");
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_4)) {
+                FC_THROW_EXCEPTION(golos::unsupported_operation, "report_over_production_operation is disabled");
+            }
         }
 
-        void challenge_authority_evaluator::do_apply(const challenge_authority_operation &o) {
-            database &_db = db();
+        void challenge_authority_evaluator::do_apply(const challenge_authority_operation& o) {
             if (_db.has_hardfork(STEEMIT_HARDFORK_0_14__307))
-                FC_ASSERT(false, "Challenge authority operation is currently disabled.");
-            const auto &challenged = _db.get_account(o.challenged);
-            const auto &challenger = _db.get_account(o.challenger);
+                GOLOS_ASSERT(false, golos::unsupported_operation, "Challenge authority operation is currently disabled.");
+            // TODO: update error handling if enable this operation
+
+            const auto& challenged = _db.get_account(o.challenged);
+            const auto& challenger = _db.get_account(o.challenger);
 
             if (o.require_owner) {
-                FC_ASSERT(challenged.reset_account ==
-                          o.challenger, "Owner authority can only be challenged by its reset account.");
+                FC_ASSERT(challenged.reset_account == o.challenger,
+                    "Owner authority can only be challenged by its reset account.");
                 FC_ASSERT(challenger.balance >= STEEMIT_OWNER_CHALLENGE_FEE);
                 FC_ASSERT(!challenged.owner_challenged);
-                FC_ASSERT(_db.head_block_time() - challenged.last_owner_proved >
-                          STEEMIT_OWNER_CHALLENGE_COOLDOWN);
+                FC_ASSERT(_db.head_block_time() - challenged.last_owner_proved > STEEMIT_OWNER_CHALLENGE_COOLDOWN);
 
                 _db.adjust_balance(challenger, -STEEMIT_OWNER_CHALLENGE_FEE);
                 _db.create_vesting(_db.get_account(o.challenged), STEEMIT_OWNER_CHALLENGE_FEE);
@@ -1921,32 +1945,31 @@ namespace golos { namespace chain {
                     a.owner_challenged = true;
                 });
             } else {
-                FC_ASSERT(challenger.balance >=
-                          STEEMIT_ACTIVE_CHALLENGE_FEE, "Account does not have sufficient funds to pay challenge fee.");
-                FC_ASSERT(!(challenged.owner_challenged ||
-                            challenged.active_challenged), "Account is already challenged.");
-                FC_ASSERT(
-                        _db.head_block_time() - challenged.last_active_proved >
-                        STEEMIT_ACTIVE_CHALLENGE_COOLDOWN, "Account cannot be challenged because it was recently challenged.");
+                FC_ASSERT(challenger.balance >= STEEMIT_ACTIVE_CHALLENGE_FEE,
+                    "Account does not have sufficient funds to pay challenge fee.");
+                FC_ASSERT(!(challenged.owner_challenged || challenged.active_challenged),
+                    "Account is already challenged.");
+                FC_ASSERT(_db.head_block_time() - challenged.last_active_proved > STEEMIT_ACTIVE_CHALLENGE_COOLDOWN,
+                    "Account cannot be challenged because it was recently challenged.");
 
                 _db.adjust_balance(challenger, -STEEMIT_ACTIVE_CHALLENGE_FEE);
                 _db.create_vesting(_db.get_account(o.challenged), STEEMIT_ACTIVE_CHALLENGE_FEE);
 
-                _db.modify(challenged, [&](account_object &a) {
+                _db.modify(challenged, [&](account_object& a) {
                     a.active_challenged = true;
                 });
             }
         }
 
-        void prove_authority_evaluator::do_apply(const prove_authority_operation &o) {
-            database &_db = db();
-            const auto &challenged = _db.get_account(o.challenged);
-            FC_ASSERT(challenged.owner_challenged ||
-                      challenged.active_challenged, "Account is not challeneged. No need to prove authority.");
+        void prove_authority_evaluator::do_apply(const prove_authority_operation& o) {
+            const auto& challenged = _db.get_account(o.challenged);
+            GOLOS_CHECK_LOGIC(challenged.owner_challenged || challenged.active_challenged,
+                logic_exception::account_is_not_challeneged,
+                "Account is not challeneged. No need to prove authority.");
 
-            _db.modify(challenged, [&](account_object &a) {
+            _db.modify(challenged, [&](account_object& a) {
                 a.active_challenged = false;
-                a.last_active_proved = _db.head_block_time();
+                a.last_active_proved = _db.head_block_time();   // TODO: if enable `challenge_authority` then check, is it ok to set active always
                 if (o.require_owner) {
                     a.owner_challenged = false;
                     a.last_owner_proved = _db.head_block_time();
@@ -1954,214 +1977,208 @@ namespace golos { namespace chain {
             });
         }
 
-        void request_account_recovery_evaluator::do_apply(const request_account_recovery_operation &o) {
-            database &_db = db();
-            const auto &account_to_recover = _db.get_account(o.account_to_recover);
+        void request_account_recovery_evaluator::do_apply(const request_account_recovery_operation& o) {
+            const auto& account_to_recover = _db.get_account(o.account_to_recover);
+            if (account_to_recover.recovery_account.length()) {
+                // Make sure recovery matches expected recovery account
+                GOLOS_CHECK_LOGIC(account_to_recover.recovery_account == o.recovery_account,
+                    logic_exception::cannot_recover_if_not_partner,
+                    "Cannot recover an account that does not have you as there recovery partner.");
+            } else {
+                // Empty string recovery account defaults to top witness
+                GOLOS_CHECK_LOGIC(
+                    _db.get_index<witness_index>().indices().get<by_vote_name>().begin()->owner == o.recovery_account,
+                    logic_exception::must_be_recovered_by_top_witness,
+                    "Top witness must recover an account with no recovery partner.");
+            }
 
-            if (account_to_recover.recovery_account.length())   // Make sure recovery matches expected recovery account
-                FC_ASSERT(account_to_recover.recovery_account ==
-                          o.recovery_account, "Cannot recover an account that does not have you as there recovery partner.");
-            else                                                  // Empty string recovery account defaults to top witness
-                FC_ASSERT(
-                        _db.get_index<witness_index>().indices().get<by_vote_name>().begin()->owner ==
-                        o.recovery_account, "Top witness must recover an account with no recovery partner.");
-
-            const auto &recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
+            const auto& recovery_request_idx =
+                _db.get_index<account_recovery_request_index>().indices().get<by_account>();
             auto request = recovery_request_idx.find(o.account_to_recover);
 
-            if (request == recovery_request_idx.end()) // New Request
-            {
-                FC_ASSERT(!o.new_owner_authority.is_impossible(), "Cannot recover using an impossible authority.");
-                FC_ASSERT(o.new_owner_authority.weight_threshold, "Cannot recover using an open authority.");
-
+            if (request == recovery_request_idx.end()) {
+                // New Request
+                GOLOS_CHECK_OP_PARAM(o, new_owner_authority, {
+                    GOLOS_CHECK_VALUE(!o.new_owner_authority.is_impossible(),
+                        "Cannot recover using an impossible authority.");
+                    GOLOS_CHECK_VALUE(o.new_owner_authority.weight_threshold,
+                        "Cannot recover using an open authority.");
+                });
                 // Check accounts in the new authority exist
-                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
-                     _db.is_producing())) {
-                    for (auto &a : o.new_owner_authority.account_auths) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465)) {
+                    for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
                 }
-
-                _db.create<account_recovery_request_object>([&](account_recovery_request_object &req) {
+                _db.create<account_recovery_request_object>([&](account_recovery_request_object& req) {
                     req.account_to_recover = o.account_to_recover;
                     req.new_owner_authority = o.new_owner_authority;
-                    req.expires = _db.head_block_time() +
-                                  STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
+                    req.expires = _db.head_block_time() + STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
                 });
-            } else if (o.new_owner_authority.weight_threshold ==
-                       0) // Cancel Request if authority is open
-            {
+            } else if (o.new_owner_authority.weight_threshold == 0) {
+                // Cancel Request if authority is open
                 _db.remove(*request);
-            } else // Change Request
-            {
-                FC_ASSERT(!o.new_owner_authority.is_impossible(), "Cannot recover using an impossible authority.");
-
+            } else {
+                // Change Request
+                GOLOS_CHECK_OP_PARAM(o, new_owner_authority, {
+                    GOLOS_CHECK_VALUE(!o.new_owner_authority.is_impossible(),
+                    "Cannot recover using an impossible authority.");
+                });
                 // Check accounts in the new authority exist
-                if ((_db.has_hardfork(STEEMIT_HARDFORK_0_15__465) ||
-                     _db.is_producing())) {
-                    for (auto &a : o.new_owner_authority.account_auths) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_15__465)) {
+                    for (auto& a : o.new_owner_authority.account_auths) {
                         _db.get_account(a.first);
                     }
                 }
-
-                _db.modify(*request, [&](account_recovery_request_object &req) {
+                _db.modify(*request, [&](account_recovery_request_object& req) {
                     req.new_owner_authority = o.new_owner_authority;
-                    req.expires = _db.head_block_time() +
-                                  STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
+                    req.expires = _db.head_block_time() + STEEMIT_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD;
                 });
             }
         }
 
-        void recover_account_evaluator::do_apply(const recover_account_operation &o) {
-            database &_db = db();
-            const auto &account = _db.get_account(o.account_to_recover);
+        void recover_account_evaluator::do_apply(const recover_account_operation& o) {
+            const auto& account = _db.get_account(o.account_to_recover);
+            const auto now = _db.head_block_time();
 
-            if (_db.has_hardfork(STEEMIT_HARDFORK_0_12))
-                FC_ASSERT(
-                        _db.head_block_time() - account.last_account_recovery >
-                        STEEMIT_OWNER_UPDATE_LIMIT, "Owner authority can only be updated once an hour.");
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_12)) {
+                GOLOS_CHECK_BANDWIDTH(now, account.last_account_recovery + STEEMIT_OWNER_UPDATE_LIMIT,
+                    bandwidth_exception::change_owner_authority_bandwidth,
+                    "Owner authority can only be updated once an hour.");
+            }
 
-            const auto &recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
+            const auto& recovery_request_idx = _db.get_index<account_recovery_request_index>().indices().get<by_account>();
             auto request = recovery_request_idx.find(o.account_to_recover);
 
-            FC_ASSERT(request !=
-                      recovery_request_idx.end(), "There are no active recovery requests for this account.");
-            FC_ASSERT(request->new_owner_authority ==
-                      o.new_owner_authority, "New owner authority does not match recovery request.");
+            GOLOS_CHECK_LOGIC(request != recovery_request_idx.end(),
+                logic_exception::no_active_recovery_request,
+                "There are no active recovery requests for this account.");
+            GOLOS_CHECK_LOGIC(request->new_owner_authority == o.new_owner_authority,
+                logic_exception::authority_does_not_match_request,
+                "New owner authority does not match recovery request.");
 
-            const auto &recent_auth_idx = _db.get_index<owner_authority_history_index>().indices().get<by_account>();
+            const auto& recent_auth_idx = _db.get_index<owner_authority_history_index>().indices().get<by_account>();
             auto hist = recent_auth_idx.lower_bound(o.account_to_recover);
             bool found = false;
 
-            while (hist != recent_auth_idx.end() &&
-                   hist->account == o.account_to_recover && !found) {
-                found = hist->previous_owner_authority ==
-                        o.recent_owner_authority;
+            while (hist != recent_auth_idx.end() && hist->account == o.account_to_recover && !found) {
+                found = hist->previous_owner_authority == o.recent_owner_authority;
                 if (found) {
                     break;
                 }
                 ++hist;
             }
-
-            FC_ASSERT(found, "Recent authority not found in authority history.");
+            GOLOS_CHECK_LOGIC(found, logic_exception::no_recent_authority_in_history,
+                "Recent authority not found in authority history.");
 
             _db.remove(*request); // Remove first, update_owner_authority may invalidate iterator
             _db.update_owner_authority(account, o.new_owner_authority);
-            _db.modify(account, [&](account_object &a) {
-                a.last_account_recovery = _db.head_block_time();
+            _db.modify(account, [&](account_object& a) {
+                a.last_account_recovery = now;
             });
         }
 
-        void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation &o) {
-            database &_db = db();
+        void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {
             _db.get_account(o.new_recovery_account); // Simply validate account exists
-            const auto &account_to_recover = _db.get_account(o.account_to_recover);
-
-            const auto &change_recovery_idx = _db.get_index<change_recovery_account_request_index>().indices().get<by_account>();
+            const auto& account_to_recover = _db.get_account(o.account_to_recover);
+            const auto& change_recovery_idx =
+                _db.get_index<change_recovery_account_request_index>().indices().get<by_account>();
             auto request = change_recovery_idx.find(o.account_to_recover);
 
-            if (request == change_recovery_idx.end()) // New request
-            {
-                _db.create<change_recovery_account_request_object>([&](change_recovery_account_request_object &req) {
+            if (request == change_recovery_idx.end()) {
+                // New request
+                _db.create<change_recovery_account_request_object>([&](change_recovery_account_request_object& req) {
                     req.account_to_recover = o.account_to_recover;
                     req.recovery_account = o.new_recovery_account;
-                    req.effective_on = _db.head_block_time() +
-                                       STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_on = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
-            } else if (account_to_recover.recovery_account !=
-                       o.new_recovery_account) // Change existing request
-            {
-                _db.modify(*request, [&](change_recovery_account_request_object &req) {
+            } else if (account_to_recover.recovery_account != o.new_recovery_account) {
+                // Change existing request
+                _db.modify(*request, [&](change_recovery_account_request_object& req) {
                     req.recovery_account = o.new_recovery_account;
-                    req.effective_on = _db.head_block_time() +
-                                       STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_on = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
-            } else // Request exists and changing back to current recovery account
-            {
+            } else {
+                // Request exists and changing back to current recovery account
                 _db.remove(*request);
             }
         }
 
-        void transfer_to_savings_evaluator::do_apply(const transfer_to_savings_operation &op) {
-            database &_db = db();
-            const auto &from = _db.get_account(op.from);
-            const auto &to = _db.get_account(op.to);
-            FC_ASSERT(_db.get_balance(from, op.amount.symbol) >=
-                      op.amount, "Account does not have sufficient funds to transfer to savings.");
+        void transfer_to_savings_evaluator::do_apply(const transfer_to_savings_operation& op) {
+            const auto& from = _db.get_account(op.from);
+            const auto& to = _db.get_account(op.to);
+
+            GOLOS_CHECK_BALANCE(from, MAIN_BALANCE, op.amount);
 
             _db.adjust_balance(from, -op.amount);
             _db.adjust_savings_balance(to, op.amount);
         }
 
-        void transfer_from_savings_evaluator::do_apply(const transfer_from_savings_operation &op) {
-            database &_db = db();
-            const auto &from = _db.get_account(op.from);
-            _db.get_account(op.to); // Verify to account exists
+        void transfer_from_savings_evaluator::do_apply(const transfer_from_savings_operation& op) {
+            const auto& from = _db.get_account(op.from);
+            _db.get_account(op.to); // Verify `to` account exists
 
-            FC_ASSERT(from.savings_withdraw_requests <
-                      STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT, "Account has reached limit for pending withdraw requests.");
+            GOLOS_CHECK_LOGIC(from.savings_withdraw_requests < STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT,
+                golos::logic_exception::reached_limit_for_pending_withdraw_requests,
+                "Account has reached limit for pending withdraw requests.",
+                ("limit",STEEMIT_SAVINGS_WITHDRAW_REQUEST_LIMIT));
 
-            FC_ASSERT(_db.get_savings_balance(from, op.amount.symbol) >=
-                      op.amount);
+            GOLOS_CHECK_BALANCE(from, SAVINGS, op.amount);
             _db.adjust_savings_balance(from, -op.amount);
-            _db.create<savings_withdraw_object>([&](savings_withdraw_object &s) {
+
+            GOLOS_CHECK_OBJECT_MISSING(_db, savings_withdraw, op.from, op.request_id);
+
+            _db.create<savings_withdraw_object>([&](savings_withdraw_object& s) {
                 s.from = op.from;
                 s.to = op.to;
                 s.amount = op.amount;
-#ifndef IS_LOW_MEM
-                from_string(s.memo, op.memo);
-#endif
+                if (_db.store_memo_in_savings_withdraws())  {
+                    from_string(s.memo, op.memo);
+                }
                 s.request_id = op.request_id;
-                s.complete =
-                        _db.head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME;
+                s.complete = _db.head_block_time() + STEEMIT_SAVINGS_WITHDRAW_TIME;
             });
-
-            _db.modify(from, [&](account_object &a) {
+            _db.modify(from, [&](account_object& a) {
                 a.savings_withdraw_requests++;
             });
         }
 
-        void cancel_transfer_from_savings_evaluator::do_apply(const cancel_transfer_from_savings_operation &op) {
-            database &_db = db();
-            const auto &swo = _db.get_savings_withdraw(op.from, op.request_id);
-            _db.adjust_savings_balance(_db.get_account(swo.from), swo.amount);
+        void cancel_transfer_from_savings_evaluator::do_apply(const cancel_transfer_from_savings_operation& op) {
+            const auto& name = op.from;
+            const auto& from = _db.get_account(name);
+            const auto& swo = _db.get_savings_withdraw(name, op.request_id);
+            _db.adjust_savings_balance(from, swo.amount);
             _db.remove(swo);
-
-            const auto &from = _db.get_account(op.from);
-            _db.modify(from, [&](account_object &a) {
+            _db.modify(from, [&](account_object& a) {
                 a.savings_withdraw_requests--;
             });
         }
 
-        void decline_voting_rights_evaluator::do_apply(const decline_voting_rights_operation &o) {
-            database &_db = db();
-            FC_ASSERT(_db.has_hardfork(STEEMIT_HARDFORK_0_14__324));
-
-            const auto &account = _db.get_account(o.account);
-            const auto &request_idx = _db.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
+        void decline_voting_rights_evaluator::do_apply(const decline_voting_rights_operation& o) {
+            const auto& account = _db.get_account(o.account);
+            const auto& request_idx = _db.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
             auto itr = request_idx.find(account.id);
+            auto exist = itr != request_idx.end();
 
             if (o.decline) {
-                FC_ASSERT(itr ==
-                          request_idx.end(), "Cannot create new request because one already exists.");
-
-                _db.create<decline_voting_rights_request_object>([&](decline_voting_rights_request_object &req) {
+                if (exist) {
+                    GOLOS_THROW_OBJECT_ALREADY_EXIST("decline_voting_rights_request", o.account);
+                }
+                _db.create<decline_voting_rights_request_object>([&](decline_voting_rights_request_object& req) {
                     req.account = account.id;
-                    req.effective_date = _db.head_block_time() +
-                                         STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
+                    req.effective_date = _db.head_block_time() + STEEMIT_OWNER_AUTH_RECOVERY_PERIOD;
                 });
             } else {
-                FC_ASSERT(itr !=
-                          request_idx.end(), "Cannot cancel the request because it does not exist.");
+                if (!exist) {
+                    GOLOS_THROW_MISSING_OBJECT("decline_voting_rights_request", o.account);
+                }
                 _db.remove(*itr);
             }
         }
 
-        void reset_account_evaluator::do_apply(const reset_account_operation &op) {
-            FC_ASSERT(false, "Reset Account Operation is currently disabled.");
-/*
-            database& _db = db();
-            const auto& acnt = _db.get_account(op.account_to_reset);
+        void reset_account_evaluator::do_apply(const reset_account_operation& op) {
+            GOLOS_ASSERT(false,  golos::unsupported_operation, "Reset Account Operation is currently disabled.");
+/*          const auto& acnt = _db.get_account(op.account_to_reset);
             auto band = _db.find<account_bandwidth_object, by_account_bandwidth_type>(std::make_tuple(op.account_to_reset, bandwidth_type::old_forum));
             if (band != nullptr)
                 FC_ASSERT((_db.head_block_time() - band->last_bandwidth_update) > fc::days(60),
@@ -2171,11 +2188,9 @@ namespace golos { namespace chain {
 */
         }
 
-        void set_reset_account_evaluator::do_apply(const set_reset_account_operation &op) {
-            FC_ASSERT(false, "Set Reset Account Operation is currently disabled.");
-/*
-            database& _db = db();
-            const auto& acnt = _db.get_account(op.account);
+        void set_reset_account_evaluator::do_apply(const set_reset_account_operation& op) {
+            GOLOS_ASSERT(false, golos::unsupported_operation, "Set Reset Account Operation is currently disabled.");
+/*          const auto& acnt = _db.get_account(op.account);
             _db.get_account(op.reset_account);
 
             FC_ASSERT(acnt.reset_account == op.current_reset_account,
@@ -2189,8 +2204,6 @@ namespace golos { namespace chain {
         }
 
         void delegate_vesting_shares_evaluator::do_apply(const delegate_vesting_shares_operation& op) {
-            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_18__535, "delegate_vesting_shares_operation"); //TODO: Delete after hardfork
-
             const auto& delegator = _db.get_account(op.delegator);
             const auto& delegatee = _db.get_account(op.delegatee);
             auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
@@ -2206,31 +2219,37 @@ namespace golos { namespace chain {
                 op.vesting_shares;
             auto increasing = delta.amount > 0;
 
-            FC_ASSERT((increasing ? delta : -delta) >= min_update,
-                "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
+            GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                GOLOS_CHECK_LOGIC((increasing ? delta : -delta) >= min_update,
+                    logic_exception::delegation_difference_too_low,
+                    "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
 #ifdef STEEMIT_BUILD_TESTNET
-            // min_update depends on account_creation_fee, which can be 0 on testnet
-            FC_ASSERT(delta.amount != 0, "Delegation difference can't be 0");
+                // min_update depends on account_creation_fee, which can be 0 on testnet
+                GOLOS_CHECK_LOGIC(delta.amount != 0,
+                    logic_exception::delegation_difference_too_low,
+                    "Delegation difference can't be 0");
 #endif
+            });
 
             if (increasing) {
                 auto delegated = delegator.delegated_vesting_shares;
-                FC_ASSERT(delegator.available_vesting_shares(true) >= delta,
-                    "Account does not have enough vesting shares to delegate.",
-                    ("available", delegator.available_vesting_shares(true))
-                    ("delta", delta)("vesting_shares", delegator.vesting_shares)("delegated", delegated)
-                    ("to_withdraw", delegator.to_withdraw)("withdrawn", delegator.withdrawn));
+                GOLOS_CHECK_BALANCE(delegator, AVAILABLE_VESTING, delta);
                 auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
                 auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
                 auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
                 auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
-                FC_ASSERT(delegated + delta <= max_allowed,
+                GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
+                    logic_exception::delegation_limited_by_voting_power,
                     "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
                     ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));
 
                 if (!delegation) {
-                    FC_ASSERT(op.vesting_shares >= min_delegation,
-                        "Account must delegate a minimum of ${v}", ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                    GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                        GOLOS_CHECK_LOGIC(op.vesting_shares >= min_delegation,
+                            logic_exception::cannot_delegate_below_minimum,
+                            "Account must delegate a minimum of ${v}",
+                            ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                    });
                     _db.create<vesting_delegation_object>([&](vesting_delegation_object& o) {
                         o.delegator = op.delegator;
                         o.delegatee = op.delegatee;
@@ -2242,9 +2261,12 @@ namespace golos { namespace chain {
                     a.delegated_vesting_shares += delta;
                 });
             } else {
-                FC_ASSERT(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
-                    "Delegation must be removed or leave minimum delegation amount of ${v}",
-                    ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                    GOLOS_CHECK_LOGIC(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
+                        logic_exception::cannot_delegate_below_minimum,
+                        "Delegation must be removed or leave minimum delegation amount of ${v}",
+                        ("v",min_delegation)("vesting_shares",op.vesting_shares));
+                });
                 _db.create<vesting_delegation_expiration_object>([&](vesting_delegation_expiration_object& o) {
                     o.delegator = op.delegator;
                     o.vesting_shares = -delta;

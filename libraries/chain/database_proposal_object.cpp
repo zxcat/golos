@@ -1,6 +1,7 @@
 #include <golos/chain/database.hpp>
 #include <golos/chain/proposal_object.hpp>
 #include <golos/chain/account_object.hpp>
+#include <golos/protocol/exceptions.hpp>
 
 namespace golos { namespace chain {
 
@@ -9,6 +10,8 @@ namespace golos { namespace chain {
         const std::string& title
     ) const { try {
         return get<proposal_object, by_account>(std::make_tuple(author, title));
+    } catch (const std::out_of_range &e) {
+        GOLOS_THROW_MISSING_OBJECT("proposal", fc::mutable_variant_object()("account",author)("proposal",title));
     } FC_CAPTURE_AND_RETHROW((author)(title)) }
 
     const proposal_object *database::find_proposal(
@@ -17,6 +20,18 @@ namespace golos { namespace chain {
     ) const {
         return find<proposal_object, by_account>(std::make_tuple(author, title));
     }
+
+// Yet another temporary PoC
+// TODO: This can be generalized to generate all 3: get_, find_ and throw_if_exists_
+// methods with variable number of params (like DEFINE_/DECLARE_API + PLUGIN_API_VALIDATE_ARGS)
+#define DB_DEFINE_THROW_IF_EXIST(O, T1, N1, T2, N2) \
+    void database::throw_if_exists_##O(T1 N1, T2 N2) const { \
+        if (nullptr != find_##O(N1, N2)) { \
+            GOLOS_THROW_OBJECT_ALREADY_EXIST(#O, fc::mutable_variant_object()(#N1,N1)(#N2,N2)); \
+        } \
+    }
+
+    DB_DEFINE_THROW_IF_EXIST(proposal, const account_name_type&, author, const std::string&, title);
 
     void database::push_proposal(const proposal_object& proposal) { try {
         auto ops = proposal.operations();

@@ -1,7 +1,48 @@
 #include <boost/algorithm/string.hpp>
 #include <golos/plugins/tags/tag_visitor.hpp>
+#include <golos/plugins/social_network/social_network.hpp>
 
 namespace golos { namespace plugins { namespace tags {
+
+    using golos::plugins::social_network::comment_last_update_index;
+
+    comment_metadata get_metadata(const std::string& json_metadata) {
+        comment_metadata meta;
+
+        if (!json_metadata.empty()) {
+            try {
+                meta = fc::json::from_string(json_metadata).as<comment_metadata>();
+            } catch (const fc::exception& e) {
+                // Do nothing on malformed json_metadata
+            }
+        }
+
+        std::set<std::string> lower_tags;
+
+        std::size_t tag_limit = 15;
+        for (const auto& name : meta.tags) {
+            if (lower_tags.size() > tag_limit) {
+                break;
+            }
+            auto value = boost::trim_copy(name);
+            if (value.empty()) {
+                continue;
+            }
+            boost::to_lower(value);
+            lower_tags.insert(value);
+        }
+
+        meta.tags.swap(lower_tags);
+
+        boost::trim(meta.language);
+        boost::to_lower(meta.language);
+
+        return meta;
+    }
+
+    comment_metadata get_metadata(const golos::chain::database& db, const comment_object& c) {
+        return get_metadata(golos::plugins::social_network::get_json_metadata(db, c));
+    }
 
     operation_visitor::operation_visitor(database& db)
         : db_(db) {
@@ -81,13 +122,28 @@ namespace golos { namespace plugins { namespace tags {
         db_.remove(tag);
     }
 
+    comment_date operation_visitor::get_comment_last_update(const comment_object& comment) const {
+        comment_date result;
+        if (db_.has_index<comment_last_update_index>()) {
+            const auto& clu_idx = db_.get_index<comment_last_update_index>().indices().get<golos::plugins::social_network::by_comment>();
+            auto clu_itr = clu_idx.find(comment.id);
+            if (clu_itr != clu_idx.end()) {
+                result.active = clu_itr->active;
+                result.last_update = clu_itr->last_update;
+                return result;
+            }
+        }
+        return result;
+    }
+
     void operation_visitor::update_tag(
         const tag_object& current, const comment_object& comment, double hot, double trending
     ) const {
         auto cashout_time = db_.calculate_discussion_payout_time(comment);
         remove_stats(current);
+
         db_.modify(current, [&](tag_object& obj) {
-            obj.active = comment.active;
+            obj.active = get_comment_last_update(comment).active;
             obj.cashout = cashout_time;
             obj.children = comment.children;
             obj.net_rshares = comment.net_rshares.value;
@@ -112,14 +168,16 @@ namespace golos { namespace plugins { namespace tags {
             parent = db_.get_comment(comment.parent_author, comment.parent_permlink).id;
         }
 
+        auto com_date = get_comment_last_update(comment);
+
         const auto& tag_obj = db_.create<tag_object>([&](tag_object& obj) {
             obj.name = name;
             obj.type = type;
             obj.comment = comment.id;
             obj.parent = parent;
             obj.created = comment.created;
-            obj.active = comment.active;
-            obj.updated = comment.last_update;
+            obj.active = com_date.active;
+            obj.updated = com_date.last_update;
             obj.cashout = comment.cashout_time;
             obj.net_votes = comment.net_votes;
             obj.children = comment.children;
@@ -174,7 +232,7 @@ namespace golos { namespace plugins { namespace tags {
         auto trending = calculate_trending(comment.net_rshares, comment.created);
         const auto& comment_idx = db_.get_index<tag_index>().indices().get<by_comment>();
 
-        auto meta = get_metadata(comment_api_object(comment, db_));
+        auto meta = get_metadata(db_, comment);
         auto citr = comment_idx.lower_bound(comment.id);
         const tag_object* language_tag = nullptr;
 
@@ -307,7 +365,7 @@ namespace golos { namespace plugins { namespace tags {
         const auto& comment = db_.get_comment(op.author, op.permlink);
         const auto& author = db_.get_account(op.author).id;
 
-        auto meta = get_metadata(comment_api_object(comment, db_));
+        auto meta = get_metadata(db_, comment);
         const auto& stats_idx = db_.get_index<tag_stats_index>().indices().get<by_tag>();
         const auto& auth_idx = db_.get_index<author_tag_stats_index>().indices().get<by_author_tag_posts>();
 
