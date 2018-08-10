@@ -494,8 +494,14 @@ namespace golos { namespace plugins { namespace private_message {
             }
 
             process_action(*itr);
-        } else if (po.from.size() && po.to.size()) {
+        } else if (po.from.size() && po.to.size() && po.from == requester) {
             if (!process_private_messages<by_outbox_account>(db, po, process_action, po.from, po.to)) {
+                GOLOS_THROW_MISSING_OBJECT("private_message",
+                    fc::mutable_variant_object()("from", po.from)("to", po.to)
+                    ("start_date", po.start_date)("stop_date", po.stop_date));
+            }
+        } else if (po.from.size() && po.to.size()) {
+            if (!process_private_messages<by_inbox_account>(db, po, process_action, po.to, po.from)) {
                 GOLOS_THROW_MISSING_OBJECT("private_message",
                     fc::mutable_variant_object()("from", po.from)("to", po.to)
                     ("start_date", po.start_date)("stop_date", po.stop_date));
@@ -647,7 +653,7 @@ namespace golos { namespace plugins { namespace private_message {
         fc::flat_map<std::tuple<account_name_type, account_name_type>, contact_size_info> stat_map;
 
         process_group_message_operation(
-            d, pmm, "", stat_map,
+            d, pmm, pmm.to, stat_map,
             /* process_action */
             [&](const message_object& m) -> bool {
                 if (m.read_date != time_point_sec::min()) {
