@@ -69,7 +69,7 @@ namespace golos { namespace plugins { namespace tags {
             return !filter_languages.empty();
         }
 
-        bool is_good_tags(const discussion& d) const;
+        bool is_good_tags(const discussion& d, std::size_t tags_number, std::size_t tag_max_length) const;
 
         bool has_author_selector() const {
             return !select_author_ids.empty();

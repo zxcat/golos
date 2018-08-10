@@ -35,7 +35,7 @@ namespace golos { namespace plugins { namespace tags {
         void on_operation(const operation_notification& note) {
             try {
                 /// plugins shouldn't ever throw
-                note.op.visit(tags::operation_visitor(database_));
+                note.op.visit(tags::operation_visitor(database_, tags_number, tag_max_length));
             } catch (const fc::exception& e) {
                 edump((e.to_detail_string()));
             } catch (...) {
@@ -107,6 +107,8 @@ namespace golos { namespace plugins { namespace tags {
 
         get_languages_result get_languages();
 
+        std::size_t tags_number;
+        std::size_t tag_max_length;
     private:
         golos::chain::database& database_;
         std::unique_ptr<discussion_helper> helper;
@@ -203,10 +205,18 @@ namespace golos { namespace plugins { namespace tags {
         boost::program_options::options_description&,
         boost::program_options::options_description& config_file_options
     ) {
+        config_file_options.add_options()
+            (
+                "tags-number", boost::program_options::value<uint16_t>()->default_value(5),
+                "Maximum number of tags"
+            ) (
+                "tag-max-length", boost::program_options::value<uint32_t>()->default_value(512),
+                "Maximum length of tag"
+            );
     }
 
     void tags_plugin::plugin_initialize(const boost::program_options::variables_map& options) {
-        pimpl.reset(new impl());
+        pimpl = std::make_unique<impl>();
         auto& db = pimpl->database();
         db.post_apply_operation.connect([&](const operation_notification& note) {
             pimpl->on_operation(note);
@@ -215,6 +225,10 @@ namespace golos { namespace plugins { namespace tags {
         add_plugin_index<tags::tag_stats_index>(db);
         add_plugin_index<tags::author_tag_stats_index>(db);
         add_plugin_index<tags::language_index>(db);
+
+        pimpl->tags_number = options.at("tags-number").as<uint16_t>();
+        pimpl->tag_max_length = options.at("tag-max-length").as<uint32_t>();
+
         JSON_RPC_REGISTER_API (name());
 
     }
@@ -281,7 +295,7 @@ namespace golos { namespace plugins { namespace tags {
 
             query.start_comment = create_discussion(*comment, query);
             auto& d = query.start_comment;
-            operation_visitor v(database_);
+            operation_visitor v(database_, tags_number, tag_max_length);
 
             d.hot = v.calculate_hot(d.net_rshares, d.created);
             d.trending = v.calculate_trending(d.net_rshares, d.created);
@@ -368,7 +382,7 @@ namespace golos { namespace plugins { namespace tags {
                 }
 
                 discussion d = create_discussion(*comment);
-                if (!query.is_good_tags(d)) {
+                if (!query.is_good_tags(d, tags_number, tag_max_length)) {
                     continue;
                 }
 
@@ -413,7 +427,7 @@ namespace golos { namespace plugins { namespace tags {
             discussion d = create_discussion(*comment);
             d.promoted = asset(itr->promoted_balance, SBD_SYMBOL);
 
-            if (!select(d) || !query.is_good_tags(d)) {
+            if (!select(d) || !query.is_good_tags(d, tags_number, tag_max_length)) {
                 continue;
             }
 
@@ -638,7 +652,9 @@ namespace golos { namespace plugins { namespace tags {
                     discussion p;
                     auto& comment = db.get_comment(itr->comment);
                     pimpl->fill_comment_api_object(db.get_comment(comment.root_comment), p);
-                    if (!query.is_good_tags(p) || !query.is_good_author(p.author)) {
+                    if (!query.is_good_tags(p, pimpl->tags_number, pimpl->tag_max_length) ||
+                        !query.is_good_author(p.author)
+                    ) {
                         continue;
                     }
                     discussion d;
