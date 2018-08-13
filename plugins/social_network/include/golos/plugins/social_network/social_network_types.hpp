@@ -36,7 +36,6 @@ namespace golos { namespace plugins { namespace social_network {
         uint32_t block_number;
     };
 
-
     using comment_content_id_type = object_id<comment_content_object>;
 
     struct by_comment;

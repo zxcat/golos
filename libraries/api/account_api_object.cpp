@@ -70,6 +70,6 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
     }
 }
 
-account_api_object::account_api_object() {}
+account_api_object::account_api_object() = default;
 
 } } // golos::api

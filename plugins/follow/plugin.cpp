@@ -542,10 +542,18 @@ namespace golos {
                     entry.entry_id = itr->account_feed_id;
                     if (itr->first_reblogged_by != account_name_type()) {
                         entry.reblog_by.reserve(itr->reblogged_by.size());
+                        entry.reblog_entries.reserve(itr->reblogged_by.size());
                         for (const auto& a : itr->reblogged_by) {
                             entry.reblog_by.push_back(a);
+                            const auto& blog_idx = db.get_index<blog_index>().indices().get<by_comment>();
+                            auto blog_itr = blog_idx.find(std::make_tuple(itr->comment, a));
+                            entry.reblog_entries.emplace_back(
+                                a,
+                                to_string(blog_itr->reblog_title),
+                                to_string(blog_itr->reblog_body),
+                                to_string(blog_itr->reblog_json_metadata)
+                            );
                         }
-                        //entry.reblog_by = itr->first_reblogged_by;
                         entry.reblog_on = itr->first_reblogged_on;
                     }
                     result.push_back(entry);
@@ -579,10 +587,18 @@ namespace golos {
                     entry.comment = helper->create_comment_api_object(comment);
                     entry.entry_id = itr->account_feed_id;
                     if (itr->first_reblogged_by != account_name_type()) {
-                        //entry.reblog_by = itr->first_reblogged_by;
                         entry.reblog_by.reserve(itr->reblogged_by.size());
+                        entry.reblog_entries.reserve(itr->reblogged_by.size());
                         for (const auto& a : itr->reblogged_by) {
                             entry.reblog_by.push_back(a);
+                            const auto& blog_idx = db.get_index<blog_index>().indices().get<by_comment>();
+                            auto blog_itr = blog_idx.find(std::make_tuple(itr->comment, a));
+                            entry.reblog_entries.emplace_back(
+                                a,
+                                to_string(blog_itr->reblog_title),
+                                to_string(blog_itr->reblog_body),
+                                to_string(blog_itr->reblog_json_metadata)
+                            );
                         }
                         entry.reblog_on = itr->first_reblogged_on;
                     }
@@ -619,6 +635,9 @@ namespace golos {
                     entry.blog = account;
                     entry.reblog_on = itr->reblogged_on;
                     entry.entry_id = itr->blog_feed_id;
+                    entry.reblog_title = to_string(itr->reblog_title);
+                    entry.reblog_body = to_string(itr->reblog_body);
+                    entry.reblog_json_metadata = to_string(itr->reblog_json_metadata);
 
                     result.push_back(entry);
 
@@ -652,6 +671,9 @@ namespace golos {
                     entry.blog = account;
                     entry.reblog_on = itr->reblogged_on;
                     entry.entry_id = itr->blog_feed_id;
+                    entry.reblog_title = to_string(itr->reblog_title);
+                    entry.reblog_body = to_string(itr->reblog_body);
+                    entry.reblog_json_metadata = to_string(itr->reblog_json_metadata);
 
                     result.push_back(entry);
 

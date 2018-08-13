@@ -18,6 +18,7 @@ using protocol::public_key_type;
 
 struct account_api_object {
     account_api_object(const account_object&, const golos::chain::database&);
+
     account_api_object();
 
     account_object::id_type id;
