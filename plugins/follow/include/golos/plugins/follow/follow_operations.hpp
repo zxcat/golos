@@ -24,6 +24,9 @@ namespace golos {
                 protocol::account_name_type account;
                 protocol::account_name_type author;
                 std::string permlink;
+                string title;
+                string body;
+                string json_metadata;
 
                 void validate() const;
                 void get_required_posting_authorities(flat_set<account_name_type>& a) const {
@@ -49,7 +52,7 @@ namespace golos {
 } // golos::follow
 
 FC_REFLECT((golos::plugins::follow::follow_operation), (follower)(following)(what));
-FC_REFLECT((golos::plugins::follow::reblog_operation), (account)(author)(permlink));
+FC_REFLECT((golos::plugins::follow::reblog_operation), (account)(author)(permlink)(title)(body)(json_metadata));
 FC_REFLECT((golos::plugins::follow::delete_reblog_operation), (account)(author)(permlink));
 
 FC_REFLECT_TYPENAME((golos::plugins::follow::follow_plugin_operation));

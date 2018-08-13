@@ -7,6 +7,7 @@
 namespace golos {
     namespace plugins {
         namespace follow {
+            using golos::chain::from_string;
 
             void save_blog_stats(database& db, account_name_type blogger, account_name_type guest, uint32_t start_count = 0) {
 
@@ -154,6 +155,9 @@ namespace golos {
                         b.comment = c.id;
                         b.reblogged_on = db().head_block_time();
                         b.blog_feed_id = next_blog_id;
+                        from_string(b.reblog_title, o.title);
+                        from_string(b.reblog_body, o.body);
+                        from_string(b.reblog_json_metadata, o.json_metadata);
                     });
 
                     save_blog_stats(db(), o.account, c.author, 1);

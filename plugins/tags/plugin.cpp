@@ -560,6 +560,10 @@ namespace golos { namespace plugins { namespace tags {
                 query,
                 [&](discussion& d, const follow::blog_object& b) {
                     d.first_reblogged_on = b.reblogged_on;
+                    d.reblog_author = b.account;
+                    d.reblog_title = to_string(b.reblog_title);
+                    d.reblog_body = to_string(b.reblog_body);
+                    d.reblog_json_metadata = to_string(b.reblog_json_metadata);
                 });
         });
     }
@@ -584,6 +588,16 @@ namespace golos { namespace plugins { namespace tags {
                     d.reblogged_by.assign(f.reblogged_by.begin(), f.reblogged_by.end());
                     d.first_reblogged_by = f.first_reblogged_by;
                     d.first_reblogged_on = f.first_reblogged_on;
+                    for (const auto& a : f.reblogged_by) {
+                        const auto& blog_idx = db.get_index<follow::blog_index>().indices().get<follow::by_comment>();
+                        auto blog_itr = blog_idx.find(std::make_tuple(f.comment, a));
+                        d.reblog_entries.emplace_back(
+                            a,
+                            to_string(blog_itr->reblog_title),
+                            to_string(blog_itr->reblog_body),
+                            to_string(blog_itr->reblog_json_metadata)
+                        );
+                    }
                 });
         });
     }

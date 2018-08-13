@@ -16,6 +16,7 @@ namespace golos {
             using golos::chain::by_id;
             using golos::chain::comment_vote_index;
             using golos::chain::by_comment_voter;
+            using golos::chain::shared_string;
 
 #ifndef FOLLOW_SPACE_ID
 #define FOLLOW_SPACE_ID 8
@@ -36,9 +37,6 @@ namespace golos {
                 template<typename Constructor, typename Allocator>
                 follow_object(Constructor &&c, allocator<Allocator> a) {
                     c(*this);
-                }
-
-                follow_object() {
                 }
 
                 id_type id;
@@ -73,15 +71,14 @@ namespace golos {
 
             typedef object_id<feed_object> feed_id_type;
 
-
             class blog_object : public object<blog_object_type, blog_object> {
             public:
-                template<typename Constructor, typename Allocator>
-                blog_object(Constructor &&c, allocator<Allocator> a) {
-                    c(*this);
-                }
+                blog_object() = delete;
 
-                blog_object() {
+                template<typename Constructor, typename Allocator>
+                blog_object(Constructor &&c, allocator<Allocator> a)
+                        : reblog_title(a), reblog_body(a), reblog_json_metadata(a) {
+                    c(*this);
                 }
 
                 id_type id;
@@ -90,6 +87,10 @@ namespace golos {
                 comment_object::id_type comment;
                 time_point_sec reblogged_on;
                 uint32_t blog_feed_id = 0;
+
+                shared_string reblog_title;
+                shared_string reblog_body;
+                shared_string reblog_json_metadata;
             };
 
             typedef object_id<blog_object> blog_id_type;
@@ -125,9 +126,6 @@ namespace golos {
                     c(*this);
                 }
 
-                reputation_object() {
-                }
-
                 id_type id;
 
                 account_name_type account;
@@ -142,9 +140,6 @@ namespace golos {
                 template<typename Constructor, typename Allocator>
                 follow_count_object(Constructor &&c, allocator<Allocator> a) {
                     c(*this);
-                }
-
-                follow_count_object() {
                 }
 
                 id_type id;
