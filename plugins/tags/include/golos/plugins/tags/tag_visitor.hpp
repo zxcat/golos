@@ -9,15 +9,17 @@
 namespace golos { namespace plugins { namespace tags {
     using golos::api::discussion_helper;
 
-    comment_metadata get_metadata(const std::string& json_metadata);
+    comment_metadata get_metadata(const std::string& json, std::size_t tags_number, std::size_t tag_max_length);
 
     struct comment_date { time_point_sec active; time_point_sec last_update; };
 
     struct operation_visitor {
-        operation_visitor(database& db);
+        operation_visitor(database& db, std::size_t tags_number, std::size_t tag_max_length);
         using result_type = void;
 
         database& db_;
+        std::size_t tags_number_;
+        std::size_t tag_max_length_;
 
         void remove_stats(const tag_object& tag) const;
 
