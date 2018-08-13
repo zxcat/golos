@@ -207,7 +207,7 @@ namespace golos { namespace plugins { namespace tags {
     ) {
         config_file_options.add_options()
             (
-                "tags-number", boost::program_options::value<uint8_t>()->default_value(5),
+                "tags-number", boost::program_options::value<uint16_t>()->default_value(5),
                 "Maximum number of tags"
             ) (
                 "tag-max-length", boost::program_options::value<uint16_t>()->default_value(512),
@@ -227,7 +227,7 @@ namespace golos { namespace plugins { namespace tags {
         add_plugin_index<tags::language_index>(db);
 
         pimpl->tags_number = options.at("tags-number").as<uint16_t>();
-        pimpl->tag_max_length = options.at("tag-max-length").as<uint32_t>();
+        pimpl->tag_max_length = options.at("tag-max-length").as<uint16_t>();
 
         JSON_RPC_REGISTER_API (name());
 
