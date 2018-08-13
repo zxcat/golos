@@ -30,19 +30,20 @@ namespace golos { namespace plugins { namespace tags {
                 continue;
             }
             boost::to_lower(value);
+            // skip long tags
             if (value.size() > tag_max_length) {
-                value.erase(tag_max_length);
+                continue;
             }
             lower_tags.insert(std::move(value));
         }
 
         meta.tags.swap(lower_tags);
 
-        if (meta.language.size() > tag_max_length) {
-            meta.language.erase(tag_max_length);
-        }
         boost::trim(meta.language);
         boost::to_lower(meta.language);
+        if (meta.language.size() > tag_max_length) {
+            meta.language.clear();
+        }
 
         return meta;
     }
