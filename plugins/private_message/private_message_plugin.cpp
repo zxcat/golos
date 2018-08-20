@@ -1009,7 +1009,7 @@ namespace golos { namespace plugins { namespace private_message {
         GOLOS_CHECK_PARAM(query.filter_events, {
             for (auto& itr : query.filter_events) {
                 GOLOS_CHECK_VALUE(!query.select_events.count(itr),
-                    "Can't filter and select accounts '${event}' at the same time",
+                    "Can't filter and select event '${event}' at the same time",
                     ("event", itr));
             }
         });
