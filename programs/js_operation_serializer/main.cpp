@@ -1,9 +1,13 @@
 #include <golos/protocol/protocol.hpp>
+#include <golos/plugins/private_message/private_message_operations.hpp>
+#include <golos/plugins/follow/follow_operations.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 using namespace golos::chain;
 using namespace golos::protocol;
+using namespace golos::plugins::private_message;
+using namespace golos::plugins::follow;
 
 using std::string;
 using std::map;
@@ -183,6 +187,13 @@ namespace detail_ns {
     struct js_name<fc::time_point_sec> {
         static std::string name() {
             return "time_point_sec";
+        }
+    };
+
+    template<>
+    struct js_name<private_contact_type> {
+        static std::string name() {
+            return "private_contact_type";
         }
     };
 
@@ -395,6 +406,15 @@ namespace detail_ns {
         }
     };
 
+    template<>
+    struct serializer<private_contact_type, true> {
+        static void init() {
+        }
+
+        static void generate() {
+        }
+    };
+
     template<typename T>
     struct serializer<fc::optional<T>, false> {
         static void init() {
@@ -503,14 +523,51 @@ int main(int argc, char **argv) {
         }
         std::cout << "\n";
 
+        versioned_chain_properties cp;
+        std::cout << "ChainTypes.chain_properties=\n";
+        for (int i = 0; i < cp.count(); ++i) {
+            cp.set_which(i);
+            cp.visit(detail_ns::serialize_type_visitor(i));
+        }
+        std::cout << "\n";
+
+//        follow_plugin_operation fp;
+//        std::cout << "ChainTypes.follow_operations=\n";
+//        for (int i = 0; i < fp.count(); ++i) {
+//            fp.set_which(i);
+//            fp.visit(detail_ns::serialize_type_visitor(i));
+//        }
+//        std::cout << "\n";
+
+        std::cout << "ChainTypes.private_contact_types=\n";
+        for (uint8_t i = unknown; i < private_contact_type_size; ++i) {
+            std::cout << "    " << fc::json::to_string(static_cast<private_contact_type>(i)) << "\n";
+        }
+        std::cout << "\n";
+
+//        private_message_plugin_operation pmp;
+//        std::cout << "ChainTypes.private_message_operations=\n";
+//        for (int i = 0; i < pmp.count(); ++i) {
+//            pmp.set_which(i);
+//            pmp.visit(detail_ns::serialize_type_visitor(i));
+//        }
+//        std::cout << "\n";
+
         detail_ns::js_name<operation>::name("operation");
         detail_ns::js_name<future_extensions>::name("future_extensions");
+        detail_ns::js_name<versioned_chain_properties>::name("chain_properties");
+        detail_ns::js_name<follow_plugin_operation>::name("follow");
+        detail_ns::js_name<private_message_plugin_operation>::name("private_message");
         detail_ns::serializer<signed_block>::init();
         detail_ns::serializer<block_header>::init();
         detail_ns::serializer<signed_block_header>::init();
         detail_ns::serializer<operation>::init();
+        detail_ns::serializer<versioned_chain_properties>::init();
+        detail_ns::serializer<follow_plugin_operation>::init();
+        detail_ns::serializer<private_message_plugin_operation>::init();
         detail_ns::serializer<transaction>::init();
         detail_ns::serializer<signed_transaction>::init();
+
         for (const auto &gen : detail_ns::serializers) {
             gen();
         }

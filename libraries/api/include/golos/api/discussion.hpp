@@ -2,6 +2,7 @@
 
 #include <golos/api/vote_state.hpp>
 #include <golos/api/comment_api_object.hpp>
+#include <golos/api/reblog_entry.hpp>
 
 
 namespace golos { namespace api {
@@ -12,8 +13,7 @@ namespace golos { namespace api {
             
         }
 
-        discussion() {
-        }
+        discussion() = default;
 
         string url; /// /category/@rootauthor/root_permlink#author/permlink
 
@@ -36,9 +36,15 @@ namespace golos { namespace api {
         double hot = 0;
         double trending = 0;
         uint32_t body_length = 0;
+
         std::vector<account_name_type> reblogged_by;
-        optional <account_name_type> first_reblogged_by;
-        optional <time_point_sec> first_reblogged_on;
+        optional<account_name_type> first_reblogged_by;
+        optional<time_point_sec> first_reblogged_on;
+        optional<account_name_type> reblog_author;
+        optional<std::string> reblog_title;
+        optional<std::string> reblog_body;
+        optional<std::string> reblog_json_metadata;
+        std::vector<reblog_entry> reblog_entries;
     };
 
 } } // golos::api
@@ -49,4 +55,5 @@ FC_REFLECT_DERIVED( (golos::api::discussion), ((golos::api::comment_api_object))
         (pending_benefactor_payout_value)(pending_benefactor_payout_gests_value)
         (pending_curator_payout_value)(pending_curator_payout_gests_value)
         (pending_payout_value)(total_pending_payout_value)(active_votes)(active_votes_count)(replies)
-        (author_reputation)(promoted)(body_length)(reblogged_by)(first_reblogged_by)(first_reblogged_on))
+        (author_reputation)(promoted)(body_length)(reblogged_by)(first_reblogged_by)(first_reblogged_on)
+        (reblog_author)(reblog_title)(reblog_body)(reblog_json_metadata)(reblog_entries))

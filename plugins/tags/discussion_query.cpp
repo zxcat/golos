@@ -44,12 +44,14 @@ namespace golos { namespace plugins { namespace tags {
         });
     }
 
-    bool discussion_query::is_good_tags(const discussion& d) const {
+    bool discussion_query::is_good_tags(
+        const discussion& d, std::size_t tags_number, std::size_t tag_max_length
+    ) const {
         if (!has_tags_selector() && !has_tags_filter() && !has_language_selector() && !has_language_filter()) {
             return true;
         }
 
-        auto meta = get_metadata(d.json_metadata);
+        auto meta = get_metadata(d.json_metadata, tags_number, tag_max_length);
         if ((has_language_selector() && !select_languages.count(meta.language)) ||
             (has_language_filter() && filter_languages.count(meta.language))
         ) {
