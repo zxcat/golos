@@ -286,7 +286,7 @@ namespace golos { namespace plugins { namespace private_message {
     }
 
     bool private_message_plugin::private_message_plugin_impl::can_call_callbacks() const {
-        return !db_.is_producing() && !callbacks_.empty();
+        return !db_.is_producing() && !db_.is_generating() && !callbacks_.empty();
     }
 
     void private_message_plugin::private_message_plugin_impl::call_callbacks(
