@@ -39,7 +39,7 @@
 #define GOLOS_CHECK_VALUE_GE(F, X) GOLOS_CHECK_VALUE_I(F, >=, X)
 #define GOLOS_CHECK_VALUE_LE(F, X) GOLOS_CHECK_VALUE_I(F, <=, X)
 #define GOLOS_CHECK_VALUE_LEGE(F, L, H) \
-    GOLOS_CHECK_VALUE((L) <= F && F <= (H) , MUST_BE(F, "between " FC_STRINGIZE(L) " and" FC_STRINGIZE(H)))
+    GOLOS_CHECK_VALUE((L) <= F && F <= (H), MUST_BE(F, "between " FC_STRINGIZE(L) " and " FC_STRINGIZE(H)))
 
 // check asset type
 #define GOLOS_CHECK_ASSET_TYPE(X, NAME) GOLOS_CHECK_ASSET_##NAME(X);
