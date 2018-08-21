@@ -48,7 +48,16 @@ namespace golos { namespace chain {
                 _is_producing = p;
             }
 
+            bool is_generating() const {
+                return _is_generating;
+            }
+
+            void set_generating(bool p) {
+                _is_generating = p;
+            }
+
             bool _is_producing = false;
+            bool _is_generating = false;
             bool _is_testing = false;           ///< set for tests to avoid low free memory spam
             bool _log_hardforks = true;
 
