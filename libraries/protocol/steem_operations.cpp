@@ -226,6 +226,13 @@ namespace golos { namespace protocol {
                 (GOLOS_CREATE_ACCOUNT_DELEGATION_TIME).to_seconds() / 2);
         }
 
+        void chain_properties_19::validate() const {
+            chain_properties_18::validate();
+            GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, STEEMIT_100_PERCENT);
+            GOLOS_CHECK_VALUE_LE(max_referral_term_sec, 60*60*24*30*12);
+            GOLOS_CHECK_VALUE_LEGE(referral_break_fee, 1*account_creation_fee, 10*account_creation_fee);
+        }
+
         void witness_update_operation::validate() const {
             GOLOS_CHECK_PARAM_ACCOUNT(owner);
             GOLOS_CHECK_PARAM(url, {

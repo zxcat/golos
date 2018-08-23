@@ -41,7 +41,7 @@ namespace golos { namespace chain {
     }
 
     struct chain_properties_convert {
-        using result_type = chain_properties_18;
+        using result_type = chain_properties_19;
 
         template<typename Props>
         result_type operator()(Props&& p) const {

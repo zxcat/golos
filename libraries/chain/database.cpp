@@ -1867,16 +1867,16 @@ namespace golos { namespace chain {
         }
 
         void database::update_median_witness_props() {
-            const witness_schedule_object &wso = get_witness_schedule_object();
+            const witness_schedule_object& wso = get_witness_schedule_object();
 
             /// fetch all witness objects
-            vector<const witness_object *> active;
+            vector<const witness_object*> active;
             active.reserve(wso.num_scheduled_witnesses);
             for (int i = 0; i < wso.num_scheduled_witnesses; i++) {
                 active.push_back(&get_witness(wso.current_shuffled_witnesses[i]));
             }
 
-            chain_properties_18 median_props;
+            chain_properties_19 median_props;
 
             auto calc_median = [&](auto&& param) {
                 std::nth_element(
@@ -1895,12 +1895,15 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_18::create_account_min_delegation);
             calc_median(&chain_properties_18::create_account_delegation_time);
             calc_median(&chain_properties_18::min_delegation);
+            calc_median(&chain_properties_19::max_referral_interest_rate);
+            calc_median(&chain_properties_19::max_referral_term_sec);
+            calc_median(&chain_properties_19::referral_break_fee);
 
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;
             });
 
-            modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &_dgpo) {
+            modify(get_dynamic_global_properties(), [&](dynamic_global_property_object& _dgpo) {
                 _dgpo.maximum_block_size = median_props.maximum_block_size;
                 _dgpo.sbd_interest_rate = median_props.sbd_interest_rate;
             });
