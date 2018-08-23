@@ -1897,7 +1897,7 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_18::min_delegation);
             calc_median(&chain_properties_19::max_referral_interest_rate);
             calc_median(&chain_properties_19::max_referral_term_sec);
-            calc_median(&chain_properties_19::referral_break_fee);
+            calc_median(&chain_properties_19::max_referral_break_fee);
 
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;
