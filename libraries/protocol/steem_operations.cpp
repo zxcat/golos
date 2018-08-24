@@ -228,9 +228,9 @@ namespace golos { namespace protocol {
 
         void chain_properties_19::validate() const {
             chain_properties_18::validate();
-            GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, STEEMIT_100_PERCENT);
-            GOLOS_CHECK_VALUE_LE(max_referral_term_sec, 60*60*24*30*12);
-            GOLOS_CHECK_VALUE_LEGE(referral_break_fee, 1*account_creation_fee, 10*account_creation_fee);
+            GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, GOLOS_MAX_REFERRAL_INTEREST_RATE);
+            GOLOS_CHECK_VALUE_LE(max_referral_term_sec, GOLOS_MAX_REFERRAL_TERM_SEC);
+            GOLOS_CHECK_VALUE_LEGE(max_referral_break_fee.amount, 0, GOLOS_MAX_REFERRAL_BREAK_FEE.amount);
         }
 
         void witness_update_operation::validate() const {
