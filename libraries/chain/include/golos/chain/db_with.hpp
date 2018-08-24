@@ -83,6 +83,21 @@ namespace golos {
             };
 
             /**
+             * Class is used to help the with_generating implementation
+             */
+            struct generating_helper final {
+                generating_helper(database& db): _db(db) {
+                    _db.set_generating(true);
+                }
+
+                ~generating_helper() {
+                    _db.set_generating(false);
+                }
+
+                database &_db;
+            };
+
+            /**
              * Empty pending_transactions, call callback,
              * then reset pending_transactions after callback is done.
              *
@@ -111,6 +126,19 @@ namespace golos {
                  producing_helper restorer(db);
                  callback();
              }
+
+             /**
+              * Set generating flag to true, call callback, then set generating flag to false
+              */
+             template <typename Lambda>
+             void with_generating(
+                 database& db,
+                 Lambda callback
+             ) {
+                 generating_helper restorer(db);
+                 callback();
+             }
+
         }
     }
 } // golos::chain::detail

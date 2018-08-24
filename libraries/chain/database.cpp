@@ -1145,7 +1145,7 @@ namespace golos { namespace chain {
 
             signed_block pending_block;
 
-            with_strong_write_lock([&]() {
+            with_strong_write_lock([&]() { detail::with_generating(*this, [&]() {
                 //
                 // The following code throws away existing pending_tx_session and
                 // rebuilds it by re-applying pending transactions.
@@ -1198,7 +1198,7 @@ namespace golos { namespace chain {
                 }
 
                 _pending_tx_session.reset();
-            });
+            }); });
 
             // We have temporarily broken the invariant that
             // _pending_tx_session is the result of applying _pending_tx, as

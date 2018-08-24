@@ -286,7 +286,7 @@ namespace golos { namespace plugins { namespace private_message {
     }
 
     bool private_message_plugin::private_message_plugin_impl::can_call_callbacks() const {
-        return !db_.is_producing() && !callbacks_.empty();
+        return !db_.is_producing() && !db_.is_generating() && !callbacks_.empty();
     }
 
     void private_message_plugin::private_message_plugin_impl::call_callbacks(
@@ -300,8 +300,9 @@ namespace golos { namespace plugins { namespace private_message {
                 (!info.query.select_events.empty() && !info.query.select_events.count(event)) ||
                 info.query.filter_accounts.count(from) ||
                 info.query.filter_accounts.count(to) ||
-                (to.size() && !info.query.select_accounts.empty() && !info.query.select_accounts.count(to)) ||
-                (from.size() && !info.query.select_accounts.empty() && !info.query.select_accounts.count(from))
+                (!info.query.select_accounts.empty() &&
+                 !info.query.select_accounts.count(to) &&
+                 !info.query.select_accounts.count(from))
             ) {
                 ++itr;
                 continue;
