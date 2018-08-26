@@ -6944,5 +6944,329 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_SUITE_END() // account_metadata
 
+
+    BOOST_AUTO_TEST_SUITE(referral)
+
+    BOOST_AUTO_TEST_CASE(referral_validate_create_account) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_validate_create_account");
+
+            BOOST_TEST_MESSAGE("--- Test failure with non-GOLOS break fee");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, VESTS_SYMBOL);
+            cr.extensions.insert(aro);
+
+            GOLOS_CHECK_ERROR_PROPS(cr.validate(),
+                CHECK_ERROR(invalid_parameter, "break_fee"));
+
+            BOOST_TEST_MESSAGE("--- Test failure with negative break fee");
+
+            aro.break_fee = asset(-100, STEEM_SYMBOL);
+
+            cr.extensions.clear();
+            cr.extensions.insert(aro);
+
+            GOLOS_CHECK_ERROR_PROPS(cr.validate(),
+                CHECK_ERROR(invalid_parameter, "break_fee"));
+
+            BOOST_TEST_MESSAGE("--- Test success with correct break fee");
+
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+
+            cr.extensions.clear();
+            cr.extensions.insert(aro);
+
+            CHECK_OP_VALID(cr);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com = db->get_comment("testref", string("foo"));
+            const auto& referrer_find = std::find_if(testref_com.beneficiaries.begin(),
+                    testref_com.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account;
+            });
+            BOOST_CHECK(referrer_find != testref_com.beneficiaries.end());
+
+            BOOST_TEST_MESSAGE("--- Test breaking of referral account");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            break_free_referral_operation op;
+            op.referral = "testref";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(op);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            const auto& testref_free_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_account, account_name_type());
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_interest_rate, 0);
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_end_date, time_point_sec::min());
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_break_fee.amount, 0);
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_break_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_break_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test breaking of referral account");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            break_free_referral_operation op;
+            op.referral = "testref";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(op);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            const auto& testref_free_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_account, account_name_type());
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_interest_rate, 0);
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_end_date, time_point_sec::min());
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_break_fee.amount, 0);
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral account after break");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo2";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com2 = db->get_comment("testref", string("foo2"));
+            const auto& referrer_find2 = std::find_if(testref_com2.beneficiaries.begin(),
+                    testref_com2.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account; // Using account before break
+            });
+            BOOST_CHECK(referrer_find2 == testref_com2.beneficiaries.end());
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_expire_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_expire_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time(); // Will expire after generating at least 1 block
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral account after expiration");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo3";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            co.title = "bar";
+            co.body = "foo bar";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com = db->get_comment("testref", string("foo3"));
+            const auto& referrer_find = std::find_if(testref_com.beneficiaries.begin(),
+                    testref_com.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account; // Using account before break
+            });
+            BOOST_CHECK(referrer_find == testref_com.beneficiaries.end());
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_SUITE_END() // referral
+
 BOOST_AUTO_TEST_SUITE_END()
 #endif

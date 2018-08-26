@@ -233,6 +233,39 @@ namespace golos { namespace chain {
             }
         }
 
+        struct account_create_with_delegation_extension_visitor {
+            account_create_with_delegation_extension_visitor(const account_object& a, database& db)
+                    : _a(a), _db(db) {
+            }
+
+            using result_type = void;
+
+            const account_object& _a;
+            database& _db;
+
+            void operator()(const account_referral_options& aro) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__295, "account_referral_options");
+
+                _db.get_account(aro.referrer);
+
+                const auto& median_props = _db.get_witness_schedule_object().median_props;
+
+                GOLOS_CHECK_LIMIT_PARAM(aro.interest_rate, median_props.max_referral_interest_rate);
+
+                GOLOS_CHECK_PARAM(aro.end_date, aro.end_date >= _db.head_block_time());
+                GOLOS_CHECK_LIMIT_PARAM(aro.end_date, _db.head_block_time() + median_props.max_referral_term_sec);
+
+                GOLOS_CHECK_LIMIT_PARAM(aro.break_fee, median_props.max_referral_break_fee);
+
+                _db.modify(_a, [&](account_object& a) {
+                    a.referrer_account = aro.referrer;
+                    a.referrer_interest_rate = aro.interest_rate;
+                    a.referral_end_date = aro.end_date;
+                    a.referral_break_fee = aro.break_fee;
+                });
+            }
+        };
+
         void account_create_with_delegation_evaluator::do_apply(const account_create_with_delegation_operation& o) {
             const auto& creator = _db.get_account(o.creator);
             GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
@@ -303,6 +336,10 @@ namespace golos { namespace chain {
             }
             if (o.fee.amount > 0) {
                 _db.create_vesting(new_account, o.fee);
+            }
+
+            for (auto& e : o.extensions) {
+                e.visit(account_create_with_delegation_extension_visitor(new_account, _db));
             }
         }
 
@@ -445,34 +482,57 @@ namespace golos { namespace chain {
         }
 
         struct comment_options_extension_visitor {
-            comment_options_extension_visitor(const comment_object &c, database &db)
-                    : _c(c), _db(db) {
+            comment_options_extension_visitor(const comment_object& c, database& db)
+                    : _c(c), _db(db), _a(db.get_account(_c.author)) {
             }
 
             using result_type = void;
 
-            const comment_object &_c;
-            database &_db;
+            const comment_object& _c;
+            database& _db;
+            const account_object& _a;
 
-            void operator()(const comment_payout_beneficiaries &cpb) const {
+            void operator()(const comment_payout_beneficiaries& cpb) const {
                 if (_db.is_producing()) {
                     GOLOS_CHECK_LOGIC(cpb.beneficiaries.size() <= STEEMIT_MAX_COMMENT_BENEFICIARIES,
-                            logic_exception::cannot_specify_more_beneficiaries,
-                            "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
+                        logic_exception::cannot_specify_more_beneficiaries,
+                        "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
                 }
 
-                GOLOS_CHECK_LOGIC(_c.beneficiaries.size() == 0,
+                uint16_t total_weight = 0;
+
+                if (_c.beneficiaries.size() == 1
+                        && _c.beneficiaries.front().account == _a.referrer_account) {
+                    total_weight += _c.beneficiaries[0].weight;
+                    auto& referrer = _a.referrer_account;
+                    const auto& itr = std::find_if(cpb.beneficiaries.begin(), cpb.beneficiaries.end(),
+                            [&referrer](const beneficiary_route_type& benef) {
+                        return benef.account == referrer;
+                    });
+                    GOLOS_CHECK_LOGIC(itr == cpb.beneficiaries.end(),
+                        logic_exception::beneficiaries_should_be_unique,
+                        "Comment already has '${referrer}' as a referrer-beneficiary.", ("referrer",referrer));
+                } else {
+                    GOLOS_CHECK_LOGIC(_c.beneficiaries.size() == 0,
                         logic_exception::comment_already_has_beneficiaries,
                         "Comment already has beneficiaries specified.");
-                GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
-                        logic_exception::comment_must_not_have_been_voted,
-                        "Comment must not have been voted on before specifying beneficiaries.");
+                }
 
-                _db.modify(_c, [&](comment_object &c) {
-                    for (auto &b : cpb.beneficiaries) {
+                GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                    logic_exception::comment_must_not_have_been_voted,
+                    "Comment must not have been voted on before specifying beneficiaries.");
+
+                _db.modify(_c, [&](comment_object& c) {
+                    for (auto& b : cpb.beneficiaries) {
                         _db.get_account(b.account);   // check beneficiary exists
                         c.beneficiaries.push_back(b);
+                        total_weight += b.weight;
                     }
+                });
+
+                GOLOS_CHECK_PARAM("beneficiaries", {
+                    GOLOS_CHECK_VALUE(total_weight <= STEEMIT_100_PERCENT,
+                        "Cannot allocate more than 100% of rewards to a comment");
                 });
             }
         };
@@ -507,14 +567,14 @@ namespace golos { namespace chain {
                     logic_exception::comment_cannot_accept_greater_percent_GBG,
                     "A comment cannot accept a greater percent SBD.");
 
-            _db.modify(comment, [&](comment_object &c) {
+            _db.modify(comment, [&](comment_object& c) {
                 c.max_accepted_payout = o.max_accepted_payout;
                 c.percent_steem_dollars = o.percent_steem_dollars;
                 c.allow_votes = o.allow_votes;
                 c.allow_curation_rewards = o.allow_curation_rewards;
             });
 
-            for (auto &e : o.extensions) {
+            for (auto& e : o.extensions) {
                 e.visit(comment_options_extension_visitor(comment, _db));
             }
         }
@@ -532,10 +592,11 @@ namespace golos { namespace chain {
 
                 const auto &auth = _db.get_account(o.author); /// prove it exists
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                     GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
                             logic_exception::account_is_currently_challenged,
                             "Operation cannot be processed because account is currently challenged.");
+                }
 
                 comment_id_type id;
 
@@ -626,6 +687,8 @@ namespace golos { namespace chain {
                         a.post_count++;
                     });
 
+                    bool referrer_to_delete = false;
+
                     _db.create<comment_object>([&](comment_object &com) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                             GOLOS_CHECK_OP_PARAM(o, parent_permlink, validate_permlink_0_1(o.parent_permlink));
@@ -656,14 +719,31 @@ namespace golos { namespace chain {
                             com.cashout_time = fc::time_point_sec::maximum();
                         }
 
-                        if (_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                             com.cashout_time = com.created + STEEMIT_CASHOUT_WINDOW_SECONDS;
                         }
 
+                        if (auth.referrer_account != account_name_type()) {
+                            if (_db.head_block_time() < auth.referral_end_date) {
+                                com.beneficiaries.push_back(beneficiary_route_type(auth.referrer_account,
+                                    auth.referrer_interest_rate));
+                            } else {
+                                referrer_to_delete = true;
+                            }
+                        }
                     });
 
+                    if (referrer_to_delete) {
+                        _db.modify(auth, [&](account_object& a) {
+                            a.referrer_account = account_name_type();
+                            a.referrer_interest_rate = 0;
+                            a.referral_end_date = time_point_sec::min();
+                            a.referral_break_fee.amount = 0;
+                        });
+                    }
+
                     while (parent) {
-                        _db.modify(*parent, [&](comment_object &p) {
+                        _db.modify(*parent, [&](comment_object& p) {
                             p.children++;
                         });
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
@@ -2286,6 +2366,28 @@ namespace golos { namespace chain {
                     _db.remove(*delegation);
                 }
             }
+        }
+
+        void break_free_referral_evaluator::do_apply(const break_free_referral_operation& op) {
+            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__295, "break_free_referral_operation");
+
+            const auto& referral = _db.get_account(op.referral);
+            const auto& referrer = _db.get_account(referral.referrer_account);
+
+            GOLOS_CHECK_LOGIC(referral.referral_break_fee.amount != 0,
+                logic_exception::no_right_to_break_referral,
+                "This referral account has no right to break referral");
+
+            GOLOS_CHECK_BALANCE(referral, MAIN_BALANCE, referral.referral_break_fee);
+            _db.adjust_balance(referral, -referral.referral_break_fee);
+            _db.adjust_balance(referrer, referral.referral_break_fee);
+
+            _db.modify(referral, [&](account_object& a) {
+                a.referrer_account = account_name_type();
+                a.referrer_interest_rate = 0;
+                a.referral_end_date = time_point_sec::min();
+                a.referral_break_fee.amount = 0;
+            });
         }
 
 } } // golos::chain

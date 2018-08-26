@@ -549,37 +549,51 @@ namespace mongo_db {
     }
 
 //
+
     auto operation_writer::operator()(const delegate_vesting_shares_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const account_create_with_delegation_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const account_metadata_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
+    auto operation_writer::operator()(const break_free_referral_operation& op) -> result_type {
+        result_type body;
+
+        return body;
+    }
+
     auto operation_writer::operator()(const proposal_create_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const proposal_update_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const proposal_delete_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
 //
+
     auto operation_writer::operator()(const fill_convert_request_operation& op) -> result_type {
         result_type body;
 

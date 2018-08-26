@@ -535,10 +535,10 @@ namespace golos { namespace wallet {
                 public_key_type active,
                 public_key_type posting,
                 public_key_type memo,
-                bool broadcast )const;
+                bool broadcast) const;
 
             /**
-             *  This method will genrate new owner, active, posting and memo keys for the new account which
+             *  This method will generate new owner, active, posting and memo keys for the new account which
              *  will be controlable by this wallet. There is a fee associated with account creation
              *  that is paid by the creator. The current account creation fee can be found with the
              *  'info' wallet command.
@@ -585,6 +585,33 @@ namespace golos { namespace wallet {
                 public_key_type posting,
                 public_key_type memo,
                 bool broadcast) const;
+
+            /**
+             *  This method will generate new owner, active, posting and memo keys for the new account which
+             *  will be controlable by this wallet. There is a fee associated with account creation
+             *  that is paid by the creator. The current account creation fee can be found with the
+             *  'info' wallet command.
+             *
+             *  These accounts are created with combination of GOLOS and delegated GP, and with the referral duty.
+             *
+             *  @param creator The account creating the new account
+             *  @param steem_fee The amount of the fee to be paid with GOLOS
+             *  @param delegated_vests The amount of the fee to be paid with delegation
+             *  @param new_account_name The name of the new account
+             *  @param json_meta JSON Metadata associated with the new account
+             *  @param referral_options Options of the new account as the referral
+             *  @param broadcast true if you wish to broadcast the transaction
+             */
+            annotated_signed_transaction create_account_referral(
+                string creator, asset steem_fee, asset delegated_vests, string new_account_name, string json_meta,
+                account_referral_options referral_options, bool broadcast);
+
+            /**
+             *  This method pays the break fee to remove the referral duty from an account.
+             *
+             *  @param referral The name of the referral account
+             */
+            annotated_signed_transaction break_free_referral(string referral, bool broadcast);
 
             /**
              * This method updates the keys of an existing account.
@@ -1396,12 +1423,14 @@ FC_API( golos::wallet::wallet_api,
                 (create_account_with_keys)
                 (create_account_delegated)
                 (create_account_with_keys_delegated)
+                (create_account_referral)
                 (update_account)
                 (update_account_auth_key)
                 (update_account_auth_account)
                 (update_account_auth_threshold)
                 (update_account_meta)
                 (update_account_memo_key)
+                (break_free_referral)
                 (delegate_vesting_shares)
                 (update_witness)
                 (update_chain_properties)

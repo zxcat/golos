@@ -34,6 +34,7 @@ namespace mongo_db {
         result_type operator()(const account_create_operation& op);
         result_type operator()(const account_create_with_delegation_operation& op);
         result_type operator()(const account_metadata_operation& op);
+        result_type operator()(const break_free_referral_operation& op);
         result_type operator()(const account_update_operation& op);
         result_type operator()(const witness_update_operation& op);
         result_type operator()(const account_witness_vote_operation& op);

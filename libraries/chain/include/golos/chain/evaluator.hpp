@@ -3,6 +3,14 @@
 #include <golos/protocol/exceptions.hpp>
 #include <golos/protocol/operations.hpp>
 
+#define ASSERT_REQ_HF_IN_DB(HF, FEATURE, DATABASE) \
+    GOLOS_ASSERT(DATABASE.has_hardfork(HF), unsupported_operation, \
+        "${feature} is not enabled until HF ${hardfork}", \
+        ("feature",FEATURE)("hardfork",BOOST_PP_STRINGIZE(HF)));
+
+#define ASSERT_REQ_HF(HF, FEATURE) \
+    ASSERT_REQ_HF_IN_DB(HF, FEATURE, _db)
+
 namespace golos {
     namespace chain {
 
