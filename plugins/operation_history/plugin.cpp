@@ -182,7 +182,7 @@ namespace golos { namespace plugins { namespace operation_history {
         boost::program_options::options_description& cli,
         boost::program_options::options_description& cfg
     ) {
-        cli.add_options() (
+        cfg.add_options() (
             "history-whitelist-ops",
             boost::program_options::value<std::vector<std::string>>()->composing(),
             "Defines a list of operations which will be explicitly logged."
