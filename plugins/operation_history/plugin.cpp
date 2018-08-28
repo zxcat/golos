@@ -120,6 +120,33 @@ namespace golos { namespace plugins { namespace operation_history {
             }
         }
 
+        annotated_signed_block get_block_with_virtual_ops(uint32_t block_num) {
+
+            annotated_signed_block result;
+
+            auto sb = database.fetch_block_by_number(block_num);
+            if (!sb.valid()) {
+                return result;
+            }
+            result = annotated_signed_block(*sb);
+
+            const auto& idx = database.get_index<operation_index>().indices().get<by_location>();
+            auto itr = idx.lower_bound(block_num);
+            result._virtual_operations = block_operations();
+            for (; itr != idx.end() && itr->block == block_num; ++itr) {
+                if (itr->virtual_op != 0) {
+                    block_operation op;
+                    op.trx_in_block = itr->trx_in_block;
+                    op.op_in_trx = itr->op_in_trx;
+                    op.virtual_op = itr->virtual_op;
+                    op.op = fc::raw::unpack<protocol::operation>(itr->serialized_op);
+                    (*result._virtual_operations).push_back(op);
+                }
+            }
+
+            return result;
+        }
+
         std::vector<applied_operation> get_ops_in_block(
             uint32_t block_num,
             bool only_virtual
@@ -158,6 +185,15 @@ namespace golos { namespace plugins { namespace operation_history {
         fc::flat_set<std::string> ops_list;
         golos::chain::database& database;
     };
+
+    DEFINE_API(plugin, get_block_with_virtual_ops) {
+        PLUGIN_API_VALIDATE_ARGS(
+            (uint32_t, block_num)
+        );
+        return pimpl->database.with_weak_read_lock([&](){
+            return pimpl->get_block_with_virtual_ops(block_num);
+        });
+    }
 
     DEFINE_API(plugin, get_ops_in_block) {
         PLUGIN_API_VALIDATE_ARGS(

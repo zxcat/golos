@@ -1262,7 +1262,7 @@ namespace golos { namespace wallet {
             return my->copy_wallet_file(destination_filename);
         }
 
-        optional<signed_block_with_info> wallet_api::get_block(uint32_t num) {
+        optional<golos::api::annotated_signed_block> wallet_api::get_block(uint32_t num) {
             return my->_remote_database_api->get_block( num );
         }
 
@@ -1642,15 +1642,6 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             auto secret = fc::sha256::hash( seed.c_str(), seed.size() );
             auto priv = fc::ecc::private_key::regenerate( secret );
             return std::make_pair( public_key_type( priv.get_public_key() ), key_to_wif( priv ) );
-        }
-
-        signed_block_with_info::signed_block_with_info(const signed_block& block): signed_block(block) {
-            block_id = id();
-            signing_key = signee();
-            transaction_ids.reserve(transactions.size());
-            for (const signed_transaction& tx : transactions) {
-                transaction_ids.push_back(tx.id());
-            }
         }
 
         witness_api::feed_history_api_object wallet_api::get_feed_history()const {
