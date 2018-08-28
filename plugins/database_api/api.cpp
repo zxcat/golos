@@ -5,6 +5,7 @@
 #include <golos/protocol/get_config.hpp>
 #include <golos/protocol/exceptions.hpp>
 #include <golos/chain/operation_notification.hpp>
+#include <golos/api/block_objects.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -15,6 +16,8 @@
 
 namespace golos { namespace plugins { namespace database_api {
 
+using golos::api::annotated_signed_block;
+using golos::api::block_operations;
 
 template<typename arg>
 struct callback_info {
@@ -48,31 +51,6 @@ using block_applied_callback = block_applied_callback_info::callback_t;
 using pending_tx_callback_info = callback_info<const signed_transaction&>;
 using pending_tx_callback = pending_tx_callback_info::callback_t;
 
-
-// block_operation used in block_applied_callback to represent virtual operations.
-// default operation type have no position info (trx, op_in_trx)
-struct block_operation {
-    block_operation(const operation_notification& o) :
-        trx_in_block(o.trx_in_block),
-        op_in_trx(o.op_in_trx),
-        virtual_op(o.virtual_op),
-        op(o.op) {};
-
-    uint32_t trx_in_block = 0;
-    uint16_t op_in_trx = 0;
-    uint32_t virtual_op = 0;
-    operation op;
-};
-
-using block_operations = std::vector<block_operation>;
-
-struct block_with_vops : public signed_block {
-    block_with_vops(signed_block b, block_operations ops): signed_block(b), _virtual_operations(ops) {
-    };
-
-    // name field starting with _ coz it's not directly related to block
-    block_operations _virtual_operations;
-};
 
 struct virtual_operations {
     virtual_operations(uint32_t block_num, block_operations ops): block_num(block_num), operations(ops) {
@@ -243,7 +221,7 @@ DEFINE_API(plugin, set_block_applied_callback) {
                     r = fc::variant(virtual_operations(block.block_num(), my->get_block_vops()));
                     break;
                 case full:
-                    r = fc::variant(block_with_vops(block, my->get_block_vops()));
+                    r = fc::variant(annotated_signed_block(block, my->get_block_vops()));
                     break;
                 default:
                     break;
@@ -926,9 +904,5 @@ void plugin::plugin_startup() {
 } } } // golos::plugins::database_api
 
 FC_REFLECT((golos::plugins::database_api::virtual_operations), (block_num)(operations))
-FC_REFLECT((golos::plugins::database_api::block_operation),
-    (trx_in_block)(op_in_trx)(virtual_op)(op))
-FC_REFLECT_DERIVED((golos::plugins::database_api::block_with_vops), ((golos::protocol::signed_block)),
-    (_virtual_operations))
 FC_REFLECT_ENUM(golos::plugins::database_api::block_applied_callback_result_type,
     (block)(header)(virtual_ops)(full))

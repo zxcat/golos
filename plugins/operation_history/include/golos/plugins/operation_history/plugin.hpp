@@ -26,6 +26,7 @@
 #include <appbase/application.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 
+#include <golos/api/block_objects.hpp>
 #include <golos/chain/database.hpp>
 #include <boost/program_options.hpp>
 
@@ -38,10 +39,15 @@
 namespace golos { namespace plugins { namespace operation_history {
     using namespace chain;
 
+    using golos::api::annotated_signed_block;
+    using golos::api::block_operation;
+    using golos::api::block_operations;
+
     using plugins::json_rpc::void_type;
     using plugins::json_rpc::msg_pack;
     using plugins::json_rpc::msg_pack_transfer;
 
+    DEFINE_API_ARGS(get_block_with_virtual_ops, msg_pack, annotated_signed_block)
     DEFINE_API_ARGS(get_ops_in_block, msg_pack, std::vector<applied_operation>)
     DEFINE_API_ARGS(get_transaction,  msg_pack, annotated_signed_transaction)
 
@@ -70,6 +76,8 @@ namespace golos { namespace plugins { namespace operation_history {
         void plugin_shutdown() override;
 
         DECLARE_API(
+            (get_block_with_virtual_ops)
+
             /**
              *  @brief Get sequence of operations included/generated within a particular block
              *  @param block_num Height of the block whose generated virtual operations should be returned
