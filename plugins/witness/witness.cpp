@@ -132,7 +132,7 @@ namespace golos {
                     boost::program_options::options_description &config_file_options) {
                     string witness_id_example = "initwitness";
 
-                command_line_options.add_options()
+                config_file_options.add_options()
                         ("enable-stale-production", bpo::value<bool>()->implicit_value(false) , "Enable block production, even if the chain is stale.")
                         ("required-participation", bpo::value<int>()->implicit_value(uint32_t(3 * STEEMIT_1_PERCENT)), "Percent of witnesses (0-99) that must be participating in order to produce blocks")
                         ("witness,w", bpo::value<vector<string>>()->composing()->multitoken(), ("name of witness controlled by this node (e.g. " + witness_id_example + " )").c_str())
@@ -143,8 +143,6 @@ namespace golos {
                         ("miner-maximum-block-size", bpo::value<uint32_t>()->implicit_value(131072), "Maximum block size (in bytes) to be voted on upon successful POW - Max block size must be between 128 KB and 750 MB")
                         ("miner-sbd-interest-rate", bpo::value<uint32_t>()->implicit_value(1000), "SBD interest rate to be vote on upon successful POW - Default interest rate is 10% (written as 1000)")
                         ;
-
-                config_file_options.add(command_line_options);
             }
 
             using std::vector;
