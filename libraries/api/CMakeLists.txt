@@ -9,6 +9,7 @@ list(APPEND CURRENT_TARGET_HEADERS
     include/golos/api/vote_state.hpp
     include/golos/api/account_vote.hpp
     include/golos/api/discussion_helper.hpp
+    include/golos/api/block_objects.hpp
 )
 
 list(APPEND CURRENT_TARGET_SOURCES
@@ -16,6 +17,7 @@ list(APPEND CURRENT_TARGET_SOURCES
     discussion_helper.cpp
     chain_api_properties.cpp
     witness_api_object.cpp
+    block_objects.cpp
 )
 
 if(BUILD_SHARED_LIBRARIES)

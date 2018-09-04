@@ -17,6 +17,7 @@
 
 #include <golos/api/account_api_object.hpp>
 #include <golos/api/account_vote.hpp>
+#include <golos/api/block_objects.hpp>
 #include <golos/api/discussion.hpp>
 #include <golos/api/vote_state.hpp>
 
@@ -46,7 +47,7 @@ using namespace golos::api;
  * Class is used by wallet to send formatted API calls to database_api plugin on remote node.
  */
 struct remote_database_api {
-    optional< database_api::signed_block > get_block( uint32_t );
+    optional< golos::api::annotated_signed_block > get_block( uint32_t );
     optional< block_header > get_block_header( uint32_t );
     fc::variant_object get_config();
     database_api::dynamic_global_property_object get_dynamic_global_properties();

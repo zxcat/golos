@@ -290,12 +290,11 @@ plugin::~plugin() {
 }
 
 void plugin::set_program_options(options_description& cli, options_description& cfg) {
-    cli.add_options()
+    cfg.add_options()
         ("statsd-endpoints",
             boost::program_options::value<std::vector<std::string>>()->multitoken()->zero_tokens()->composing(),
             "StatsD endpoints that will receive the statistics in StatsD string format.")
         ("statsd-default-port", boost::program_options::value<uint32_t>()->default_value(8125), "Default port for StatsD nodes.");
-    cfg.add(cli);
 }
 
 void plugin::plugin_initialize(const boost::program_options::variables_map& options) {

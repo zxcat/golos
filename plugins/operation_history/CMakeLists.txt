@@ -35,6 +35,7 @@ target_link_libraries (
     graphene_time
     chainbase
     fc
+    golos::api
 )
 
 target_include_directories(golos_${CURRENT_TARGET}
