@@ -57,11 +57,10 @@ namespace golos {
 
             DEFINE_API(network_broadcast_api_plugin, broadcast_transaction_synchronous) {
                 PLUGIN_API_VALIDATE_ARGS(
-                    (std::string,        unused)            // TODO: remove in HF
                     (signed_transaction, trx)
                     (uint32_t,           max_block_age, 0)
                 );
-                if (n_args >= 3) {
+                if (n_args >= 2) {
                     GOLOS_CHECK_PARAM(max_block_age, GOLOS_CHECK_VALUE(!check_max_block_age(max_block_age), "Invalid value"));
                 }
 
@@ -97,10 +96,11 @@ namespace golos {
             DEFINE_API(network_broadcast_api_plugin,broadcast_transaction_with_callback){
                 // TODO: implement commit semantic for delegating connection handlers
                 PLUGIN_API_VALIDATE_ARGS(
+                    (std::string,        unused)            // TODO: remove in HF
                     (signed_transaction, trx)
                     (uint32_t,           max_block_age, 0)
                 );
-                if (n_args >= 2) {
+                if (n_args >= 3) {
                     GOLOS_CHECK_PARAM(max_block_age, GOLOS_CHECK_VALUE(!check_max_block_age(max_block_age), "Invalid value"));
                 }
 
