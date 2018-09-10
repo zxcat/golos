@@ -327,10 +327,14 @@ namespace golos { namespace wallet {
                         result["min_delegation"] = median_props.min_delegation;
                     }
                     if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19)) {
-                        result["auction_window_size"] = median_props.auction_window_size;
                         result["max_referral_interest_rate"] = median_props.max_referral_interest_rate;
                         result["max_referral_term_sec"] = median_props.max_referral_term_sec;
                         result["max_referral_break_fee"] = median_props.max_referral_break_fee;
+                        result["comments_window"] = median_props.comments_window;
+                        result["comments_per_window"] = median_props.comments_per_window;
+                        result["votes_window"] = median_props.votes_window;
+                        result["votes_per_window"] = median_props.votes_per_window;
+                        result["auction_window_size"] = median_props.auction_window_size;
                     }
 
                     return result;
@@ -2254,12 +2258,18 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.props = p;
             auto hf = my->_remote_database_api->get_hardfork_version();
             if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
-                    || !!props.max_referral_term_sec || !!props.max_referral_break_fee) {
+                    || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
+                    || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
+                    || !!props.auction_window_size) {
                 chain_properties_19 p19;
                 p19 = p;
                 SET_PROP(p19, max_referral_interest_rate);
                 SET_PROP(p19, max_referral_term_sec);
                 SET_PROP(p19, max_referral_break_fee);
+                SET_PROP(p19, comments_window);
+                SET_PROP(p19, comments_per_window);
+                SET_PROP(p19, votes_window);
+                SET_PROP(p19, votes_per_window);
                 SET_PROP(p19, auction_window_size);
                 op.props = p19;
             }
