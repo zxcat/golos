@@ -68,6 +68,13 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         lifetime_market_bandwidth = market->lifetime_bandwidth;
         last_market_bandwidth_update = market->last_bandwidth_update;
     }
+
+    if (db.head_block_time() < a.referral_end_date) {
+        referrer_account = a.referrer_account;
+        referrer_interest_rate = a.referrer_interest_rate;
+        referral_end_date = a.referral_end_date;
+        referral_break_fee = a.referral_break_fee;
+    }
 }
 
 account_api_object::account_api_object() = default;

@@ -25,6 +25,21 @@ namespace golos { namespace protocol {
             }
         };
 
+        struct account_referral_options {
+            account_name_type referrer;
+            uint16_t interest_rate;
+            time_point_sec end_date;
+            asset break_fee;
+
+            void validate() const;
+        };
+
+        using account_create_with_delegation_extension = static_variant<
+            account_referral_options
+        >;
+
+        using account_create_with_delegation_extensions_type = flat_set<account_create_with_delegation_extension>;
+
         struct account_create_with_delegation_operation: public base_operation {
             asset fee;
             asset delegation;
@@ -36,7 +51,7 @@ namespace golos { namespace protocol {
             public_key_type memo_key;
             string json_metadata;
 
-            extensions_type extensions;
+            account_create_with_delegation_extensions_type extensions;
 
             void validate() const;
             void get_required_active_authorities(flat_set<account_name_type>& a) const {
@@ -115,7 +130,7 @@ namespace golos { namespace protocol {
         };
 
         struct comment_payout_beneficiaries {
-            vector <beneficiary_route_type> beneficiaries;
+            vector<beneficiary_route_type> beneficiaries;
 
             void validate() const;
         };
@@ -520,6 +535,11 @@ namespace golos { namespace protocol {
             void validate() const;
 
             chain_properties_19& operator=(const chain_properties_17& src) {
+                chain_properties_18::operator=(src);
+                return *this;
+            }
+
+            chain_properties_19& operator=(const chain_properties_18& src) {
                 chain_properties_18::operator=(src);
                 return *this;
             }
@@ -1150,6 +1170,18 @@ namespace golos { namespace protocol {
                 a.insert(delegator);
             }
         };
+
+        class break_free_referral_operation : public base_operation {
+        public:
+            account_name_type referral;
+
+            extensions_type extensions;             ///< Extensions. Not currently used.
+
+            void validate() const;
+            void get_required_active_authorities(flat_set<account_name_type>& a) const {
+                a.insert(referral);
+            }
+        };
 } } // golos::protocol
 
 
@@ -1196,6 +1228,8 @@ FC_REFLECT((golos::protocol::account_create_operation),
                 (memo_key)
                 (json_metadata))
 
+FC_REFLECT((golos::protocol::account_referral_options), (referrer)(interest_rate)(end_date)(break_fee))
+FC_REFLECT_TYPENAME((golos::protocol::account_create_with_delegation_extension));
 FC_REFLECT((golos::protocol::account_create_with_delegation_operation),
     (fee)(delegation)(creator)(new_account_name)(owner)(active)(posting)(memo_key)(json_metadata)(extensions));
 
@@ -1244,3 +1278,4 @@ FC_REFLECT((golos::protocol::change_recovery_account_operation), (account_to_rec
 FC_REFLECT((golos::protocol::decline_voting_rights_operation), (account)(decline));
 FC_REFLECT((golos::protocol::delegate_vesting_shares_operation), (delegator)(delegatee)(vesting_shares));
 FC_REFLECT((golos::protocol::chain_properties_update_operation), (owner)(props));
+FC_REFLECT((golos::protocol::break_free_referral_operation), (referral)(extensions));

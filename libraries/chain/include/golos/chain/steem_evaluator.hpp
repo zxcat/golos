@@ -4,11 +4,6 @@
 #include <golos/protocol/proposal_operations.hpp>
 #include <golos/chain/evaluator.hpp>
 
-#define ASSERT_REQ_HF(HF, FEATURE) \
-    GOLOS_ASSERT(db().has_hardfork(HF), unsupported_operation, \
-        "${feature} is not enabled until HF ${hardfork}", \
-        ("feature",FEATURE)("hardfork",BOOST_PP_STRINGIZE(HF)));
-
 namespace golos { namespace chain {
         using namespace golos::protocol;
 
@@ -56,6 +51,7 @@ namespace golos { namespace chain {
         DEFINE_EVALUATOR(delegate_vesting_shares)
         DEFINE_EVALUATOR(proposal_delete)
         DEFINE_EVALUATOR(chain_properties_update)
+        DEFINE_EVALUATOR(break_free_referral)
 
         class proposal_create_evaluator: public evaluator_impl<proposal_create_evaluator> {
         public:

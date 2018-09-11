@@ -2930,6 +2930,7 @@ namespace golos { namespace chain {
             _my->_evaluator_registry.register_evaluator<proposal_update_evaluator>();
             _my->_evaluator_registry.register_evaluator<proposal_delete_evaluator>();
             _my->_evaluator_registry.register_evaluator<chain_properties_update_evaluator>();
+            _my->_evaluator_registry.register_evaluator<break_free_referral_evaluator>();
         }
 
         void database::set_custom_operation_interpreter(const std::string &id, std::shared_ptr<custom_operation_interpreter> registry) {

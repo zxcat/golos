@@ -39,6 +39,25 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
         }
 
+        struct account_create_with_delegation_extension_validate_visitor {
+            account_create_with_delegation_extension_validate_visitor() {
+            }
+
+            using result_type = void;
+
+            void operator()(const account_referral_options& aro) const {
+                aro.validate();
+            }
+        };
+
+        void account_referral_options::validate() const {
+            validate_account_name(referrer);
+            GOLOS_CHECK_PARAM(break_fee, {
+                GOLOS_CHECK_VALUE(break_fee.symbol == STEEM_SYMBOL, "Break fee in GOLOS only is allowed.");
+                GOLOS_CHECK_VALUE(break_fee.amount >= 0, "Negative break fee is not allowed.");
+            });
+        }
+
         void account_create_with_delegation_operation::validate() const {
             GOLOS_CHECK_PARAM_ACCOUNT(new_account_name);
             GOLOS_CHECK_PARAM_ACCOUNT(creator);
@@ -48,6 +67,10 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM_VALIDATE(active);
             GOLOS_CHECK_PARAM_VALIDATE(posting);
             GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
+
+            for (auto& e : extensions) {
+                e.visit(account_create_with_delegation_extension_validate_visitor());
+            }
         }
 
         void account_update_operation::validate() const {
@@ -112,21 +135,22 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(beneficiaries, {
                 GOLOS_CHECK_VALUE(beneficiaries.size(), "Must specify at least one beneficiary");
                 GOLOS_CHECK_VALUE(beneficiaries.size() < 128,
-                          "Cannot specify more than 127 beneficiaries."); // Require size serializtion fits in one byte.
+                    "Cannot specify more than 127 beneficiaries."); // Require size serialization fits in one byte.
 
-                for (auto beneficiar: beneficiaries) {
-                    validate_account_name(beneficiaries[0].account);
-                    GOLOS_CHECK_VALUE(beneficiar.weight <= STEEMIT_100_PERCENT,
-                            "Cannot allocate more than 100% of rewards to one account");
-                    sum += beneficiar.weight;
-                    GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
-                            "Cannot allocate more than 100% of rewards to a comment");
+                for (auto& beneficiary : beneficiaries) {
+                    validate_account_name(beneficiary.account);
+                    GOLOS_CHECK_VALUE(beneficiary.weight <= STEEMIT_100_PERCENT,
+                        "Cannot allocate more than 100% of rewards to one account");
+                    sum += beneficiary.weight;
                 }
+
+                GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
+                    "Cannot allocate more than 100% of rewards to a comment");
 
                 for (size_t i = 1; i < beneficiaries.size(); i++) {
                     GOLOS_CHECK_VALUE(beneficiaries[i - 1] < beneficiaries[i],
-                            "Benficiaries ${first} and ${second} not in sorted order (account ascending)",
-                            ("first", beneficiaries[i-1].account)("second", beneficiaries[i].account));
+                        "Benficiaries ${first} and ${second} not in sorted order (account ascending)",
+                        ("first", beneficiaries[i-1].account)("second", beneficiaries[i].account));
                 }
             });
         }
@@ -136,7 +160,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(percent_steem_dollars, GOLOS_CHECK_VALUE_LE(percent_steem_dollars, STEEMIT_100_PERCENT));
             GOLOS_CHECK_PARAM(max_accepted_payout, GOLOS_CHECK_ASSET_GE0(max_accepted_payout, GBG));
             GOLOS_CHECK_PARAM(permlink, validate_permlink(permlink));
-            for (auto &e : extensions) {
+            for (auto& e : extensions) {
                 e.visit(comment_options_extension_validate_visitor());
             }
         }
@@ -627,6 +651,10 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
                 "You cannot delegate GESTS to yourself");
             GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
+        }
+
+        void break_free_referral_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(referral);
         }
 
 } } // golos::protocol

@@ -91,7 +91,7 @@ namespace mongo_db {
 
         std::unordered_map<std::string, std::string> indexes; // Prevent repeative create_index() calls. Only in current session 
 
-        golos::chain::database &_db;
+        golos::chain::database& _db;
     };
 }}}
 
