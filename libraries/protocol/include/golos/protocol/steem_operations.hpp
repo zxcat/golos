@@ -519,11 +519,6 @@ namespace golos { namespace protocol {
         struct chain_properties_19: public chain_properties_18 {
 
             /**
-             * Auction window size
-             */
-            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
-
-            /**
              * Maximum percent of referral deductions
              */
             uint16_t max_referral_interest_rate = GOLOS_DEFAULT_REFERRAL_INTEREST_RATE;
@@ -537,6 +532,31 @@ namespace golos { namespace protocol {
              * Fee for breaking referral deductions by referral
              */
             asset max_referral_break_fee = GOLOS_DEFAULT_REFERRAL_BREAK_FEE;
+
+            /**
+             * Time window for commenting by account
+             */
+            uint16_t comments_window = STEEMIT_COMMENTS_WINDOW;
+
+            /**
+             * Maximum count of comments per one window by account
+             */
+            uint16_t comments_per_window = STEEMIT_COMMENTS_PER_WINDOW;
+
+            /**
+             * Time window for voting by account
+             */
+            uint16_t votes_window = STEEMIT_VOTES_WINDOW;
+
+            /**
+             * Maximum count of votes per one window by account
+             */
+            uint16_t votes_per_window = STEEMIT_VOTES_PER_WINDOW;
+
+            /**
+             * Auction window size
+             */
+            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
 
             void validate() const;
 
@@ -1216,7 +1236,8 @@ FC_REFLECT_DERIVED(
     (create_account_delegation_time)(min_delegation))
 FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
-    (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)(auction_window_size))
+    (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
+    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 

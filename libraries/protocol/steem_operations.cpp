@@ -256,6 +256,10 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, GOLOS_MAX_REFERRAL_INTEREST_RATE);
             GOLOS_CHECK_VALUE_LE(max_referral_term_sec, GOLOS_MAX_REFERRAL_TERM_SEC);
             GOLOS_CHECK_VALUE_LEGE(max_referral_break_fee.amount, 0, GOLOS_MAX_REFERRAL_BREAK_FEE.amount);
+            GOLOS_CHECK_VALUE_LEGE(comments_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(comments_per_window, 1, comments_window);
+            GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(votes_per_window, 1, votes_window);
         }
 
         void witness_update_operation::validate() const {

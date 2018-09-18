@@ -1878,14 +1878,29 @@ namespace golos { namespace chain {
 
             chain_properties_19 median_props;
 
+            auto median = active.size() / 2;
+
             auto calc_median = [&](auto&& param) {
                 std::nth_element(
-                    active.begin(), active.begin() + active.size() / 2, active.end(),
+                    active.begin(), active.begin() + median, active.end(),
                     [&](const auto* a, const auto* b) {
                         return a->props.*param < b->props.*param;
                     }
                 );
-                median_props.*param = active[active.size() / 2]->props.*param;
+                median_props.*param = active[median]->props.*param;
+            };
+
+            auto calc_median_battery = [&](auto&& window, auto&& items) {
+                std::nth_element(
+                    active.begin(), active.begin() + median, active.end(),
+                    [&](const auto* a, const auto* b) {
+                        auto a_consumption = a->props.*window / a->props.*items;
+                        auto b_consumption = b->props.*window / b->props.*items;
+                        return std::tie(a_consumption, a->props.*items) < std::tie(b_consumption, b->props.*items);
+                    }
+                );
+                median_props.*window = active[median]->props.*window;
+                median_props.*items = active[median]->props.*items;
             };
 
             calc_median(&chain_properties_17::account_creation_fee);
@@ -1899,6 +1914,8 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::max_referral_interest_rate);
             calc_median(&chain_properties_19::max_referral_term_sec);
             calc_median(&chain_properties_19::max_referral_break_fee);
+            calc_median_battery(&chain_properties_19::comments_window, &chain_properties_19::comments_per_window);
+            calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);
 
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;

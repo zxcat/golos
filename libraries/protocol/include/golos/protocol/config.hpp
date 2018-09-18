@@ -81,6 +81,11 @@
 #define STEEMIT_POST_MAX_BANDWIDTH              (4*STEEMIT_100_PERCENT) // 2 posts per 1 days, average 1 every 12 hours
 #define STEEMIT_POST_WEIGHT_CONSTANT            (uint64_t(STEEMIT_POST_MAX_BANDWIDTH) * STEEMIT_POST_MAX_BANDWIDTH)
 
+#define STEEMIT_COMMENTS_WINDOW                 200
+#define STEEMIT_COMMENTS_PER_WINDOW             10
+#define STEEMIT_VOTES_WINDOW                    200 // For testnet
+#define STEEMIT_VOTES_PER_WINDOW                10
+
 #define STEEMIT_MAX_ACCOUNT_WITNESS_VOTES       30
 
 #define STEEMIT_100_PERCENT                     10000
@@ -296,6 +301,11 @@
 #define STEEMIT_POST_AVERAGE_WINDOW             (60*60*24u) // 1 day
 #define STEEMIT_POST_MAX_BANDWIDTH              (4*STEEMIT_100_PERCENT) // 2 posts per 1 days, average 1 every 12 hours
 #define STEEMIT_POST_WEIGHT_CONSTANT            (uint64_t(STEEMIT_POST_MAX_BANDWIDTH) * STEEMIT_POST_MAX_BANDWIDTH)
+
+#define STEEMIT_COMMENTS_WINDOW                 200
+#define STEEMIT_COMMENTS_PER_WINDOW             10
+#define STEEMIT_VOTES_WINDOW                    15
+#define STEEMIT_VOTES_PER_WINDOW                5
 
 #define STEEMIT_MAX_ACCOUNT_WITNESS_VOTES       30
 
