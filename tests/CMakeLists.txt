@@ -38,12 +38,14 @@ file(GLOB PLUGIN_TESTS
     "plugin_tests/chain.cpp"
     "plugin_tests/operation_history.cpp"
     "plugin_tests/account_history.cpp"
+    "plugin_tests/account_notes.cpp"
     "plugin_tests/follow.cpp"
     "plugin_tests/private_message.cpp")
 add_executable(plugin_test ${PLUGIN_TESTS} ${COMMON_SOURCES})
 target_link_libraries(plugin_test
     golos_chain golos_protocol
     golos_account_history
+    golos_account_notes
     golos_market_history
     golos_debug_node
     golos_social_network

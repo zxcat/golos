@@ -261,6 +261,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);
             GOLOS_CHECK_VALUE_LEGE(votes_per_window, 1, votes_window);
             GOLOS_CHECK_VALUE_LE(max_delegated_vesting_interest_rate, STEEMIT_MAX_DELEGATED_VESTING_INTEREST_RATE);
+            GOLOS_CHECK_VALUE_GE(custom_ops_bandwidth_multiplier, 1);
         }
 
         void witness_update_operation::validate() const {

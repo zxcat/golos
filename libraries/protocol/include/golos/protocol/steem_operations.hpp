@@ -563,6 +563,11 @@ namespace golos { namespace protocol {
              */
             uint16_t max_delegated_vesting_interest_rate = STEEMIT_DEFAULT_DELEGATED_VESTING_INTEREST_RATE;
 
+            /**
+             * Custom operations bandwidth multiplier
+             */
+            uint16_t custom_ops_bandwidth_multiplier = STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER;
+
             void validate() const;
 
             chain_properties_19& operator=(const chain_properties_17& src) {
@@ -1275,7 +1280,7 @@ FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
-    (max_delegated_vesting_interest_rate))
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 
