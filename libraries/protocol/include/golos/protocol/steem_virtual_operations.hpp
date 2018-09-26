@@ -40,6 +40,19 @@ namespace golos { namespace protocol {
             string comment_permlink;
         };
 
+        struct auction_window_reward_operation : public virtual_operation {
+            auction_window_reward_operation() {
+            }
+
+            auction_window_reward_operation(const asset &r, const string &a, const string &p)
+                    : reward(r), comment_author(a), comment_permlink(p) {
+            }
+
+            asset reward;
+            account_name_type comment_author;
+            string comment_permlink;
+        };
+
 
         struct comment_reward_operation : public virtual_operation {
             comment_reward_operation() {
@@ -223,6 +236,7 @@ namespace golos { namespace protocol {
 
 FC_REFLECT((golos::protocol::author_reward_operation), (author)(permlink)(sbd_payout)(steem_payout)(vesting_payout))
 FC_REFLECT((golos::protocol::curation_reward_operation), (curator)(reward)(comment_author)(comment_permlink))
+FC_REFLECT((golos::protocol::auction_window_reward_operation), (reward)(comment_author)(comment_permlink))
 FC_REFLECT((golos::protocol::comment_reward_operation), (author)(permlink)(payout))
 FC_REFLECT((golos::protocol::fill_convert_request_operation), (owner)(requestid)(amount_in)(amount_out))
 FC_REFLECT((golos::protocol::liquidity_reward_operation), (owner)(payout))

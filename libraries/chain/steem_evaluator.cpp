@@ -20,6 +20,7 @@
     GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
             ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
 
+
 namespace golos { namespace chain {
         using fc::uint128_t;
 
@@ -535,6 +536,18 @@ namespace golos { namespace chain {
                         "Cannot allocate more than 100% of rewards to a comment");
                 });
             }
+
+            void operator()( const comment_auction_window_reward_destination& cawrd ) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__898, "auction window reward destination option");
+                GOLOS_CHECK_PARAM(cawrd.destination, {
+                    GOLOS_CHECK_VALUE(cawrd.destination == to_reward_fund || cawrd.destination == to_curators,
+                        "Auction window reward must go either to reward_fund or to curators."
+                    );
+                });
+                _db.modify(_c, [&](comment_object& c) {
+                    c.auction_window_reward_destination = cawrd.destination;
+                });
+            }
         };
 
         void comment_options_evaluator::do_apply(const comment_options_operation &o) {
@@ -721,6 +734,13 @@ namespace golos { namespace chain {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                             GOLOS_CHECK_OP_PARAM(o, parent_permlink, validate_permlink_0_1(o.parent_permlink));
                             GOLOS_CHECK_OP_PARAM(o, permlink,        validate_permlink_0_1(o.permlink));
+                        }
+
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                            com.auction_window_reward_destination = protocol::to_reward_fund;
+
+                            const witness_schedule_object& wso = _db.get_witness_schedule_object();
+                            com.auction_window_size = wso.median_props.auction_window_size;
                         }
 
                         com.author = o.author;
@@ -1369,7 +1389,6 @@ namespace golos { namespace chain {
                 int64_t max_vote_denom = dgpo.vote_regeneration_per_day *
                     STEEMIT_VOTE_REGENERATION_SECONDS / (60 * 60 * 24);
                 GOLOS_ASSERT(max_vote_denom > 0, golos::internal_error, "max_vote_denom is too small");
-
                 if (!_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
                     used_power = (used_power / max_vote_denom) + 1;
                 } else {
@@ -1484,7 +1503,6 @@ namespace golos { namespace chain {
                     /// calculate rshares2 value
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
-
                     uint64_t max_vote_weight = 0;
 
                    /** this verifies uniqueness of voter
@@ -1568,12 +1586,7 @@ namespace golos { namespace chain {
                                 fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME))  /// start enforcing this prior to the hardfork
                             {
                                 /// discount weight by time
-                                uint32_t auction_window = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
-
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
-                                    const witness_schedule_object& wso = _db.get_witness_schedule_object();
-                                    auction_window = wso.median_props.auction_window_size;
-                                }
+                                uint32_t auction_window = comment.auction_window_size;
 
                                 uint128_t w(max_vote_weight);
                                 uint64_t delta_t = std::min(uint64_t((
@@ -1584,12 +1597,13 @@ namespace golos { namespace chain {
                                 w /= auction_window;
                                 cv.weight = w.to_uint64();
 
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898) && w > 0 && delta_t != uint64_t(auction_window)) {
                                     _db.modify(comment, [&](comment_object &o) {
                                         o.auction_window_weight += max_vote_weight - w.to_uint64();
+                                        o.votes_in_auction_window_weight += w.to_uint64();
                                     });
-                                }
 
+                                }
                             }
 
                             if (!delegator_vote_interest_rates.empty() && cv.weight != 0) {
@@ -2399,9 +2413,11 @@ namespace {
 */
         }
 
-template <typename CreateVdo, typename ValidateWithVdo>
-void delegate_vesting_shares(database& _db, const chain_properties& median_props, const auto& op,
-        CreateVdo&& create_vdo, ValidateWithVdo&& validate_with_vdo) {
+template <typename CreateVdo, typename ValidateWithVdo, typename Operation>
+void delegate_vesting_shares(
+    database& _db, const chain_properties& median_props, const Operation& op,
+    CreateVdo&& create_vdo, ValidateWithVdo&& validate_with_vdo
+) {
     const auto& delegator = _db.get_account(op.delegator);
     const auto& delegatee = _db.get_account(op.delegatee);
     auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));

@@ -607,6 +607,8 @@ namespace golos { namespace chain {
 
             bool _resize(uint32_t block_num);
 
+            void pay_curator(const comment_vote_object& cvo, const uint64_t& claim, const account_name_type& author, const std::string& permlink);
+
             ///@}
 
             std::unique_ptr<database_impl> _my;
