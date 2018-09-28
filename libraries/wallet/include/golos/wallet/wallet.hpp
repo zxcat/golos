@@ -55,6 +55,8 @@ namespace golos { namespace wallet {
             fc::optional<uint16_t> votes_per_window;
 
             fc::optional<uint32_t> auction_window_size;
+
+            fc::optional<uint16_t> max_delegated_vesting_interest_rate;
         };
 
         struct optional_private_box_query {
@@ -708,6 +710,17 @@ namespace golos { namespace wallet {
              * @param broadcast true if you wish to broadcast the transaction
              */
             annotated_signed_transaction delegate_vesting_shares(string delegator, string delegatee, asset vesting_shares, bool broadcast);
+
+            /**
+             * This method delegates GESTS from one account to another, with interest for delegator.
+             *
+             * @param delegator The name of the account delegating GESTS
+             * @param delegatee The name of the account receiving GESTS
+             * @param vesting_shares The amount of GESTS to delegate
+             * @param interest_rate The interest rate wanted by delegator
+             * @param broadcast true if you wish to broadcast the transaction
+             */
+            annotated_signed_transaction delegate_vesting_shares_with_interest(string delegator, string delegatee, asset vesting_shares, uint16_t interest_rate, bool broadcast);
 
 
             /**
@@ -1439,6 +1452,7 @@ FC_API( golos::wallet::wallet_api,
                 (update_account_memo_key)
                 (break_free_referral)
                 (delegate_vesting_shares)
+                (delegate_vesting_shares_with_interest)
                 (update_witness)
                 (update_chain_properties)
                 (set_voting_proxy)
@@ -1530,7 +1544,8 @@ FC_REFLECT((golos::wallet::optional_chain_props),
     (create_account_min_golos_fee)(create_account_min_delegation)
     (create_account_delegation_time)(min_delegation)
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
-    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size))
+    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
+    (max_delegated_vesting_interest_rate))
 
 FC_REFLECT(
     (golos::wallet::message_body),

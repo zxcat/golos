@@ -130,6 +130,18 @@ namespace golos { namespace chain {
             return vote_payout(*account);
         }
 
+        asset delegator_payout(const account_object& delegator) const {
+            auto itr = delegator_payout_map_.find(delegator.id);
+            BOOST_CHECK(delegator_payout_map_.end() != itr);
+            return itr->second;
+        }
+
+        asset delegator_payout(const account_name_type& delegator) const {
+            auto account = db_.find_account(delegator);
+            BOOST_CHECK(account != nullptr);
+            return delegator_payout(*account);
+        }
+
         asset total_beneficiary_payouts() const {
             return total_beneficiary_payouts_;
         }
@@ -184,7 +196,24 @@ namespace golos { namespace chain {
             for (; itr != vote_idx.end() && itr->comment == comment_.id; ++itr) {
                 BOOST_REQUIRE(vote_payout_map_.find(itr->voter) == vote_payout_map_.end());
                 auto weight = u256(itr->weight);
-                int64_t reward = static_cast<int64_t>(weight * vote_rewards_fund_ / total_weight);
+                int64_t claim = static_cast<int64_t>(weight * vote_rewards_fund_ / total_weight);
+                auto reward = claim;
+
+                if (db_.has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
+                    for (auto& dvir : itr->delegator_vote_interest_rates) {
+                        auto delegator = db_.find_account(dvir.account);
+                        BOOST_CHECK(delegator != nullptr);
+                        BOOST_CHECK(delegator_payout_map_.find(delegator->id) == delegator_payout_map_.end());
+
+                        auto delegator_reward = claim * dvir.interest_rate / STEEMIT_100_PERCENT;
+                        reward -= delegator_reward;
+                        auto delegator_payout = fund_.create_vesting(asset(delegator_reward, STEEM_SYMBOL));
+
+                        delegator_payout_map_.emplace(delegator->id, delegator_payout);
+                    }
+                } else {
+                    BOOST_CHECK(itr->delegator_vote_interest_rates.empty());
+                }
 
                 total_vote_rewards_ += reward;
                 BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
@@ -246,6 +275,7 @@ namespace golos { namespace chain {
         int64_t total_vote_rewards_;
         asset total_vote_payouts_;
         std::map<account_id_type, asset> vote_payout_map_;
+        std::map<account_id_type, asset> delegator_payout_map_;
 
         int64_t total_beneficiary_rewards_;
         asset total_beneficiary_payouts_;

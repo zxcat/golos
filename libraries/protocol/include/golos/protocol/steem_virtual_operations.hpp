@@ -195,6 +195,20 @@ namespace golos { namespace protocol {
             asset             vesting_shares;
         };
 
+        struct delegation_reward_operation : public virtual_operation {
+            delegation_reward_operation() {
+            }
+
+            delegation_reward_operation(const account_name_type& dr, const account_name_type& de, const delegator_payout_strategy& ps, const asset& vs)
+                    : delegator(dr), delegatee(de), payout_strategy(ps), vesting_shares(vs) {
+            }
+
+            account_name_type delegator;
+            account_name_type delegatee;
+            delegator_payout_strategy payout_strategy;
+            asset vesting_shares;
+        };
+
         struct return_vesting_delegation_operation: public virtual_operation {
             return_vesting_delegation_operation() {
             }
@@ -222,3 +236,4 @@ FC_REFLECT((golos::protocol::comment_payout_update_operation), (author)(permlink
 FC_REFLECT((golos::protocol::comment_benefactor_reward_operation), (benefactor)(author)(permlink)(reward))
 FC_REFLECT((golos::protocol::return_vesting_delegation_operation), (account)(vesting_shares))
 FC_REFLECT((golos::protocol::producer_reward_operation), (producer)(vesting_shares))
+FC_REFLECT((golos::protocol::delegation_reward_operation), (delegator)(delegatee)(payout_strategy)(vesting_shares))

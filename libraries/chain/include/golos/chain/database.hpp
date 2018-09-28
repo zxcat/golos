@@ -425,6 +425,8 @@ namespace golos { namespace chain {
 
             void process_vesting_withdrawals();
 
+            uint64_t pay_delegators(const account_object& delegatee, const comment_vote_object& cvo, uint64_t claim);
+
             share_type pay_curators(const comment_object &c, share_type max_rewards);
 
             void cashout_comment_helper(const comment_object &comment);

@@ -260,6 +260,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_LEGE(comments_per_window, 1, comments_window);
             GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);
             GOLOS_CHECK_VALUE_LEGE(votes_per_window, 1, votes_window);
+            GOLOS_CHECK_VALUE_LE(max_delegated_vesting_interest_rate, STEEMIT_MAX_DELEGATED_VESTING_INTEREST_RATE);
         }
 
         void witness_update_operation::validate() const {
@@ -660,6 +661,19 @@ namespace golos { namespace protocol {
 
         void break_free_referral_operation::validate() const {
             GOLOS_CHECK_PARAM_ACCOUNT(referral);
+        }
+
+        void delegate_vesting_shares_with_interest_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
+            GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
+                "You cannot delegate GESTS to yourself");
+            GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
+        }
+
+        void reject_vesting_shares_delegation_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
         }
 
 } } // golos::protocol
