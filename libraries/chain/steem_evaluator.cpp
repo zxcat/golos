@@ -2240,6 +2240,31 @@ namespace golos { namespace chain {
             _db.modify(account, [&](account_object& a) {
                 a.last_account_recovery = now;
             });
+
+            reset_vesting_withdraw(account);
+        }
+
+        void recover_account_evaluator::reset_vesting_withdraw(const account_object& account) {
+            stop_withdraw(account);
+            remove_vesting_routes(account);
+        }
+
+        void golos::chain::recover_account_evaluator::stop_withdraw(const golos::chain::account_object &account) {
+            _db.modify(account, [&](account_object &a) {
+                a.vesting_withdraw_rate.amount = 0;
+                a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+            });
+        }
+
+        void golos::chain::recover_account_evaluator::remove_vesting_routes(const golos::chain::account_object &account) {
+            const auto & withdraw_index = _db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+            auto it = withdraw_index.upper_bound(boost::make_tuple(account.id, account_id_type()));
+
+            while (it != withdraw_index.end() && it->from_account == account.id) {
+                const auto& val = *it;
+                ++it;
+                _db.remove(val);
+            }
         }
 
         void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {

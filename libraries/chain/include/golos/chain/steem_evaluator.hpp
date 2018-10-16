@@ -3,6 +3,7 @@
 #include <golos/protocol/steem_operations.hpp>
 #include <golos/protocol/proposal_operations.hpp>
 #include <golos/chain/evaluator.hpp>
+#include <golos/chain/account_object.hpp>
 
 namespace golos { namespace chain {
         using namespace golos::protocol;
@@ -40,7 +41,6 @@ namespace golos { namespace chain {
         DEFINE_EVALUATOR(challenge_authority)
         DEFINE_EVALUATOR(prove_authority)
         DEFINE_EVALUATOR(request_account_recovery)
-        DEFINE_EVALUATOR(recover_account)
         DEFINE_EVALUATOR(change_recovery_account)
         DEFINE_EVALUATOR(transfer_to_savings)
         DEFINE_EVALUATOR(transfer_from_savings)
@@ -77,6 +77,20 @@ namespace golos { namespace chain {
 
         protected:
             int depth_ = 0;
+        };
+
+        class recover_account_evaluator : public evaluator_impl<recover_account_evaluator> {
+        public:
+            using operation_type = recover_account_operation;
+
+            recover_account_evaluator(database& db) : evaluator_impl<recover_account_evaluator>(db) {}
+
+            void do_apply(const operation_type& o);
+
+        private:
+            void reset_vesting_withdraw(const account_object& account);
+            void stop_withdraw(const account_object& account);
+            void remove_vesting_routes(const account_object& account);
         };
 
 } } // golos::chain
