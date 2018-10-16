@@ -6790,11 +6790,12 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         try {
             BOOST_TEST_MESSAGE("Testing: delegate_vesting_shares_with_interest_apply");
 
-            ACTORS((alice)(bob)(dave))
+            ACTORS((alice)(bob)(carol)(dave))
             generate_block();
 
             fund("alice", 10000);
             vest("alice", ASSET_GOLOS(10000));
+            vest("carol", ASSET_GOLOS(10000));
             vest("dave", ASSET_GOLOS(10000));
             generate_block();
 
@@ -6806,9 +6807,16 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             delegate_vesting_shares_with_interest_operation op;
             op.vesting_shares = ASSET_GESTS(50000);
-            op.delegator = "dave";
+            op.delegator = "carol";
             op.delegatee = "bob";
             op.payout_strategy = to_delegated_vesting;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, carol_private_key, op));
+            generate_block();
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            op.payout_strategy = to_delegator;
+            op.delegator = "dave";
             BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, dave_private_key, op));
             generate_block();
             tx.operations.clear();
@@ -6842,7 +6850,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_TEST_MESSAGE("-- Getting old VDO vesting_shares before cashout");
 
             const auto& vdo_idx = db->get_index<vesting_delegation_index>().indices().get<by_delegation>();
-            auto vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("dave"), account_name_type("bob")));
+            auto vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
             BOOST_CHECK(vdo_itr != vdo_idx.end());
             auto old_vdo_gests = vdo_itr->vesting_shares;
 
@@ -6860,8 +6868,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             auto& gpo = db->get_dynamic_global_properties();
 
-            BOOST_CHECK_EQUAL(gpo.total_vesting_shares, total_comment_fund.vesting_shares());
-            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem, total_comment_fund.vesting_fund());
+            APPROX_CHECK_EQUAL(gpo.total_vesting_shares.to_real(), total_comment_fund.vesting_shares().to_real(), 10);
+            APPROX_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, total_comment_fund.vesting_fund().amount.value, 1);
 
             BOOST_TEST_MESSAGE("-- Checking bob delegatee payout");
 
@@ -6872,10 +6880,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
             BOOST_TEST_MESSAGE("-- Checking new VDO vesting_shares == old VDO vesting_shares + delegator_payout");
 
-            auto dave_payout = alice_comment_reward.delegator_payout("dave");
-            vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("dave"), account_name_type("bob")));
+            auto carol_payout = alice_comment_reward.delegator_payout("carol");
+            vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
             BOOST_CHECK(vdo_itr != vdo_idx.end());
-            BOOST_CHECK_EQUAL(vdo_itr->vesting_shares, old_vdo_gests + dave_payout);
+            BOOST_CHECK_EQUAL(vdo_itr->vesting_shares, old_vdo_gests + carol_payout);
         }
         FC_LOG_AND_RETHROW()
     }
