@@ -335,6 +335,7 @@ namespace golos { namespace wallet {
                         result["votes_window"] = median_props.votes_window;
                         result["votes_per_window"] = median_props.votes_per_window;
                         result["auction_window_size"] = median_props.auction_window_size;
+                        result["max_delegated_vesting_interest_rate"] = median_props.max_delegated_vesting_interest_rate;
                     }
 
                     return result;
@@ -2146,6 +2147,22 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(tx, broadcast);
         }
 
+        annotated_signed_transaction wallet_api::delegate_vesting_shares_with_interest(string delegator, string delegatee, asset vesting_shares, uint16_t interest_rate, bool broadcast) {
+            WALLET_CHECK_UNLOCKED();
+
+            delegate_vesting_shares_with_interest_operation op;
+            op.delegator = delegator;
+            op.delegatee = delegatee;
+            op.vesting_shares = vesting_shares;
+            op.interest_rate = interest_rate;
+
+            signed_transaction tx;
+            tx.operations.push_back(op);
+            tx.validate();
+
+            return my->sign_transaction(tx, broadcast);
+        }
+
 /**
  *  This method will generate new owner, active, posting and memo keys for the new account
  *  which will be controlable by this wallet.
@@ -2260,7 +2277,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
                     || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
                     || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
-                    || !!props.auction_window_size) {
+                    || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate) {
                 chain_properties_19 p19;
                 p19 = p;
                 SET_PROP(p19, max_referral_interest_rate);
@@ -2271,6 +2288,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 SET_PROP(p19, votes_window);
                 SET_PROP(p19, votes_per_window);
                 SET_PROP(p19, auction_window_size);
+                SET_PROP(p19, max_delegated_vesting_interest_rate);
                 op.props = p19;
             }
 #undef SET_PROP

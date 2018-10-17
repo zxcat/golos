@@ -15,6 +15,7 @@
 #include <fc/io/json.hpp>
 
 #include "database_fixture.hpp"
+#include "comment_reward.hpp"
 #include "helpers.hpp"
 
 #include <cmath>
@@ -6727,6 +6728,162 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             end = db->get_index<vesting_delegation_expiration_index, by_id>().end();
             BOOST_CHECK(exp_obj == end);
             BOOST_CHECK_EQUAL(db->get_account("sam").delegated_vesting_shares, ASSET_GESTS(0));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(reject_vesting_shares_delegation_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: reject_vesting_shares_delegation_apply");
+            signed_transaction tx;
+            ACTORS((alice)(bob))
+
+            generate_block();
+            vest("alice", ASSET_GOLOS(10000));
+            vest("bob", ASSET_GOLOS(1000));
+            generate_block();
+
+            BOOST_TEST_MESSAGE("--- Test failure when vesting shares delegation does not exist");
+            reject_vesting_shares_delegation_operation reject_op;
+            reject_op.delegator = "alice";
+            reject_op.delegatee = "bob";
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, reject_op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "vesting_delegation_object", fc::mutable_variant_object()("delegator",reject_op.delegator)("delegatee",reject_op.delegatee))));
+
+            delegate_vesting_shares_operation op;
+            op.vesting_shares = ASSET_GESTS(5000);
+            op.delegator = "alice";
+            op.delegatee = "bob";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+            generate_block();
+
+            auto delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+            BOOST_CHECK(delegation != nullptr);
+            BOOST_CHECK_EQUAL(delegation->delegator, op.delegator);
+            BOOST_CHECK_EQUAL(delegation->delegatee, op.delegatee);
+            BOOST_CHECK_EQUAL(delegation->vesting_shares, ASSET_GESTS(5000));
+
+            BOOST_TEST_MESSAGE("--- Test success");
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, reject_op));
+            generate_block();
+
+            delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+            BOOST_CHECK(delegation == nullptr);
+
+            BOOST_CHECK_EQUAL(db->get_account("bob").received_vesting_shares, ASSET_GESTS(0));
+
+            BOOST_CHECK_NE(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+
+            generate_blocks(db->head_block_time() + STEEMIT_CASHOUT_WINDOW_SECONDS - 1);
+
+            BOOST_CHECK_NE(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+
+            generate_block();
+
+            BOOST_CHECK_EQUAL(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(delegate_vesting_shares_with_interest_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: delegate_vesting_shares_with_interest_apply");
+
+            ACTORS((alice)(bob)(carol)(dave))
+            generate_block();
+
+            fund("alice", 10000);
+            vest("alice", ASSET_GOLOS(10000));
+            vest("carol", ASSET_GOLOS(10000));
+            vest("dave", ASSET_GOLOS(10000));
+            generate_block();
+
+            price exchange_rate(ASSET("1.000 GOLOS"), ASSET("1.000 GBG"));
+            set_price_feed(exchange_rate);
+            generate_block();
+
+            signed_transaction tx;
+
+            delegate_vesting_shares_with_interest_operation op;
+            op.vesting_shares = ASSET_GESTS(50000);
+            op.delegator = "carol";
+            op.delegatee = "bob";
+            op.payout_strategy = to_delegated_vesting;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, carol_private_key, op));
+            generate_block();
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            op.payout_strategy = to_delegator;
+            op.delegator = "dave";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, dave_private_key, op));
+            generate_block();
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation comment_op;
+            comment_op.author = "alice";
+            comment_op.permlink = "test";
+            comment_op.parent_permlink = "test";
+            comment_op.title = "foo";
+            comment_op.body = "bar";
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(comment_op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            generate_blocks(db->head_block_time() + STEEMIT_MIN_VOTE_INTERVAL_SEC + STEEMIT_BLOCK_INTERVAL);
+
+            vote_operation vote_op;
+            vote_op.voter = "bob";
+            vote_op.author = "alice";
+            vote_op.permlink = "test";
+            vote_op.weight = STEEMIT_100_PERCENT;
+            tx.operations.push_back(vote_op);
+            tx.sign(bob_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            BOOST_TEST_MESSAGE("-- Getting old VDO vesting_shares before cashout");
+
+            const auto& vdo_idx = db->get_index<vesting_delegation_index>().indices().get<by_delegation>();
+            auto vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
+            BOOST_CHECK(vdo_itr != vdo_idx.end());
+            auto old_vdo_gests = vdo_itr->vesting_shares;
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_BLOCK_INTERVAL);
+            generate_blocks(db->get_comment("alice", string("test")).cashout_time - STEEMIT_BLOCK_INTERVAL, true);
+
+            auto& alice_comment = db->get_comment("alice", string("test"));
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_comment_reward(*db, total_comment_fund, alice_comment);
+
+            generate_block();
+
+            BOOST_TEST_MESSAGE("-- Checking total funds");
+
+            auto& gpo = db->get_dynamic_global_properties();
+
+            APPROX_CHECK_EQUAL(gpo.total_vesting_shares.to_real(), total_comment_fund.vesting_shares().to_real(), 10);
+            APPROX_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, total_comment_fund.vesting_fund().amount.value, 1);
+
+            BOOST_TEST_MESSAGE("-- Checking bob delegatee payout");
+
+            auto& bob_account = db->get_account("bob");
+            auto ops = get_last_operations<curation_reward_operation>(1);
+            auto vop_curation = ops[0];
+            BOOST_CHECK_EQUAL(vop_curation.reward, alice_comment_reward.vote_payout(bob_account));
+
+            BOOST_TEST_MESSAGE("-- Checking new VDO vesting_shares == old VDO vesting_shares + delegator_payout");
+
+            auto carol_payout = alice_comment_reward.delegator_payout("carol");
+            vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
+            BOOST_CHECK(vdo_itr != vdo_idx.end());
+            BOOST_CHECK_EQUAL(vdo_itr->vesting_shares, old_vdo_gests + carol_payout);
         }
         FC_LOG_AND_RETHROW()
     }

@@ -1916,6 +1916,7 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::max_referral_break_fee);
             calc_median_battery(&chain_properties_19::comments_window, &chain_properties_19::comments_per_window);
             calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);
+            calc_median(&chain_properties_19::max_delegated_vesting_interest_rate);
 
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;
@@ -2259,6 +2260,44 @@ namespace golos { namespace chain {
             }
         }
 
+        uint64_t database::pay_delegators(const account_object& delegatee, const comment_vote_object& cvo, uint64_t claim) {
+            uint64_t delegators_reward = 0;
+            const auto& vdo_idx = get_index<vesting_delegation_index>().indices().get<by_received>();
+            for (auto& dvir : cvo.delegator_vote_interest_rates) {
+                auto delegator_claim = claim * dvir.interest_rate / STEEMIT_100_PERCENT;
+
+                if (delegator_claim == 0) {
+                    continue;
+                }
+
+                delegators_reward += delegator_claim;
+
+                const auto& delegator = get_account(dvir.account);
+                asset delegator_vesting = create_vesting(delegator, asset(delegator_claim, STEEM_SYMBOL));
+                if (dvir.payout_strategy == to_delegated_vesting) {
+                    auto vdo_itr = vdo_idx.find(std::make_tuple(delegatee.name, dvir.account));
+                    if (vdo_itr != vdo_idx.end()) {
+                        modify(delegator, [&](account_object& a) {
+                            a.delegated_vesting_shares += delegator_vesting;
+                        });
+                        modify(delegatee, [&](account_object& a) {
+                            a.received_vesting_shares += delegator_vesting;
+                        });
+                        modify(*vdo_itr, [&](vesting_delegation_object& o) {
+                            o.vesting_shares += delegator_vesting;
+                        });
+                    }
+                }
+
+                push_virtual_operation(delegation_reward_operation(delegator.name, delegatee.name, dvir.payout_strategy, delegator_vesting));
+
+                modify(delegator, [&](account_object& a) {
+                    a.delegation_rewards += delegator_claim;
+                });
+            }
+            return delegators_reward;
+        }
+
 /**
  *  This method will iterate through all comment_vote_objects and give them
  *  (max_rewards * weight) / c.total_vote_weight.
@@ -2283,12 +2322,19 @@ namespace golos { namespace chain {
                             unclaimed_rewards -= claim;
 
                             const auto &voter = get(itr->voter);
-                            auto reward = create_vesting(voter, asset(claim, STEEM_SYMBOL));
+
+                            auto voter_reward = claim;
+
+                            if (has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
+                                voter_reward -= pay_delegators(voter, *itr, claim);
+                            }
+
+                            auto reward = create_vesting(voter, asset(voter_reward, STEEM_SYMBOL));
 
                             push_virtual_operation(curation_reward_operation(voter.name, reward, c.author, to_string(c.permlink)));
 
                             modify(voter, [&](account_object &a) {
-                                a.curation_rewards += claim;
+                                a.curation_rewards += voter_reward;
                             });
                         } else {
                             break;
@@ -2343,6 +2389,9 @@ namespace golos { namespace chain {
                             push_virtual_operation(
                                 comment_benefactor_reward_operation(
                                     b.account, comment.author, to_string(comment.permlink), vest_created));
+                            modify(get_account(b.account), [&](account_object& a) {
+                                a.benefaction_rewards += benefactor_tokens;
+                            });
                             total_beneficiary += benefactor_tokens;
                         }
 
@@ -2951,6 +3000,8 @@ namespace golos { namespace chain {
             _my->_evaluator_registry.register_evaluator<set_reset_account_evaluator>();
             _my->_evaluator_registry.register_evaluator<account_create_with_delegation_evaluator>();
             _my->_evaluator_registry.register_evaluator<delegate_vesting_shares_evaluator>();
+            _my->_evaluator_registry.register_evaluator<delegate_vesting_shares_with_interest_evaluator>();
+            _my->_evaluator_registry.register_evaluator<reject_vesting_shares_delegation_evaluator>();
             _my->_evaluator_registry.register_evaluator<proposal_create_evaluator>();
             _my->_evaluator_registry.register_evaluator<proposal_update_evaluator>();
             _my->_evaluator_registry.register_evaluator<proposal_delete_evaluator>();

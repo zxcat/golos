@@ -85,7 +85,9 @@ public:
     uint8_t savings_withdraw_requests = 0;
     ///@}
 
+    share_type benefaction_rewards = 0;
     share_type curation_rewards = 0;
+    share_type delegation_rewards = 0;
     share_type posting_rewards = 0;
 
     asset vesting_shares = asset(0, VESTS_SYMBOL); ///< total vesting shares held by this account, controls its voting power
@@ -204,6 +206,8 @@ public:
     account_name_type delegator;
     account_name_type delegatee;
     asset vesting_shares;
+    uint16_t interest_rate = 0;
+    protocol::delegator_payout_strategy payout_strategy = protocol::to_delegator;
     time_point_sec min_delegation_time;
 };
 
@@ -512,7 +516,9 @@ FC_REFLECT((golos::chain::account_object),
     (savings_sbd_balance)(savings_sbd_seconds)(savings_sbd_seconds_last_update)(savings_sbd_last_interest_payment)(savings_withdraw_requests)
     (vesting_shares)(delegated_vesting_shares)(received_vesting_shares)
     (vesting_withdraw_rate)(next_vesting_withdrawal)(withdrawn)(to_withdraw)(withdraw_routes)
+    (benefaction_rewards)
     (curation_rewards)
+    (delegation_rewards)
     (posting_rewards)
     (proxied_vsf_votes)(witnesses_voted_for)
     (last_post)
@@ -532,7 +538,7 @@ CHAINBASE_SET_INDEX_TYPE(golos::chain::account_bandwidth_object, golos::chain::a
 FC_REFLECT((golos::chain::account_metadata_object), (id)(account)(json_metadata))
 CHAINBASE_SET_INDEX_TYPE(golos::chain::account_metadata_object, golos::chain::account_metadata_index)
 
-FC_REFLECT((golos::chain::vesting_delegation_object), (id)(delegator)(delegatee)(vesting_shares)(min_delegation_time))
+FC_REFLECT((golos::chain::vesting_delegation_object), (id)(delegator)(delegatee)(vesting_shares)(interest_rate)(min_delegation_time))
 CHAINBASE_SET_INDEX_TYPE(golos::chain::vesting_delegation_object, golos::chain::vesting_delegation_index)
 
 FC_REFLECT((golos::chain::vesting_delegation_expiration_object), (id)(delegator)(vesting_shares)(expiration))

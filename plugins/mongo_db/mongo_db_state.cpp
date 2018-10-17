@@ -247,7 +247,9 @@ namespace mongo_db {
 
             format_value(body, "savings_withdraw_requests", account.savings_withdraw_requests);
 
+            format_value(body, "benefaction_rewards", account.benefaction_rewards);
             format_value(body, "curation_rewards", account.curation_rewards);
+            format_value(body, "delegation_rewards", account.delegation_rewards);
             format_value(body, "posting_rewards", account.posting_rewards);
 
             format_value(body, "vesting_shares", account.vesting_shares);
@@ -479,6 +481,7 @@ namespace mongo_db {
             format_value(body, "delegator", delegation.delegator);
             format_value(body, "delegatee", delegation.delegatee);
             format_value(body, "vesting_shares", delegation.vesting_shares);
+            format_value(body, "interest_rate", delegation.interest_rate);
             format_value(body, "min_delegation_time", delegation.min_delegation_time);
             format_value(body, "timestamp", state_block.timestamp);
 
@@ -1430,6 +1433,32 @@ namespace mongo_db {
         }
     }
 
+    auto state_writer::operator()(const delegate_vesting_shares_with_interest_operation& op) -> result_type {
+        format_account(op.delegator);
+        format_account(op.delegatee);
+        auto delegation = db_.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+        if (delegation != nullptr) {
+            format_vesting_delegation_object(*delegation);
+        } else {
+            auto oid = std::string(op.delegator).append("/").append(std::string(op.delegatee));
+            auto oid_hash = hash_oid(oid);
+            auto doc = create_removal_document("vesting_delegation_object", "_id", oid_hash);
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
+    }
+
+    auto state_writer::operator()(const reject_vesting_shares_delegation_operation& op) -> result_type {
+        format_account(op.delegator);
+        format_account(op.delegatee);
+        auto delegation = db_.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+        if (delegation == nullptr) {
+            auto oid = std::string(op.delegator).append("/").append(std::string(op.delegatee));
+            auto oid_hash = hash_oid(oid);
+            auto doc = create_removal_document("vesting_delegation_object", "_id", oid_hash);
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
+    }
+
     auto state_writer::operator()(const proposal_create_operation& op) -> result_type {
         try {
             auto& proposal = db_.get_proposal(op.author, op.title);
@@ -1885,6 +1914,10 @@ namespace mongo_db {
         catch (...) {
             // ilog("Unknown exception during writing witness schedule object.");
         }
+    }
+
+    auto state_writer::operator()(const delegation_reward_operation& op) -> result_type {
+
     }
 
 }}}

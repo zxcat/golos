@@ -280,11 +280,13 @@ namespace golos {
             // break_free_referral_operation
             no_right_to_break_referral,
 
-            // delegate_vesting_shares
+            // delegate vesting shares operations
             cannot_delegate_to_yourself,
             delegation_difference_too_low,
             delegation_limited_by_voting_power,
             cannot_delegate_below_minimum,
+            cannot_change_delegator_interest_rate,
+            cannot_change_delegator_payout_strategy,
 
             // proposals and transactions
             proposal_depth_too_high,
@@ -546,6 +548,8 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (delegation_difference_too_low)
         (delegation_limited_by_voting_power)
         (cannot_delegate_below_minimum)
+        (cannot_change_delegator_interest_rate)
+        (cannot_change_delegator_payout_strategy)
 
         // account_create_with_delegation
         (not_enough_delegation)

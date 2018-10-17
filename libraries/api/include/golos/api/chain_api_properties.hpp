@@ -31,6 +31,8 @@ namespace golos { namespace api {
         fc::optional<uint16_t> votes_per_window;
 
         fc::optional<uint32_t> auction_window_size;
+
+        fc::optional<uint16_t> max_delegated_vesting_interest_rate;
     };
 
 } } // golos::api
@@ -41,4 +43,5 @@ FC_REFLECT(
     (create_account_min_golos_fee)(create_account_min_delegation)
     (create_account_delegation_time)(min_delegation)
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
-    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size))
+    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
+    (max_delegated_vesting_interest_rate))

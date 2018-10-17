@@ -474,6 +474,10 @@ if (options.count(name)) { \
             insert_receiver(op.producer);
         }
 
+        void operator()(const delegation_reward_operation& op) {
+            insert_pair(op.delegator, op.delegatee);
+        }
+
         void operator()(const delegate_vesting_shares_operation& op) {
             insert_pair(op.delegator, op.delegatee);
         }
