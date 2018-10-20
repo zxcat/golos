@@ -2240,6 +2240,8 @@ namespace golos { namespace chain {
                     if (a.withdrawn >= a.to_withdraw || a.vesting_shares.amount == 0) {
                         a.vesting_withdraw_rate.amount = 0;
                         a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+                        a.withdrawn = 0;
+                        a.to_withdraw = 0;
                     } else {
                         a.next_vesting_withdrawal += fc::seconds(STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS);
                     }

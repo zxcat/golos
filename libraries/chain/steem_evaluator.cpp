@@ -2253,6 +2253,8 @@ namespace golos { namespace chain {
             _db.modify(account, [&](account_object &a) {
                 a.vesting_withdraw_rate.amount = 0;
                 a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+                a.withdrawn = 0;
+                a.to_withdraw = 0;
             });
         }
 
