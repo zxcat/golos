@@ -4119,6 +4119,173 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(vesting_withdraw_reset_on_recovery) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: vesting withdraw reset on account recover");
+            ACTORS((alice));
+            fund("alice", 1000000);
+
+            account_create_operation acc_create;
+
+            BOOST_TEST_MESSAGE("--- Creating account bob with alice");
+
+            const auto bob_private_key = generate_private_key("bob_active");
+            const auto bob_owner_authority = authority(1, generate_private_key("bob_owner").get_public_key(), 1);
+
+            acc_create.fee = ASSET("10.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "bob";
+            acc_create.owner = bob_owner_authority;
+            acc_create.active = authority(1, bob_private_key.get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("bob_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("bob_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, acc_create));
+
+            tx.clear();
+
+            BOOST_TEST_MESSAGE("--- Creating account chewy with alice");
+            acc_create.fee = ASSET("0.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "chewy";
+            acc_create.owner = authority(1, generate_private_key("chewy_owner").get_public_key(), 1);
+            acc_create.active = authority(1, generate_private_key("chewy_active").get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("chewy_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("chewy_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            tx.operations.push_back(acc_create);
+
+            BOOST_TEST_MESSAGE("--- Creating account donna with alice");
+            acc_create.fee = ASSET("0.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "donna";
+            acc_create.owner = authority(1, generate_private_key("donna_owner").get_public_key(), 1);
+            acc_create.active = authority(1, generate_private_key("donna_active").get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("donna_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("donna_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            tx.operations.push_back(acc_create);
+            tx.sign(alice_private_key, db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            BOOST_TEST_MESSAGE("--- Set vesting withdraw routes");
+
+            set_withdraw_vesting_route_operation to_chewy;
+            to_chewy.from_account = "bob";
+            to_chewy.to_account = "chewy";
+            to_chewy.percent = 5000;
+
+            set_withdraw_vesting_route_operation to_donna;
+
+            to_donna.from_account = "bob";
+            to_donna.to_account = "donna";
+            to_donna.percent = 5000;
+
+            tx.clear();
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, to_chewy, to_donna));
+
+            BOOST_TEST_MESSAGE("--- Start vesting withdraw");
+
+
+            withdraw_vesting_operation withdraw_vesting_op;
+            withdraw_vesting_op.account = "bob";
+            withdraw_vesting_op.vesting_shares = asset(db->get_account("bob").vesting_shares.amount / 2, VESTS_SYMBOL);
+
+            tx.clear();
+            tx.operations.push_back(withdraw_vesting_op);
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+
+            tx.sign(bob_private_key, db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            BOOST_TEST_MESSAGE("--- Generating block up to first withdrawal");
+
+            generate_blocks(db->head_block_time() + STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS, true);
+
+            {
+                const auto& bob = db->get_account("bob");
+
+                BOOST_CHECK_NE(bob.vesting_withdraw_rate.amount.value, 0);
+                BOOST_CHECK_NE(bob.to_withdraw.value, 0);
+                BOOST_CHECK_NE(bob.withdrawn, 0);
+                BOOST_CHECK_NE(bob.next_vesting_withdrawal, fc::time_point_sec::maximum());
+            }
+
+            BOOST_TEST_MESSAGE("--- Changing bob's owner authority");
+
+            account_update_operation acc_update;
+
+            acc_update.account = "bob";
+            acc_update.owner = authority(1, generate_private_key("bad_key").get_public_key(), 1);
+            acc_update.memo_key = acc_create.memo_key;
+            acc_update.json_metadata = "";
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, generate_private_key("bob_owner"), acc_update));
+
+            BOOST_TEST_MESSAGE("--- Creating recover request for bob with alice");
+
+            request_account_recovery_operation request;
+            request.recovery_account = "alice";
+            request.account_to_recover = "bob";
+            request.new_owner_authority = authority(1, generate_private_key("new_key").get_public_key(), 1);
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
+
+            BOOST_TEST_MESSAGE("--- Recovering bob's account with original owner auth and new secret");
+
+            recover_account_operation recover;
+            recover.account_to_recover = "bob";
+            recover.new_owner_authority = request.new_owner_authority;
+            recover.recent_owner_authority = bob_owner_authority;
+
+            tx.clear();
+            tx.operations.push_back(recover);
+
+            tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
+            tx.sign(generate_private_key("new_key"), db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            generate_blocks(db->head_block_time() + STEEMIT_OWNER_UPDATE_LIMIT);
+
+            BOOST_TEST_MESSAGE("--- Verify chewy and donna are not vesting receivers.");
+
+            {
+                const auto& bob = db->get_account("bob");
+                const auto& chewy = db->get_account("chewy");
+                const auto& donna = db->get_account("donna");
+
+                const auto & withdraw_index = db->get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+                auto it = withdraw_index.upper_bound(boost::make_tuple(bob.id, account_id_type()));
+
+                while (it != withdraw_index.end() && it->from_account == bob.id) {
+                    BOOST_CHECK_NE(it->to_account, chewy.id);
+                    BOOST_CHECK_NE(it->to_account, donna.id);
+                }
+            }
+
+            BOOST_TEST_MESSAGE("--- Verify withdraw is stopped.");
+
+            {
+                const auto& bob = db->get_account("bob");
+
+                BOOST_CHECK_EQUAL(bob.vesting_withdraw_rate.amount.value, 0);
+                BOOST_CHECK_EQUAL(bob.to_withdraw.value, 0);
+                BOOST_CHECK_EQUAL(bob.withdrawn, 0);
+                BOOST_CHECK_EQUAL(bob.next_vesting_withdrawal, fc::time_point_sec::maximum());
+            }
+         }
+        FC_LOG_AND_RETHROW()
+    }
+
     BOOST_AUTO_TEST_CASE(change_recovery_account_apply) {
         try {
             using fc::ecc::private_key;
