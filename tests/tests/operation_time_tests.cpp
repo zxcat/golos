@@ -1667,6 +1667,86 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW();
     }
 
+    BOOST_AUTO_TEST_CASE(limit_sbd_interest_rate) try {
+
+        const account_name_type alice_user_name = "alice";
+        const account_name_type bob_user_name = "bob";
+
+        BOOST_TEST_MESSAGE("Testing limitation of the sbd interest rate");
+
+        ACTORS((alice)(bob))
+
+        generate_block();
+
+        BOOST_TEST_MESSAGE("--- Set start values");
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            set_price_feed(price(asset::from_string("1.000 GBG"), asset::from_string("1.000 GOLOS")));
+
+            db->modify(dynamic_global_properties, [&](dynamic_global_property_object& prop) {
+                prop.current_supply = asset(1000, STEEM_SYMBOL);
+                prop.sbd_interest_rate = STEEMIT_100_PERCENT;
+
+            });
+        }
+
+        generate_block();
+
+        fund(alice_user_name, ASSET("90.000 GOLOS"));
+        fund(alice_user_name, ASSET("9.000 GBG")); // this sets current_median_history to 1
+
+        BOOST_TEST_MESSAGE("--- Generate blocks to get GBG ~ 11%");
+
+        generate_blocks(db->head_block_time() + fc::seconds(STEEMIT_SECONDS_PER_YEAR / 4), true);
+
+        transfer_operation transfer_op;
+        transfer_op.from = alice_user_name;
+        transfer_op.to = bob_user_name;
+        transfer_op.amount = asset(1, SBD_SYMBOL);
+
+        signed_transaction tx;
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, transfer_op));
+
+        BOOST_TEST_MESSAGE("--- Generate blocks to recalc current median history");
+
+        set_price_feed(price(asset::from_string("1.000 GBG"), asset::from_string("1.000 GOLOS")));
+
+        db->skip_price_feed_limit_check = false;
+
+        generate_blocks(STEEMIT_FEED_INTERVAL_BLOCKS - (db->head_block_num() % STEEMIT_FEED_INTERVAL_BLOCKS));
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            BOOST_CHECK_EQUAL(dynamic_global_properties.is_forced_min_price, true);
+
+            const auto total_amount = dynamic_global_properties.current_supply.amount + dynamic_global_properties.current_sbd_supply.amount;
+
+            BOOST_CHECK_EQUAL(100 * dynamic_global_properties.current_sbd_supply.amount / total_amount, 11);
+        }
+
+        BOOST_TEST_MESSAGE("--- Try to get sbd fee again");
+
+        generate_blocks(db->head_block_time() + fc::seconds(STEEMIT_SECONDS_PER_YEAR / 4), true);
+
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, transfer_op));
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            BOOST_CHECK_EQUAL(dynamic_global_properties.is_forced_min_price, true);
+
+            const auto total_amount = dynamic_global_properties.current_supply.amount + dynamic_global_properties.current_sbd_supply.amount;
+
+            BOOST_CHECK_EQUAL(100 * dynamic_global_properties.current_sbd_supply.amount / total_amount, 11);
+        }
+
+
+    }
+    FC_LOG_AND_RETHROW()
+
     BOOST_AUTO_TEST_CASE(liquidity_rewards) {
 
         try {

@@ -1918,14 +1918,16 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::max_delegated_vesting_interest_rate);
             calc_median(&chain_properties_19::custom_ops_bandwidth_multiplier);
 
+            const auto& dynamic_global_properties = get_dynamic_global_properties();
+
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;
             });
 
-            modify(get_dynamic_global_properties(), [&](dynamic_global_property_object& _dgpo) {
-                _dgpo.maximum_block_size = median_props.maximum_block_size;
-                _dgpo.sbd_interest_rate = median_props.sbd_interest_rate;
-                _dgpo.custom_ops_bandwidth_multiplier = median_props.custom_ops_bandwidth_multiplier;
+            modify(dynamic_global_properties, [&](dynamic_global_property_object& dgpo) {
+                dgpo.maximum_block_size = median_props.maximum_block_size;
+                dgpo.sbd_interest_rate = median_props.sbd_interest_rate;
+                dgpo.custom_ops_bandwidth_multiplier = median_props.custom_ops_bandwidth_multiplier;
             });
         }
 
@@ -3712,6 +3714,9 @@ namespace golos { namespace chain {
                     std::sort(feeds.begin(), feeds.end());
                     auto median_feed = feeds[feeds.size() / 2];
 
+                    bool is_forced_min_price = false;
+                    const auto &gpo = get_dynamic_global_properties();
+
                     modify(get_feed_history(), [&](feed_history_object &fho) {
                         fho.price_history.push_back(median_feed);
                         size_t steem_feed_history_window = STEEMIT_FEED_HISTORY_WINDOW_PRE_HF_16;
@@ -3739,16 +3744,19 @@ namespace golos { namespace chain {
                             }
 #endif
                             if (has_hardfork(STEEMIT_HARDFORK_0_14__230)) {
-                                const auto &gpo = get_dynamic_global_properties();
-                                price min_price(asset(9 *
-                                                      gpo.current_sbd_supply.amount, SBD_SYMBOL), gpo.current_supply); // This price limits SBD to 10% market cap
+                                price min_price(asset(9 * gpo.current_sbd_supply.amount, SBD_SYMBOL), gpo.current_supply); // This price limits SBD to 10% market cap
 
-                                if (min_price > fho.current_median_history) {
+                                is_forced_min_price = min_price > fho.current_median_history;
+                                if (is_forced_min_price) {
                                     fho.current_median_history = min_price;
                                 }
                             }
                         }
                     });
+
+                    if (is_forced_min_price) {
+                        modify(gpo, [&](auto& mutable_gpo) {mutable_gpo.is_forced_min_price = is_forced_min_price;});
+                    }
                 }
             } FC_CAPTURE_AND_RETHROW()
         }
@@ -4295,46 +4303,52 @@ namespace golos { namespace chain {
         }
 
         void database::adjust_balance(const account_object &a, const asset &delta) {
-            modify(a, [&](account_object &acnt) {
-                switch (delta.symbol) {
-                    case STEEM_SYMBOL:
-                        acnt.balance += delta;
-                        break;
-                    case SBD_SYMBOL:
-                        if (a.sbd_seconds_last_update != head_block_time()) {
-                            acnt.sbd_seconds +=
-                                    fc::uint128_t(a.sbd_balance.amount.value) *
-                                    (head_block_time() -
-                                     a.sbd_seconds_last_update).to_seconds();
-                            acnt.sbd_seconds_last_update = head_block_time();
+            switch (delta.symbol) {
+                case STEEM_SYMBOL:
+                    modify(a, [&](account_object &acnt) {acnt.balance += delta;});
+                    break;
+                case SBD_SYMBOL:
+                    adjust_sbd_balance(a, delta);
+                    break;
+                default:
+                    GOLOS_CHECK_VALUE(false, "invalid symbol");
+            }
+        }
 
-                            if (acnt.sbd_seconds > 0 &&
-                                (acnt.sbd_seconds_last_update -
-                                 acnt.sbd_last_interest_payment).to_seconds() >
-                                STEEMIT_SBD_INTEREST_COMPOUND_INTERVAL_SEC) {
-                                auto interest = acnt.sbd_seconds /
-                                                STEEMIT_SECONDS_PER_YEAR;
-                                interest *= get_dynamic_global_properties().sbd_interest_rate;
-                                interest /= STEEMIT_100_PERCENT;
-                                asset interest_paid(interest.to_uint64(), SBD_SYMBOL);
-                                acnt.sbd_balance += interest_paid;
-                                acnt.sbd_seconds = 0;
-                                acnt.sbd_last_interest_payment = head_block_time();
+        void database::adjust_sbd_balance(const account_object &a, const asset &delta) {
+            const auto& dynamic_global_properties = get_dynamic_global_properties();
 
-                                push_virtual_operation(interest_operation(a.name, interest_paid));
+            const bool is_fee_payment_enabled = (has_hardfork(STEEMIT_HARDFORK_0_19__952) && !dynamic_global_properties.is_forced_min_price) ||
+                                                !has_hardfork(STEEMIT_HARDFORK_0_19__952);
 
-                                modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &props) {
-                                    props.current_sbd_supply += interest_paid;
-                                    props.virtual_supply += interest_paid *
-                                                            get_feed_history().current_median_history;
-                                });
-                            }
-                        }
-                        acnt.sbd_balance += delta;
-                        break;
-                    default:
-                        GOLOS_CHECK_VALUE(false, "invalid symbol");
+            modify(a, [&](account_object& acnt) {
+
+                if (a.sbd_seconds_last_update != head_block_time()) {
+                    acnt.sbd_seconds += fc::uint128_t(a.sbd_balance.amount.value) * (head_block_time() - a.sbd_seconds_last_update).to_seconds();
+
+                    acnt.sbd_seconds_last_update = head_block_time();
+
+                    if (is_fee_payment_enabled &&
+                        acnt.sbd_seconds > 0 &&
+                        (acnt.sbd_seconds_last_update - acnt.sbd_last_interest_payment).to_seconds() > STEEMIT_SBD_INTEREST_COMPOUND_INTERVAL_SEC) {
+
+                        const auto interest = (acnt.sbd_seconds * dynamic_global_properties.sbd_interest_rate) / (STEEMIT_SECONDS_PER_YEAR * STEEMIT_100_PERCENT);
+
+                        asset interest_paid(interest.to_uint64(), SBD_SYMBOL);
+
+                        acnt.sbd_balance += interest_paid;
+                        acnt.sbd_seconds = 0;
+                        acnt.sbd_last_interest_payment = head_block_time();
+
+                        push_virtual_operation(interest_operation(a.name, interest_paid));
+
+                        modify(dynamic_global_properties, [&](dynamic_global_property_object &props) {
+                            props.current_sbd_supply += interest_paid;
+                            props.virtual_supply += interest_paid * get_feed_history().current_median_history;
+                        });
+                    }
                 }
+                acnt.sbd_balance += delta;
             });
         }
 

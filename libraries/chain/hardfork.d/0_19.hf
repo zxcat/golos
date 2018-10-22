@@ -6,6 +6,7 @@
 #define STEEMIT_HARDFORK_0_19__756 (STEEMIT_HARDFORK_0_19) // Vesting shares delegation with interest
 #define STEEMIT_HARDFORK_0_19__971 (STEEMIT_HARDFORK_0_19) // Withdraw vests to another account resests on account recover
 #define STEEMIT_HARDFORK_0_19__924 (STEEMIT_HARDFORK_0_19) // Bandwidth for custom_json operations
+#define STEEMIT_HARDFORK_0_19__952 (STEEMIT_HARDFORK_0_19) // Stop the GBG emission if its count is more than 10%
 
 #ifdef STEEMIT_BUILD_TESTNET
 #define STEEMIT_HARDFORK_0_19_TIME  1534755600 // 20 aug 2018 12:00:00 MSK
