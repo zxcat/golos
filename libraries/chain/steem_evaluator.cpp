@@ -2201,6 +2201,34 @@ namespace golos { namespace chain {
             }
         }
 
+namespace {
+
+        void stop_withdraw(database& db, const golos::chain::account_object& account) {
+            db.modify(account, [&](account_object& a) {
+                a.vesting_withdraw_rate.amount = 0;
+                a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+                a.withdrawn = 0;
+                a.to_withdraw = 0;
+            });
+        }
+
+        void remove_vesting_routes(database& db, const golos::chain::account_object& account) {
+            const auto & withdraw_idx = db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+            auto withdraw_it = withdraw_idx.upper_bound(account.id);
+
+            while (withdraw_it != withdraw_idx.end() && withdraw_it->from_account == account.id) {
+                const auto& val = *withdraw_it;
+                ++withdraw_it;
+                db.remove(val);
+            }
+        }
+
+        void reset_vesting_withdraw(database& db, const account_object& account) {
+            stop_withdraw(db, account);
+            remove_vesting_routes(db, account);
+        }
+}
+
         void recover_account_evaluator::do_apply(const recover_account_operation& o) {
             const auto& account = _db.get_account(o.account_to_recover);
             const auto now = _db.head_block_time();
@@ -2241,32 +2269,7 @@ namespace golos { namespace chain {
                 a.last_account_recovery = now;
             });
 
-            reset_vesting_withdraw(account);
-        }
-
-        void recover_account_evaluator::reset_vesting_withdraw(const account_object& account) {
-            stop_withdraw(account);
-            remove_vesting_routes(account);
-        }
-
-        void golos::chain::recover_account_evaluator::stop_withdraw(const golos::chain::account_object &account) {
-            _db.modify(account, [&](account_object &a) {
-                a.vesting_withdraw_rate.amount = 0;
-                a.next_vesting_withdrawal = fc::time_point_sec::maximum();
-                a.withdrawn = 0;
-                a.to_withdraw = 0;
-            });
-        }
-
-        void golos::chain::recover_account_evaluator::remove_vesting_routes(const golos::chain::account_object &account) {
-            const auto & withdraw_index = _db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
-            auto it = withdraw_index.upper_bound(boost::make_tuple(account.id, account_id_type()));
-
-            while (it != withdraw_index.end() && it->from_account == account.id) {
-                const auto& val = *it;
-                ++it;
-                _db.remove(val);
-            }
+            reset_vesting_withdraw(_db, account);
         }
 
         void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {

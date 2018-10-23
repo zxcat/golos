@@ -4178,20 +4178,19 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             set_withdraw_vesting_route_operation to_chewy;
             to_chewy.from_account = "bob";
             to_chewy.to_account = "chewy";
-            to_chewy.percent = 5000;
+            to_chewy.percent = 50 * STEEMIT_1_PERCENT;
 
             set_withdraw_vesting_route_operation to_donna;
 
             to_donna.from_account = "bob";
             to_donna.to_account = "donna";
-            to_donna.percent = 5000;
+            to_donna.percent = 50 * STEEMIT_1_PERCENT;
 
             tx.clear();
 
             BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, to_chewy, to_donna));
 
             BOOST_TEST_MESSAGE("--- Start vesting withdraw");
-
 
             withdraw_vesting_operation withdraw_vesting_op;
             withdraw_vesting_op.account = "bob";
@@ -4263,8 +4262,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
                 const auto& chewy = db->get_account("chewy");
                 const auto& donna = db->get_account("donna");
 
-                const auto & withdraw_index = db->get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
-                auto it = withdraw_index.upper_bound(boost::make_tuple(bob.id, account_id_type()));
+                const auto& withdraw_index = db->get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+                auto it = withdraw_index.upper_bound(bob.id);
 
                 while (it != withdraw_index.end() && it->from_account == bob.id) {
                     BOOST_CHECK_NE(it->to_account, chewy.id);
