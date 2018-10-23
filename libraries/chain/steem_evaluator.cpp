@@ -2269,7 +2269,9 @@ namespace {
                 a.last_account_recovery = now;
             });
 
-            reset_vesting_withdraw(_db, account);
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__971)) {
+                reset_vesting_withdraw(_db, account);
+            }
         }
 
         void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {
