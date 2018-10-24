@@ -2304,6 +2304,23 @@ namespace golos { namespace chain {
             return delegators_reward;
         }
 
+        void database::pay_curator(const comment_vote_object& cvo, const uint64_t& claim, const account_name_type& author, const std::string& permlink) {
+            const auto &voter = get(cvo.voter);
+            auto voter_claim = claim;
+
+            if (has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
+                voter_claim -= pay_delegators(voter, cvo, claim);
+            }
+
+            auto voter_reward = create_vesting(voter, asset(voter_claim, STEEM_SYMBOL));
+
+            push_virtual_operation(curation_reward_operation(voter.name, voter_reward, author, permlink));
+
+            modify(voter, [&](account_object &a) {
+                a.curation_rewards += voter_claim;
+            });
+        }
+
 /**
  *  This method will iterate through all comment_vote_objects and give them
  *  (max_rewards * weight) / c.total_vote_weight.
@@ -2314,41 +2331,66 @@ namespace golos { namespace chain {
             try {
                 uint128_t total_weight(c.total_vote_weight);
                 //edump( (total_weight)(max_rewards) );
+                
                 share_type unclaimed_rewards = max_rewards;
 
+                uint128_t auction_window_reward = uint128_t(1) * max_rewards.value * c.auction_window_weight / total_weight;
+                auto votes_after_auction_window_weight = total_weight - c.votes_in_auction_window_weight - c.auction_window_weight;
+
+                auto auw_time = c.created + c.auction_window_size;
+
                 if (c.total_vote_weight > 0 && c.allow_curation_rewards) {
+                    // If auction window reward is chosen to go to curators, we need to
+                    // separated votes for 2 sets: 
+                    // c.created     auction_window               cashout
+                    // |_______________|____________________________|
+                    //     1                      2 
+                    // 1st set contains votes with last_update from [c.created, c.created + auction_window_size)
+                    // 2st set contains votes with last_update from [c.created + auction_window_size, cashout]
+
+                    // Also we need to distibute auction_window reward to voters from second set.
+                    // So we need to calculate parts of reward for 3 sets:
+                    //       - votes_in_auction_window_reward
+                    //       - votes_after_auction_window_reward
+                    //       - auction_window_reward 
+
                     const auto &cvidx = get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
                     auto itr = cvidx.lower_bound(c.id);
+
+                    // memorize the top weight account after auction window
+                    auto heaviest_itr = cvidx.end();
+
                     while (itr != cvidx.end() && itr->comment == c.id) {
                         uint128_t weight(itr->weight);
-                        auto claim = ((max_rewards.value * weight) /
-                                      total_weight).to_uint64();
-                        if (claim > 0) // min_amt is non-zero satoshis
-                        {
-                            unclaimed_rewards -= claim;
-
-                            const auto &voter = get(itr->voter);
-
-                            auto voter_reward = claim;
-
-                            if (has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
-                                voter_reward -= pay_delegators(voter, *itr, claim);
+                        uint64_t claim = ((max_rewards.value * weight) / total_weight).to_uint64();
+                        // to_curators case
+                        if (c.auction_window_reward_destination == protocol::to_curators && itr->last_update >= auw_time) {
+                            claim += ((auction_window_reward * weight) / votes_after_auction_window_weight).to_uint64();
+                            if (heaviest_itr == cvidx.end()) {
+                                // as votes are sorted in non-decreasing order
+                                // this if will work once or won't work at all
+                                heaviest_itr = itr;
+                                ++itr;
+                                continue;
                             }
+                        }
 
-                            auto reward = create_vesting(voter, asset(voter_reward, STEEM_SYMBOL));
-
-                            push_virtual_operation(curation_reward_operation(voter.name, reward, c.author, to_string(c.permlink)));
-
-                            modify(voter, [&](account_object &a) {
-                                a.curation_rewards += voter_reward;
-                            });
+                        if (claim > 0) { // min_amt is non-zero satoshis
+                            unclaimed_rewards -= claim;
+                            pay_curator(*itr, claim, c.author, to_string(c.permlink));
                         } else {
                             break;
                         }
                         ++itr;
                     }
+                    if (c.auction_window_reward_destination == protocol::to_curators && heaviest_itr != cvidx.end()) {
+                        // pay needed claim + rest unclaimed tokens (close to zero value) to curator with greates weight
+                        // BTW: it has to be unclaimed_rewards.value not heaviest_vote_after_auw_weight + unclaimed_rewards.value, coz
+                        //      unclaimed_rewards already contains this.
+                        pay_curator(*heaviest_itr, unclaimed_rewards.value, c.author, to_string(c.permlink));
+                        unclaimed_rewards = 0;
+                    }
                 }
-
                 if (!c.allow_curation_rewards) {
                     modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &props) {
                         props.total_reward_fund_steem += unclaimed_rewards;
@@ -2356,12 +2398,13 @@ namespace golos { namespace chain {
 
                     unclaimed_rewards = 0;
                 }
-                else if (has_hardfork(STEEMIT_HARDFORK_0_19__898) && c.total_vote_weight > 0) {
-                    auto reward_fund_claim = (max_rewards.value * c.auction_window_weight) / total_weight;
-                    unclaimed_rewards -= reward_fund_claim.to_uint64();
+                // Case: auction window destination is reward fund or there are not curator which can get the auw reward
+                else if (c.auction_window_reward_destination != protocol::to_author && unclaimed_rewards > 0) {
+                    push_virtual_operation(auction_window_reward_operation(asset(unclaimed_rewards, STEEM_SYMBOL), c.author, to_string(c.permlink)));
                     modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &props) {
-                        props.total_reward_fund_steem += asset(reward_fund_claim.to_uint64(), STEEM_SYMBOL);
+                        props.total_reward_fund_steem += asset(unclaimed_rewards, STEEM_SYMBOL);
                     });
+                    unclaimed_rewards = 0;
                 }
 
                 return unclaimed_rewards;

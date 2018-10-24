@@ -135,8 +135,29 @@ namespace golos { namespace protocol {
             void validate() const;
         };
 
+        // destination of returning tokens from auction window
+        enum auction_window_reward_destination_type {
+            to_reward_fund,
+            to_curators,
+            to_author
+        };
+
+        struct comment_auction_window_reward_destination {
+            comment_auction_window_reward_destination() {
+            }
+
+            comment_auction_window_reward_destination(auction_window_reward_destination_type dest) 
+                : destination(dest) {
+            }
+
+            auction_window_reward_destination_type destination;
+
+            void validate() const;
+        };
+
         typedef static_variant <
-            comment_payout_beneficiaries
+            comment_payout_beneficiaries,
+            comment_auction_window_reward_destination
         > comment_options_extension;
 
         typedef flat_set <comment_options_extension> comment_options_extensions_type;
@@ -1332,7 +1353,9 @@ FC_REFLECT((golos::protocol::limit_order_cancel_operation), (owner)(orderid))
 FC_REFLECT((golos::protocol::delete_comment_operation), (author)(permlink));
 
 FC_REFLECT((golos::protocol::beneficiary_route_type), (account)(weight))
+FC_REFLECT_ENUM(golos::protocol::auction_window_reward_destination_type, (to_reward_fund)(to_curators)(to_author))
 FC_REFLECT((golos::protocol::comment_payout_beneficiaries), (beneficiaries));
+FC_REFLECT((golos::protocol::comment_auction_window_reward_destination), (destination));
 FC_REFLECT_TYPENAME((golos::protocol::comment_options_extension));
 FC_REFLECT((golos::protocol::comment_options_operation), (author)(permlink)(max_accepted_payout)(percent_steem_dollars)(allow_votes)(allow_curation_rewards)(extensions))
 

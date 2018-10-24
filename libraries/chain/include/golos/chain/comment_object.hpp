@@ -40,7 +40,9 @@ namespace golos {
             archived
         };
 
+        using protocol::auction_window_reward_destination_type;
 
+        
         class comment_object
                 : public object<comment_object_type, comment_object> {
         public:
@@ -89,9 +91,13 @@ namespace golos {
 
             id_type root_comment;
 
-            uint128_t auction_window_weight = 0;
 
             comment_mode mode = first_payout;
+
+            auction_window_reward_destination_type auction_window_reward_destination = protocol::to_author;
+            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+            uint64_t auction_window_weight = 0;
+            uint64_t votes_in_auction_window_weight = 0;
 
             asset max_accepted_payout = asset(1000000000, SBD_SYMBOL);       /// SBD value of the maximum payout this post will receive
             uint16_t percent_steem_dollars = STEEMIT_100_PERCENT; /// the percent of Golos Dollars to key, unkept amounts will be received as Golos Power

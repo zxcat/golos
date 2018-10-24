@@ -127,6 +127,10 @@ namespace golos { namespace protocol {
             void operator()( const comment_payout_beneficiaries& cpb ) const {
                 cpb.validate();
             }
+
+            void operator()( const comment_auction_window_reward_destination& cawrd ) const {
+                cawrd.validate();
+            }
         };
 
         void comment_payout_beneficiaries::validate() const {
@@ -152,6 +156,14 @@ namespace golos { namespace protocol {
                         "Benficiaries ${first} and ${second} not in sorted order (account ascending)",
                         ("first", beneficiaries[i-1].account)("second", beneficiaries[i].account));
                 }
+            });
+        }
+
+        void comment_auction_window_reward_destination::validate() const {
+            GOLOS_CHECK_PARAM(destination, {
+                GOLOS_CHECK_VALUE(destination == to_reward_fund || destination == to_curators,
+                    "Auction window reward must go either to reward_fund or to curators"
+                );
             });
         }
 

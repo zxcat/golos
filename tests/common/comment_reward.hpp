@@ -193,10 +193,29 @@ namespace golos { namespace chain {
 
             total_vote_rewards_ = 0;
             total_vote_payouts_ = asset(0, VESTS_SYMBOL);
+
+            auto auction_window_reward = vote_rewards_fund_ * comment_.auction_window_weight / total_weight;
+            auto votes_after_auction_window_weight = total_weight - comment_.votes_in_auction_window_weight - comment_.auction_window_weight;
+
+            auto auw_time = comment_.created + comment_.auction_window_size;
+            uint64_t heaviest_vote_after_auw_weight = 0;
+
+            account_id_type heaviest_vote_after_auw_account;
+
             for (; itr != vote_idx.end() && itr->comment == comment_.id; ++itr) {
                 BOOST_REQUIRE(vote_payout_map_.find(itr->voter) == vote_payout_map_.end());
                 auto weight = u256(itr->weight);
                 int64_t claim = static_cast<int64_t>(weight * vote_rewards_fund_ / total_weight);
+                // to_curators case
+                if (comment_.auction_window_reward_destination == protocol::to_curators && itr->last_update >= auw_time) {
+                    claim += static_cast<int64_t>((auction_window_reward * weight) / votes_after_auction_window_weight);
+
+                    if (claim > heaviest_vote_after_auw_weight) {
+                        heaviest_vote_after_auw_account = itr->voter;
+                        heaviest_vote_after_auw_weight = claim;
+                    }
+                }
+
                 auto reward = claim;
 
                 if (db_.has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
@@ -223,15 +242,23 @@ namespace golos { namespace chain {
                 total_vote_payouts_ += payout;
             }
 
-            if (db_.has_hardfork(STEEMIT_HARDFORK_0_19__898) && comment_.total_vote_weight > 0) {
-                auto reward_fund_claim = (vote_rewards_fund_ * comment_.auction_window_weight) / total_weight;
+            uint64_t unclaimed_rewards = vote_rewards_fund_ - total_vote_rewards_;
 
-                comment_rewards_ -= reward_fund_claim.to_uint64();
+            if (comment_.auction_window_reward_destination == protocol::to_curators && heaviest_vote_after_auw_weight) {
+                // pay needed claim + rest unclaimed tokens (close to zero value) to curator with greates weight
+                // BTW: it has to be unclaimed_rewards.value not heaviest_vote_after_auw_weight + unclaimed_rewards.value, coz
+                //      unclaimed_rewards already contains this.
+                total_vote_rewards_ += unclaimed_rewards;
+                BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
 
-                auto tokes_back_to_reward_fund = asset(reward_fund_claim.to_uint64(), STEEM_SYMBOL);
-                fund_.modify_reward_fund(tokes_back_to_reward_fund);
+                unclaimed_rewards = 0;
             }
 
+            if (comment_.auction_window_reward_destination != protocol::to_author) {
+                comment_rewards_ -= unclaimed_rewards;
+                auto tokes_back_to_reward_fund = asset(unclaimed_rewards, STEEM_SYMBOL);
+                fund_.modify_reward_fund(tokes_back_to_reward_fund);
+            }
 
             comment_rewards_ -= total_vote_rewards_;
         }

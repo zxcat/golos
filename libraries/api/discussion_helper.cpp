@@ -183,9 +183,20 @@ namespace golos { namespace api {
 
             if (d.allow_curation_rewards) {
                 if (d.total_vote_weight > 0) {
+                    auto auction_window_reward = max_rewards.value * d.auction_window_weight / total_weight;
+                    auto votes_after_auction_window_weight = total_weight - d.votes_in_auction_window_weight - d.auction_window_weight;
+
+                    auto auw_time = d.created + d.auction_window_size;
+
+
                     const auto &cvidx = db.get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
                     for (auto itr = cvidx.lower_bound(d.id); itr != cvidx.end() && itr->comment == d.id; ++itr) {
-                        auto claim = ((max_rewards.value * uint128_t(itr->weight)) / total_weight).to_uint64();
+                        uint128_t weight(itr->weight);
+                        uint64_t claim = ((max_rewards.value * weight) / total_weight).to_uint64();
+                        if (d.auction_window_reward_destination == protocol::to_curators && itr->last_update >= auw_time) {
+                            // to_curators case
+                            claim += ((auction_window_reward * weight) / votes_after_auction_window_weight).to_uint64();
+                        }
                         if (claim > 0) { // min_amt is non-zero satoshis
                             unclaimed_rewards -= claim;
                         } else {
@@ -193,9 +204,8 @@ namespace golos { namespace api {
                         }
                     }
 
-                    if (db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
-                        auto reward_fund_claim = ((max_rewards.value * d.auction_window_weight) / total_weight).to_uint64();
-                        unclaimed_rewards -= reward_fund_claim;
+                    if (d.auction_window_reward_destination != protocol::to_author) {
+                        unclaimed_rewards = 0;
                     }
                 }
             } else {
