@@ -377,6 +377,9 @@ namespace mongo_db {
                 case market:
                     band_type = "market";
                     break;
+                case custom_json:
+                    band_type = "custom_json";
+                    break;
             }
 
             auto oid = std::string(band->account).append("/").append(band_type);

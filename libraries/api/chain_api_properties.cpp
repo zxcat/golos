@@ -25,6 +25,7 @@ namespace golos { namespace api {
             votes_per_window = src.votes_per_window;
             auction_window_size = src.auction_window_size;
             max_delegated_vesting_interest_rate = src.max_delegated_vesting_interest_rate;
+            custom_ops_bandwidth_multiplier = src.custom_ops_bandwidth_multiplier;
         }
     }
 
