@@ -101,6 +101,8 @@ namespace golos { namespace protocol {
 
         bool is_virtual_operation(const operation &op);
 
+        bool is_custom_json_operation(const operation& op);
+
         struct operation_wrapper {
             operation_wrapper(const operation& op = operation()) : op(op) {}
 

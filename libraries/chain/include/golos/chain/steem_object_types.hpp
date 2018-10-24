@@ -135,9 +135,10 @@ namespace golos { namespace chain {
         typedef object_id<required_approval_object> required_approval_object_id_type;
 
         enum bandwidth_type {
-            post,    ///< Rate limiting posting reward eligibility over time
-            forum,   ///< Rate limiting for all forum related actins
-            market   ///< Rate limiting for all other actions
+            post,         ///< Rate limiting posting reward eligibility over time
+            forum,        ///< Rate limiting for all forum related actins
+            market,       ///< Rate limiting for all market related actions
+            custom_json   ///< Rate limiting for all custom_json actions
         };
 
 } } //golos::chain
@@ -238,4 +239,4 @@ FC_REFLECT_ENUM(golos::chain::object_type,
 FC_REFLECT_TYPENAME((golos::chain::shared_string))
 FC_REFLECT_TYPENAME((golos::chain::buffer_type))
 
-FC_REFLECT_ENUM(golos::chain::bandwidth_type, (post)(forum)(market))
+FC_REFLECT_ENUM(golos::chain::bandwidth_type, (post)(forum)(market)(custom_json))

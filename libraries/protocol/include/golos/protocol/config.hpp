@@ -86,6 +86,8 @@
 #define STEEMIT_VOTES_WINDOW                    200 // For testnet
 #define STEEMIT_VOTES_PER_WINDOW                10
 
+#define STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER 100
+
 #define STEEMIT_MAX_ACCOUNT_WITNESS_VOTES       30
 
 #define STEEMIT_100_PERCENT                     10000
@@ -309,6 +311,8 @@
 #define STEEMIT_COMMENTS_PER_WINDOW             10
 #define STEEMIT_VOTES_WINDOW                    15
 #define STEEMIT_VOTES_PER_WINDOW                5
+
+#define STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER 100
 
 #define STEEMIT_MAX_ACCOUNT_WITNESS_VOTES       30
 

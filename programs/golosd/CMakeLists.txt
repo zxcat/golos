@@ -32,6 +32,7 @@ target_link_libraries(
         golos::statsd
         golos::account_by_key
         golos::account_history
+        golos::account_notes
         golos::private_message
         golos::auth_util
         golos::debug_node

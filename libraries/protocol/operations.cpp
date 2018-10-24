@@ -47,6 +47,23 @@ namespace golos {
             return op.visit(is_vop_visitor());
         }
 
+        struct is_custom_json_op_visitor {
+            typedef bool result_type;
+
+            template<typename T>
+            bool operator()(T&& v) const {
+                return false;
+            }
+
+            bool operator()(const custom_json_operation&) const {
+                return true;
+            }
+        };
+
+        bool is_custom_json_operation(const operation& op) {
+            return op.visit(is_custom_json_op_visitor());
+        }
+
     }
 } // golos::protocol
 

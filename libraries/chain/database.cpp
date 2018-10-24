@@ -796,8 +796,7 @@ namespace golos { namespace chain {
             adjust_supply(-fee);
         }
 
-        bool database::update_account_bandwidth(const account_object &a, uint32_t trx_size, const bandwidth_type type) {
-            const auto &props = get_dynamic_global_properties();
+        bool database::update_account_bandwidth(const dynamic_global_property_object& props, const account_object &a, uint32_t trx_size, const bandwidth_type type) {
             bool has_bandwidth = true;
 
             if (props.total_vesting_shares.amount > 0) {
@@ -1917,6 +1916,7 @@ namespace golos { namespace chain {
             calc_median_battery(&chain_properties_19::comments_window, &chain_properties_19::comments_per_window);
             calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);
             calc_median(&chain_properties_19::max_delegated_vesting_interest_rate);
+            calc_median(&chain_properties_19::custom_ops_bandwidth_multiplier);
 
             modify(wso, [&](witness_schedule_object &_wso) {
                 _wso.median_props = median_props;
@@ -1925,6 +1925,7 @@ namespace golos { namespace chain {
             modify(get_dynamic_global_properties(), [&](dynamic_global_property_object& _dgpo) {
                 _dgpo.maximum_block_size = median_props.maximum_block_size;
                 _dgpo.sbd_interest_rate = median_props.sbd_interest_rate;
+                _dgpo.custom_ops_bandwidth_multiplier = median_props.custom_ops_bandwidth_multiplier;
             });
         }
 
@@ -3731,12 +3732,17 @@ namespace golos { namespace chain {
 
                 auto trx_size = fc::raw::pack_size(trx);
 
+                const auto& props = get_dynamic_global_properties();
+
                 for (const auto& auth : required) {
                     const auto& acnt = get_account(auth);
-                    update_account_bandwidth(acnt, trx_size, bandwidth_type::forum);
+                    update_account_bandwidth(props, acnt, trx_size, bandwidth_type::forum);
                     for (const auto& op : trx.operations) {
                         if (is_market_operation(op)) {
-                            update_account_bandwidth(acnt, trx_size * 10, bandwidth_type::market);
+                            update_account_bandwidth(props, acnt, trx_size * 10, bandwidth_type::market);
+                            break;
+                        } else if (has_hardfork(STEEMIT_HARDFORK_0_19__924) && is_custom_json_operation(op)) {
+                            update_account_bandwidth(props, acnt, trx_size * props.custom_ops_bandwidth_multiplier, bandwidth_type::custom_json);
                             break;
                         }
                     }

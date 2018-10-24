@@ -137,6 +137,8 @@ namespace golos {
              * their votes reduced.
              */
             uint32_t vote_regeneration_per_day = 40;
+
+            uint16_t custom_ops_bandwidth_multiplier = STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER;
         };
 
         typedef multi_index_container <
@@ -180,5 +182,6 @@ FC_REFLECT((golos::chain::dynamic_global_property_object),
                 (max_virtual_bandwidth)
                 (current_reserve_ratio)
                 (vote_regeneration_per_day)
+                (custom_ops_bandwidth_multiplier)
 )
 CHAINBASE_SET_INDEX_TYPE(golos::chain::dynamic_global_property_object, golos::chain::dynamic_global_property_index)
