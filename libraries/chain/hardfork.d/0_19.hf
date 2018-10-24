@@ -4,6 +4,7 @@
 #define STEEMIT_HARDFORK_0_19__295 (STEEMIT_HARDFORK_0_19) // Referral program implemented
 #define STEEMIT_HARDFORK_0_19__533 (STEEMIT_HARDFORK_0_19) // Leaky algorithm for comment and vote bandwidth
 #define STEEMIT_HARDFORK_0_19__756 (STEEMIT_HARDFORK_0_19) // Vesting shares delegation with interest
+#define STEEMIT_HARDFORK_0_19__971 (STEEMIT_HARDFORK_0_19) // Withdraw vests to another account resests on account recover
 #define STEEMIT_HARDFORK_0_19__924 (STEEMIT_HARDFORK_0_19) // Bandwidth for custom_json operations
 
 #ifdef STEEMIT_BUILD_TESTNET

@@ -2201,6 +2201,34 @@ namespace golos { namespace chain {
             }
         }
 
+namespace {
+
+        void stop_withdraw(database& db, const golos::chain::account_object& account) {
+            db.modify(account, [&](account_object& a) {
+                a.vesting_withdraw_rate.amount = 0;
+                a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+                a.withdrawn = 0;
+                a.to_withdraw = 0;
+            });
+        }
+
+        void remove_vesting_routes(database& db, const golos::chain::account_object& account) {
+            const auto & withdraw_idx = db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+            auto withdraw_it = withdraw_idx.upper_bound(account.id);
+
+            while (withdraw_it != withdraw_idx.end() && withdraw_it->from_account == account.id) {
+                const auto& val = *withdraw_it;
+                ++withdraw_it;
+                db.remove(val);
+            }
+        }
+
+        void reset_vesting_withdraw(database& db, const account_object& account) {
+            stop_withdraw(db, account);
+            remove_vesting_routes(db, account);
+        }
+}
+
         void recover_account_evaluator::do_apply(const recover_account_operation& o) {
             const auto& account = _db.get_account(o.account_to_recover);
             const auto now = _db.head_block_time();
@@ -2240,6 +2268,10 @@ namespace golos { namespace chain {
             _db.modify(account, [&](account_object& a) {
                 a.last_account_recovery = now;
             });
+
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__971)) {
+                reset_vesting_withdraw(_db, account);
+            }
         }
 
         void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {

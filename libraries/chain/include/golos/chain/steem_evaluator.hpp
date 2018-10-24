@@ -3,6 +3,7 @@
 #include <golos/protocol/steem_operations.hpp>
 #include <golos/protocol/proposal_operations.hpp>
 #include <golos/chain/evaluator.hpp>
+#include <golos/chain/account_object.hpp>
 
 namespace golos { namespace chain {
         using namespace golos::protocol;
