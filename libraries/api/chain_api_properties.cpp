@@ -26,6 +26,8 @@ namespace golos { namespace api {
             auction_window_size = src.auction_window_size;
             max_delegated_vesting_interest_rate = src.max_delegated_vesting_interest_rate;
             custom_ops_bandwidth_multiplier = src.custom_ops_bandwidth_multiplier;
+            min_curation_percent = src.min_curation_percent;
+            max_curation_percent = src.max_curation_percent;
         }
     }
 

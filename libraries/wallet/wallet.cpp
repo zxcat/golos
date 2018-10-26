@@ -337,6 +337,8 @@ namespace golos { namespace wallet {
                         result["auction_window_size"] = median_props.auction_window_size;
                         result["max_delegated_vesting_interest_rate"] = median_props.max_delegated_vesting_interest_rate;
                         result["custom_ops_bandwidth_multiplier"] = median_props.custom_ops_bandwidth_multiplier;
+                        result["min_curation_percent"] = median_props.min_curation_percent;
+                        result["max_curation_percent"] = median_props.max_curation_percent;
                     }
 
                     return result;
@@ -2278,7 +2280,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
                     || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
                     || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
-                    || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier) {
+                    || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier
+                    || !!props.min_curation_percent || !!props.max_curation_percent) {
                 chain_properties_19 p19;
                 p19 = p;
                 SET_PROP(p19, max_referral_interest_rate);
@@ -2291,6 +2294,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 SET_PROP(p19, auction_window_size);
                 SET_PROP(p19, max_delegated_vesting_interest_rate);
                 SET_PROP(p19, custom_ops_bandwidth_multiplier);
+                SET_PROP(p19, min_curation_percent);
+                SET_PROP(p19, max_curation_percent);
                 op.props = p19;
             }
 #undef SET_PROP

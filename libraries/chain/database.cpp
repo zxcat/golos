@@ -1902,6 +1902,17 @@ namespace golos { namespace chain {
                 median_props.*items = active[median]->props.*items;
             };
 
+            auto calc_median_min_max = [&](auto&& min, auto&& max) {
+                std::nth_element(
+                    active.begin(), active.begin() + median, active.end(),
+                    [&](const auto* a, const auto* b) {
+                        return std::tie(a->props.*min, a->props.*max) < std::tie(b->props.*min, b->props.*max);
+                    }
+                );
+                median_props.*min = active[median]->props.*min;
+                median_props.*max = active[median]->props.*max;
+            };
+
             calc_median(&chain_properties_17::account_creation_fee);
             calc_median(&chain_properties_17::maximum_block_size);
             calc_median(&chain_properties_17::sbd_interest_rate);
@@ -1917,6 +1928,7 @@ namespace golos { namespace chain {
             calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);
             calc_median(&chain_properties_19::max_delegated_vesting_interest_rate);
             calc_median(&chain_properties_19::custom_ops_bandwidth_multiplier);
+            calc_median_min_max(&chain_properties_19::min_curation_percent, &chain_properties_19::max_curation_percent);
 
             const auto& dynamic_global_properties = get_dynamic_global_properties();
 
@@ -2425,7 +2437,7 @@ namespace golos { namespace chain {
                     asset total_payout;
                     if (reward_tokens > 0) {
                         share_type curation_tokens = ((reward_tokens *
-                                                       get_curation_rewards_percent()) /
+                                                      comment.curation_rewards_percent) /
                                                       STEEMIT_100_PERCENT).to_uint64();
 
                         share_type author_tokens = reward_tokens.to_uint64() - curation_tokens;
@@ -2775,14 +2787,6 @@ namespace golos { namespace chain {
 
                     push_virtual_operation(liquidity_reward_operation(get(itr->owner).name, reward));
                 }
-            }
-        }
-
-        uint16_t database::get_curation_rewards_percent() const {
-            if (has_hardfork(STEEMIT_HARDFORK_0_8__116)) {
-                return STEEMIT_1_PERCENT * 25;
-            } else {
-                return STEEMIT_1_PERCENT * 50;
             }
         }
 
