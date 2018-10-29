@@ -78,6 +78,11 @@ namespace golos {
             uint16_t sbd_print_rate = STEEMIT_100_PERCENT;
 
             /**
+             *  This property switches off fee for SBD holders
+             */
+            bool is_forced_min_price = false;
+
+            /**
              *  Average block size is updated every block to be:
              *
              *     average_block_size = (99 * average_block_size + new_block_size) / 100
