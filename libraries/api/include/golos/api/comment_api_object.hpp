@@ -75,6 +75,7 @@ namespace golos { namespace api {
         bool allow_replies = 0;
         bool allow_votes = 0;
         bool allow_curation_rewards = 0;
+        uint16_t curation_rewards_percent = 0;
 
         vector< protocol::beneficiary_route_type > beneficiaries;
     };
@@ -91,6 +92,6 @@ FC_REFLECT(
     (mode)(auction_window_reward_destination)
     (auction_window_size)(auction_window_weight)(votes_in_auction_window_weight)
     (root_comment)(root_title)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
-    (allow_curation_rewards)(beneficiaries))
+    (allow_curation_rewards)(curation_rewards_percent)(beneficiaries))
 
 #endif //GOLOS_COMMENT_API_OBJ_H

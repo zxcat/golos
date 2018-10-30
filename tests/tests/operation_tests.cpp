@@ -7593,7 +7593,114 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_SUITE_END() // referral
 
+    BOOST_AUTO_TEST_SUITE(comment_curation_rewards_percent) // comment_curation_rewards_percent
 
+    BOOST_AUTO_TEST_CASE(comment_curation_rewards_percent_validate) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: comment_curation_rewards_percent_validate");
+            comment_options_operation op;
+
+            op.author = "alice";
+            op.permlink = "test";
+
+            BOOST_TEST_MESSAGE("--- Test less than allowed minimum");
+
+            golos::protocol::comment_curation_rewards_percent perc;
+            perc.percent = STEEMIT_MIN_CURATION_PERCENT - STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "percent"));
+
+            BOOST_TEST_MESSAGE("--- Test more than allowed maximum");
+
+            perc.percent = STEEMIT_MAX_CURATION_PERCENT + STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "percent"));
+
+            BOOST_TEST_MESSAGE("--- Test allowed minimum");
+
+            perc.percent = STEEMIT_MIN_CURATION_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- Test allowed maximum");
+
+            perc.percent = STEEMIT_MAX_CURATION_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            BOOST_CHECK_NO_THROW(op.validate());
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(comment_curation_rewards_percent_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: comment_curation_rewards_percent_apply");
+            ACTORS((alice))
+            generate_block();
+
+            auto& wso = db->get_witness_schedule_object();
+            BOOST_CHECK_EQUAL(wso.median_props.min_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
+            BOOST_CHECK_EQUAL(wso.median_props.max_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
+
+            fund("alice", 10000);
+            vest("alice", 10000);
+
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            comment_operation comment;
+            comment.author = "alice";
+            comment.permlink = "test";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "foobar";
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            comment_options_operation op;
+            op.author = "alice";
+            op.permlink = "test";
+
+            golos::protocol::comment_curation_rewards_percent perc;
+
+            BOOST_TEST_MESSAGE("--- Test less than allowed minimum");
+
+            perc.percent = wso.median_props.min_curation_percent - STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "percent")));
+
+            BOOST_TEST_MESSAGE("--- Test more than allowed maximum");
+
+            perc.percent = wso.median_props.max_curation_percent + STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "percent")));
+
+            BOOST_TEST_MESSAGE("--- Test allowed value");
+
+            perc.percent = wso.median_props.max_curation_percent;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_SUITE_END() // comment_curation_rewards_percent
 
 BOOST_AUTO_TEST_SUITE_END()
 

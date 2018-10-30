@@ -247,7 +247,7 @@ namespace golos { namespace api {
 
             uint128_t reward_tokens = uint128_t(payout);
 
-            share_type curation_tokens = ((reward_tokens * db.get_curation_rewards_percent())
+            share_type curation_tokens = ((reward_tokens * d.curation_rewards_percent)
                 / STEEMIT_100_PERCENT).to_uint64();
             auto crs_unclaimed = get_curator_unclaimed_rewards(d, curation_tokens);
             auto crs_claim = curation_tokens - crs_unclaimed;

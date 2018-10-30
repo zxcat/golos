@@ -548,6 +548,24 @@ namespace golos { namespace chain {
                     c.auction_window_reward_destination = cawrd.destination;
                 });
             }
+
+            void operator()(const comment_curation_rewards_percent& ccrp) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__324, "comment curation rewards percent option");
+
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
+                auto percent = ccrp.percent; // Workaround for correct param name in GOLOS_CHECK_PARAM
+
+                GOLOS_CHECK_PARAM(percent, {
+                    GOLOS_CHECK_VALUE(mprops.min_curation_percent <= ccrp.percent && ccrp.percent <= mprops.max_curation_percent,
+                        "Curation rewards percent must be between ${min} and ${max}.",
+                        ("min", mprops.min_curation_percent)("max", mprops.max_curation_percent));
+                });
+
+                _db.modify(_c, [&](comment_object& c) {
+                    c.curation_rewards_percent = ccrp.percent;
+                });
+            }
         };
 
         void comment_options_evaluator::do_apply(const comment_options_operation &o) {
@@ -778,6 +796,12 @@ namespace golos { namespace chain {
                             } else {
                                 referrer_to_delete = true;
                             }
+                        }
+
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
+                            com.curation_rewards_percent = mprops.min_curation_percent;
+                        } else {
+                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
                         }
                     });
 

@@ -131,6 +131,10 @@ namespace golos { namespace protocol {
             void operator()( const comment_auction_window_reward_destination& cawrd ) const {
                 cawrd.validate();
             }
+
+            void operator()(const comment_curation_rewards_percent& ccrp) const {
+                ccrp.validate();
+            }
         };
 
         void comment_payout_beneficiaries::validate() const {
@@ -164,6 +168,14 @@ namespace golos { namespace protocol {
                 GOLOS_CHECK_VALUE(destination == to_reward_fund || destination == to_curators,
                     "Auction window reward must go either to reward_fund or to curators"
                 );
+            });
+        }
+
+        void comment_curation_rewards_percent::validate() const {
+            GOLOS_CHECK_PARAM(percent, {
+                GOLOS_CHECK_VALUE(STEEMIT_MIN_CURATION_PERCENT <= percent && percent <= STEEMIT_MAX_CURATION_PERCENT,
+                    "Curation rewards percent must be between ${min} and ${max}.",
+                    ("min", STEEMIT_MIN_CURATION_PERCENT)("max", STEEMIT_MAX_CURATION_PERCENT));
             });
         }
 
@@ -274,6 +286,8 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_LEGE(votes_per_window, 1, votes_window);
             GOLOS_CHECK_VALUE_LE(max_delegated_vesting_interest_rate, STEEMIT_MAX_DELEGATED_VESTING_INTEREST_RATE);
             GOLOS_CHECK_VALUE_GE(custom_ops_bandwidth_multiplier, 1);
+            GOLOS_CHECK_VALUE_LEGE(min_curation_percent, STEEMIT_MIN_CURATION_PERCENT, max_curation_percent);
+            GOLOS_CHECK_VALUE_LEGE(max_curation_percent, min_curation_percent, STEEMIT_MAX_CURATION_PERCENT);
         }
 
         void witness_update_operation::validate() const {

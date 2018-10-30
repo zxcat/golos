@@ -155,9 +155,23 @@ namespace golos { namespace protocol {
             void validate() const;
         };
 
+        struct comment_curation_rewards_percent {
+            comment_curation_rewards_percent() {
+            }
+
+            comment_curation_rewards_percent(uint16_t perc)
+                : percent(perc) {
+            }
+
+            uint16_t percent = STEEMIT_MIN_CURATION_PERCENT;
+
+            void validate() const;
+        };
+
         typedef static_variant <
             comment_payout_beneficiaries,
-            comment_auction_window_reward_destination
+            comment_auction_window_reward_destination,
+            comment_curation_rewards_percent
         > comment_options_extension;
 
         typedef flat_set <comment_options_extension> comment_options_extensions_type;
@@ -588,6 +602,16 @@ namespace golos { namespace protocol {
              * Custom operations bandwidth multiplier
              */
             uint16_t custom_ops_bandwidth_multiplier = STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER;
+
+            /**
+             * Minimum rate of all curation rewards in total payment
+             */
+            uint16_t min_curation_percent = STEEMIT_MIN_CURATION_PERCENT;
+
+            /**
+             * Maximum rate of all curation rewards in total payment
+             */
+            uint16_t max_curation_percent = STEEMIT_MIN_CURATION_PERCENT; // Min is for compatibility if no voted percents
 
             void validate() const;
 
@@ -1301,7 +1325,7 @@ FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
-    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier))
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 
@@ -1356,6 +1380,7 @@ FC_REFLECT((golos::protocol::beneficiary_route_type), (account)(weight))
 FC_REFLECT_ENUM(golos::protocol::auction_window_reward_destination_type, (to_reward_fund)(to_curators)(to_author))
 FC_REFLECT((golos::protocol::comment_payout_beneficiaries), (beneficiaries));
 FC_REFLECT((golos::protocol::comment_auction_window_reward_destination), (destination));
+FC_REFLECT((golos::protocol::comment_curation_rewards_percent), (percent));
 FC_REFLECT_TYPENAME((golos::protocol::comment_options_extension));
 FC_REFLECT((golos::protocol::comment_options_operation), (author)(permlink)(max_accepted_payout)(percent_steem_dollars)(allow_votes)(allow_curation_rewards)(extensions))
 

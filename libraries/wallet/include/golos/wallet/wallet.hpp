@@ -59,6 +59,9 @@ namespace golos { namespace wallet {
             fc::optional<uint16_t> max_delegated_vesting_interest_rate;
 
             fc::optional<uint32_t> custom_ops_bandwidth_multiplier;
+
+            fc::optional<uint16_t> min_curation_percent;
+            fc::optional<uint16_t> max_curation_percent;
         };
 
         struct optional_private_box_query {
@@ -1547,7 +1550,7 @@ FC_REFLECT((golos::wallet::optional_chain_props),
     (create_account_delegation_time)(min_delegation)
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
-    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier))
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent))
 
 FC_REFLECT(
     (golos::wallet::message_body),

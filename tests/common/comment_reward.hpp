@@ -183,7 +183,7 @@ namespace golos { namespace chain {
 
         void calculate_rewards() {
             comment_rewards_ = fund_.claim_comment_reward(comment_).amount.value;
-            vote_rewards_fund_ =  comment_rewards_ * STEEMIT_1_PERCENT * 25 / STEEMIT_100_PERCENT;
+            vote_rewards_fund_ = comment_rewards_ * comment_.curation_rewards_percent / STEEMIT_100_PERCENT;
         }
 
         void calculate_vote_payouts() {
