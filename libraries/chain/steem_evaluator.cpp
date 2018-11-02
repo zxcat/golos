@@ -1528,6 +1528,8 @@ namespace golos { namespace chain {
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
                     uint64_t max_vote_weight = 0;
+                    uint64_t auction_window_weight = 0;
+                    uint64_t votes_in_auction_window_weight = 0;
 
                    /** this verifies uniqueness of voter
                     *
@@ -1613,20 +1615,17 @@ namespace golos { namespace chain {
                                 uint32_t auction_window = comment.auction_window_size;
 
                                 uint128_t w(max_vote_weight);
-                                uint64_t delta_t = std::min(uint64_t((
-                                        cv.last_update -
-                                        comment.created).to_seconds()), uint64_t(auction_window));
+                                uint64_t delta_t = std::min(
+                                    uint64_t((cv.last_update - comment.created).to_seconds()),
+                                    uint64_t(auction_window));
 
                                 w *= delta_t;
                                 w /= auction_window;
                                 cv.weight = w.to_uint64();
 
                                 if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898) && w > 0 && delta_t != uint64_t(auction_window)) {
-                                    _db.modify(comment, [&](comment_object &o) {
-                                        o.auction_window_weight += max_vote_weight - w.to_uint64();
-                                        o.votes_in_auction_window_weight += w.to_uint64();
-                                    });
-
+                                    auction_window_weight = max_vote_weight - w.to_uint64();
+                                    votes_in_auction_window_weight = w.to_uint64();
                                 }
                             }
 
@@ -1647,6 +1646,8 @@ namespace golos { namespace chain {
                         // Optimization
                         _db.modify(comment, [&](comment_object& c) {
                             c.total_vote_weight += max_vote_weight;
+                            c.auction_window_weight += auction_window_weight;
+                            c.votes_in_auction_window_weight += votes_in_auction_window_weight;
                         });
                     }
 

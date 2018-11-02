@@ -2348,12 +2348,11 @@ namespace golos { namespace chain {
                 
                 share_type unclaimed_rewards = max_rewards;
 
-                uint128_t auction_window_reward = max_rewards.value * c.auction_window_weight / total_weight;
-                auto votes_after_auction_window_weight = total_weight - c.votes_in_auction_window_weight - c.auction_window_weight;
-
-                auto auw_time = c.created + c.auction_window_size;
-
                 if (c.total_vote_weight > 0 && c.allow_curation_rewards) {
+                    uint128_t auction_window_reward = uint128_t(max_rewards.value) * c.auction_window_weight / total_weight;
+                    auto votes_after_auction_window_weight = total_weight - c.votes_in_auction_window_weight - c.auction_window_weight;
+                    auto auw_time = c.created + c.auction_window_size;
+
                     // If auction window reward is chosen to go to curators, we need to
                     // separated votes for 2 sets: 
                     // c.created     auction_window               cashout
