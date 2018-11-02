@@ -2348,7 +2348,7 @@ namespace golos { namespace chain {
                 
                 share_type unclaimed_rewards = max_rewards;
 
-                uint128_t auction_window_reward = uint128_t(1) * max_rewards.value * c.auction_window_weight / total_weight;
+                uint128_t auction_window_reward = max_rewards.value * c.auction_window_weight / total_weight;
                 auto votes_after_auction_window_weight = total_weight - c.votes_in_auction_window_weight - c.auction_window_weight;
 
                 auto auw_time = c.created + c.auction_window_size;
