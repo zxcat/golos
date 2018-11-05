@@ -517,7 +517,7 @@ if (options.count(name)) { \
     }
 
     void plugin::set_program_options(bpo::options_description& cli, bpo::options_description& cfg) {
-        cli.add_options()(
+        cfg.add_options()(
             "track-account-range",
             bpo::value<std::vector<std::string>>()->composing()->multitoken(),
             "Defines a range of accounts to track as a json pair [\"from\",\"to\"] [from,to]. "
@@ -529,7 +529,6 @@ if (options.count(name)) { \
             "Defines a individual account to track (in addition to ranges). "
             "Can be specified multiple times"
         );
-        cfg.add(cli);
     }
 
     void plugin::plugin_initialize(const bpo::variables_map& options) {

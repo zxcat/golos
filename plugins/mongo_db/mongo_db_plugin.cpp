@@ -55,7 +55,7 @@ namespace mongo_db {
         boost::program_options::options_description &cli,
         boost::program_options::options_description &cfg
     ) {
-        cli.add_options()
+        cfg.add_options()
             ("mongodb-uri",
              boost::program_options::value<string>()->default_value("mongodb://127.0.0.1:27017/Golos"),
              "Mongo DB connection string")
@@ -71,7 +71,6 @@ namespace mongo_db {
             ("mongodb-store-wso-history",
              boost::program_options::value<unsigned int>()->default_value(100),
              "Mode of storing witness_schedule_object history for each N block");
-        cfg.add(cli);
     }
 
     void mongo_db_plugin::plugin_initialize(const boost::program_options::variables_map &options) {
