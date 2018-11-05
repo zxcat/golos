@@ -15,16 +15,14 @@ class set_value_evaluator : public golos::chain::evaluator_impl<set_value_evalua
 public:
     using operation_type = set_value_operation;
 
-    set_value_evaluator(database& db, account_notes_plugin* plugin, const account_notes_settings_api_object* settings)
-            : evaluator_impl<set_value_evaluator, account_notes_plugin_operation>(db), plugin_(plugin), settings_(settings) {
+    set_value_evaluator(database& db, const account_notes_settings_api_object* settings)
+            : evaluator_impl<set_value_evaluator, account_notes_plugin_operation>(db), settings_(settings) {
     }
 
     void do_apply(const set_value_operation& o);
 
 private:
     bool is_tracked_account(const account_name_type& account);
-
-    account_notes_plugin* plugin_;
 
     const account_notes_settings_api_object* settings_;
 };

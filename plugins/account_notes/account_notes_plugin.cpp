@@ -24,7 +24,7 @@ public:
         auto coi = custom_operation_interpreter_.get();
 
         // Add each operation evaluator to the registry
-        coi->register_evaluator<set_value_evaluator>(&plugin, &settings_);
+        coi->register_evaluator<set_value_evaluator>(&settings_);
 
         // Add the registry to the database so the database can delegate custom ops to the plugin
         db_.set_custom_operation_interpreter(plugin.name(), custom_operation_interpreter_);
