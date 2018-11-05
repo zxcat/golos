@@ -253,7 +253,8 @@ namespace golos { namespace chain {
 
                 GOLOS_CHECK_LIMIT_PARAM(aro.interest_rate, median_props.max_referral_interest_rate);
 
-                GOLOS_CHECK_PARAM(aro.end_date, aro.end_date >= _db.head_block_time());
+                GOLOS_CHECK_PARAM(aro.end_date,
+                    GOLOS_CHECK_VALUE(aro.end_date >= _db.head_block_time(), "End date should be in the future"));
                 GOLOS_CHECK_LIMIT_PARAM(aro.end_date, _db.head_block_time() + median_props.max_referral_term_sec);
 
                 GOLOS_CHECK_LIMIT_PARAM(aro.break_fee, median_props.max_referral_break_fee);
