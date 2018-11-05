@@ -326,6 +326,20 @@ namespace golos { namespace wallet {
                         result["create_account_delegation_time"] = median_props.create_account_delegation_time;
                         result["min_delegation"] = median_props.min_delegation;
                     }
+                    if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19)) {
+                        result["max_referral_interest_rate"] = median_props.max_referral_interest_rate;
+                        result["max_referral_term_sec"] = median_props.max_referral_term_sec;
+                        result["max_referral_break_fee"] = median_props.max_referral_break_fee;
+                        result["comments_window"] = median_props.comments_window;
+                        result["comments_per_window"] = median_props.comments_per_window;
+                        result["votes_window"] = median_props.votes_window;
+                        result["votes_per_window"] = median_props.votes_per_window;
+                        result["auction_window_size"] = median_props.auction_window_size;
+                        result["max_delegated_vesting_interest_rate"] = median_props.max_delegated_vesting_interest_rate;
+                        result["custom_ops_bandwidth_multiplier"] = median_props.custom_ops_bandwidth_multiplier;
+                        result["min_curation_percent"] = median_props.min_curation_percent;
+                        result["max_curation_percent"] = median_props.max_curation_percent;
+                    }
 
                     return result;
                 }
@@ -1685,10 +1699,10 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         }
 
 
-/**
- *  This method will generate new owner, active, posting and memo keys for the new account
- *  which will be controlable by this wallet.
- */
+        /**
+         *  This method will generate new owner, active, posting and memo keys for the new account
+         *  which will be controlable by this wallet.
+         */
         annotated_signed_transaction wallet_api::create_account_delegated(
             string creator, asset steem_fee, asset delegated_vests, string new_account_name,
             string json_meta, bool broadcast
@@ -1709,11 +1723,12 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             }
             FC_CAPTURE_AND_RETHROW((creator)(new_account_name)(json_meta));
         }
-/**
- * This method is used by faucets to create new accounts for other users which must
- * provide their desired keys. The resulting account may not be controllable by this
- * wallet.
- */
+
+        /**
+         * This method is used by faucets to create new accounts for other users which must
+         * provide their desired keys. The resulting account may not be controllable by this
+         * wallet.
+         */
         annotated_signed_transaction wallet_api::create_account_with_keys_delegated(
             string creator,
             asset steem_fee,
@@ -1745,6 +1760,64 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 return my->sign_transaction(tx, broadcast);
             }
             FC_CAPTURE_AND_RETHROW((creator)(new_account_name)(json_meta)(owner)(active)(posting)(memo)(broadcast));
+        }
+
+        /**
+         *  This method will generate new owner, active, posting and memo keys for the new account
+         *  which will be controlable by this wallet. Also it will add the referral duty to the new account.
+         */
+        annotated_signed_transaction wallet_api::create_account_referral(
+            string creator, asset steem_fee, asset delegated_vests, string new_account_name,
+            string json_meta, account_referral_options referral_options, bool broadcast
+        ) {
+            try {
+                WALLET_CHECK_UNLOCKED();
+                auto owner = suggest_brain_key();
+                auto active = suggest_brain_key();
+                auto posting = suggest_brain_key();
+                auto memo = suggest_brain_key();
+                import_key(owner.wif_priv_key);
+                import_key(active.wif_priv_key);
+                import_key(posting.wif_priv_key);
+                import_key(memo.wif_priv_key);
+
+                account_create_with_delegation_operation op;
+                op.creator = creator;
+                op.new_account_name = new_account_name;
+                op.owner = authority(1, owner.pub_key, 1);
+                op.active = authority(1, active.pub_key, 1);
+                op.posting = authority(1, posting.pub_key, 1);
+                op.memo_key = memo.pub_key;
+                op.json_metadata = json_meta;
+                op.fee = steem_fee;
+                op.delegation = delegated_vests;
+
+                op.extensions.insert(referral_options);
+
+                signed_transaction tx;
+                tx.operations.push_back(op);
+                tx.validate();
+                return my->sign_transaction(tx, broadcast);
+            }
+            FC_CAPTURE_AND_RETHROW((creator)(new_account_name)(json_meta));
+        }
+
+        /**
+         *  This method pays the break fee to remove the referral duty from an account.
+         */
+        annotated_signed_transaction wallet_api::break_free_referral(string referral, bool broadcast) {
+            try {
+                WALLET_CHECK_UNLOCKED();
+
+                break_free_referral_operation op;
+                op.referral = referral;
+
+                signed_transaction tx;
+                tx.operations.push_back(op);
+                tx.validate();
+                return my->sign_transaction(tx, broadcast);
+            }
+            FC_CAPTURE_AND_RETHROW((referral));
         }
 
 /**
@@ -2068,6 +2141,22 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             return my->sign_transaction(tx, broadcast);
         }
 
+        annotated_signed_transaction wallet_api::delegate_vesting_shares_with_interest(string delegator, string delegatee, asset vesting_shares, uint16_t interest_rate, bool broadcast) {
+            WALLET_CHECK_UNLOCKED();
+
+            delegate_vesting_shares_with_interest_operation op;
+            op.delegator = delegator;
+            op.delegatee = delegatee;
+            op.vesting_shares = vesting_shares;
+            op.interest_rate = interest_rate;
+
+            signed_transaction tx;
+            tx.operations.push_back(op);
+            tx.validate();
+
+            return my->sign_transaction(tx, broadcast);
+        }
+
 /**
  *  This method will generate new owner, active, posting and memo keys for the new account
  *  which will be controlable by this wallet.
@@ -2155,7 +2244,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             signed_transaction tx;
             chain_properties_update_operation op;
             chain_api_properties ap;
-            chain_properties p;
+            chain_properties_18 p;
 
             // copy defaults in case of missing witness object
             ap.account_creation_fee = p.account_creation_fee;
@@ -2167,20 +2256,42 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 FC_ASSERT(wit->owner == witness_account_name);
                 ap = wit->props;
             }
-#define SET_PROP(X) {p.X = !!props.X ? *(props.X) : ap.X;}
-            SET_PROP(account_creation_fee);
-            SET_PROP(maximum_block_size);
-            SET_PROP(sbd_interest_rate);
+#define SET_PROP(cp, X) {cp.X = !!props.X ? *(props.X) : ap.X;}
+            SET_PROP(p, account_creation_fee);
+            SET_PROP(p, maximum_block_size);
+            SET_PROP(p, sbd_interest_rate);
 #undef SET_PROP
-#define SET_PROP(X) {if (!!props.X) p.X = *(props.X); else if (!!ap.X) p.X = *(ap.X);}
-            SET_PROP(create_account_min_golos_fee);
-            SET_PROP(create_account_min_delegation);
-            SET_PROP(create_account_delegation_time);
-            SET_PROP(min_delegation);
+#define SET_PROP(cp, X) {if (!!props.X) cp.X = *(props.X); else if (!!ap.X) cp.X = *(ap.X);}
+            SET_PROP(p, create_account_min_golos_fee);
+            SET_PROP(p, create_account_min_delegation);
+            SET_PROP(p, create_account_delegation_time);
+            SET_PROP(p, min_delegation);
+            op.props = p;
+            auto hf = my->_remote_database_api->get_hardfork_version();
+            if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
+                    || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
+                    || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
+                    || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier
+                    || !!props.min_curation_percent || !!props.max_curation_percent) {
+                chain_properties_19 p19;
+                p19 = p;
+                SET_PROP(p19, max_referral_interest_rate);
+                SET_PROP(p19, max_referral_term_sec);
+                SET_PROP(p19, max_referral_break_fee);
+                SET_PROP(p19, comments_window);
+                SET_PROP(p19, comments_per_window);
+                SET_PROP(p19, votes_window);
+                SET_PROP(p19, votes_per_window);
+                SET_PROP(p19, auction_window_size);
+                SET_PROP(p19, max_delegated_vesting_interest_rate);
+                SET_PROP(p19, custom_ops_bandwidth_multiplier);
+                SET_PROP(p19, min_curation_percent);
+                SET_PROP(p19, max_curation_percent);
+                op.props = p19;
+            }
 #undef SET_PROP
 
             op.owner = witness_account_name;
-            op.props = p;
             tx.operations.push_back(op);
 
             tx.validate();

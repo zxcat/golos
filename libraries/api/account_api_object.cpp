@@ -26,7 +26,8 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         savings_sbd_seconds_last_update(a.savings_sbd_seconds_last_update),
         savings_sbd_last_interest_payment(a.savings_sbd_last_interest_payment),
         savings_withdraw_requests(a.savings_withdraw_requests),
-        curation_rewards(a.curation_rewards), posting_rewards(a.posting_rewards),
+        benefaction_rewards(a.benefaction_rewards), curation_rewards(a.curation_rewards),
+        delegation_rewards(a.delegation_rewards), posting_rewards(a.posting_rewards),
         vesting_shares(a.vesting_shares),
         delegated_vesting_shares(a.delegated_vesting_shares), received_vesting_shares(a.received_vesting_shares),
         vesting_withdraw_rate(a.vesting_withdraw_rate), next_vesting_withdrawal(a.next_vesting_withdrawal),
@@ -67,6 +68,13 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         average_market_bandwidth = market->average_bandwidth;
         lifetime_market_bandwidth = market->lifetime_bandwidth;
         last_market_bandwidth_update = market->last_bandwidth_update;
+    }
+
+    if (db.head_block_time() < a.referral_end_date) {
+        referrer_account = a.referrer_account;
+        referrer_interest_rate = a.referrer_interest_rate;
+        referral_end_date = a.referral_end_date;
+        referral_break_fee = a.referral_break_fee;
     }
 }
 

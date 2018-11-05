@@ -40,7 +40,9 @@ namespace golos {
             archived
         };
 
+        using protocol::auction_window_reward_destination_type;
 
+        
         class comment_object
                 : public object<comment_object_type, comment_object> {
         public:
@@ -89,17 +91,36 @@ namespace golos {
 
             id_type root_comment;
 
+
             comment_mode mode = first_payout;
+
+            auction_window_reward_destination_type auction_window_reward_destination = protocol::to_author;
+            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+            uint64_t auction_window_weight = 0;
+            uint64_t votes_in_auction_window_weight = 0;
 
             asset max_accepted_payout = asset(1000000000, SBD_SYMBOL);       /// SBD value of the maximum payout this post will receive
             uint16_t percent_steem_dollars = STEEMIT_100_PERCENT; /// the percent of Golos Dollars to key, unkept amounts will be received as Golos Power
             bool allow_replies = true;      /// allows a post to disable replies.
             bool allow_votes = true;      /// allows a post to receive votes;
             bool allow_curation_rewards = true;
+            uint16_t curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
 
             bip::vector <protocol::beneficiary_route_type, allocator<protocol::beneficiary_route_type>> beneficiaries;
         };
 
+
+        struct delegator_vote_interest_rate {
+            delegator_vote_interest_rate() = default;
+
+            delegator_vote_interest_rate(const account_name_type& a, uint16_t ir)
+                    : account(a), interest_rate(ir) {
+            }
+
+            account_name_type account;
+            uint16_t interest_rate = 0;
+            protocol::delegator_payout_strategy payout_strategy = protocol::to_delegator;
+        };
 
         /**
          * This index maintains the set of voter/comment pairs that have been used, voters cannot
@@ -109,7 +130,8 @@ namespace golos {
                 : public object<comment_vote_object_type, comment_vote_object> {
         public:
             template<typename Constructor, typename Allocator>
-            comment_vote_object(Constructor &&c, allocator <Allocator> a) {
+            comment_vote_object(Constructor &&c, allocator <Allocator> a)
+                    : delegator_vote_interest_rates(a) {
                 c(*this);
             }
 
@@ -122,6 +144,8 @@ namespace golos {
             int16_t vote_percent = 0; ///< The percent weight of the vote
             time_point_sec last_update; ///< The time of the last update of the vote
             int8_t num_changes = 0; ///< Count of vote changes (while consensus). If = -1 then related post is archived & vote no more needed for consensus
+
+            bip::vector<delegator_vote_interest_rate, allocator<delegator_vote_interest_rate>> delegator_vote_interest_rates;
         };
 
         struct by_comment_voter;

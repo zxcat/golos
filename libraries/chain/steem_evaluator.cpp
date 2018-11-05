@@ -20,6 +20,7 @@
     GOLOS_ASSERT((NOW) > (NEXT), golos::bandwidth_exception, MSG, \
             ("bandwidth",TYPE)("now",NOW)("next",NEXT) __VA_ARGS__)
 
+
 namespace golos { namespace chain {
         using fc::uint128_t;
 
@@ -233,6 +234,39 @@ namespace golos { namespace chain {
             }
         }
 
+        struct account_create_with_delegation_extension_visitor {
+            account_create_with_delegation_extension_visitor(const account_object& a, database& db)
+                    : _a(a), _db(db) {
+            }
+
+            using result_type = void;
+
+            const account_object& _a;
+            database& _db;
+
+            void operator()(const account_referral_options& aro) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__295, "account_referral_options");
+
+                _db.get_account(aro.referrer);
+
+                const auto& median_props = _db.get_witness_schedule_object().median_props;
+
+                GOLOS_CHECK_LIMIT_PARAM(aro.interest_rate, median_props.max_referral_interest_rate);
+
+                GOLOS_CHECK_PARAM(aro.end_date, aro.end_date >= _db.head_block_time());
+                GOLOS_CHECK_LIMIT_PARAM(aro.end_date, _db.head_block_time() + median_props.max_referral_term_sec);
+
+                GOLOS_CHECK_LIMIT_PARAM(aro.break_fee, median_props.max_referral_break_fee);
+
+                _db.modify(_a, [&](account_object& a) {
+                    a.referrer_account = aro.referrer;
+                    a.referrer_interest_rate = aro.interest_rate;
+                    a.referral_end_date = aro.end_date;
+                    a.referral_break_fee = aro.break_fee;
+                });
+            }
+        };
+
         void account_create_with_delegation_evaluator::do_apply(const account_create_with_delegation_operation& o) {
             const auto& creator = _db.get_account(o.creator);
             GOLOS_CHECK_BALANCE(creator, MAIN_BALANCE, o.fee);
@@ -303,6 +337,10 @@ namespace golos { namespace chain {
             }
             if (o.fee.amount > 0) {
                 _db.create_vesting(new_account, o.fee);
+            }
+
+            for (auto& e : o.extensions) {
+                e.visit(account_create_with_delegation_extension_visitor(new_account, _db));
             }
         }
 
@@ -445,34 +483,87 @@ namespace golos { namespace chain {
         }
 
         struct comment_options_extension_visitor {
-            comment_options_extension_visitor(const comment_object &c, database &db)
-                    : _c(c), _db(db) {
+            comment_options_extension_visitor(const comment_object& c, database& db)
+                    : _c(c), _db(db), _a(db.get_account(_c.author)) {
             }
 
             using result_type = void;
 
-            const comment_object &_c;
-            database &_db;
+            const comment_object& _c;
+            database& _db;
+            const account_object& _a;
 
-            void operator()(const comment_payout_beneficiaries &cpb) const {
+            void operator()(const comment_payout_beneficiaries& cpb) const {
                 if (_db.is_producing()) {
                     GOLOS_CHECK_LOGIC(cpb.beneficiaries.size() <= STEEMIT_MAX_COMMENT_BENEFICIARIES,
-                            logic_exception::cannot_specify_more_beneficiaries,
-                            "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
+                        logic_exception::cannot_specify_more_beneficiaries,
+                        "Cannot specify more than ${m} beneficiaries.", ("m", STEEMIT_MAX_COMMENT_BENEFICIARIES));
                 }
 
-                GOLOS_CHECK_LOGIC(_c.beneficiaries.size() == 0,
+                uint16_t total_weight = 0;
+
+                if (_c.beneficiaries.size() == 1
+                        && _c.beneficiaries.front().account == _a.referrer_account) {
+                    total_weight += _c.beneficiaries[0].weight;
+                    auto& referrer = _a.referrer_account;
+                    const auto& itr = std::find_if(cpb.beneficiaries.begin(), cpb.beneficiaries.end(),
+                            [&referrer](const beneficiary_route_type& benef) {
+                        return benef.account == referrer;
+                    });
+                    GOLOS_CHECK_LOGIC(itr == cpb.beneficiaries.end(),
+                        logic_exception::beneficiaries_should_be_unique,
+                        "Comment already has '${referrer}' as a referrer-beneficiary.", ("referrer",referrer));
+                } else {
+                    GOLOS_CHECK_LOGIC(_c.beneficiaries.size() == 0,
                         logic_exception::comment_already_has_beneficiaries,
                         "Comment already has beneficiaries specified.");
-                GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
-                        logic_exception::comment_must_not_have_been_voted,
-                        "Comment must not have been voted on before specifying beneficiaries.");
+                }
 
-                _db.modify(_c, [&](comment_object &c) {
-                    for (auto &b : cpb.beneficiaries) {
+                GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                    logic_exception::comment_must_not_have_been_voted,
+                    "Comment must not have been voted on before specifying beneficiaries.");
+
+                _db.modify(_c, [&](comment_object& c) {
+                    for (auto& b : cpb.beneficiaries) {
                         _db.get_account(b.account);   // check beneficiary exists
                         c.beneficiaries.push_back(b);
+                        total_weight += b.weight;
                     }
+                });
+
+                GOLOS_CHECK_PARAM("beneficiaries", {
+                    GOLOS_CHECK_VALUE(total_weight <= STEEMIT_100_PERCENT,
+                        "Cannot allocate more than 100% of rewards to a comment");
+                });
+            }
+
+            void operator()( const comment_auction_window_reward_destination& cawrd ) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__898, "auction window reward destination option");
+                GOLOS_CHECK_PARAM(cawrd.destination, {
+                    GOLOS_CHECK_VALUE(cawrd.destination == to_reward_fund || cawrd.destination == to_curators,
+                        "Auction window reward must go either to reward_fund or to curators."
+                    );
+                });
+                _db.modify(_c, [&](comment_object& c) {
+                    c.auction_window_reward_destination = cawrd.destination;
+                });
+            }
+
+            void operator()(const comment_curation_rewards_percent& ccrp) const {
+                ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__324, "comment curation rewards percent option");
+
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
+                auto percent = ccrp.percent; // Workaround for correct param name in GOLOS_CHECK_PARAM
+
+                GOLOS_CHECK_PARAM(percent, {
+                    GOLOS_CHECK_VALUE(mprops.min_curation_percent <= ccrp.percent && ccrp.percent <= mprops.max_curation_percent,
+                        "Curation rewards percent must be between ${min} and ${max}.",
+                        ("min", mprops.min_curation_percent)("max", mprops.max_curation_percent));
+                });
+
+                _db.modify(_c, [&](comment_object& c) {
+                    c.curation_rewards_percent = ccrp.percent;
                 });
             }
         };
@@ -507,14 +598,14 @@ namespace golos { namespace chain {
                     logic_exception::comment_cannot_accept_greater_percent_GBG,
                     "A comment cannot accept a greater percent SBD.");
 
-            _db.modify(comment, [&](comment_object &c) {
+            _db.modify(comment, [&](comment_object& c) {
                 c.max_accepted_payout = o.max_accepted_payout;
                 c.percent_steem_dollars = o.percent_steem_dollars;
                 c.allow_votes = o.allow_votes;
                 c.allow_curation_rewards = o.allow_curation_rewards;
             });
 
-            for (auto &e : o.extensions) {
+            for (auto& e : o.extensions) {
                 e.visit(comment_options_extension_visitor(comment, _db));
             }
         }
@@ -527,15 +618,18 @@ namespace golos { namespace chain {
                             logic_exception::cannot_update_comment_because_nothing_changed,
                             "Cannot update comment because nothing appears to be changing.");
 
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
                 const auto &by_permlink_idx = _db.get_index<comment_index>().indices().get<by_permlink>();
                 auto itr = by_permlink_idx.find(boost::make_tuple(o.author, o.permlink));
 
                 const auto &auth = _db.get_account(o.author); /// prove it exists
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10))
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_10)) {
                     GOLOS_CHECK_LOGIC(!(auth.owner_challenged || auth.active_challenged),
                             logic_exception::account_is_currently_challenged,
                             "Operation cannot be processed because account is currently challenged.");
+                }
 
                 comment_id_type id;
 
@@ -570,7 +664,29 @@ namespace golos { namespace chain {
                         });
                     }
 
-                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
+                    auto elapsed_seconds = (now - auth.last_post).to_seconds();
+
+                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__533)) {
+                        auto consumption = mprops.comments_window / mprops.comments_per_window;
+
+                        auto regenerated_capacity = std::min(uint32_t(mprops.comments_window), uint32_t(elapsed_seconds));
+                        auto current_capacity = std::min(uint16_t(auth.comments_capacity + regenerated_capacity), mprops.comments_window);
+
+                        if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
+                            GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                                bandwidth_exception::post_bandwidth,
+                                "You may only post once every 5 minutes.");
+                        } else {
+                            GOLOS_CHECK_BANDWIDTH(current_capacity, consumption,
+                                bandwidth_exception::comment_bandwidth,
+                                "You may only comment ${comments_per_window} times in ${comments_window} seconds.",
+                                    ("comments_per_window", mprops.comments_per_window)("comments_window", mprops.comments_window));
+                        }
+
+                        db().modify(auth, [&](account_object &a) {
+                            a.comments_capacity = current_capacity - consumption;
+                        });
+                    } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
                             GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
                                     bandwidth_exception::post_bandwidth,
@@ -623,13 +739,26 @@ namespace golos { namespace chain {
 
                     db().modify(auth, [&](account_object &a) {
                         a.last_post = now;
-                        a.post_count++;
+                        if (o.parent_author != STEEMIT_ROOT_POST_PARENT) {
+                            a.comment_count++;
+                        } else {
+                            a.post_count++;
+                        }
                     });
+
+                    bool referrer_to_delete = false;
 
                     _db.create<comment_object>([&](comment_object &com) {
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
                             GOLOS_CHECK_OP_PARAM(o, parent_permlink, validate_permlink_0_1(o.parent_permlink));
                             GOLOS_CHECK_OP_PARAM(o, permlink,        validate_permlink_0_1(o.permlink));
+                        }
+
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                            com.auction_window_reward_destination = protocol::to_reward_fund;
+
+                            const witness_schedule_object& wso = _db.get_witness_schedule_object();
+                            com.auction_window_size = wso.median_props.auction_window_size;
                         }
 
                         com.author = o.author;
@@ -656,14 +785,37 @@ namespace golos { namespace chain {
                             com.cashout_time = fc::time_point_sec::maximum();
                         }
 
-                        if (_db.has_hardfork( STEEMIT_HARDFORK_0_17__431)) {
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                             com.cashout_time = com.created + STEEMIT_CASHOUT_WINDOW_SECONDS;
                         }
 
+                        if (auth.referrer_account != account_name_type()) {
+                            if (_db.head_block_time() < auth.referral_end_date) {
+                                com.beneficiaries.push_back(beneficiary_route_type(auth.referrer_account,
+                                    auth.referrer_interest_rate));
+                            } else {
+                                referrer_to_delete = true;
+                            }
+                        }
+
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
+                            com.curation_rewards_percent = mprops.min_curation_percent;
+                        } else {
+                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
+                        }
                     });
 
+                    if (referrer_to_delete) {
+                        _db.modify(auth, [&](account_object& a) {
+                            a.referrer_account = account_name_type();
+                            a.referrer_interest_rate = 0;
+                            a.referral_end_date = time_point_sec::min();
+                            a.referral_break_fee.amount = 0;
+                        });
+                    }
+
                     while (parent) {
-                        _db.modify(*parent, [&](comment_object &p) {
+                        _db.modify(*parent, [&](comment_object& p) {
                             p.children++;
                         });
                         if (parent->parent_author != STEEMIT_ROOT_POST_PARENT) {
@@ -1169,6 +1321,8 @@ namespace golos { namespace chain {
                 const auto& comment = _db.get_comment(o.author, o.permlink);
                 const auto& voter = _db.get_account(o.voter);
 
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
                 GOLOS_CHECK_LOGIC(!(voter.owner_challenged || voter.active_challenged),
                     logic_exception::account_is_currently_challenged,
                     "Account \"${account}\" is currently challenged", ("account", voter.name));
@@ -1202,13 +1356,43 @@ namespace golos { namespace chain {
                     return;
                 }
 
+                std::vector<delegator_vote_interest_rate> delegator_vote_interest_rates;
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__756) && voter.received_vesting_shares > asset(0, VESTS_SYMBOL)) {
+                    const auto& vdo_idx = _db.get_index<vesting_delegation_index>().indices().get<by_received>();
+                    auto vdo_itr = vdo_idx.lower_bound(voter.name);
+                    for (; vdo_itr != vdo_idx.end() && vdo_itr->delegatee == voter.name; ++vdo_itr) {
+                        delegator_vote_interest_rate dvir;
+                        dvir.account = vdo_itr->delegator;
+                        dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
+                            / voter.effective_vesting_shares().amount.value;
+                        dvir.payout_strategy = vdo_itr->payout_strategy;
+                        delegator_vote_interest_rates.push_back(dvir);
+                    }
+                }
+
                 const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                 auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
 
-                int64_t elapsed_seconds = (_db.head_block_time() - voter.last_vote_time).to_seconds();
+                auto elapsed_seconds = (_db.head_block_time() - voter.last_vote_time).to_seconds();
 
-                GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__533)) {
+                    auto consumption = mprops.votes_window / mprops.votes_per_window;
+
+                    auto regenerated_capacity = std::min(uint32_t(mprops.votes_window), uint32_t(elapsed_seconds));
+                    auto current_capacity = std::min(uint16_t(voter.voting_capacity + regenerated_capacity), mprops.votes_window);
+
+                    GOLOS_CHECK_BANDWIDTH(current_capacity, consumption,
+                        bandwidth_exception::vote_bandwidth,
+                        "Can only vote ${votes_per_window} times in ${votes_window} seconds.",
+                        ("votes_per_window", mprops.votes_per_window)("votes_window", mprops.votes_window));
+
+                    _db.modify(voter, [&](account_object &a) {
+                        a.voting_capacity = current_capacity - consumption;
+                    });
+                } else {
+                    GOLOS_CHECK_BANDWIDTH(_db.head_block_time(), voter.last_vote_time + STEEMIT_MIN_VOTE_INTERVAL_SEC-1,
                         bandwidth_exception::vote_bandwidth, "Can only vote once every 3 seconds.");
+                }
 
                 int64_t regenerated_power =
                         (STEEMIT_100_PERCENT * elapsed_seconds) /
@@ -1229,7 +1413,6 @@ namespace golos { namespace chain {
                 int64_t max_vote_denom = dgpo.vote_regeneration_per_day *
                     STEEMIT_VOTE_REGENERATION_SECONDS / (60 * 60 * 24);
                 GOLOS_ASSERT(max_vote_denom > 0, golos::internal_error, "max_vote_denom is too small");
-
                 if (!_db.has_hardfork(STEEMIT_HARDFORK_0_14__259)) {
                     used_power = (used_power / max_vote_denom) + 1;
                 } else {
@@ -1344,8 +1527,9 @@ namespace golos { namespace chain {
                     /// calculate rshares2 value
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
-
                     uint64_t max_vote_weight = 0;
+                    uint64_t auction_window_weight = 0;
+                    uint64_t votes_in_auction_window_weight = 0;
 
                    /** this verifies uniqueness of voter
                     *
@@ -1428,14 +1612,30 @@ namespace golos { namespace chain {
                                 fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME))  /// start enforcing this prior to the hardfork
                             {
                                 /// discount weight by time
+                                uint32_t auction_window = comment.auction_window_size;
+
                                 uint128_t w(max_vote_weight);
-                                uint64_t delta_t = std::min(uint64_t((
-                                        cv.last_update -
-                                        comment.created).to_seconds()), uint64_t(STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS));
+                                uint64_t delta_t = std::min(
+                                    uint64_t((cv.last_update - comment.created).to_seconds()),
+                                    uint64_t(auction_window));
 
                                 w *= delta_t;
-                                w /= STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+                                w /= auction_window;
                                 cv.weight = w.to_uint64();
+
+                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898) && w > 0 && delta_t != uint64_t(auction_window)) {
+                                    auction_window_weight = max_vote_weight - w.to_uint64();
+                                    votes_in_auction_window_weight = w.to_uint64();
+                                }
+                            }
+
+                            if (!delegator_vote_interest_rates.empty() && cv.weight != 0) {
+                                for (auto& dvir : delegator_vote_interest_rates) {
+                                    if (dvir.interest_rate == 0) {
+                                        continue;
+                                    }
+                                    cv.delegator_vote_interest_rates.push_back(dvir);
+                                }
                             }
                         } else {
                             cv.weight = 0;
@@ -1446,6 +1646,8 @@ namespace golos { namespace chain {
                         // Optimization
                         _db.modify(comment, [&](comment_object& c) {
                             c.total_vote_weight += max_vote_weight;
+                            c.auction_window_weight += auction_window_weight;
+                            c.votes_in_auction_window_weight += votes_in_auction_window_weight;
                         });
                     }
 
@@ -1557,11 +1759,12 @@ namespace golos { namespace chain {
                         cv.last_update = _db.head_block_time();
                         cv.weight = 0;
                         cv.num_changes += 1;
+
+                        cv.delegator_vote_interest_rates.clear();
                     });
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 }
-
             } FC_CAPTURE_AND_RETHROW((o))
         }
 
@@ -2037,6 +2240,34 @@ namespace golos { namespace chain {
             }
         }
 
+namespace {
+
+        void stop_withdraw(database& db, const golos::chain::account_object& account) {
+            db.modify(account, [&](account_object& a) {
+                a.vesting_withdraw_rate.amount = 0;
+                a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+                a.withdrawn = 0;
+                a.to_withdraw = 0;
+            });
+        }
+
+        void remove_vesting_routes(database& db, const golos::chain::account_object& account) {
+            const auto & withdraw_idx = db.get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+            auto withdraw_it = withdraw_idx.upper_bound(account.id);
+
+            while (withdraw_it != withdraw_idx.end() && withdraw_it->from_account == account.id) {
+                const auto& val = *withdraw_it;
+                ++withdraw_it;
+                db.remove(val);
+            }
+        }
+
+        void reset_vesting_withdraw(database& db, const account_object& account) {
+            stop_withdraw(db, account);
+            remove_vesting_routes(db, account);
+        }
+}
+
         void recover_account_evaluator::do_apply(const recover_account_operation& o) {
             const auto& account = _db.get_account(o.account_to_recover);
             const auto now = _db.head_block_time();
@@ -2076,6 +2307,10 @@ namespace golos { namespace chain {
             _db.modify(account, [&](account_object& a) {
                 a.last_account_recovery = now;
             });
+
+            if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__971)) {
+                reset_vesting_withdraw(_db, account);
+            }
         }
 
         void change_recovery_account_evaluator::do_apply(const change_recovery_account_operation& o) {
@@ -2203,89 +2438,171 @@ namespace golos { namespace chain {
 */
         }
 
+template <typename CreateVdo, typename ValidateWithVdo, typename Operation>
+void delegate_vesting_shares(
+    database& _db, const chain_properties& median_props, const Operation& op,
+    CreateVdo&& create_vdo, ValidateWithVdo&& validate_with_vdo
+) {
+    const auto& delegator = _db.get_account(op.delegator);
+    const auto& delegatee = _db.get_account(op.delegatee);
+    auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+
+    if (delegation) {
+        validate_with_vdo(*delegation);
+    }
+
+    const auto v_share_price = _db.get_dynamic_global_properties().get_vesting_share_price();
+    auto min_delegation = median_props.min_delegation * v_share_price;
+    auto min_update = median_props.create_account_min_golos_fee * v_share_price;
+
+    auto now = _db.head_block_time();
+    auto delta = delegation ?
+        op.vesting_shares - delegation->vesting_shares :
+        op.vesting_shares;
+    auto increasing = delta.amount > 0;
+
+    GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+        GOLOS_CHECK_LOGIC((increasing ? delta : -delta) >= min_update,
+            logic_exception::delegation_difference_too_low,
+            "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
+#ifdef STEEMIT_BUILD_TESTNET
+        // min_update depends on account_creation_fee, which can be 0 on testnet
+        GOLOS_CHECK_LOGIC(delta.amount != 0,
+            logic_exception::delegation_difference_too_low,
+            "Delegation difference can't be 0");
+#endif
+    });
+
+    if (increasing) {
+        auto delegated = delegator.delegated_vesting_shares;
+        GOLOS_CHECK_BALANCE(delegator, AVAILABLE_VESTING, delta);
+        auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
+        auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
+        auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
+        auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
+        GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
+            logic_exception::delegation_limited_by_voting_power,
+            "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
+            ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));
+
+        if (!delegation) {
+            GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+                GOLOS_CHECK_LOGIC(op.vesting_shares >= min_delegation,
+                    logic_exception::cannot_delegate_below_minimum,
+                    "Account must delegate a minimum of ${v}",
+                    ("v",min_delegation)("vesting_shares",op.vesting_shares));
+            });
+            _db.create<vesting_delegation_object>([&](vesting_delegation_object& o) {
+                o.delegator = op.delegator;
+                o.delegatee = op.delegatee;
+                o.vesting_shares = op.vesting_shares;
+                o.min_delegation_time = now;
+                create_vdo(o);
+            });
+        }
+        _db.modify(delegator, [&](account_object& a) {
+            a.delegated_vesting_shares += delta;
+        });
+    } else {
+        GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
+            GOLOS_CHECK_LOGIC(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
+                logic_exception::cannot_delegate_below_minimum,
+                "Delegation must be removed or leave minimum delegation amount of ${v}",
+                ("v",min_delegation)("vesting_shares",op.vesting_shares));
+        });
+        _db.create<vesting_delegation_expiration_object>([&](vesting_delegation_expiration_object& o) {
+            o.delegator = op.delegator;
+            o.vesting_shares = -delta;
+            o.expiration = std::max(now + STEEMIT_CASHOUT_WINDOW_SECONDS, delegation->min_delegation_time);
+        });
+    }
+
+    _db.modify(delegatee, [&](account_object& a) {
+        a.received_vesting_shares += delta;
+    });
+    if (delegation) {
+        if (op.vesting_shares.amount > 0) {
+            _db.modify(*delegation, [&](vesting_delegation_object& o) {
+                o.vesting_shares = op.vesting_shares;
+            });
+        } else {
+            _db.remove(*delegation);
+        }
+    }
+}
+
         void delegate_vesting_shares_evaluator::do_apply(const delegate_vesting_shares_operation& op) {
-            const auto& delegator = _db.get_account(op.delegator);
-            const auto& delegatee = _db.get_account(op.delegatee);
-            auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+            const auto& median_props = _db.get_witness_schedule_object().median_props;
+
+            delegate_vesting_shares(_db, median_props, op, [&](auto&){}, [&](auto&){});
+        }
+
+        void break_free_referral_evaluator::do_apply(const break_free_referral_operation& op) {
+            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__295, "break_free_referral_operation");
+
+            const auto& referral = _db.get_account(op.referral);
+            const auto& referrer = _db.get_account(referral.referrer_account);
+
+            GOLOS_CHECK_LOGIC(referral.referral_break_fee.amount != 0,
+                logic_exception::no_right_to_break_referral,
+                "This referral account has no right to break referral");
+
+            GOLOS_CHECK_BALANCE(referral, MAIN_BALANCE, referral.referral_break_fee);
+            _db.adjust_balance(referral, -referral.referral_break_fee);
+            _db.adjust_balance(referrer, referral.referral_break_fee);
+
+            _db.modify(referral, [&](account_object& a) {
+                a.referrer_account = account_name_type();
+                a.referrer_interest_rate = 0;
+                a.referral_end_date = time_point_sec::min();
+                a.referral_break_fee.amount = 0;
+            });
+        }
+
+        void delegate_vesting_shares_with_interest_evaluator::do_apply(const delegate_vesting_shares_with_interest_operation& op) {
+            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__756, "delegate_vesting_shares_with_interest_operation");
 
             const auto& median_props = _db.get_witness_schedule_object().median_props;
-            const auto v_share_price = _db.get_dynamic_global_properties().get_vesting_share_price();
-            auto min_delegation = median_props.min_delegation * v_share_price;
-            auto min_update = median_props.create_account_min_golos_fee * v_share_price;
+
+            GOLOS_CHECK_LIMIT_PARAM(op.interest_rate, median_props.max_delegated_vesting_interest_rate);
+
+            delegate_vesting_shares(_db, median_props, op, [&](auto& o) {
+                o.interest_rate = op.interest_rate;
+                o.payout_strategy = op.payout_strategy;
+            }, [&](auto& o) {
+                GOLOS_CHECK_LOGIC(o.interest_rate == op.interest_rate,
+                    logic_exception::cannot_change_delegator_interest_rate,
+                    "Cannot change interest rate of already created delegation");
+                GOLOS_CHECK_LOGIC(o.payout_strategy == op.payout_strategy,
+                    logic_exception::cannot_change_delegator_payout_strategy,
+                    "Cannot change payout strategy of already created delegation");
+            });
+        }
+
+        void reject_vesting_shares_delegation_evaluator::do_apply(const reject_vesting_shares_delegation_operation& op) {
+            ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__756, "reject_vesting_shares_delegation_operation");
+
+            const auto& delegatee = _db.get_account(op.delegatee);
+
+            auto delegation = _db.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+
+            if (delegation == nullptr) {
+                GOLOS_THROW_MISSING_OBJECT("vesting_delegation_object", fc::mutable_variant_object()("delegator",op.delegator)("delegatee",op.delegatee));
+            }
 
             auto now = _db.head_block_time();
-            auto delta = delegation ?
-                op.vesting_shares - delegation->vesting_shares :
-                op.vesting_shares;
-            auto increasing = delta.amount > 0;
-
-            GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
-                GOLOS_CHECK_LOGIC((increasing ? delta : -delta) >= min_update,
-                    logic_exception::delegation_difference_too_low,
-                    "Delegation difference is not enough. min_update: ${min}", ("min", min_update));
-#ifdef STEEMIT_BUILD_TESTNET
-                // min_update depends on account_creation_fee, which can be 0 on testnet
-                GOLOS_CHECK_LOGIC(delta.amount != 0,
-                    logic_exception::delegation_difference_too_low,
-                    "Delegation difference can't be 0");
-#endif
-            });
-
-            if (increasing) {
-                auto delegated = delegator.delegated_vesting_shares;
-                GOLOS_CHECK_BALANCE(delegator, AVAILABLE_VESTING, delta);
-                auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
-                auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
-                auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
-                auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
-                GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
-                    logic_exception::delegation_limited_by_voting_power,
-                    "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
-                    ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));
-
-                if (!delegation) {
-                    GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
-                        GOLOS_CHECK_LOGIC(op.vesting_shares >= min_delegation,
-                            logic_exception::cannot_delegate_below_minimum,
-                            "Account must delegate a minimum of ${v}",
-                            ("v",min_delegation)("vesting_shares",op.vesting_shares));
-                    });
-                    _db.create<vesting_delegation_object>([&](vesting_delegation_object& o) {
-                        o.delegator = op.delegator;
-                        o.delegatee = op.delegatee;
-                        o.vesting_shares = op.vesting_shares;
-                        o.min_delegation_time = now;
-                    });
-                }
-                _db.modify(delegator, [&](account_object& a) {
-                    a.delegated_vesting_shares += delta;
-                });
-            } else {
-                GOLOS_CHECK_OP_PARAM(op, vesting_shares, {
-                    GOLOS_CHECK_LOGIC(op.vesting_shares.amount == 0 || op.vesting_shares >= min_delegation,
-                        logic_exception::cannot_delegate_below_minimum,
-                        "Delegation must be removed or leave minimum delegation amount of ${v}",
-                        ("v",min_delegation)("vesting_shares",op.vesting_shares));
-                });
-                _db.create<vesting_delegation_expiration_object>([&](vesting_delegation_expiration_object& o) {
-                    o.delegator = op.delegator;
-                    o.vesting_shares = -delta;
-                    o.expiration = std::max(now + STEEMIT_CASHOUT_WINDOW_SECONDS, delegation->min_delegation_time);
-                });
-            }
 
             _db.modify(delegatee, [&](account_object& a) {
-                a.received_vesting_shares += delta;
+                a.received_vesting_shares -= delegation->vesting_shares;
             });
-            if (delegation) {
-                if (op.vesting_shares.amount > 0) {
-                    _db.modify(*delegation, [&](vesting_delegation_object& o) {
-                        o.vesting_shares = op.vesting_shares;
-                    });
-                } else {
-                    _db.remove(*delegation);
-                }
-            }
+
+            _db.create<vesting_delegation_expiration_object>([&](vesting_delegation_expiration_object& o) {
+                o.delegator = op.delegator;
+                o.vesting_shares = delegation->vesting_shares;
+                o.expiration = std::max(now + STEEMIT_CASHOUT_WINDOW_SECONDS, delegation->min_delegation_time);
+            });
+
+            _db.remove(*delegation);
         }
 
 } } // golos::chain

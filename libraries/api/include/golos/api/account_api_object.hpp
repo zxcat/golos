@@ -66,7 +66,9 @@ struct account_api_object {
 
     uint8_t savings_withdraw_requests;
 
-    protocol::share_type curation_rewards;
+    share_type benefaction_rewards;
+    share_type curation_rewards;
+    share_type delegation_rewards;
     share_type posting_rewards;
 
     asset vesting_shares;
@@ -95,6 +97,11 @@ struct account_api_object {
     set<string> witness_votes;
 
     fc::optional<share_type> reputation;
+
+    account_name_type referrer_account;
+    uint16_t referrer_interest_rate = 0;
+    time_point_sec referral_end_date = time_point_sec::min();
+    asset referral_break_fee = asset(0, STEEM_SYMBOL);
 };
 
 } } // golos::api
@@ -109,10 +116,11 @@ FC_REFLECT((golos::api::account_api_object),
     (savings_sbd_seconds)(savings_sbd_seconds_last_update)(savings_sbd_last_interest_payment)
     (savings_withdraw_requests)(vesting_shares)(delegated_vesting_shares)(received_vesting_shares)
     (vesting_withdraw_rate)(next_vesting_withdrawal)(withdrawn)(to_withdraw)(withdraw_routes)
-    (curation_rewards)(posting_rewards)(proxied_vsf_votes)(witnesses_voted_for)
+    (benefaction_rewards)(curation_rewards)(delegation_rewards)(posting_rewards)(proxied_vsf_votes)(witnesses_voted_for)
     (average_bandwidth)(average_market_bandwidth)(lifetime_bandwidth)(lifetime_market_bandwidth)
     (last_bandwidth_update)(last_market_bandwidth_update)
     (last_post)(last_root_post)(post_bandwidth)
-    (witness_votes)(reputation))
+    (witness_votes)(reputation)
+    (referrer_account)(referrer_interest_rate)(referral_end_date)(referral_break_fee))
 
 #endif //GOLOS_ACCOUNT_API_OBJ_HPP

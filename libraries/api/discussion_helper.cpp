@@ -39,8 +39,6 @@ namespace golos { namespace api {
             const std::string& author, const std::string& permlink, uint32_t limit
         ) const ;
 
-        share_type get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const;
-
         void set_pending_payout(discussion& d) const;
 
         void set_url(discussion& d) const;
@@ -58,6 +56,9 @@ namespace golos { namespace api {
         discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
 
         void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
+
+    private:
+        void distribute_auction_tokens(discussion& d, share_type& curator_tokens, share_type& author_tokens) const;
 
     private:
         golos::chain::database& database_;
@@ -112,6 +113,7 @@ namespace golos { namespace api {
         d.allow_replies = o.allow_replies;
         d.allow_votes = o.allow_votes;
         d.allow_curation_rewards = o.allow_curation_rewards;
+        d.auction_window_weight = o.auction_window_weight;
 
         for (auto& route : o.beneficiaries) {
             d.beneficiaries.push_back(route);
@@ -174,38 +176,31 @@ namespace golos { namespace api {
         pimpl->select_active_votes(result, total_count, author, permlink, limit);
     }
 
-    share_type discussion_helper::impl::get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const {
-        share_type unclaimed_rewards = max_rewards;
-        auto& db = database();
-        try {
-            uint128_t total_weight(d.total_vote_weight);
-
-            if (d.allow_curation_rewards) {
-                if (d.total_vote_weight > 0) {
-                    const auto &cvidx = db.get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-                    for (auto itr = cvidx.lower_bound(d.id); itr != cvidx.end() && itr->comment == d.id; ++itr) {
-                        auto claim = ((max_rewards.value * uint128_t(itr->weight)) / total_weight).to_uint64();
-                        if (claim > 0) { // min_amt is non-zero satoshis
-                            unclaimed_rewards -= claim;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            } else {
-                unclaimed_rewards = 0;
-            }
-
-            return unclaimed_rewards;
-        } FC_CAPTURE_AND_RETHROW()
-    }
 
 //
 // set_pending_payout
+
+    void discussion_helper::impl::distribute_auction_tokens(discussion& d, share_type& curators_tokens, share_type& author_tokens) const {
+        const auto auction_window_reward = curators_tokens.value * d.auction_window_weight / d.total_vote_weight;
+
+        curators_tokens -= auction_window_reward;
+
+        if (d.auction_window_reward_destination == to_author) {
+            author_tokens += auction_window_reward;
+        } else if (d.auction_window_reward_destination == to_curators &&
+                   d.total_vote_weight != d.votes_in_auction_window_weight + d.auction_window_weight) {
+            curators_tokens += auction_window_reward;
+        }
+    }
+
     void discussion_helper::impl::set_pending_payout(discussion& d) const {
         auto& db = database();
 
         fill_promoted_(db, d);
+
+        if (d.total_vote_weight == 0) {
+            return;
+        }
 
         const auto& props = db.get_dynamic_global_properties();
         const auto& hist = db.get_feed_history();
@@ -225,20 +220,17 @@ namespace golos { namespace api {
             r2 *= pot.amount.value;
             r2 /= total_r2;
 
-            uint64_t payout = static_cast<uint64_t>(r2);
+            const share_type reward_tokens = std::min(share_type(r2), d.max_accepted_payout.amount);
 
-            payout = std::min(payout, uint64_t(d.max_accepted_payout.amount.value));
+            share_type curation_tokens = reward_tokens * d.curation_rewards_percent / STEEMIT_100_PERCENT;
 
-            uint128_t reward_tokens = uint128_t(payout);
+            share_type author_tokens = reward_tokens - curation_tokens;
 
-            share_type curation_tokens = ((reward_tokens * db.get_curation_rewards_percent())
-                / STEEMIT_100_PERCENT).to_uint64();
-            auto crs_unclaimed = get_curator_unclaimed_rewards(d, curation_tokens);
-            auto crs_claim = curation_tokens - crs_unclaimed;
-            share_type author_tokens = reward_tokens.to_uint64() - crs_claim;
             if (d.allow_curation_rewards) {
-                d.pending_curator_payout_value = db.to_sbd(asset(crs_claim, STEEM_SYMBOL));
-                d.pending_curator_payout_gests_value = asset(crs_claim, STEEM_SYMBOL) * props.get_vesting_share_price();
+                distribute_auction_tokens(d, curation_tokens, author_tokens);
+
+                d.pending_curator_payout_value = db.to_sbd(asset(curation_tokens, STEEM_SYMBOL));
+                d.pending_curator_payout_gests_value = asset(curation_tokens, STEEM_SYMBOL) * props.get_vesting_share_price();
                 d.pending_payout_value += d.pending_curator_payout_value;
             }
 
@@ -246,6 +238,7 @@ namespace golos { namespace api {
             for (auto &b : d.beneficiaries) {
                 benefactor_weights += b.weight;
             }
+
             if (benefactor_weights != 0) {
                 auto total_beneficiary = (author_tokens * benefactor_weights) / STEEMIT_100_PERCENT;
                 author_tokens -= total_beneficiary;
@@ -275,10 +268,6 @@ namespace golos { namespace api {
         }
 
         fill_reputation_(db, d.author, d.author_reputation);
-
-        if (d.parent_author != STEEMIT_ROOT_POST_PARENT) {
-            d.cashout_time = db.calculate_discussion_payout_time(db.get_comment(d.id));
-        }
 
         if (d.body.size() > 1024 * 128) {
             d.body = "body pruned due to size";
@@ -341,7 +330,7 @@ namespace golos { namespace api {
         pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_info);
     }
 
-    discussion_helper::~discussion_helper() = default;
+    discussion_helper::~discussion_helper() {}
 
 //
 } } // golos::api

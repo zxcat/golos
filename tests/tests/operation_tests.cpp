@@ -15,7 +15,10 @@
 #include <fc/io/json.hpp>
 
 #include "database_fixture.hpp"
+#include "comment_reward.hpp"
 #include "helpers.hpp"
+#include "comment_reward.hpp"
+
 
 #include <cmath>
 #include <iostream>
@@ -4118,6 +4121,172 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(vesting_withdraw_reset_on_recovery) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: vesting withdraw reset on account recover");
+            ACTORS((alice));
+            fund("alice", 1000000);
+
+            account_create_operation acc_create;
+
+            BOOST_TEST_MESSAGE("--- Creating account bob with alice");
+
+            const auto bob_private_key = generate_private_key("bob_active");
+            const auto bob_owner_authority = authority(1, generate_private_key("bob_owner").get_public_key(), 1);
+
+            acc_create.fee = ASSET("10.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "bob";
+            acc_create.owner = bob_owner_authority;
+            acc_create.active = authority(1, bob_private_key.get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("bob_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("bob_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, acc_create));
+
+            tx.clear();
+
+            BOOST_TEST_MESSAGE("--- Creating account chewy with alice");
+            acc_create.fee = ASSET("0.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "chewy";
+            acc_create.owner = authority(1, generate_private_key("chewy_owner").get_public_key(), 1);
+            acc_create.active = authority(1, generate_private_key("chewy_active").get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("chewy_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("chewy_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            tx.operations.push_back(acc_create);
+
+            BOOST_TEST_MESSAGE("--- Creating account donna with alice");
+            acc_create.fee = ASSET("0.000 GOLOS");
+            acc_create.creator = "alice";
+            acc_create.new_account_name = "donna";
+            acc_create.owner = authority(1, generate_private_key("donna_owner").get_public_key(), 1);
+            acc_create.active = authority(1, generate_private_key("donna_active").get_public_key(), 1);
+            acc_create.posting = authority(1, generate_private_key("donna_posting").get_public_key(), 1);
+            acc_create.memo_key = generate_private_key("donna_memo").get_public_key();
+            acc_create.json_metadata = "";
+
+            tx.operations.push_back(acc_create);
+            tx.sign(alice_private_key, db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            BOOST_TEST_MESSAGE("--- Set vesting withdraw routes");
+
+            set_withdraw_vesting_route_operation to_chewy;
+            to_chewy.from_account = "bob";
+            to_chewy.to_account = "chewy";
+            to_chewy.percent = 50 * STEEMIT_1_PERCENT;
+
+            set_withdraw_vesting_route_operation to_donna;
+
+            to_donna.from_account = "bob";
+            to_donna.to_account = "donna";
+            to_donna.percent = 50 * STEEMIT_1_PERCENT;
+
+            tx.clear();
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, to_chewy, to_donna));
+
+            BOOST_TEST_MESSAGE("--- Start vesting withdraw");
+
+            withdraw_vesting_operation withdraw_vesting_op;
+            withdraw_vesting_op.account = "bob";
+            withdraw_vesting_op.vesting_shares = asset(db->get_account("bob").vesting_shares.amount / 2, VESTS_SYMBOL);
+
+            tx.clear();
+            tx.operations.push_back(withdraw_vesting_op);
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+
+            tx.sign(bob_private_key, db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            BOOST_TEST_MESSAGE("--- Generating block up to first withdrawal");
+
+            generate_blocks(db->head_block_time() + STEEMIT_VESTING_WITHDRAW_INTERVAL_SECONDS, true);
+
+            {
+                const auto& bob = db->get_account("bob");
+
+                BOOST_CHECK_NE(bob.vesting_withdraw_rate.amount.value, 0);
+                BOOST_CHECK_NE(bob.to_withdraw.value, 0);
+                BOOST_CHECK_NE(bob.withdrawn, 0);
+                BOOST_CHECK_NE(bob.next_vesting_withdrawal, fc::time_point_sec::maximum());
+            }
+
+            BOOST_TEST_MESSAGE("--- Changing bob's owner authority");
+
+            account_update_operation acc_update;
+
+            acc_update.account = "bob";
+            acc_update.owner = authority(1, generate_private_key("bad_key").get_public_key(), 1);
+            acc_update.memo_key = acc_create.memo_key;
+            acc_update.json_metadata = "";
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, generate_private_key("bob_owner"), acc_update));
+
+            BOOST_TEST_MESSAGE("--- Creating recover request for bob with alice");
+
+            request_account_recovery_operation request;
+            request.recovery_account = "alice";
+            request.account_to_recover = "bob";
+            request.new_owner_authority = authority(1, generate_private_key("new_key").get_public_key(), 1);
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, request));
+
+            BOOST_TEST_MESSAGE("--- Recovering bob's account with original owner auth and new secret");
+
+            recover_account_operation recover;
+            recover.account_to_recover = "bob";
+            recover.new_owner_authority = request.new_owner_authority;
+            recover.recent_owner_authority = bob_owner_authority;
+
+            tx.clear();
+            tx.operations.push_back(recover);
+
+            tx.sign(generate_private_key("bob_owner"), db->get_chain_id());
+            tx.sign(generate_private_key("new_key"), db->get_chain_id());
+
+            BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
+
+            generate_blocks(db->head_block_time() + STEEMIT_OWNER_UPDATE_LIMIT);
+
+            BOOST_TEST_MESSAGE("--- Verify chewy and donna are not vesting receivers.");
+
+            {
+                const auto& bob = db->get_account("bob");
+                const auto& chewy = db->get_account("chewy");
+                const auto& donna = db->get_account("donna");
+
+                const auto& withdraw_index = db->get_index<withdraw_vesting_route_index>().indices().get<by_withdraw_route>();
+                auto it = withdraw_index.upper_bound(bob.id);
+
+                while (it != withdraw_index.end() && it->from_account == bob.id) {
+                    BOOST_CHECK_NE(it->to_account, chewy.id);
+                    BOOST_CHECK_NE(it->to_account, donna.id);
+                }
+            }
+
+            BOOST_TEST_MESSAGE("--- Verify withdraw is stopped.");
+
+            {
+                const auto& bob = db->get_account("bob");
+
+                BOOST_CHECK_EQUAL(bob.vesting_withdraw_rate.amount.value, 0);
+                BOOST_CHECK_EQUAL(bob.to_withdraw.value, 0);
+                BOOST_CHECK_EQUAL(bob.withdrawn, 0);
+                BOOST_CHECK_EQUAL(bob.next_vesting_withdrawal, fc::time_point_sec::maximum());
+            }
+         }
+        FC_LOG_AND_RETHROW()
+    }
+
     BOOST_AUTO_TEST_CASE(change_recovery_account_apply) {
         try {
             using fc::ecc::private_key;
@@ -6731,6 +6900,162 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
         FC_LOG_AND_RETHROW()
     }
 
+    BOOST_AUTO_TEST_CASE(reject_vesting_shares_delegation_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: reject_vesting_shares_delegation_apply");
+            signed_transaction tx;
+            ACTORS((alice)(bob))
+
+            generate_block();
+            vest("alice", ASSET_GOLOS(10000));
+            vest("bob", ASSET_GOLOS(1000));
+            generate_block();
+
+            BOOST_TEST_MESSAGE("--- Test failure when vesting shares delegation does not exist");
+            reject_vesting_shares_delegation_operation reject_op;
+            reject_op.delegator = "alice";
+            reject_op.delegatee = "bob";
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, bob_private_key, reject_op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(missing_object, "vesting_delegation_object", fc::mutable_variant_object()("delegator",reject_op.delegator)("delegatee",reject_op.delegatee))));
+
+            delegate_vesting_shares_operation op;
+            op.vesting_shares = ASSET_GESTS(5000);
+            op.delegator = "alice";
+            op.delegatee = "bob";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+            generate_block();
+
+            auto delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+            BOOST_CHECK(delegation != nullptr);
+            BOOST_CHECK_EQUAL(delegation->delegator, op.delegator);
+            BOOST_CHECK_EQUAL(delegation->delegatee, op.delegatee);
+            BOOST_CHECK_EQUAL(delegation->vesting_shares, ASSET_GESTS(5000));
+
+            BOOST_TEST_MESSAGE("--- Test success");
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, reject_op));
+            generate_block();
+
+            delegation = db->find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+            BOOST_CHECK(delegation == nullptr);
+
+            BOOST_CHECK_EQUAL(db->get_account("bob").received_vesting_shares, ASSET_GESTS(0));
+
+            BOOST_CHECK_NE(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+
+            generate_blocks(db->head_block_time() + STEEMIT_CASHOUT_WINDOW_SECONDS - 1);
+
+            BOOST_CHECK_NE(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+
+            generate_block();
+
+            BOOST_CHECK_EQUAL(db->get_account("alice").delegated_vesting_shares, ASSET_GESTS(0));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(delegate_vesting_shares_with_interest_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: delegate_vesting_shares_with_interest_apply");
+
+            ACTORS((alice)(bob)(carol)(dave))
+            generate_block();
+
+            fund("alice", 10000);
+            vest("alice", ASSET_GOLOS(10000));
+            vest("carol", ASSET_GOLOS(10000));
+            vest("dave", ASSET_GOLOS(10000));
+            generate_block();
+
+            price exchange_rate(ASSET("1.000 GOLOS"), ASSET("1.000 GBG"));
+            set_price_feed(exchange_rate);
+            generate_block();
+
+            signed_transaction tx;
+
+            delegate_vesting_shares_with_interest_operation op;
+            op.vesting_shares = ASSET_GESTS(50000);
+            op.delegator = "carol";
+            op.delegatee = "bob";
+            op.payout_strategy = to_delegated_vesting;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, carol_private_key, op));
+            generate_block();
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            op.payout_strategy = to_delegator;
+            op.delegator = "dave";
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, dave_private_key, op));
+            generate_block();
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation comment_op;
+            comment_op.author = "alice";
+            comment_op.permlink = "test";
+            comment_op.parent_permlink = "test";
+            comment_op.title = "foo";
+            comment_op.body = "bar";
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(comment_op);
+            tx.sign(alice_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            generate_blocks(db->head_block_time() + STEEMIT_MIN_VOTE_INTERVAL_SEC + STEEMIT_BLOCK_INTERVAL);
+
+            vote_operation vote_op;
+            vote_op.voter = "bob";
+            vote_op.author = "alice";
+            vote_op.permlink = "test";
+            vote_op.weight = STEEMIT_100_PERCENT;
+            tx.operations.push_back(vote_op);
+            tx.sign(bob_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            BOOST_TEST_MESSAGE("-- Getting old VDO vesting_shares before cashout");
+
+            const auto& vdo_idx = db->get_index<vesting_delegation_index>().indices().get<by_delegation>();
+            auto vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
+            BOOST_CHECK(vdo_itr != vdo_idx.end());
+            auto old_vdo_gests = vdo_itr->vesting_shares;
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_BLOCK_INTERVAL);
+            generate_blocks(db->get_comment("alice", string("test")).cashout_time - STEEMIT_BLOCK_INTERVAL, true);
+
+            auto& alice_comment = db->get_comment("alice", string("test"));
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_comment_reward(*db, total_comment_fund, alice_comment);
+
+            generate_block();
+
+            BOOST_TEST_MESSAGE("-- Checking total funds");
+
+            auto& gpo = db->get_dynamic_global_properties();
+
+            APPROX_CHECK_EQUAL(gpo.total_vesting_shares.to_real(), total_comment_fund.vesting_shares().to_real(), 10);
+            APPROX_CHECK_EQUAL(gpo.total_vesting_fund_steem.amount.value, total_comment_fund.vesting_fund().amount.value, 1);
+
+            BOOST_TEST_MESSAGE("-- Checking bob delegatee payout");
+
+            auto& bob_account = db->get_account("bob");
+            auto ops = get_last_operations<curation_reward_operation>(1);
+            auto vop_curation = ops[0];
+            BOOST_CHECK_EQUAL(vop_curation.reward, alice_comment_reward.vote_payout(bob_account));
+
+            BOOST_TEST_MESSAGE("-- Checking new VDO vesting_shares == old VDO vesting_shares + delegator_payout");
+
+            auto carol_payout = alice_comment_reward.delegator_payout("carol");
+            vdo_itr = vdo_idx.find(std::make_tuple(account_name_type("carol"), account_name_type("bob")));
+            BOOST_CHECK(vdo_itr != vdo_idx.end());
+            BOOST_CHECK_EQUAL(vdo_itr->vesting_shares, old_vdo_gests + carol_payout);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
     BOOST_AUTO_TEST_SUITE_END() // delegation
 
 
@@ -6944,5 +7269,1051 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
 
     BOOST_AUTO_TEST_SUITE_END() // account_metadata
 
+
+    BOOST_AUTO_TEST_SUITE(referral)
+
+    BOOST_AUTO_TEST_CASE(referral_validate_create_account) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_validate_create_account");
+
+            BOOST_TEST_MESSAGE("--- Test failure with non-GOLOS break fee");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, VESTS_SYMBOL);
+            cr.extensions.insert(aro);
+
+            GOLOS_CHECK_ERROR_PROPS(cr.validate(),
+                CHECK_ERROR(invalid_parameter, "break_fee"));
+
+            BOOST_TEST_MESSAGE("--- Test failure with negative break fee");
+
+            aro.break_fee = asset(-100, STEEM_SYMBOL);
+
+            cr.extensions.clear();
+            cr.extensions.insert(aro);
+
+            GOLOS_CHECK_ERROR_PROPS(cr.validate(),
+                CHECK_ERROR(invalid_parameter, "break_fee"));
+
+            BOOST_TEST_MESSAGE("--- Test success with correct break fee");
+
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+
+            cr.extensions.clear();
+            cr.extensions.insert(aro);
+
+            CHECK_OP_VALID(cr);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com = db->get_comment("testref", string("foo"));
+            const auto& referrer_find = std::find_if(testref_com.beneficiaries.begin(),
+                    testref_com.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account;
+            });
+            BOOST_CHECK(referrer_find != testref_com.beneficiaries.end());
+
+            BOOST_TEST_MESSAGE("--- Test breaking of referral account");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            break_free_referral_operation op;
+            op.referral = "testref";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(op);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            const auto& testref_free_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_account, account_name_type());
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_interest_rate, 0);
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_end_date, time_point_sec::min());
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_break_fee.amount, 0);
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_break_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_break_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time() + GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test breaking of referral account");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            break_free_referral_operation op;
+            op.referral = "testref";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(op);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+
+            const auto& testref_free_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_account, account_name_type());
+            BOOST_CHECK_EQUAL(testref_free_acc.referrer_interest_rate, 0);
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_end_date, time_point_sec::min());
+            BOOST_CHECK_EQUAL(testref_free_acc.referral_break_fee.amount, 0);
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral account after break");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo2";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com2 = db->get_comment("testref", string("foo2"));
+            const auto& referrer_find2 = std::find_if(testref_com2.beneficiaries.begin(),
+                    testref_com2.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account; // Using account before break
+            });
+            BOOST_CHECK(referrer_find2 == testref_com2.beneficiaries.end());
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(referral_create_expire_account_comment) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: referral_create_expire_account_comment");
+
+            ACTOR(bob);
+            generate_blocks(1);
+
+            fund("bob", ASSET_GOLOS(1000));
+
+            BOOST_TEST_MESSAGE("--- Test creation of referral account");
+
+            auto testref_private_key = generate_private_key("temp_key");
+
+            account_create_with_delegation_operation cr;
+            cr.fee = ASSET_GOLOS(1000);
+            cr.delegation = ASSET_GESTS(0);
+            cr.creator = "bob";
+            cr.new_account_name = "testref";
+            cr.owner = authority(1, testref_private_key.get_public_key(), 1);
+            cr.active = authority(1, testref_private_key.get_public_key(), 1);
+            cr.posting = authority(1, testref_private_key.get_public_key(), 1);
+            cr.memo_key = testref_private_key.get_public_key();
+
+            account_referral_options aro;
+            aro.referrer = "bob";
+            aro.interest_rate = 900;
+            auto end_date = db->head_block_time(); // Will expire after generating at least 1 block
+            aro.end_date = end_date;
+            aro.break_fee = asset(100, STEEM_SYMBOL);
+            cr.extensions.insert(aro);
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, bob_private_key, cr));
+            generate_blocks(1);
+
+            const auto& testref_acc = db->get_account("testref");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_account, "bob");
+            BOOST_CHECK_EQUAL(testref_acc.referrer_interest_rate, 900);
+            BOOST_CHECK_EQUAL(testref_acc.referral_end_date, end_date);
+            BOOST_CHECK_EQUAL(testref_acc.referral_break_fee.amount, 100);
+
+            fund("testref", ASSET_GOLOS(100));
+
+            BOOST_TEST_MESSAGE("--- Test posting of comment by referral account after expiration");
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            comment_operation co;
+            co.author = "testref";
+            co.permlink = "foo3";
+            co.title = "bar";
+            co.body = "foo bar";
+            co.parent_author = "";
+            co.parent_permlink = "ipsum";
+
+            co.title = "bar";
+            co.body = "foo bar";
+
+            tx.set_expiration(db->head_block_time() + STEEMIT_MAX_TIME_UNTIL_EXPIRATION);
+            tx.operations.push_back(co);
+
+            tx.sign(testref_private_key, db->get_chain_id());
+            db->push_transaction(tx, 0);
+            generate_blocks(1);
+
+            const auto& testref_com = db->get_comment("testref", string("foo3"));
+            const auto& referrer_find = std::find_if(testref_com.beneficiaries.begin(),
+                    testref_com.beneficiaries.end(), [&testref_acc](const beneficiary_route_type& benef) {
+                return benef.account == testref_acc.referrer_account; // Using account before break
+            });
+            BOOST_CHECK(referrer_find == testref_com.beneficiaries.end());
+
+            validate_database();
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_SUITE_END() // referral
+
+    BOOST_AUTO_TEST_SUITE(comment_curation_rewards_percent) // comment_curation_rewards_percent
+
+    BOOST_AUTO_TEST_CASE(comment_curation_rewards_percent_validate) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: comment_curation_rewards_percent_validate");
+            comment_options_operation op;
+
+            op.author = "alice";
+            op.permlink = "test";
+
+            BOOST_TEST_MESSAGE("--- Test less than allowed minimum");
+
+            golos::protocol::comment_curation_rewards_percent perc;
+            perc.percent = STEEMIT_MIN_CURATION_PERCENT - STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "percent"));
+
+            BOOST_TEST_MESSAGE("--- Test more than allowed maximum");
+
+            perc.percent = STEEMIT_MAX_CURATION_PERCENT + STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            GOLOS_CHECK_ERROR_PROPS(op.validate(),
+                CHECK_ERROR(invalid_parameter, "percent"));
+
+            BOOST_TEST_MESSAGE("--- Test allowed minimum");
+
+            perc.percent = STEEMIT_MIN_CURATION_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            BOOST_CHECK_NO_THROW(op.validate());
+
+            BOOST_TEST_MESSAGE("--- Test allowed maximum");
+
+            perc.percent = STEEMIT_MAX_CURATION_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+            BOOST_CHECK_NO_THROW(op.validate());
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(comment_curation_rewards_percent_apply) {
+        try {
+            BOOST_TEST_MESSAGE("Testing: comment_curation_rewards_percent_apply");
+            ACTORS((alice))
+            generate_block();
+
+            auto& wso = db->get_witness_schedule_object();
+            BOOST_CHECK_EQUAL(wso.median_props.min_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
+            BOOST_CHECK_EQUAL(wso.median_props.max_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
+
+            fund("alice", 10000);
+            vest("alice", 10000);
+
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            comment_operation comment;
+            comment.author = "alice";
+            comment.permlink = "test";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "foobar";
+
+            signed_transaction tx;
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            comment_options_operation op;
+            op.author = "alice";
+            op.permlink = "test";
+
+            golos::protocol::comment_curation_rewards_percent perc;
+
+            BOOST_TEST_MESSAGE("--- Test less than allowed minimum");
+
+            perc.percent = wso.median_props.min_curation_percent - STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "percent")));
+
+            BOOST_TEST_MESSAGE("--- Test more than allowed maximum");
+
+            perc.percent = wso.median_props.max_curation_percent + STEEMIT_1_PERCENT;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            GOLOS_CHECK_ERROR_PROPS(push_tx_with_ops(tx, alice_private_key, op),
+                CHECK_ERROR(tx_invalid_operation, 0,
+                    CHECK_ERROR(invalid_parameter, "percent")));
+
+            BOOST_TEST_MESSAGE("--- Test allowed value");
+
+            perc.percent = wso.median_props.max_curation_percent;
+            op.extensions.clear();
+            op.extensions.insert(perc);
+
+            BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_SUITE_END() // comment_curation_rewards_percent
+
+BOOST_AUTO_TEST_SUITE_END()
+
+
+struct votes_extended_fixture : public golos::chain::clean_database_fixture {
+
+    void initialize(const plugin_options& opts = {}) {
+        database_fixture::initialize(opts);
+        open_database();
+        startup();
+    }
+
+    fc::ecc::private_key vote_key;
+    uint32_t current_voter = 0;
+    static const uint32_t cashout_blocks = STEEMIT_CASHOUT_WINDOW_SECONDS / STEEMIT_BLOCK_INTERVAL;
+
+    void generate_voters(uint32_t n) {
+        fc::ecc::private_key private_key = generate_private_key("test");
+        fc::ecc::private_key post_key = generate_private_key("test_post");
+        vote_key = post_key;
+        for (auto i = 0; i < n; i++) {
+            const auto name = "voter" + std::to_string(i);
+            GOLOS_CHECK_NO_THROW(account_create(name, private_key.get_public_key(), post_key.get_public_key()));
+        }
+        generate_block();
+        validate_database();
+    }
+
+    void vote_sequence(const std::string& author, const std::string& permlink, uint32_t n_votes, uint32_t interval = 0) {
+        uint32_t end = current_voter + n_votes;
+        for (; current_voter < end; current_voter++) {
+            const auto name = "voter" + std::to_string(current_voter);
+            vote_operation op;
+            op.voter = name;
+            op.author = author;
+            op.permlink = permlink;
+            op.weight = STEEMIT_100_PERCENT;
+            signed_transaction tx;
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, vote_key, op));
+            if (interval > 0) {
+                generate_blocks(interval);
+            }
+        }
+        validate_database();
+    }
+
+    void post(const std::string& permlink = "post", const std::string& parent_permlink = "test") {
+        ACTOR(alice);
+        comment_operation op;
+        op.author = "alice";
+        op.permlink = permlink;
+        op.parent_author = parent_permlink == "test" ? "" : "alice";
+        op.parent_permlink = parent_permlink;
+        op.title = "foo";
+        op.body = "bar";
+        signed_transaction tx;
+        GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, op));
+        validate_database();
+    }
+
+    uint32_t count_stored_votes() {
+        const auto n = db->get_index<golos::chain::comment_vote_index>().indices().size();
+        return n;
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
+
+    BOOST_AUTO_TEST_SUITE(auction_window)
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_reward_fund) {
+        try {
+            BOOST_TEST_MESSAGE("Test changing auction window size");
+
+            db_plugin->debug_update([=](database &db) {
+                auto &wso = db.get_witness_schedule_object();
+                BOOST_CHECK_EQUAL(wso.median_props.auction_window_size, 1800);
+
+                db.modify(wso, [&](witness_schedule_object &w) {
+                    w.median_props.auction_window_size = 10 * 60;
+                });
+
+                BOOST_CHECK_EQUAL(wso.median_props.auction_window_size, 600);
+            }, database::skip_witness_signature);
+
+            BOOST_TEST_MESSAGE("Auction window reward goes to reward fund.");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 10;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_reward_fund;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(20);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+            vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
+
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_reward_fund_empty_case) {
+        try {
+            BOOST_TEST_MESSAGE("Auction window is 0.");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 10;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw2";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_reward_fund;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(voters_count);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+            vote_sequence(comment.author, comment.permlink, voters_count, 5);
+
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            BOOST_CHECK(auw_tokens < allowed_tokens_delta); // equals zero
+            BOOST_CHECK(total_comment_fund.reward_fund().amount.value < allowed_tokens_delta); // equals zero
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_reward_fund_all_in_auw) {
+        try {
+            BOOST_TEST_MESSAGE("Auction window reward goes to reward fund. All votes made in auw");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 10;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw3";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_reward_fund;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(voters_count);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            vote_sequence(comment.author, comment.permlink, voters_count, 5);
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_curators_case_empty_auw) {
+        try {
+            BOOST_TEST_MESSAGE("Auction window is 0. The to_curators case.");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 10;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw4";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_curators;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(voters_count);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+            vote_sequence(comment.author, comment.permlink, voters_count, 5);
+
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_curators_case_all_in_auw) {
+        try {
+            BOOST_TEST_MESSAGE("Auction window reward goes to reward fund. The to_curators case");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 10;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw5";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_curators;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(voters_count);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            vote_sequence(comment.author, comment.permlink, voters_count, 5);
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            // check that if all votes've been made in auction window, then auw reward should go to reward fund
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            BOOST_CHECK(auw_tokens > allowed_tokens_delta); // non-zero value
+            BOOST_CHECK(total_comment_fund.reward_fund().amount.value > allowed_tokens_delta); // non-zero value
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_CASE(auction_window_tokens_to_curators_case) {
+        try {
+            BOOST_TEST_MESSAGE("Auction window reward goes to curators.");
+
+            // Needed to be sured, that auction window's been already enabled.
+            generate_blocks(fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME), true);
+
+            auto &wso = db->get_witness_schedule_object();
+            db->modify(wso, [&](witness_schedule_object &w) {
+                w.median_props.auction_window_size = 10 * 60;
+            });
+
+            generate_block();
+
+            ACTOR(alice);
+            int voters_count = 6;
+
+            comment_operation comment;
+            comment_options_operation cop;
+            signed_transaction tx;
+            set_price_feed(price(ASSET("1.000 GOLOS"), ASSET("1.000 GBG")));
+
+            BOOST_TEST_MESSAGE("Create a post.");
+            comment.author = "alice";
+            comment.permlink = "testauw6";
+            comment.parent_permlink = "test";
+            comment.title = "test";
+            comment.body = "Let's test auction window improvements!";
+
+            tx.operations.clear();
+            tx.signatures.clear();
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, comment));
+            generate_block();
+
+            protocol::comment_auction_window_reward_destination dest;
+            dest.destination = protocol::to_curators;
+
+            cop.author = comment.author;
+            cop.permlink = comment.permlink;
+
+            cop.extensions.insert(dest);
+
+            tx.operations.clear();
+            tx.signatures.clear();
+
+            GOLOS_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, cop));
+            generate_block();
+            auto& alice_post = db->get_comment(comment.author, comment.permlink);
+            generate_voters(voters_count);
+
+            BOOST_TEST_MESSAGE("Create votes.");
+            BOOST_CHECK_EQUAL(alice_post.cashout_time, alice_post.created + STEEMIT_CASHOUT_WINDOW_SECONDS);
+
+            vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
+            generate_blocks((alice_post.created + alice_post.auction_window_size), true);
+            vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
+
+
+            comment_fund total_comment_fund(*db);
+            comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
+            auto& gpo = db->get_dynamic_global_properties();
+
+            generate_blocks((alice_post.cashout_time), true);
+
+            share_type rwd = 0;
+            for (int i = 0; i < voters_count; i++) {
+                std::string acc_name = "voter" + std::to_string(i);
+                auto& account = db->get_account(acc_name);
+                rwd += account.curation_rewards;
+            }
+            auto& alice_acc = db->get_account(alice_post.author);
+
+            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
+            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
+            double voters_reward = (rwd.value);
+            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
+            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
+
+            double allowed_percent_delta = 0.01; // = 1e-2
+            double allowed_tokens_delta = 50;
+
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
+            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
+            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+        }
+        FC_LOG_AND_RETHROW()
+    }
+
+    BOOST_AUTO_TEST_SUITE_END() // auction_window
 BOOST_AUTO_TEST_SUITE_END()
 #endif

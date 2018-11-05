@@ -236,7 +236,7 @@ SIMPLE_PROTOCOL_ERROR_VALIDATOR(tx_missing_other_auth);
 
 #define GET_ACTOR(name) \
    fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name)); \
-   const account_object& name = get_account(BOOST_PP_STRINGIZE(name)); \
+   const account_object& name = db->get_account(BOOST_PP_STRINGIZE(name)); \
    account_id_type name ## _id = name.id; (void)name ## _id;
 
 #define ACTORS_IMPL(r, data, elem) ACTOR(elem)

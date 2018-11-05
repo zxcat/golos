@@ -197,6 +197,13 @@ namespace detail_ns {
         }
     };
 
+    template<>
+    struct js_name<delegator_payout_strategy> {
+        static std::string name() {
+            return "delegator_payout_strategy";
+        }
+    };
+
     template<typename O>
     struct js_name<chainbase::object_id<O>> {
         static std::string name() {
@@ -408,6 +415,15 @@ namespace detail_ns {
 
     template<>
     struct serializer<private_contact_type, true> {
+        static void init() {
+        }
+
+        static void generate() {
+        }
+    };
+
+    template<>
+    struct serializer<delegator_payout_strategy, true> {
         static void init() {
         }
 

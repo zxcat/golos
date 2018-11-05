@@ -66,6 +66,9 @@ namespace golos { namespace protocol {
                 proposal_update_operation,
                 proposal_delete_operation,
                 chain_properties_update_operation,
+                break_free_referral_operation,
+                delegate_vesting_shares_with_interest_operation,
+                reject_vesting_shares_delegation_operation,
 
                 /// virtual operations below this point
                 fill_convert_request_operation,
@@ -82,7 +85,9 @@ namespace golos { namespace protocol {
                 comment_payout_update_operation,
                 comment_benefactor_reward_operation,
                 return_vesting_delegation_operation,
-                producer_reward_operation
+                producer_reward_operation,
+                delegation_reward_operation,
+                auction_window_reward_operation
         > operation;
 
         /*void operation_get_required_authorities( const operation& op,
@@ -96,6 +101,8 @@ namespace golos { namespace protocol {
         bool is_market_operation(const operation &op);
 
         bool is_virtual_operation(const operation &op);
+
+        bool is_custom_json_operation(const operation& op);
 
         struct operation_wrapper {
             operation_wrapper(const operation& op = operation()) : op(op) {}

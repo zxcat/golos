@@ -188,6 +188,7 @@ namespace golos {
             comment_bandwidth,
             vote_bandwidth,
             change_owner_authority_bandwidth,
+            custom_json_bandwidth,
         };
     };
 
@@ -229,6 +230,7 @@ namespace golos {
             comment_cannot_accept_greater_percent_GBG,
             cannot_specify_more_beneficiaries,
             comment_already_has_beneficiaries,
+            beneficiaries_should_be_unique,
             comment_must_not_have_been_voted,
 
             // withdraw_vesting
@@ -238,7 +240,7 @@ namespace golos {
             reached_maxumum_number_of_routes,
             more_100percent_allocated_to_destinations,
 
-            //account_create_with_delegation
+            // account_create_with_delegation
             not_enough_delegation,
 
             // challenge_authority_operation
@@ -273,16 +275,21 @@ namespace golos {
             authority_does_not_match_request,
             no_recent_authority_in_history,
 
-            //set_reset_account_operation
+            // set_reset_account_operation
             cannot_set_same_reset_account,
 
-            //delegate_vesting_shares
+            // break_free_referral_operation
+            no_right_to_break_referral,
+
+            // delegate vesting shares operations
             cannot_delegate_to_yourself,
             delegation_difference_too_low,
             delegation_limited_by_voting_power,
             cannot_delegate_below_minimum,
+            cannot_change_delegator_interest_rate,
+            cannot_change_delegator_payout_strategy,
 
-            //proposals and transactions
+            // proposals and transactions
             proposal_depth_too_high,
             tx_with_both_posting_active_ops,
 
@@ -489,6 +496,7 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (comment_cannot_accept_greater_percent_GBG)
         (cannot_specify_more_beneficiaries)
         (comment_already_has_beneficiaries)
+        (beneficiaries_should_be_unique)
         (comment_must_not_have_been_voted)
 
         // withdraw_vesting
@@ -498,12 +506,12 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (reached_maxumum_number_of_routes)
         (more_100percent_allocated_to_destinations)
 
-        //challenge_authority_operation
+        // challenge_authority_operation
         (cannot_challenge_yourself)
         //prove_authority_evaluator
         (account_is_not_challeneged)
 
-        //escrow
+        // escrow
         (escrow_no_amount_set)
         (escrow_wrong_time_limits)
         (escrow_time_in_past)
@@ -530,19 +538,24 @@ FC_REFLECT_ENUM(golos::logic_exception::error_types,
         (authority_does_not_match_request)
         (no_recent_authority_in_history)
 
-        //set_reset_account_operation
+        // set_reset_account_operation
         (cannot_set_same_reset_account)
 
-        //delegate_vesting_shares
+        // break_free_referral_operation
+        (no_right_to_break_referral)
+
+        // delegate_vesting_shares
         (cannot_delegate_to_yourself)
         (delegation_difference_too_low)
         (delegation_limited_by_voting_power)
         (cannot_delegate_below_minimum)
+        (cannot_change_delegator_interest_rate)
+        (cannot_change_delegator_payout_strategy)
 
-        //account_create_with_delegation
+        // account_create_with_delegation
         (not_enough_delegation)
 
-        //proposals
+        // proposals
         (proposal_depth_too_high)
         (tx_with_both_posting_active_ops)
 
@@ -599,6 +612,7 @@ FC_REFLECT_ENUM(golos::bandwidth_exception::bandwidth_types,
         (comment_bandwidth)
         (vote_bandwidth)
         (change_owner_authority_bandwidth)
+        (custom_json_bandwidth)
 );
 
 FC_REFLECT_ENUM(golos::database_corrupted::error_types,
