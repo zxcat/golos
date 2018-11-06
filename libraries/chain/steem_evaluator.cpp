@@ -1357,20 +1357,6 @@ namespace golos { namespace chain {
                     return;
                 }
 
-                std::vector<delegator_vote_interest_rate> delegator_vote_interest_rates;
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__756) && voter.received_vesting_shares > asset(0, VESTS_SYMBOL)) {
-                    const auto& vdo_idx = _db.get_index<vesting_delegation_index>().indices().get<by_received>();
-                    auto vdo_itr = vdo_idx.lower_bound(voter.name);
-                    for (; vdo_itr != vdo_idx.end() && vdo_itr->delegatee == voter.name; ++vdo_itr) {
-                        delegator_vote_interest_rate dvir;
-                        dvir.account = vdo_itr->delegator;
-                        dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
-                            / voter.effective_vesting_shares().amount.value;
-                        dvir.payout_strategy = vdo_itr->payout_strategy;
-                        delegator_vote_interest_rates.push_back(dvir);
-                    }
-                }
-
                 const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                 auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
 
@@ -1441,6 +1427,20 @@ namespace golos { namespace chain {
 
 
                 if (itr == comment_vote_idx.end()) {
+                    std::vector<delegator_vote_interest_rate> delegator_vote_interest_rates;
+                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__756) && voter.received_vesting_shares > asset(0, VESTS_SYMBOL)) {
+                        const auto& vdo_idx = _db.get_index<vesting_delegation_index>().indices().get<by_received>();
+                        auto vdo_itr = vdo_idx.lower_bound(voter.name);
+                        for (; vdo_itr != vdo_idx.end() && vdo_itr->delegatee == voter.name; ++vdo_itr) {
+                            delegator_vote_interest_rate dvir;
+                            dvir.account = vdo_itr->delegator;
+                            dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
+                                                 / voter.effective_vesting_shares().amount.value;
+                            dvir.payout_strategy = vdo_itr->payout_strategy;
+                            delegator_vote_interest_rates.push_back(dvir);
+                        }
+                    }
+
                     GOLOS_CHECK_OP_PARAM(o, weight, GOLOS_CHECK_VALUE(o.weight != 0, "Vote weight cannot be 0"));
                     /// this is the rshares voting for or against the post
                     int64_t rshares = o.weight < 0 ? -abs_rshares : abs_rshares;
