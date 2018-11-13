@@ -188,5 +188,6 @@ FC_REFLECT((golos::chain::dynamic_global_property_object),
                 (current_reserve_ratio)
                 (vote_regeneration_per_day)
                 (custom_ops_bandwidth_multiplier)
+                (is_forced_min_price)
 )
 CHAINBASE_SET_INDEX_TYPE(golos::chain::dynamic_global_property_object, golos::chain::dynamic_global_property_index)
