@@ -288,6 +288,14 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_GE(custom_ops_bandwidth_multiplier, 1);
             GOLOS_CHECK_VALUE_LEGE(min_curation_percent, STEEMIT_MIN_CURATION_PERCENT, max_curation_percent);
             GOLOS_CHECK_VALUE_LEGE(max_curation_percent, min_curation_percent, STEEMIT_MAX_CURATION_PERCENT);
+
+            GOLOS_CHECK_PARAM(curation_reward_curve, {
+                GOLOS_CHECK_VALUE(
+                    curation_reward_curve == curation_curve::fractional ||
+                    curation_reward_curve == curation_curve::linear ||
+                    curation_reward_curve == curation_curve::square_root,
+                    "Curation curve should fractional or liner, or square_root");
+            });
         }
 
         void witness_update_operation::validate() const {

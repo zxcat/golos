@@ -1580,8 +1580,6 @@ namespace golos { namespace chain {
                                     cv.delegator_vote_interest_rates.push_back(dvir);
                                 }
                             }
-                        } else {
-                            cv.orig_rshares = 0;
                         }
                     });
 

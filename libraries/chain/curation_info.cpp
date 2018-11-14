@@ -60,10 +60,11 @@ namespace golos { namespace chain {
             curve = comment.curation_curve;
 
             if (protocol::curation_curve::detect == curve) {
-                curve = protocol::curation_curve::fractional;
-                //if (db.has_hardfork(STEEMIT_HARDFORK_0_19__677)) {
-                    // TODO: select curve
-                //}
+                if (db.has_hardfork(STEEMIT_HARDFORK_0_19__677)) {
+                    curve = db.get_witness_schedule_object().median_props.curation_reward_curve;
+                } else {
+                    curve = protocol::curation_curve::fractional;
+                }
             }
 
             return curve;

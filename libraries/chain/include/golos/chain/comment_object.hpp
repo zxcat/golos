@@ -95,7 +95,7 @@ namespace golos {
 
             comment_mode mode = first_payout;
 
-            protocol::curation_curve curation_curve = protocol::curation_curve::fractional;
+            protocol::curation_curve curation_curve = protocol::curation_curve::detect;
             auction_window_reward_destination_type auction_window_reward_destination = protocol::to_author;
             uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
 

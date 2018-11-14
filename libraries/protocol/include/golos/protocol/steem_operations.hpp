@@ -614,6 +614,11 @@ namespace golos { namespace protocol {
              */
             uint16_t max_curation_percent = STEEMIT_MIN_CURATION_PERCENT; // Min is for compatibility if no voted percents
 
+            /**
+             * Curation curve
+             */
+            curation_curve curation_reward_curve = curation_curve::fractional;
+
             void validate() const;
 
             chain_properties_19& operator=(const chain_properties_17& src) {
@@ -1326,7 +1331,8 @@ FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
-    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent))
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent)
+    (curation_reward_curve))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 
