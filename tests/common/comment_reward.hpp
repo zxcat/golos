@@ -6,6 +6,7 @@
 #include <golos/chain/comment_object.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/account_object.hpp>
+#include <golos/chain/curation_info.hpp>
 
 namespace golos { namespace chain {
 
@@ -187,31 +188,29 @@ namespace golos { namespace chain {
         }
 
         void calculate_vote_payouts() {
-            auto& vote_idx = db_.get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-            auto itr = vote_idx.lower_bound(comment_.id);
-            auto total_weight = comment_.total_vote_weight;
+            comment_curation_info c{db_, comment_, false};
+            auto total_weight = c.total_vote_weight;
 
             total_vote_rewards_ = 0;
             total_vote_payouts_ = asset(0, VESTS_SYMBOL);
 
-            auto auction_window_reward = vote_rewards_fund_ * comment_.auction_window_weight / total_weight;
-            auto votes_after_auction_window_weight = total_weight - comment_.votes_in_auction_window_weight - comment_.auction_window_weight;
+            auto auction_window_reward = vote_rewards_fund_ * c.auction_window_weight / total_weight;
 
             auto auw_time = comment_.created + comment_.auction_window_size;
             uint64_t heaviest_vote_after_auw_weight = 0;
 
             account_id_type heaviest_vote_after_auw_account;
 
-            for (; itr != vote_idx.end() && itr->comment == comment_.id; ++itr) {
-                BOOST_REQUIRE(vote_payout_map_.find(itr->voter) == vote_payout_map_.end());
+            for (auto itr = c.vote_list.begin(); itr != c.vote_list.end(); ++itr) {
+                BOOST_REQUIRE(vote_payout_map_.find(itr->vote->voter) == vote_payout_map_.end());
                 auto weight = u256(itr->weight);
-                int64_t claim = static_cast<int64_t>(weight * vote_rewards_fund_ / total_weight);
+                uint64_t claim = static_cast<uint64_t>(weight * vote_rewards_fund_ / total_weight);
                 // to_curators case
-                if (comment_.auction_window_reward_destination == protocol::to_curators && itr->last_update >= auw_time) {
-                    claim += static_cast<int64_t>((auction_window_reward * weight) / votes_after_auction_window_weight);
+                if (comment_.auction_window_reward_destination == protocol::to_curators && itr->vote->last_update >= auw_time) {
+                    claim += static_cast<int64_t>((auction_window_reward * weight) / c.votes_after_auction_window_weight);
 
                     if (claim > heaviest_vote_after_auw_weight) {
-                        heaviest_vote_after_auw_account = itr->voter;
+                        heaviest_vote_after_auw_account = itr->vote->voter;
                         heaviest_vote_after_auw_weight = claim;
                     }
                 }
@@ -219,7 +218,7 @@ namespace golos { namespace chain {
                 auto reward = claim;
 
                 if (db_.has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
-                    for (auto& dvir : itr->delegator_vote_interest_rates) {
+                    for (auto& dvir : itr->vote->delegator_vote_interest_rates) {
                         auto delegator = db_.find_account(dvir.account);
                         BOOST_CHECK(delegator != nullptr);
                         BOOST_CHECK(delegator_payout_map_.find(delegator->id) == delegator_payout_map_.end());
@@ -231,14 +230,14 @@ namespace golos { namespace chain {
                         delegator_payout_map_.emplace(delegator->id, delegator_payout);
                     }
                 } else {
-                    BOOST_CHECK(itr->delegator_vote_interest_rates.empty());
+                    BOOST_CHECK(itr->vote->delegator_vote_interest_rates.empty());
                 }
 
                 total_vote_rewards_ += reward;
                 BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
 
                 auto payout = fund_.create_vesting(asset(reward, STEEM_SYMBOL));
-                vote_payout_map_.emplace(itr->voter, payout);
+                vote_payout_map_.emplace(itr->vote->voter, payout);
                 total_vote_payouts_ += payout;
             }
 

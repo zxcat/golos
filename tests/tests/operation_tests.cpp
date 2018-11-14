@@ -7721,7 +7721,7 @@ struct votes_extended_fixture : public golos::chain::clean_database_fixture {
         fc::ecc::private_key private_key = generate_private_key("test");
         fc::ecc::private_key post_key = generate_private_key("test_post");
         vote_key = post_key;
-        for (auto i = 0; i < n; i++) {
+        for (uint32_t i = 0; i < n; i++) {
             const auto name = "voter" + std::to_string(i);
             GOLOS_CHECK_NO_THROW(account_create(name, private_key.get_public_key(), post_key.get_public_key()));
         }

@@ -63,6 +63,7 @@ namespace golos { namespace api {
 
         comment_object::id_type root_comment;
 
+        protocol::curation_curve curation_curve = protocol::curation_curve::detect;
         auction_window_reward_destination_type auction_window_reward_destination = protocol::to_reward_fund;
         uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
         uint64_t auction_window_weight = 0;
@@ -89,7 +90,7 @@ FC_REFLECT(
     (vote_rshares)(children_abs_rshares)(cashout_time)(max_cashout_time)(total_vote_weight)
     (reward_weight)(total_payout_value)(beneficiary_payout_value)(beneficiary_gests_payout_value)(curator_payout_value)(curator_gests_payout_value)
     (author_rewards)(author_gbg_payout_value)(author_golos_payout_value)(author_gests_payout_value)(net_votes)
-    (mode)(auction_window_reward_destination)
+    (mode)(curation_curve)(auction_window_reward_destination)
     (auction_window_size)(auction_window_weight)(votes_in_auction_window_weight)
     (root_comment)(root_title)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
     (allow_curation_rewards)(curation_rewards_percent)(beneficiaries))

@@ -3,6 +3,7 @@
 #include <golos/protocol/base.hpp>
 #include <golos/protocol/block_header.hpp>
 #include <golos/protocol/asset.hpp>
+#include <golos/protocol/reward_curve.hpp>
 
 #include <fc/utf8.hpp>
 #include <fc/crypto/equihash.hpp>

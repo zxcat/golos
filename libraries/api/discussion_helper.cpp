@@ -2,6 +2,7 @@
 #include <golos/api/comment_api_object.hpp>
 #include <golos/chain/account_object.hpp>
 #include <golos/chain/steem_objects.hpp>
+#include <golos/chain/curation_info.hpp>
 #include <fc/io/json.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -34,8 +35,11 @@ namespace golos { namespace api {
 
         discussion create_discussion(const comment_object& o) const ;
 
-        std::vector<vote_state> select_active_votes(const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
-        ) const ;
+        std::vector<vote_state> select_active_votes(
+            const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
+        ) const;
+
+        std::vector<vote_state> select_active_votes(const comment_curation_info&, uint32_t limit, uint32_t offset) const;
 
         void set_pending_payout(discussion& d) const;
 
@@ -101,7 +105,6 @@ namespace golos { namespace api {
         d.children_abs_rshares = o.children_abs_rshares;
         d.cashout_time = o.cashout_time;
         d.max_cashout_time = o.max_cashout_time;
-        d.total_vote_weight = o.total_vote_weight;
         d.reward_weight = o.reward_weight;
         d.net_votes = o.net_votes;
         d.mode = o.mode;
@@ -113,8 +116,6 @@ namespace golos { namespace api {
         d.allow_curation_rewards = o.allow_curation_rewards;
         d.auction_window_reward_destination = o.auction_window_reward_destination;
         d.auction_window_size = o.auction_window_size;
-        d.auction_window_weight = o.auction_window_weight;
-        d.votes_in_auction_window_weight = o.votes_in_auction_window_weight;
         d.curation_rewards_percent = o.curation_rewards_percent;
 
         for (auto& route : o.beneficiaries) {
@@ -133,14 +134,22 @@ namespace golos { namespace api {
     }
 
 // get_discussion
-    discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const {
-        discussion d = create_discussion(c);
+    discussion discussion_helper::impl::get_discussion(const comment_object& comment, uint32_t vote_limit, uint32_t offset) const {
+        discussion d = create_discussion(comment);
         set_url(d);
+
+        d.active_votes_count = comment.total_votes;
+
+        comment_curation_info c{database_, comment, true};
+
+        d.curation_curve = c.curve;
+        d.total_vote_weight = c.total_vote_weight;
+        d.auction_window_weight = c.auction_window_weight;
+        d.votes_in_auction_window_weight = c.votes_in_auction_window_weight;
+        d.active_votes = select_active_votes(c, vote_limit, offset);
+
         set_pending_payout(d);
 
-        d.active_votes_count = c.total_votes;
-
-        d.active_votes = select_active_votes(d.author, d.permlink, vote_limit, offset);
         return d;
     }
 
@@ -151,45 +160,49 @@ namespace golos { namespace api {
 
 // select_active_votes
     std::vector<vote_state> discussion_helper::impl::select_active_votes(
-            const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
+        const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
     ) const {
-        const auto& comment = database().get_comment(author, permlink);
-        const auto& idx = database().get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-        comment_object::id_type cid(comment.id);
+        const auto& comment = database_.get_comment(author, permlink);
+        comment_curation_info c{database_, comment, true};
 
-        offset = std::min(offset, comment.total_votes);
-        limit = std::min(limit, comment.total_votes - offset);
+        return select_active_votes(c, limit, offset);
+    }
+
+    std::vector<vote_state> discussion_helper::impl::select_active_votes(
+        const comment_curation_info& c, uint32_t limit, uint32_t offset
+    ) const {
+        offset = std::min(offset, uint32_t(c.vote_list.size()));
+        limit = std::min(limit, uint32_t(c.vote_list.size() - offset));
 
         if (limit == 0) {
             return {};
         }
 
-        auto itr = idx.lower_bound(cid);
-        for (uint32_t count = 0; itr != idx.end() && count != offset; ++itr, ++count) ;
+        auto itr = c.vote_list.begin();
+        std::advance(itr, offset);
 
         std::vector<vote_state> result;
         result.reserve(limit);
 
-        for (; itr != idx.end() && itr->comment == cid && result.size() < limit; ++itr) {
-            const auto& vo = database().get(itr->voter);
+        for (; itr != c.vote_list.end() && result.size() < limit; ++itr) {
+            const auto& vo = database().get(itr->vote->voter);
             vote_state vstate;
             vstate.voter = vo.name;
             vstate.weight = itr->weight;
-            vstate.rshares = itr->rshares;
-            vstate.percent = itr->vote_percent;
-            vstate.time = itr->last_update;
+            vstate.rshares = itr->vote->rshares;
+            vstate.percent = itr->vote->vote_percent;
+            vstate.time = itr->vote->last_update;
             fill_reputation_(database(), vo.name, vstate.reputation);
-            result.emplace_back(vstate);
+            result.emplace_back(std::move(vstate));
         }
         return result;
     }
 
     std::vector<vote_state> discussion_helper::select_active_votes(
-            const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
+        const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
     ) const {
         return pimpl->select_active_votes(author, permlink, limit, offset);
     }
-
 
 //
 // set_pending_payout

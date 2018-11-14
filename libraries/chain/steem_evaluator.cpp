@@ -769,6 +769,10 @@ namespace golos { namespace chain {
                         com.max_cashout_time = fc::time_point_sec::maximum();
                         com.reward_weight = reward_weight;
 
+                        if (com.created < fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
+                            com.curation_curve = protocol::curation_curve::reverse_auction;
+                        }
+
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
                             com.parent_author = "";
                             from_string(com.parent_permlink, o.parent_permlink);
@@ -1341,12 +1345,17 @@ namespace golos { namespace chain {
                     const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                     auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
                     if (itr == comment_vote_idx.end()) {
+                        _db.modify(comment, [&](comment_object &c) {
+                            ++c.total_votes;
+                        });
+
                         _db.create<comment_vote_object>([&](comment_vote_object& cvo) {
                             cvo.voter = voter.id;
                             cvo.comment = comment.id;
                             cvo.vote_percent = o.weight;
                             cvo.last_update = _db.head_block_time();
-                            cvo.num_changes = -1;           // mark vote that it's ready to be removed (archived comment)
+                            cvo.num_changes = -2;           // mark vote that it's ready to be removed (archived comment)
+                            cvo.created_order = comment.total_votes;
                         });
                     } else {
                         _db.modify(*itr, [&](comment_vote_object& cvo) {
@@ -1489,8 +1498,6 @@ namespace golos { namespace chain {
                     GOLOS_CHECK_LOGIC(abs_rshares > 0, logic_exception::cannot_vote_with_zero_rshares,
                             "Cannot vote with 0 rshares.");
 
-                    auto old_vote_rshares = comment.vote_rshares;
-
                     _db.modify(comment, [&](comment_object &c) {
                         c.net_rshares += rshares;
                         c.abs_rshares += abs_rshares;
@@ -1533,28 +1540,6 @@ namespace golos { namespace chain {
                     /// calculate rshares2 value
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
-                    uint64_t max_vote_weight = 0;
-                    uint64_t auction_window_weight = 0;
-                    uint64_t votes_in_auction_window_weight = 0;
-
-                   /** this verifies uniqueness of voter
-                    *
-                    *  cv.weight / c.total_vote_weight ==> % of rshares increase that is accounted for by the vote
-                    *
-                    *  W(R) = B * R / ( R + 2S )
-                    *  W(R) is bounded above by B. B is fixed at 2^64 - 1, so all weights fit in a 64 bit integer.
-                    *
-                    *  The equation for an individual vote is:
-                    *    W(R_N) - W(R_N-1), which is the delta increase of proportional weight
-                    *
-                    *  c.total_vote_weight =
-                    *    W(R_1) - W(R_0) +
-                    *    W(R_2) - W(R_1) + ...
-                    *    W(R_N) - W(R_N-1) = W(R_N) - W(R_0)
-                    *
-                    *  Since W(R_0) = 0, c.total_vote_weight is also bounded above by B and will always fit in a 64 bit integer.
-                    *
-                    **/
 
                     _db.create<comment_vote_object>([&](comment_vote_object &cv) {
                         cv.voter = voter.id;
@@ -1562,97 +1547,43 @@ namespace golos { namespace chain {
                         cv.rshares = rshares;
                         cv.vote_percent = o.weight;
                         cv.last_update = _db.head_block_time();
+                        cv.created_order = comment.total_votes;
 
-                        if (rshares > 0 &&
-                            (comment.last_payout == fc::time_point_sec()) &&
-                            comment.allow_curation_rewards) {
-                            if (comment.created <
-                                fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
-                                u512 rshares3(rshares);
-                                u256 total2(comment.abs_rshares.value);
+                        if (rshares > 0 && (comment.last_payout == fc::time_point_sec()) && comment.allow_curation_rewards) {
+                            cv.orig_rshares = rshares;
 
-                                if (!_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
-                                    rshares3 *= 10000;
-                                    total2 *= 10000;
-                                }
+                            if (_db.head_block_time() > fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
+                                /// start enforcing this prior to the hardfork
 
-                                rshares3 = rshares3 * rshares3 * rshares3;
-
-                                total2 *= total2;
-                                cv.weight = static_cast<uint64_t>(rshares3 / total2);
-                            } else {// cv.weight = W(R_1) - W(R_0)
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
-                                    uint64_t old_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(old_vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             old_vote_rshares.value)).to_uint64();
-                                    uint64_t new_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(comment.vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             comment.vote_rshares.value)).to_uint64();
-                                    cv.weight = new_weight - old_weight;
-                                } else {
-                                    uint64_t old_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(10000 *
-                                                           old_vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             (10000 *
-                                              old_vote_rshares.value))).to_uint64();
-                                    uint64_t new_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(10000 *
-                                                           comment.vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             (10000 *
-                                              comment.vote_rshares.value))).to_uint64();
-                                    cv.weight = new_weight - old_weight;
-                                }
-                            }
-
-                            max_vote_weight = cv.weight;
-
-                            if (_db.head_block_time() >
-                                fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME))  /// start enforcing this prior to the hardfork
-                            {
                                 /// discount weight by time
-                                uint32_t auction_window = comment.auction_window_size;
 
-                                uint128_t w(max_vote_weight);
                                 uint64_t delta_t = std::min(
                                     uint64_t((cv.last_update - comment.created).to_seconds()),
-                                    uint64_t(auction_window));
+                                    uint64_t(comment.auction_window_size));
 
-                                w *= delta_t;
-                                w /= auction_window;
-                                cv.weight = w.to_uint64();
+                                if (delta_t != uint64_t(comment.auction_window_size)) {
+                                    uint16_t auction_percent = static_cast<uint16_t>(
+                                        delta_t * STEEMIT_100_PERCENT / comment.auction_window_size);
 
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898) && w > 0 && delta_t != uint64_t(auction_window)) {
-                                    auction_window_weight = max_vote_weight - w.to_uint64();
-                                    votes_in_auction_window_weight = w.to_uint64();
+                                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                                        if (voter.name != comment.author) { // self upvote
+                                            cv.auction_percent = auction_percent;
+                                        }
+                                    } else {
+                                        cv.auction_percent = static_cast<uint16_t>(delta_t);
+                                    }
                                 }
                             }
 
-                            if (!delegator_vote_interest_rates.empty() && cv.weight != 0) {
+                            if (!delegator_vote_interest_rates.empty()) {
                                 for (auto& dvir : delegator_vote_interest_rates) {
                                     cv.delegator_vote_interest_rates.push_back(dvir);
                                 }
                             }
                         } else {
-                            cv.weight = 0;
+                            cv.orig_rshares = 0;
                         }
                     });
-
-                    if (max_vote_weight) {
-                        // Optimization
-                        _db.modify(comment, [&](comment_object& c) {
-                            c.total_vote_weight += max_vote_weight;
-                            c.auction_window_weight += auction_window_weight;
-                            c.votes_in_auction_window_weight += votes_in_auction_window_weight;
-                        });
-                    }
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 } else {
@@ -1752,15 +1683,10 @@ namespace golos { namespace chain {
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
 
-                    _db.modify(comment, [&](comment_object &c) {
-                        c.total_vote_weight -= itr->weight;
-                    });
-
                     _db.modify(*itr, [&](comment_vote_object &cv) {
                         cv.rshares = rshares;
                         cv.vote_percent = o.weight;
                         cv.last_update = _db.head_block_time();
-                        cv.weight = 0;
                         cv.num_changes += 1;
 
                         cv.delegator_vote_interest_rates.clear();
