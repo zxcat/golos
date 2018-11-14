@@ -1428,6 +1428,7 @@ namespace golos { namespace chain {
 
                 if (itr == comment_vote_idx.end()) {
                     std::vector<delegator_vote_interest_rate> delegator_vote_interest_rates;
+                    delegator_vote_interest_rates.reserve(100);
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__756) && voter.received_vesting_shares > asset(0, VESTS_SYMBOL)) {
                         const auto& vdo_idx = _db.get_index<vesting_delegation_index>().indices().get<by_received>();
                         auto vdo_itr = vdo_idx.lower_bound(voter.name);
@@ -1437,7 +1438,9 @@ namespace golos { namespace chain {
                             dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
                                                  / voter.effective_vesting_shares().amount.value;
                             dvir.payout_strategy = vdo_itr->payout_strategy;
-                            delegator_vote_interest_rates.push_back(dvir);
+                            if (dvir.interest_rate > 0) {
+                                delegator_vote_interest_rates.emplace_back(std::move(dvir));
+                            }
                         }
                     }
 
@@ -1634,9 +1637,6 @@ namespace golos { namespace chain {
 
                             if (!delegator_vote_interest_rates.empty() && cv.weight != 0) {
                                 for (auto& dvir : delegator_vote_interest_rates) {
-                                    if (dvir.interest_rate == 0) {
-                                        continue;
-                                    }
                                     cv.delegator_vote_interest_rates.push_back(dvir);
                                 }
                             }
