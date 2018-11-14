@@ -5,13 +5,13 @@
 namespace golos { namespace protocol {
 
     enum class curation_curve: uint8_t {
-        detect, ///< get from current settings
-        reverse_auction,
-        fractional,
+        quadratic,
         linear,
         square_root,
+        _size,
+        detect = 100, ///< get from current settings
     }; // enum curation_curve
 
 } } // namespace golos::protocol
 
-FC_REFLECT_ENUM(golos::protocol::curation_curve, (detect)(reverse_auction)(fractional)(linear)(square_root))
+FC_REFLECT_ENUM(golos::protocol::curation_curve, (detect)(quadratic)(linear)(square_root)(_size))

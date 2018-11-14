@@ -2357,7 +2357,7 @@ namespace golos { namespace chain {
                         uint128_t weight(itr->weight);
                         uint64_t claim = ((max_rewards.value * weight) / total_weight).to_uint64();
                         // to_curators case
-                        if (c.comment.auction_window_reward_destination == protocol::to_curators && itr->vote->auction_percent == 0) {
+                        if (c.comment.auction_window_reward_destination == protocol::to_curators && itr->vote->auction_time == 0) {
                             if (c.votes_after_auction_window_weight) {
                                 claim += ((auction_window_reward * weight) / c.votes_after_auction_window_weight).to_uint64();
                             }
@@ -2405,7 +2405,7 @@ namespace golos { namespace chain {
         }
 
         void database::cashout_comment_helper(const comment_object &comment) {
-            protocol::curation_curve curve = comment.curation_curve;
+            protocol::curation_curve curve = comment.curation_reward_curve;
             try {
                 if (comment.net_rshares > 0) {
                     uint128_t reward_tokens = uint128_t(
@@ -2476,7 +2476,7 @@ namespace golos { namespace chain {
                     c.abs_rshares = 0;
                     c.vote_rshares = 0;
                     c.max_cashout_time = fc::time_point_sec::maximum();
-                    c.curation_curve = curve;
+                    c.curation_reward_curve = curve;
 
                     if (has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                         c.cashout_time = fc::time_point_sec::maximum();
@@ -3620,6 +3620,7 @@ namespace golos { namespace chain {
                 notify_applied_block(next_block);
 
                 notify_changed_objects();
+
             } FC_CAPTURE_LOG_AND_RETHROW((next_block.block_num()))
         }
 

@@ -54,7 +54,7 @@ namespace golos { namespace wallet {
             fc::optional<uint16_t> votes_window;
             fc::optional<uint16_t> votes_per_window;
 
-            fc::optional<uint32_t> auction_window_size;
+            fc::optional<uint16_t> auction_window_size;
 
             fc::optional<uint16_t> max_delegated_vesting_interest_rate;
 

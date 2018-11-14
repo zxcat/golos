@@ -291,7 +291,7 @@ namespace golos { namespace protocol {
 
             GOLOS_CHECK_PARAM(curation_reward_curve, {
                 GOLOS_CHECK_VALUE(
-                    curation_reward_curve == curation_curve::fractional ||
+                    curation_reward_curve == curation_curve::quadratic ||
                     curation_reward_curve == curation_curve::linear ||
                     curation_reward_curve == curation_curve::square_root,
                     "Curation curve should fractional or liner, or square_root");

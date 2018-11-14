@@ -6,12 +6,13 @@ namespace golos { namespace chain {
         const database& db;
         const comment_object& comment;
 
-        share_type abs_rshares;
         share_type vote_rshares;
-
         uint64_t old_vote_weight = 0;
-
         protocol::curation_curve curve = protocol::curation_curve::detect;
+
+        uint64_t total_vote_weight = 0;
+        uint64_t auction_window_weight = 0;
+        uint64_t votes_in_auction_window_weight = 0;
 
         /**
          *  weight / total_vote_weight ==> % of rshares increase that is accounted for by the vote
@@ -28,22 +29,56 @@ namespace golos { namespace chain {
          **/
 
         uint64_t calculate_weight(const comment_vote_object& vote) {
-            if (vote.orig_rshares <= 0 || !comment.allow_curation_rewards) {
+            if (vote.orig_rshares <= 0) {
                 return 0;
             }
 
             vote_rshares += vote.orig_rshares;
 
-            if (vote.num_changes != 0 && vote.num_changes != -1) {
+            auto weight = calculate_curve(vote);
+            bool was_changes = (vote.num_changes != 0 /* no changes */ && vote.num_changes != -1 /* marked for remove */);
+
+            if (weight > 0 && vote.auction_time != comment.auction_window_size) {
+                auto new_weight = (uint128_t(weight) * vote.auction_time / comment.auction_window_size).to_uint64();
+                auto auction_weight = (weight - new_weight);
+
+                weight = new_weight;
+                total_vote_weight += auction_weight;
+                auction_window_weight += auction_weight;
+
+                if (!was_changes) {
+                    votes_in_auction_window_weight += weight;
+                }
+            }
+
+            if (was_changes) {
                 return 0;
             }
 
-            switch (curve) {
-                case protocol::curation_curve::reverse_auction:
-                    return calculate_reverse_auction(vote);
+            total_vote_weight += weight;
 
-                case protocol::curation_curve::fractional:
-                    return calculate_fractional(vote);
+            return weight;
+        }
+
+        protocol::curation_curve detect_curation_curve() {
+            curve = comment.curation_reward_curve;
+
+            if (protocol::curation_curve::detect == curve) {
+                if (db.has_hardfork(STEEMIT_HARDFORK_0_19__677)) {
+                    curve = db.get_witness_schedule_object().median_props.curation_reward_curve;
+                } else {
+                    curve = protocol::curation_curve::quadratic;
+                }
+            }
+
+            return curve;
+        }
+
+    private:
+        uint64_t calculate_curve(const comment_vote_object& vote) {
+            switch (curve) {
+                case protocol::curation_curve::quadratic:
+                    return calculate_quadratic(vote);
 
                 case protocol::curation_curve::linear:
                     return calculate_linear(vote);
@@ -55,51 +90,22 @@ namespace golos { namespace chain {
                     FC_ASSERT(false, "Unknown curation reward curve.");
             }
         }
-
-        protocol::curation_curve detect_curation_curve() {
-            curve = comment.curation_curve;
-
-            if (protocol::curation_curve::detect == curve) {
-                if (db.has_hardfork(STEEMIT_HARDFORK_0_19__677)) {
-                    curve = db.get_witness_schedule_object().median_props.curation_reward_curve;
-                } else {
-                    curve = protocol::curation_curve::fractional;
-                }
-            }
-
-            return curve;
-        }
-
-    private:
-        uint64_t calculate_reverse_auction(const comment_vote_object& vote) {
-            abs_rshares += vote.orig_rshares; // there were no down-votes
-
-            u512 rshares3(vote.orig_rshares);
-            u256 total2(abs_rshares.value);
-
-            rshares3 *= 10000;
-            total2 *= 10000;
-
-            rshares3 = rshares3 * rshares3 * rshares3;
-
-            total2 *= total2;
-
-            return static_cast<uint64_t>(rshares3 / total2);
-        }
-
         /**
          * W(R) = B * R / ( R + 2S )
          *  W(R) is bounded above by B. B is fixed at 2^64 - 1, so all weights fit in a 64 bit integer.
          */
-        uint64_t calculate_fractional(const comment_vote_object& vote) {
+        uint64_t calculate_quadratic(const comment_vote_object& vote) {
             static auto constant_alfa = uint128_t(2) * db.get_content_constant_s();
 
+            auto rshares = uint128_t(vote_rshares.value);
+
             uint64_t new_weight = (
-                (uint128_t(vote_rshares.value) * std::numeric_limits<uint64_t>::max()) /
-                (constant_alfa + vote_rshares.value)
+                (rshares * std::numeric_limits<uint64_t>::max()) /
+                (constant_alfa + rshares)
             ).to_uint64();
 
-            auto weight = new_weight - old_vote_weight;
+
+            uint64_t weight = new_weight - old_vote_weight;
             old_vote_weight = new_weight;
 
             return weight;
@@ -110,7 +116,7 @@ namespace golos { namespace chain {
         }
 
         uint64_t calculate_square_root(const comment_vote_object& vote) {
-             uint64_t new_weight(approx_sqrt(uint128_t(vote.rshares)));
+             uint64_t new_weight(approx_sqrt(uint128_t(vote_rshares.value)));
 
              auto weight = new_weight - old_vote_weight;
              old_vote_weight = new_weight;
@@ -150,10 +156,13 @@ namespace golos { namespace chain {
     }; // struct calculate_weight_helper
 
     comment_curation_info::comment_curation_info(database& db, const comment_object& comment, bool full_list)
-    : comment(comment)
-    {
+    : comment(comment) {
         calculate_weight_helper helper{db, comment};
         curve = helper.detect_curation_curve();
+
+        if (comment.last_payout != fc::time_point_sec() && !full_list) {
+            return;
+        }
 
         const auto& idx = db.get_index<comment_vote_index>().indices().get<by_comment_vote_order>();
         auto itr = idx.lower_bound(comment.id);
@@ -163,27 +172,15 @@ namespace golos { namespace chain {
         for (; etr != itr && itr->comment == comment.id; ++itr) {
             auto weight = helper.calculate_weight(*itr);
 
-            if (comment.last_payout == fc::time_point_sec()) {
-                total_vote_weight += weight;
-            }
-
-            if (weight > 0 && itr->auction_percent > 0) {
-                auto new_weight = (uint128_t(weight) * itr->auction_percent / STEEMIT_100_PERCENT).to_uint64();
-
-                if (comment.last_payout == fc::time_point_sec()) {
-                    auction_window_weight += (weight - new_weight);
-                    votes_in_auction_window_weight += new_weight;
-                }
-
-                weight = new_weight;
-            }
-
             if (weight > 0 || full_list) {
                 comment_vote_info vote{&(*itr), weight};
                 vote_list.emplace_back(std::move(vote));
             }
         }
 
+        total_vote_weight = helper.total_vote_weight;
+        auction_window_weight = helper.auction_window_weight;
+        votes_in_auction_window_weight = helper.votes_in_auction_window_weight;
         votes_after_auction_window_weight = total_vote_weight - votes_in_auction_window_weight - auction_window_weight;
 
         std::sort(vote_list.begin(), vote_list.end(), [](auto& r, auto& l) {

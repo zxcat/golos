@@ -769,10 +769,6 @@ namespace golos { namespace chain {
                         com.max_cashout_time = fc::time_point_sec::maximum();
                         com.reward_weight = reward_weight;
 
-                        if (com.created < fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
-                            com.curation_curve = protocol::curation_curve::reverse_auction;
-                        }
-
                         if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
                             com.parent_author = "";
                             from_string(com.parent_permlink, o.parent_permlink);
@@ -1355,7 +1351,6 @@ namespace golos { namespace chain {
                             cvo.vote_percent = o.weight;
                             cvo.last_update = _db.head_block_time();
                             cvo.num_changes = -2;           // mark vote that it's ready to be removed (archived comment)
-                            cvo.created_order = comment.total_votes;
                         });
                     } else {
                         _db.modify(*itr, [&](comment_vote_object& cvo) {
@@ -1547,7 +1542,6 @@ namespace golos { namespace chain {
                         cv.rshares = rshares;
                         cv.vote_percent = o.weight;
                         cv.last_update = _db.head_block_time();
-                        cv.created_order = comment.total_votes;
 
                         if (rshares > 0 && (comment.last_payout == fc::time_point_sec()) && comment.allow_curation_rewards) {
                             cv.orig_rshares = rshares;
@@ -1556,22 +1550,18 @@ namespace golos { namespace chain {
                                 /// start enforcing this prior to the hardfork
 
                                 /// discount weight by time
-
                                 uint64_t delta_t = std::min(
                                     uint64_t((cv.last_update - comment.created).to_seconds()),
                                     uint64_t(comment.auction_window_size));
 
-                                if (delta_t != uint64_t(comment.auction_window_size)) {
-                                    uint16_t auction_percent = static_cast<uint16_t>(
-                                        delta_t * STEEMIT_100_PERCENT / comment.auction_window_size);
-
-                                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
-                                        if (voter.name != comment.author) { // self upvote
-                                            cv.auction_percent = auction_percent;
-                                        }
+                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                                    if (voter.name == comment.author) { // self upvote
+                                        cv.auction_time = comment.auction_window_size;
                                     } else {
-                                        cv.auction_percent = static_cast<uint16_t>(delta_t);
+                                        cv.auction_time = static_cast<uint16_t>(delta_t);
                                     }
+                                } else {
+                                    cv.auction_time = static_cast<uint16_t>(delta_t);
                                 }
                             }
 

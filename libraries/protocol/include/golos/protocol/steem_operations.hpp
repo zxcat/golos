@@ -592,7 +592,7 @@ namespace golos { namespace protocol {
             /**
              * Auction window size
              */
-            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+            uint16_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
 
             /**
              * Maximum interest rate for delegated vesting shares
@@ -617,7 +617,7 @@ namespace golos { namespace protocol {
             /**
              * Curation curve
              */
-            curation_curve curation_reward_curve = curation_curve::fractional;
+            curation_curve curation_reward_curve = curation_curve::quadratic;
 
             void validate() const;
 
@@ -1272,7 +1272,8 @@ namespace golos { namespace protocol {
 
         enum delegator_payout_strategy {
             to_delegator,
-            to_delegated_vesting
+            to_delegated_vesting,
+            _size
         };
 
         class delegate_vesting_shares_with_interest_operation : public base_operation {
@@ -1405,6 +1406,6 @@ FC_REFLECT((golos::protocol::delegate_vesting_shares_operation), (delegator)(del
 FC_REFLECT((golos::protocol::chain_properties_update_operation), (owner)(props));
 FC_REFLECT((golos::protocol::break_free_referral_operation), (referral)(extensions));
 
-FC_REFLECT_ENUM(golos::protocol::delegator_payout_strategy, (to_delegator)(to_delegated_vesting))
+FC_REFLECT_ENUM(golos::protocol::delegator_payout_strategy, (to_delegator)(to_delegated_vesting)(_size))
 FC_REFLECT((golos::protocol::delegate_vesting_shares_with_interest_operation), (delegator)(delegatee)(vesting_shares)(interest_rate)(extensions));
 FC_REFLECT((golos::protocol::reject_vesting_shares_delegation_operation), (delegator)(delegatee)(extensions));

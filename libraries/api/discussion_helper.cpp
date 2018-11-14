@@ -142,7 +142,7 @@ namespace golos { namespace api {
 
         comment_curation_info c{database_, comment, true};
 
-        d.curation_curve = c.curve;
+        d.curation_reward_curve = c.curve;
         d.total_vote_weight = c.total_vote_weight;
         d.auction_window_weight = c.auction_window_weight;
         d.votes_in_auction_window_weight = c.votes_in_auction_window_weight;
