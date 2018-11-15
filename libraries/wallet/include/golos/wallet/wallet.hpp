@@ -5,6 +5,7 @@
 #include <golos/plugins/private_message/private_message_plugin.hpp>
 #include <golos/plugins/account_history/plugin.hpp>
 #include <golos/protocol/exceptions.hpp>
+#include <golos/protocol/reward_curve.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -62,6 +63,8 @@ namespace golos { namespace wallet {
 
             fc::optional<uint16_t> min_curation_percent;
             fc::optional<uint16_t> max_curation_percent;
+
+            fc::optional<protocol::curation_curve> curation_reward_curve;
         };
 
         struct optional_private_box_query {

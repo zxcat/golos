@@ -38,6 +38,8 @@ namespace golos { namespace api {
 
         fc::optional<uint16_t> min_curation_percent;
         fc::optional<uint16_t> max_curation_percent;
+
+        fc::optional<protocol::curation_curve> curation_reward_curve;
     };
 
 } } // golos::api
@@ -50,4 +52,4 @@ FC_REFLECT(
     (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
     (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)
-    (min_curation_percent)(max_curation_percent))
+    (min_curation_percent)(max_curation_percent)(curation_reward_curve))

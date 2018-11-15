@@ -28,6 +28,7 @@ namespace golos { namespace api {
             custom_ops_bandwidth_multiplier = src.custom_ops_bandwidth_multiplier;
             min_curation_percent = src.min_curation_percent;
             max_curation_percent = src.max_curation_percent;
+            curation_reward_curve = src.curation_reward_curve;
         }
     }
 

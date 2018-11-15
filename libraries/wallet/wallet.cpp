@@ -2272,7 +2272,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                     || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
                     || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
                     || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier
-                    || !!props.min_curation_percent || !!props.max_curation_percent) {
+                    || !!props.min_curation_percent || !!props.max_curation_percent || !!props.curation_reward_curve) {
                 chain_properties_19 p19;
                 p19 = p;
                 SET_PROP(p19, max_referral_interest_rate);
@@ -2287,6 +2287,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 SET_PROP(p19, custom_ops_bandwidth_multiplier);
                 SET_PROP(p19, min_curation_percent);
                 SET_PROP(p19, max_curation_percent);
+                SET_PROP(p19, curation_reward_curve);
                 op.props = p19;
             }
 #undef SET_PROP
