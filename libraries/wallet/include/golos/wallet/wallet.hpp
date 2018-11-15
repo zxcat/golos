@@ -65,6 +65,9 @@ namespace golos { namespace wallet {
             fc::optional<uint16_t> max_curation_percent;
 
             fc::optional<protocol::curation_curve> curation_reward_curve;
+
+            fc::optional<bool> allow_distribute_auction_reward;
+            fc::optional<bool> allow_return_auction_reward_to_fund;
         };
 
         struct optional_private_box_query {

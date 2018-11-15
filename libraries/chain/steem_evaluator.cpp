@@ -540,11 +540,21 @@ namespace golos { namespace chain {
 
             void operator()( const comment_auction_window_reward_destination& cawrd ) const {
                 ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__898, "auction window reward destination option");
+
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
                 GOLOS_CHECK_PARAM(cawrd.destination, {
-                    GOLOS_CHECK_VALUE(cawrd.destination == to_reward_fund || cawrd.destination == to_curators,
-                        "Auction window reward must go either to reward_fund or to curators."
+                    GOLOS_CHECK_VALUE(cawrd.destination != to_reward_fund || mprops.allow_return_auction_reward_to_fund,
+                        "Returning to reward fund is disallowed."
                     );
                 });
+
+                GOLOS_CHECK_PARAM(cawrd.destination, {
+                    GOLOS_CHECK_VALUE(cawrd.destination != to_curators || mprops.allow_distribute_auction_reward,
+                        "Distributing between curators is disallowed."
+                    );
+                });
+
                 _db.modify(_c, [&](comment_object& c) {
                     c.auction_window_reward_destination = cawrd.destination;
                 });

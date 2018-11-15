@@ -296,6 +296,12 @@ namespace golos { namespace protocol {
                     curation_reward_curve == curation_curve::square_root,
                     "Curation curve should fractional or liner, or square_root");
             });
+
+            GOLOS_CHECK_PARAM(allow_return_auction_reward_to_fund, {
+                GOLOS_CHECK_VALUE(
+                    allow_return_auction_reward_to_fund || allow_distribute_auction_reward,
+                    "One or both options should be enabled: allow_return_auction_reward_to_fund, allow_distribute_auction_reward");
+            });
         }
 
         void witness_update_operation::validate() const {

@@ -1931,6 +1931,8 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::custom_ops_bandwidth_multiplier);
             calc_median_min_max(&chain_properties_19::min_curation_percent, &chain_properties_19::max_curation_percent);
             calc_median(&chain_properties_19::curation_reward_curve);
+            calc_median(&chain_properties_19::allow_distribute_auction_reward);
+            calc_median(&chain_properties_19::allow_return_auction_reward_to_fund);
 
             const auto& dynamic_global_properties = get_dynamic_global_properties();
 

@@ -29,6 +29,8 @@ namespace golos { namespace api {
             min_curation_percent = src.min_curation_percent;
             max_curation_percent = src.max_curation_percent;
             curation_reward_curve = src.curation_reward_curve;
+            allow_distribute_auction_reward = src.allow_distribute_auction_reward;
+            allow_return_auction_reward_to_fund = src.allow_return_auction_reward_to_fund;
         }
     }
 

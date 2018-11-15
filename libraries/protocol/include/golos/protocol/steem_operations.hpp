@@ -619,6 +619,17 @@ namespace golos { namespace protocol {
              */
             curation_curve curation_reward_curve = curation_curve::quadratic;
 
+            /**
+             * Allow to return auction window reward to reward fund
+             */
+            bool allow_return_auction_reward_to_fund = true;
+
+             /**
+              * Allow to distribute auction window reward between curators
+              */
+            bool allow_distribute_auction_reward = true;
+
+
             void validate() const;
 
             chain_properties_19& operator=(const chain_properties_17& src) {
