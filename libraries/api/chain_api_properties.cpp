@@ -18,6 +18,7 @@ namespace golos { namespace api {
         if (db.has_hardfork(STEEMIT_HARDFORK_0_19)) {
             max_referral_interest_rate = src.max_referral_interest_rate;
             max_referral_term_sec = src.max_referral_term_sec;
+            min_referral_break_fee = src.min_referral_break_fee;
             max_referral_break_fee = src.max_referral_break_fee;
             comments_window = src.comments_window;
             comments_per_window = src.comments_per_window;

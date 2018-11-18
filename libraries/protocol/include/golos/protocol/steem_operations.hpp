@@ -565,9 +565,14 @@ namespace golos { namespace protocol {
             uint32_t max_referral_term_sec = GOLOS_DEFAULT_REFERRAL_TERM_SEC;
 
             /**
-             * Fee for breaking referral deductions by referral
+             * Min fee for breaking referral deductions by referral
              */
-            asset max_referral_break_fee = GOLOS_DEFAULT_REFERRAL_BREAK_FEE;
+            asset min_referral_break_fee = GOLOS_MIN_REFERRAL_BREAK_FEE;
+
+            /**
+             * Max fee for breaking referral deductions by referral
+             */
+            asset max_referral_break_fee = GOLOS_MAX_REFERRAL_BREAK_FEE;
 
             /**
              * Time window for commenting by account
@@ -1341,10 +1346,10 @@ FC_REFLECT_DERIVED(
     (create_account_delegation_time)(min_delegation))
 FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
-    (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
+    (max_referral_interest_rate)(max_referral_term_sec)(min_referral_break_fee)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
     (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent)
-    (curation_reward_curve))
+    (curation_reward_curve)(allow_distribute_auction_reward)(allow_return_auction_reward_to_fund))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 

@@ -279,7 +279,23 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_VALUE_LE(auction_window_size, STEEMIT_MAX_AUCTION_WINDOW_SIZE_SECONDS);
             GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, GOLOS_MAX_REFERRAL_INTEREST_RATE);
             GOLOS_CHECK_VALUE_LE(max_referral_term_sec, GOLOS_MAX_REFERRAL_TERM_SEC);
-            GOLOS_CHECK_VALUE_LEGE(max_referral_break_fee.amount, 0, GOLOS_MAX_REFERRAL_BREAK_FEE.amount);
+
+            GOLOS_CHECK_PARAM(min_referral_break_fee, {
+                GOLOS_CHECK_VALUE(is_asset_type(min_referral_break_fee, STEEM_SYMBOL),
+                    "Minimum break free must be GOLOS");
+                GOLOS_CHECK_VALUE(min_referral_break_fee >= asset(0, STEEM_SYMBOL),
+                    "Break free must be more or equal 0 GOLOS ");
+            });
+
+            GOLOS_CHECK_PARAM(max_referral_break_fee, {
+                GOLOS_CHECK_VALUE(is_asset_type(max_referral_break_fee, STEEM_SYMBOL),
+                    "Maximum break free must be GOLOS");
+                GOLOS_CHECK_VALUE(max_referral_break_fee > min_referral_break_fee,
+                    "Maximum break free cann't be more than minimum break free");
+                GOLOS_CHECK_VALUE(max_referral_break_fee < GOLOS_MAX_REFERRAL_BREAK_FEE,
+                    "Maximum break free cann't be more than ${max}", ("max", GOLOS_MAX_REFERRAL_BREAK_FEE));
+            });
+
             GOLOS_CHECK_VALUE_LEGE(comments_window, 1, std::numeric_limits<uint16_t>::max() / 2);
             GOLOS_CHECK_VALUE_LEGE(comments_per_window, 1, comments_window);
             GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);
@@ -300,7 +316,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(allow_return_auction_reward_to_fund, {
                 GOLOS_CHECK_VALUE(
                     allow_return_auction_reward_to_fund || allow_distribute_auction_reward,
-                    "One or both options should be enabled: allow_return_auction_reward_to_fund, allow_distribute_auction_reward");
+                    "One or both options should be enabled: allow_return_auction_reward_to_fund and allow_distribute_auction_reward");
             });
         }
 

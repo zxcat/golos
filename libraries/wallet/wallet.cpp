@@ -2269,7 +2269,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.props = p;
             auto hf = my->_remote_database_api->get_hardfork_version();
             if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
-                    || !!props.max_referral_term_sec || !!props.max_referral_break_fee || !!props.comments_window
+                    || !!props.max_referral_term_sec || !!props.comments_window
+                    || !!props.min_referral_break_fee || !!props.max_referral_break_fee
                     || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
                     || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier
                     || !!props.min_curation_percent || !!props.max_curation_percent || !!props.curation_reward_curve
@@ -2278,6 +2279,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 p19 = p;
                 SET_PROP(p19, max_referral_interest_rate);
                 SET_PROP(p19, max_referral_term_sec);
+                SET_PROP(p19, min_referral_break_fee);
                 SET_PROP(p19, max_referral_break_fee);
                 SET_PROP(p19, comments_window);
                 SET_PROP(p19, comments_per_window);
