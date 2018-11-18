@@ -2406,8 +2406,8 @@ void delegate_vesting_shares(
         auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
         auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
         auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
-        auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
-        GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
+        auto max_allowed = (uint128_t(delegator.vesting_shares.amount) * current_power / STEEMIT_100_PERCENT).to_uint64();
+        GOLOS_CHECK_LOGIC(delegated + delta <= asset(max_allowed, VESTS_SYMBOL),
             logic_exception::delegation_limited_by_voting_power,
             "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
             ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));
