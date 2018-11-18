@@ -5,7 +5,7 @@
 namespace golos { namespace protocol {
 
     enum class curation_curve: uint8_t {
-        quadratic,
+        bounded,
         linear,
         square_root,
         _size,
@@ -14,4 +14,4 @@ namespace golos { namespace protocol {
 
 } } // namespace golos::protocol
 
-FC_REFLECT_ENUM(golos::protocol::curation_curve, (detect)(quadratic)(linear)(square_root)(_size))
+FC_REFLECT_ENUM(golos::protocol::curation_curve, (detect)(bounded)(linear)(square_root)(_size))

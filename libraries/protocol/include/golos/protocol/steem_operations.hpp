@@ -622,7 +622,7 @@ namespace golos { namespace protocol {
             /**
              * Curation curve
              */
-            curation_curve curation_reward_curve = curation_curve::quadratic;
+            curation_curve curation_reward_curve = curation_curve::bounded;
 
             /**
              * Allow to return auction window reward to reward fund

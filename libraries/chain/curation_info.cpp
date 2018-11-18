@@ -67,7 +67,7 @@ namespace golos { namespace chain {
                 if (db.has_hardfork(STEEMIT_HARDFORK_0_19__677)) {
                     curve = db.get_witness_schedule_object().median_props.curation_reward_curve;
                 } else {
-                    curve = protocol::curation_curve::quadratic;
+                    curve = protocol::curation_curve::bounded;
                 }
             }
 
@@ -77,8 +77,8 @@ namespace golos { namespace chain {
     private:
         uint64_t calculate_curve(const comment_vote_object& vote) {
             switch (curve) {
-                case protocol::curation_curve::quadratic:
-                    return calculate_quadratic(vote);
+                case protocol::curation_curve::bounded:
+                    return calculate_bounded(vote);
 
                 case protocol::curation_curve::linear:
                     return calculate_linear(vote);
@@ -94,7 +94,7 @@ namespace golos { namespace chain {
          * W(R) = B * R / ( R + 2S )
          *  W(R) is bounded above by B. B is fixed at 2^64 - 1, so all weights fit in a 64 bit integer.
          */
-        uint64_t calculate_quadratic(const comment_vote_object& vote) {
+        uint64_t calculate_bounded(const comment_vote_object& vote) {
             static auto constant_alfa = uint128_t(2) * db.get_content_constant_s();
 
             auto rshares = uint128_t(vote_rshares.value);

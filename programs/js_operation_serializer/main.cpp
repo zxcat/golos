@@ -460,7 +460,7 @@ namespace detail_ns {
 
         static void generate() {
             std::cout << "ChainTypes." << js_name<curation_curve>::name() << " =\n";
-            for (uint8_t i = uint8_t(curation_curve::quadratic); i < uint8_t(curation_curve::_size); ++i) {
+            for (uint8_t i = uint8_t(curation_curve::bounded); i < uint8_t(curation_curve::_size); ++i) {
                 std::cout << "    " << fc::json::to_string(curation_curve(i)) << ": " << int(i) << "\n";
             }
             std::cout << "\n";
