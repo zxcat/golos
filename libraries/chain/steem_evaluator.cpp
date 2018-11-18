@@ -766,10 +766,18 @@ namespace golos { namespace chain {
                         }
 
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
-                            com.auction_window_reward_destination = protocol::to_reward_fund;
+                            if (mprops.allow_distribute_auction_reward) {
+                                com.auction_window_reward_destination = protocol::to_curators;
+                            } else {
+                                com.auction_window_reward_destination = protocol::to_reward_fund;
+                            }
+                            com.auction_window_size = mprops.auction_window_size;
+                        }
 
-                            const witness_schedule_object& wso = _db.get_witness_schedule_object();
-                            com.auction_window_size = wso.median_props.auction_window_size;
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
+                            com.curation_rewards_percent = mprops.min_curation_percent;
+                        } else {
+                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
                         }
 
                         com.author = o.author;
@@ -807,12 +815,6 @@ namespace golos { namespace chain {
                             } else {
                                 referrer_to_delete = true;
                             }
-                        }
-
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
-                            com.curation_rewards_percent = mprops.min_curation_percent;
-                        } else {
-                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
                         }
                     });
 
