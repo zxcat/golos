@@ -329,6 +329,7 @@ namespace golos { namespace wallet {
                     if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19)) {
                         result["max_referral_interest_rate"] = median_props.max_referral_interest_rate;
                         result["max_referral_term_sec"] = median_props.max_referral_term_sec;
+                        result["min_referral_break_fee"] = median_props.min_referral_break_fee;
                         result["max_referral_break_fee"] = median_props.max_referral_break_fee;
                         result["comments_window"] = median_props.comments_window;
                         result["comments_per_window"] = median_props.comments_per_window;
@@ -337,8 +338,11 @@ namespace golos { namespace wallet {
                         result["auction_window_size"] = median_props.auction_window_size;
                         result["max_delegated_vesting_interest_rate"] = median_props.max_delegated_vesting_interest_rate;
                         result["custom_ops_bandwidth_multiplier"] = median_props.custom_ops_bandwidth_multiplier;
+                        result["allow_distribute_auction_reward"] = median_props.allow_distribute_auction_reward;
+                        result["allow_return_auction_reward_to_fund"] = median_props.allow_return_auction_reward_to_fund;
                         result["min_curation_percent"] = median_props.min_curation_percent;
                         result["max_curation_percent"] = median_props.max_curation_percent;
+                        result["curation_reward_curve"] = median_props.curation_reward_curve;
                     }
 
                     return result;

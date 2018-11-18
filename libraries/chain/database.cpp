@@ -1924,6 +1924,7 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::auction_window_size);
             calc_median(&chain_properties_19::max_referral_interest_rate);
             calc_median(&chain_properties_19::max_referral_term_sec);
+            calc_median(&chain_properties_19::min_referral_break_fee);
             calc_median(&chain_properties_19::max_referral_break_fee);
             calc_median_battery(&chain_properties_19::comments_window, &chain_properties_19::comments_per_window);
             calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);

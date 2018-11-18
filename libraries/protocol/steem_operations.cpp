@@ -290,9 +290,9 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(max_referral_break_fee, {
                 GOLOS_CHECK_VALUE(is_asset_type(max_referral_break_fee, STEEM_SYMBOL),
                     "Maximum break free must be GOLOS");
-                GOLOS_CHECK_VALUE(max_referral_break_fee > min_referral_break_fee,
+                GOLOS_CHECK_VALUE(max_referral_break_fee >= min_referral_break_fee,
                     "Maximum break free cann't be more than minimum break free");
-                GOLOS_CHECK_VALUE(max_referral_break_fee < GOLOS_MAX_REFERRAL_BREAK_FEE,
+                GOLOS_CHECK_VALUE(max_referral_break_fee <= GOLOS_MAX_REFERRAL_BREAK_FEE,
                     "Maximum break free cann't be more than ${max}", ("max", GOLOS_MAX_REFERRAL_BREAK_FEE));
             });
 
