@@ -2360,7 +2360,9 @@ namespace golos { namespace chain {
                         uint128_t weight(itr->weight);
                         uint64_t claim = ((max_rewards.value * weight) / total_weight).to_uint64();
                         // to_curators case
-                        if (c.comment.auction_window_reward_destination == protocol::to_curators && itr->vote->auction_time == 0) {
+                        if (c.comment.auction_window_reward_destination == protocol::to_curators &&
+                            itr->vote->auction_time == c.comment.auction_window_size
+                        ) {
                             if (c.votes_after_auction_window_weight) {
                                 claim += ((auction_window_reward * weight) / c.votes_after_auction_window_weight).to_uint64();
                             }
