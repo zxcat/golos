@@ -1894,11 +1894,11 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(w.signing_key, op.block_signing_key);
             BOOST_CHECK_EQUAL(w.props.account_creation_fee, op.props.account_creation_fee);
             BOOST_CHECK_EQUAL(w.props.maximum_block_size, op.props.maximum_block_size);
-            BOOST_CHECK_EQUAL(w.total_missed, 0);
-            BOOST_CHECK_EQUAL(w.last_aslot, 0);
-            BOOST_CHECK_EQUAL(w.last_confirmed_block_num, 0);
-            BOOST_CHECK_EQUAL(w.pow_worker, 0);
-            BOOST_CHECK_EQUAL(w.votes.value, 0);
+            BOOST_CHECK_EQUAL(w.total_missed, 0u);
+            BOOST_CHECK_EQUAL(w.last_aslot, 0u);
+            BOOST_CHECK_EQUAL(w.last_confirmed_block_num, 0u);
+            BOOST_CHECK_EQUAL(w.pow_worker, 0u);
+            BOOST_CHECK_EQUAL(w.votes.value, 0u);
             BOOST_CHECK_EQUAL(w.virtual_last_update, 0);
             BOOST_CHECK_EQUAL(w.virtual_position, 0);
             BOOST_CHECK_EQUAL(w.virtual_scheduled_time, fc::uint128_t::max_value());
@@ -1918,8 +1918,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(w.signing_key, op.block_signing_key);
             BOOST_CHECK_EQUAL(w.props.account_creation_fee, op.props.account_creation_fee);
             BOOST_CHECK_EQUAL(w.props.maximum_block_size, op.props.maximum_block_size);
-            BOOST_CHECK_EQUAL(w.total_missed, 0);
-            BOOST_CHECK_EQUAL(w.last_aslot, 0);
+            BOOST_CHECK_EQUAL(w.total_missed, 0u);
+            BOOST_CHECK_EQUAL(w.last_aslot, 0u);
             BOOST_CHECK_EQUAL(w.last_confirmed_block_num, 0);
             BOOST_CHECK_EQUAL(w.pow_worker, 0);
             BOOST_CHECK_EQUAL(w.votes.value, 0);
@@ -3058,7 +3058,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             BOOST_CHECK_EQUAL(bob.sbd_balance.amount.value,
                           ASSET("992.500 GBG").amount.value);
             BOOST_CHECK_EQUAL(fill_order_op.open_owner, "alice");
-            BOOST_CHECK_EQUAL(fill_order_op.open_orderid, 1);
+            BOOST_CHECK_EQUAL(fill_order_op.open_orderid, 1u);
             BOOST_CHECK_EQUAL(fill_order_op.open_pays.amount.value,
                           ASSET("5.000 GOLOS").amount.value);
             BOOST_CHECK_EQUAL(fill_order_op.current_owner, "bob");
@@ -7841,12 +7841,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
             vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
 
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -7855,19 +7855,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
                 rwd += account.curation_rewards;
             }
             auto& alice_acc = db->get_account(alice_post.author);
-
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -7928,12 +7917,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
             vote_sequence(comment.author, comment.permlink, voters_count, 5);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
 
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -7942,21 +7931,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
                 rwd += account.curation_rewards;
             }
             auto& alice_acc = db->get_account(alice_post.author);
-
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            BOOST_CHECK(auw_tokens < allowed_tokens_delta); // equals zero
-            BOOST_CHECK(total_comment_fund.reward_fund().amount.value < allowed_tokens_delta); // equals zero
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -8017,12 +7993,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             vote_sequence(comment.author, comment.permlink, voters_count, 5);
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
 
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -8031,19 +8007,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
                 rwd += account.curation_rewards;
             }
             auto& alice_acc = db->get_account(alice_post.author);
-
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -8105,12 +8070,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
             vote_sequence(comment.author, comment.permlink, voters_count, 5);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
 
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -8120,19 +8085,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             }
 
             auto& alice_acc = db->get_account(alice_post.author);
-
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -8193,11 +8147,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             vote_sequence(comment.author, comment.permlink, voters_count, 5);
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
+
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -8206,22 +8161,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
                 rwd += account.curation_rewards;
             }
             auto& alice_acc = db->get_account(alice_post.author);
-
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            // check that if all votes've been made in auction window, then auw reward should go to reward fund
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            BOOST_CHECK(auw_tokens > allowed_tokens_delta); // non-zero value
-            BOOST_CHECK(total_comment_fund.reward_fund().amount.value > allowed_tokens_delta); // non-zero value
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }
@@ -8283,12 +8224,12 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             generate_blocks((alice_post.created + alice_post.auction_window_size), true);
             vote_sequence(comment.author, comment.permlink, voters_count / 2, 5);
 
+            generate_blocks((alice_post.cashout_time - STEEMIT_BLOCK_INTERVAL), true);
 
             comment_fund total_comment_fund(*db);
             comment_reward alice_post_reward(*db, total_comment_fund, alice_post);
-            auto& gpo = db->get_dynamic_global_properties();
 
-            generate_blocks((alice_post.cashout_time), true);
+            generate_block();
 
             share_type rwd = 0;
             for (int i = 0; i < voters_count; i++) {
@@ -8298,18 +8239,8 @@ BOOST_FIXTURE_TEST_SUITE(auction_window_tests, votes_extended_fixture)
             }
             auto& alice_acc = db->get_account(alice_post.author);
 
-            double auw_tokens = (gpo.total_reward_fund_steem.amount.value);
-            double total_payout = (alice_acc.posting_rewards.value) * 100.0 / 75.0;
-            double voters_reward = (rwd.value);
-            double voters_reward_percent = (auw_tokens + voters_reward) / total_payout;
-            double modeled_voters_reward_percent = (total_comment_fund.reward_fund().amount.value + voters_reward) / total_payout;
-
-            double allowed_percent_delta = 0.01; // = 1e-2
-            double allowed_tokens_delta = 50;
-
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, voters_reward_percent, allowed_percent_delta);
-            APPROX_CHECK_EQUAL(auw_tokens, total_comment_fund.reward_fund().amount.value, allowed_tokens_delta);
-            APPROX_CHECK_DOUBLE_EQUAL(0.25, modeled_voters_reward_percent, allowed_percent_delta);
+            BOOST_CHECK_EQUAL(rwd.value, alice_post_reward.total_curators_reward());
+            BOOST_CHECK_EQUAL(alice_acc.posting_rewards.value, alice_post_reward.total_author_reward());
         }
         FC_LOG_AND_RETHROW()
     }

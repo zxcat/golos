@@ -45,7 +45,7 @@ namespace golos { namespace chain {
             BOOST_REQUIRE_LE(vshares.to_uint64(), reward_shares_.to_uint64());
 
             auto reward = vshares * reward_fund_.amount.value / reward_shares_;
-            BOOST_REQUIRE_LE(reward.to_uint64(), reward_fund_.amount.value);
+            BOOST_REQUIRE_LE(reward.to_uint64(), static_cast<uint64_t>(reward_fund_.amount.value));
 
             reward_shares_ -= vshares;
             reward_fund_ -= asset(reward.to_uint64(), reward_fund_.symbol);
@@ -119,10 +119,20 @@ namespace golos { namespace chain {
             return total_vote_payouts_;
         }
 
+        int64_t total_curators_reward() const {
+            return total_vote_rewards_;
+        }
+
+        int64_t total_author_reward() const {
+            return comment_rewards_;
+        }
+
         asset vote_payout(const account_object& voter) const {
             auto itr = vote_payout_map_.find(voter.id);
-            BOOST_REQUIRE(vote_payout_map_.end() != itr);
-            return itr->second;
+            if (vote_payout_map_.end() != itr) {
+                return itr->second;
+            }
+            return asset(0, VESTS_SYMBOL);
         }
 
         asset vote_payout(const std::string& voter) const {
@@ -194,11 +204,10 @@ namespace golos { namespace chain {
             total_vote_rewards_ = 0;
             total_vote_payouts_ = asset(0, VESTS_SYMBOL);
 
-            auto auction_window_reward = vote_rewards_fund_ * c.auction_window_weight / total_weight;
+            auto auction_window_reward = (uint128_t(vote_rewards_fund_) * c.auction_window_weight / total_weight).to_uint64();
 
             auto auw_time = comment_.created + comment_.auction_window_size;
             uint64_t heaviest_vote_after_auw_weight = 0;
-
             account_id_type heaviest_vote_after_auw_account;
 
             for (auto itr = c.vote_list.begin(); itr != c.vote_list.end(); ++itr) {
@@ -206,13 +215,16 @@ namespace golos { namespace chain {
                 auto weight = u256(itr->weight);
                 uint64_t claim = static_cast<uint64_t>(weight * vote_rewards_fund_ / total_weight);
                 // to_curators case
-                if (comment_.auction_window_reward_destination == protocol::to_curators && itr->vote->last_update >= auw_time) {
-                    claim += static_cast<int64_t>((auction_window_reward * weight) / c.votes_after_auction_window_weight);
-
-                    if (claim > heaviest_vote_after_auw_weight) {
+                if (comment_.auction_window_reward_destination == protocol::to_curators &&
+                    (itr->vote->last_update >= auw_time || db_.get(itr->vote->voter).name == comment_.author)
+                ) {
+                    if (!heaviest_vote_after_auw_weight) {
+                        heaviest_vote_after_auw_weight = itr->weight;
                         heaviest_vote_after_auw_account = itr->vote->voter;
-                        heaviest_vote_after_auw_weight = claim;
+                        continue;
                     }
+
+                    claim += static_cast<int64_t>((auction_window_reward * weight) / c.votes_after_auction_window_weight);
                 }
 
                 auto reward = claim;
@@ -249,6 +261,10 @@ namespace golos { namespace chain {
                 //      unclaimed_rewards already contains this.
                 total_vote_rewards_ += unclaimed_rewards;
                 BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
+
+                auto payout = fund_.create_vesting(asset(unclaimed_rewards, STEEM_SYMBOL));
+                vote_payout_map_.emplace(heaviest_vote_after_auw_account, payout);
+                total_vote_payouts_ += payout;
 
                 unclaimed_rewards = 0;
             }
