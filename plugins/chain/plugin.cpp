@@ -90,7 +90,7 @@ namespace golos { namespace plugins { namespace chain {
 
         const auto& idx = db.get_index<golos::chain::comment_vote_index>().indices().get<golos::chain::by_vote_last_update>();
         auto itr = idx.begin();
-        while (itr != idx.end() && itr->num_changes == -1 && (del_any || now - itr->last_update > fc::seconds(ttl))) {
+        while (itr != idx.end() && itr->num_changes < 0 && (del_any || now - itr->last_update > fc::seconds(ttl))) {
             const auto& vote = *itr;
             ++itr;
             db.remove(vote);

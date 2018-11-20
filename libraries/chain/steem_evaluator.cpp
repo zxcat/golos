@@ -540,11 +540,21 @@ namespace golos { namespace chain {
 
             void operator()( const comment_auction_window_reward_destination& cawrd ) const {
                 ASSERT_REQ_HF(STEEMIT_HARDFORK_0_19__898, "auction window reward destination option");
+
+                const auto& mprops = _db.get_witness_schedule_object().median_props;
+
                 GOLOS_CHECK_PARAM(cawrd.destination, {
-                    GOLOS_CHECK_VALUE(cawrd.destination == to_reward_fund || cawrd.destination == to_curators,
-                        "Auction window reward must go either to reward_fund or to curators."
+                    GOLOS_CHECK_VALUE(cawrd.destination != to_reward_fund || mprops.allow_return_auction_reward_to_fund,
+                        "Returning to reward fund is disallowed."
                     );
                 });
+
+                GOLOS_CHECK_PARAM(cawrd.destination, {
+                    GOLOS_CHECK_VALUE(cawrd.destination != to_curators || mprops.allow_distribute_auction_reward,
+                        "Distributing between curators is disallowed."
+                    );
+                });
+
                 _db.modify(_c, [&](comment_object& c) {
                     c.auction_window_reward_destination = cawrd.destination;
                 });
@@ -756,10 +766,18 @@ namespace golos { namespace chain {
                         }
 
                         if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
-                            com.auction_window_reward_destination = protocol::to_reward_fund;
+                            if (mprops.allow_distribute_auction_reward) {
+                                com.auction_window_reward_destination = protocol::to_curators;
+                            } else {
+                                com.auction_window_reward_destination = protocol::to_reward_fund;
+                            }
+                            com.auction_window_size = mprops.auction_window_size;
+                        }
 
-                            const witness_schedule_object& wso = _db.get_witness_schedule_object();
-                            com.auction_window_size = wso.median_props.auction_window_size;
+                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
+                            com.curation_rewards_percent = mprops.min_curation_percent;
+                        } else {
+                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
                         }
 
                         com.author = o.author;
@@ -797,12 +815,6 @@ namespace golos { namespace chain {
                             } else {
                                 referrer_to_delete = true;
                             }
-                        }
-
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__324)) {
-                            com.curation_rewards_percent = mprops.min_curation_percent;
-                        } else {
-                            com.curation_rewards_percent = STEEMIT_MIN_CURATION_PERCENT;
                         }
                     });
 
@@ -1341,12 +1353,16 @@ namespace golos { namespace chain {
                     const auto& comment_vote_idx = _db.get_index<comment_vote_index>().indices().get<by_comment_voter>();
                     auto itr = comment_vote_idx.find(std::make_tuple(comment.id, voter.id));
                     if (itr == comment_vote_idx.end()) {
+                        _db.modify(comment, [&](comment_object &c) {
+                            ++c.total_votes;
+                        });
+
                         _db.create<comment_vote_object>([&](comment_vote_object& cvo) {
                             cvo.voter = voter.id;
                             cvo.comment = comment.id;
                             cvo.vote_percent = o.weight;
                             cvo.last_update = _db.head_block_time();
-                            cvo.num_changes = -1;           // mark vote that it's ready to be removed (archived comment)
+                            cvo.num_changes = -2;           // mark vote that it's ready to be removed (archived comment)
                         });
                     } else {
                         _db.modify(*itr, [&](comment_vote_object& cvo) {
@@ -1428,6 +1444,7 @@ namespace golos { namespace chain {
 
                 if (itr == comment_vote_idx.end()) {
                     std::vector<delegator_vote_interest_rate> delegator_vote_interest_rates;
+                    delegator_vote_interest_rates.reserve(100);
                     if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__756) && voter.received_vesting_shares > asset(0, VESTS_SYMBOL)) {
                         const auto& vdo_idx = _db.get_index<vesting_delegation_index>().indices().get<by_received>();
                         auto vdo_itr = vdo_idx.lower_bound(voter.name);
@@ -1437,7 +1454,9 @@ namespace golos { namespace chain {
                             dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
                                                  / voter.effective_vesting_shares().amount.value;
                             dvir.payout_strategy = vdo_itr->payout_strategy;
-                            delegator_vote_interest_rates.push_back(dvir);
+                            if (dvir.interest_rate > 0) {
+                                delegator_vote_interest_rates.emplace_back(std::move(dvir));
+                            }
                         }
                     }
 
@@ -1486,8 +1505,6 @@ namespace golos { namespace chain {
                     GOLOS_CHECK_LOGIC(abs_rshares > 0, logic_exception::cannot_vote_with_zero_rshares,
                             "Cannot vote with 0 rshares.");
 
-                    auto old_vote_rshares = comment.vote_rshares;
-
                     _db.modify(comment, [&](comment_object &c) {
                         c.net_rshares += rshares;
                         c.abs_rshares += abs_rshares;
@@ -1530,28 +1547,6 @@ namespace golos { namespace chain {
                     /// calculate rshares2 value
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
-                    uint64_t max_vote_weight = 0;
-                    uint64_t auction_window_weight = 0;
-                    uint64_t votes_in_auction_window_weight = 0;
-
-                   /** this verifies uniqueness of voter
-                    *
-                    *  cv.weight / c.total_vote_weight ==> % of rshares increase that is accounted for by the vote
-                    *
-                    *  W(R) = B * R / ( R + 2S )
-                    *  W(R) is bounded above by B. B is fixed at 2^64 - 1, so all weights fit in a 64 bit integer.
-                    *
-                    *  The equation for an individual vote is:
-                    *    W(R_N) - W(R_N-1), which is the delta increase of proportional weight
-                    *
-                    *  c.total_vote_weight =
-                    *    W(R_1) - W(R_0) +
-                    *    W(R_2) - W(R_1) + ...
-                    *    W(R_N) - W(R_N-1) = W(R_N) - W(R_0)
-                    *
-                    *  Since W(R_0) = 0, c.total_vote_weight is also bounded above by B and will always fit in a 64 bit integer.
-                    *
-                    **/
 
                     _db.create<comment_vote_object>([&](comment_vote_object &cv) {
                         cv.voter = voter.id;
@@ -1560,99 +1555,35 @@ namespace golos { namespace chain {
                         cv.vote_percent = o.weight;
                         cv.last_update = _db.head_block_time();
 
-                        if (rshares > 0 &&
-                            (comment.last_payout == fc::time_point_sec()) &&
-                            comment.allow_curation_rewards) {
-                            if (comment.created <
-                                fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
-                                u512 rshares3(rshares);
-                                u256 total2(comment.abs_rshares.value);
+                        if (rshares > 0 && (comment.last_payout == fc::time_point_sec()) && comment.allow_curation_rewards) {
+                            cv.orig_rshares = rshares;
 
-                                if (!_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
-                                    rshares3 *= 10000;
-                                    total2 *= 10000;
-                                }
+                            if (_db.head_block_time() > fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME)) {
+                                /// start enforcing this prior to the hardfork
 
-                                rshares3 = rshares3 * rshares3 * rshares3;
-
-                                total2 *= total2;
-                                cv.weight = static_cast<uint64_t>(rshares3 / total2);
-                            } else {// cv.weight = W(R_1) - W(R_0)
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_1)) {
-                                    uint64_t old_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(old_vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             old_vote_rshares.value)).to_uint64();
-                                    uint64_t new_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(comment.vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             comment.vote_rshares.value)).to_uint64();
-                                    cv.weight = new_weight - old_weight;
-                                } else {
-                                    uint64_t old_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(10000 *
-                                                           old_vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             (10000 *
-                                              old_vote_rshares.value))).to_uint64();
-                                    uint64_t new_weight = (
-                                            (std::numeric_limits<uint64_t>::max() *
-                                             fc::uint128_t(10000 *
-                                                           comment.vote_rshares.value)) /
-                                            (2 * _db.get_content_constant_s() +
-                                             (10000 *
-                                              comment.vote_rshares.value))).to_uint64();
-                                    cv.weight = new_weight - old_weight;
-                                }
-                            }
-
-                            max_vote_weight = cv.weight;
-
-                            if (_db.head_block_time() >
-                                fc::time_point_sec(STEEMIT_HARDFORK_0_6_REVERSE_AUCTION_TIME))  /// start enforcing this prior to the hardfork
-                            {
                                 /// discount weight by time
-                                uint32_t auction_window = comment.auction_window_size;
-
-                                uint128_t w(max_vote_weight);
                                 uint64_t delta_t = std::min(
                                     uint64_t((cv.last_update - comment.created).to_seconds()),
-                                    uint64_t(auction_window));
+                                    uint64_t(comment.auction_window_size));
 
-                                w *= delta_t;
-                                w /= auction_window;
-                                cv.weight = w.to_uint64();
-
-                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898) && w > 0 && delta_t != uint64_t(auction_window)) {
-                                    auction_window_weight = max_vote_weight - w.to_uint64();
-                                    votes_in_auction_window_weight = w.to_uint64();
+                                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__898)) {
+                                    if (voter.name == comment.author) { // self upvote
+                                        cv.auction_time = comment.auction_window_size;
+                                    } else {
+                                        cv.auction_time = static_cast<uint16_t>(delta_t);
+                                    }
+                                } else {
+                                    cv.auction_time = static_cast<uint16_t>(delta_t);
                                 }
                             }
 
-                            if (!delegator_vote_interest_rates.empty() && cv.weight != 0) {
+                            if (!delegator_vote_interest_rates.empty()) {
                                 for (auto& dvir : delegator_vote_interest_rates) {
-                                    if (dvir.interest_rate == 0) {
-                                        continue;
-                                    }
                                     cv.delegator_vote_interest_rates.push_back(dvir);
                                 }
                             }
-                        } else {
-                            cv.weight = 0;
                         }
                     });
-
-                    if (max_vote_weight) {
-                        // Optimization
-                        _db.modify(comment, [&](comment_object& c) {
-                            c.total_vote_weight += max_vote_weight;
-                            c.auction_window_weight += auction_window_weight;
-                            c.votes_in_auction_window_weight += votes_in_auction_window_weight;
-                        });
-                    }
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
                 } else {
@@ -1752,15 +1683,10 @@ namespace golos { namespace chain {
                     new_rshares = _db.calculate_vshares(new_rshares);
                     old_rshares = _db.calculate_vshares(old_rshares);
 
-                    _db.modify(comment, [&](comment_object &c) {
-                        c.total_vote_weight -= itr->weight;
-                    });
-
                     _db.modify(*itr, [&](comment_vote_object &cv) {
                         cv.rshares = rshares;
                         cv.vote_percent = o.weight;
                         cv.last_update = _db.head_block_time();
-                        cv.weight = 0;
                         cv.num_changes += 1;
 
                         cv.delegator_vote_interest_rates.clear();
@@ -2482,8 +2408,8 @@ void delegate_vesting_shares(
         auto elapsed_seconds = (now - delegator.last_vote_time).to_seconds();
         auto regenerated_power = (STEEMIT_100_PERCENT * elapsed_seconds) / STEEMIT_VOTE_REGENERATION_SECONDS;
         auto current_power = std::min<int64_t>(delegator.voting_power + regenerated_power, STEEMIT_100_PERCENT);
-        auto max_allowed = delegator.vesting_shares * current_power / STEEMIT_100_PERCENT;
-        GOLOS_CHECK_LOGIC(delegated + delta <= max_allowed,
+        auto max_allowed = (uint128_t(delegator.vesting_shares.amount) * current_power / STEEMIT_100_PERCENT).to_uint64();
+        GOLOS_CHECK_LOGIC(delegated + delta <= asset(max_allowed, VESTS_SYMBOL),
             logic_exception::delegation_limited_by_voting_power,
             "Account allowed to delegate a maximum of ${v} with current voting power = ${p}",
             ("v",max_allowed)("p",current_power)("delegated",delegated)("delta",delta));

@@ -83,7 +83,6 @@ namespace golos {
             share_type children_abs_rshares; /// this is used to calculate cashout time of a discussion.
             time_point_sec cashout_time; /// 24 hours from the weighted average of vote time
             time_point_sec max_cashout_time;
-            uint64_t total_vote_weight = 0; /// the total weight of voting rewards, used to calculate pro-rata share of curation payouts
 
             uint16_t reward_weight = 0;
 
@@ -96,10 +95,9 @@ namespace golos {
 
             comment_mode mode = first_payout;
 
+            protocol::curation_curve curation_reward_curve = protocol::curation_curve::detect;
             auction_window_reward_destination_type auction_window_reward_destination = protocol::to_author;
-            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
-            uint64_t auction_window_weight = 0;
-            uint64_t votes_in_auction_window_weight = 0;
+            uint16_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
 
             asset max_accepted_payout = asset(1000000000, SBD_SYMBOL);       /// SBD value of the maximum payout this post will receive
             uint16_t percent_steem_dollars = STEEMIT_100_PERCENT; /// the percent of Golos Dollars to key, unkept amounts will be received as Golos Power
@@ -141,9 +139,10 @@ namespace golos {
 
             account_id_type voter;
             comment_id_type comment;
-            uint64_t weight = 0; ///< defines the score this vote receives, used by vote payout calc. 0 if a negative vote or changed votes.
+            int64_t orig_rshares = 0;
             int64_t rshares = 0; ///< The number of rshares this vote is responsible for
             int16_t vote_percent = 0; ///< The percent weight of the vote
+            uint16_t auction_time = 0; ///< Vote in auction window time
             time_point_sec last_update; ///< The time of the last update of the vote
             int8_t num_changes = 0; ///< Count of vote changes (while consensus). If = -1 then related post is archived & vote no more needed for consensus
 
@@ -152,7 +151,7 @@ namespace golos {
 
         struct by_comment_voter;
         struct by_voter_comment;
-        struct by_comment_weight_voter;
+        struct by_comment_vote_order;
         struct by_vote_last_update;
         using comment_vote_index = multi_index_container<
             comment_vote_object,
@@ -172,18 +171,13 @@ namespace golos {
                     >
                 >,
                 ordered_non_unique<tag<by_vote_last_update>,
-                    composite_key<comment_vote_object,
-                        member<comment_vote_object, int8_t, &comment_vote_object::num_changes>,
-                        member<comment_vote_object, time_point_sec, &comment_vote_object::last_update>
-                    >
+                    member<comment_vote_object, time_point_sec, &comment_vote_object::last_update>
                 >,
-                ordered_unique<tag<by_comment_weight_voter>,
+                ordered_unique<tag<by_comment_vote_order>,
                     composite_key<comment_vote_object,
                         member<comment_vote_object, comment_id_type, &comment_vote_object::comment>,
-                        member<comment_vote_object, uint64_t, &comment_vote_object::weight>,
-                        member<comment_vote_object, account_id_type, &comment_vote_object::voter>
-                    >,
-                    composite_key_compare<std::less<comment_id_type>, std::greater<uint64_t>, std::less<account_id_type>>
+                        member<comment_vote_object, comment_vote_id_type, &comment_vote_object::id>
+                    >
                 >
             >,
             allocator<comment_vote_object>
@@ -199,7 +193,6 @@ namespace golos {
          * @ingroup object_index
          */
         typedef multi_index_container <
-
             comment_object,
             indexed_by<
                 ordered_unique <

@@ -656,7 +656,7 @@ namespace golos { namespace plugins { namespace social_network {
             (uint32_t, vote_offset, 0)
         );
         return pimpl->db.with_weak_read_lock([&]() {
-            return pimpl->get_all_content_replies(author, permlink, vote_limit, 0);
+            return pimpl->get_all_content_replies(author, permlink, vote_limit, vote_offset);
         });
     }
 
@@ -723,7 +723,7 @@ namespace golos { namespace plugins { namespace social_network {
                 const auto& vo = db.get(itr->comment);
                 account_vote avote;
                 avote.authorperm = vo.author + "/" + to_string(vo.permlink);
-                avote.weight = itr->weight;
+                //avote.weight = itr->weight; // TODO:
                 avote.rshares = itr->rshares;
                 avote.percent = itr->vote_percent;
                 avote.time = itr->last_update;
@@ -830,7 +830,7 @@ namespace golos { namespace plugins { namespace social_network {
         );
         GOLOS_CHECK_LIMIT_PARAM(limit, 100);
         return pimpl->db.with_weak_read_lock([&]() {
-            return pimpl->get_replies_by_last_update(start_parent_author, start_permlink, limit, vote_limit, 0);
+            return pimpl->get_replies_by_last_update(start_parent_author, start_permlink, limit, vote_limit, vote_offset);
         });
     }
 

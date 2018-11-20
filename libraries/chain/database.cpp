@@ -19,6 +19,7 @@
 #include <golos/chain/shared_db_merkle.hpp>
 #include <golos/chain/operation_notification.hpp>
 #include <golos/chain/proposal_object.hpp>
+#include <golos/chain/curation_info.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -1923,12 +1924,16 @@ namespace golos { namespace chain {
             calc_median(&chain_properties_19::auction_window_size);
             calc_median(&chain_properties_19::max_referral_interest_rate);
             calc_median(&chain_properties_19::max_referral_term_sec);
+            calc_median(&chain_properties_19::min_referral_break_fee);
             calc_median(&chain_properties_19::max_referral_break_fee);
             calc_median_battery(&chain_properties_19::comments_window, &chain_properties_19::comments_per_window);
             calc_median_battery(&chain_properties_19::votes_window, &chain_properties_19::votes_per_window);
             calc_median(&chain_properties_19::max_delegated_vesting_interest_rate);
             calc_median(&chain_properties_19::custom_ops_bandwidth_multiplier);
             calc_median_min_max(&chain_properties_19::min_curation_percent, &chain_properties_19::max_curation_percent);
+            calc_median(&chain_properties_19::curation_reward_curve);
+            calc_median(&chain_properties_19::allow_distribute_auction_reward);
+            calc_median(&chain_properties_19::allow_return_auction_reward_to_fund);
 
             const auto& dynamic_global_properties = get_dynamic_global_properties();
 
@@ -2334,77 +2339,57 @@ namespace golos { namespace chain {
                 a.curation_rewards += voter_claim;
             });
         }
-
 /**
  *  This method will iterate through all comment_vote_objects and give them
  *  (max_rewards * weight) / c.total_vote_weight.
  *
  *  @returns unclaimed rewards.
  */
-        share_type database::pay_curators(const comment_object &c, share_type max_rewards) {
+        share_type database::pay_curators(const comment_curation_info& c, share_type max_rewards) {
             try {
-                uint128_t total_weight(c.total_vote_weight);
-                //edump( (total_weight)(max_rewards) );
-                
                 share_type unclaimed_rewards = max_rewards;
 
-                if (c.total_vote_weight > 0 && c.allow_curation_rewards) {
+                if (c.total_vote_weight > 0 && c.comment.allow_curation_rewards) {
+                    uint128_t total_weight(c.total_vote_weight);
                     uint128_t auction_window_reward = uint128_t(max_rewards.value) * c.auction_window_weight / total_weight;
-                    auto votes_after_auction_window_weight = total_weight - c.votes_in_auction_window_weight - c.auction_window_weight;
-                    auto auw_time = c.created + c.auction_window_size;
-
-                    // If auction window reward is chosen to go to curators, we need to
-                    // separated votes for 2 sets: 
-                    // c.created     auction_window               cashout
-                    // |_______________|____________________________|
-                    //     1                      2 
-                    // 1st set contains votes with last_update from [c.created, c.created + auction_window_size)
-                    // 2st set contains votes with last_update from [c.created + auction_window_size, cashout]
-
-                    // Also we need to distibute auction_window reward to voters from second set.
-                    // So we need to calculate parts of reward for 3 sets:
-                    //       - votes_in_auction_window_reward
-                    //       - votes_after_auction_window_reward
-                    //       - auction_window_reward 
-
-                    const auto &cvidx = get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-                    auto itr = cvidx.lower_bound(c.id);
 
                     // memorize the top weight account after auction window
-                    auto heaviest_itr = cvidx.end();
+                    auto heaviest_itr = c.vote_list.end();
 
-                    while (itr != cvidx.end() && itr->comment == c.id) {
+                    for (auto itr = c.vote_list.begin(); c.vote_list.end() != itr; ++itr) {
                         uint128_t weight(itr->weight);
                         uint64_t claim = ((max_rewards.value * weight) / total_weight).to_uint64();
                         // to_curators case
-                        if (c.auction_window_reward_destination == protocol::to_curators && itr->last_update >= auw_time) {
-                            claim += ((auction_window_reward * weight) / votes_after_auction_window_weight).to_uint64();
-                            if (heaviest_itr == cvidx.end()) {
+                        if (c.comment.auction_window_reward_destination == protocol::to_curators &&
+                            itr->vote->auction_time == c.comment.auction_window_size
+                        ) {
+                            if (c.votes_after_auction_window_weight) {
+                                claim += ((auction_window_reward * weight) / c.votes_after_auction_window_weight).to_uint64();
+                            }
+                            if (heaviest_itr == c.vote_list.end()) {
                                 // as votes are sorted in non-decreasing order
                                 // this if will work once or won't work at all
                                 heaviest_itr = itr;
-                                ++itr;
                                 continue;
                             }
                         }
 
                         if (claim > 0) { // min_amt is non-zero satoshis
                             unclaimed_rewards -= claim;
-                            pay_curator(*itr, claim, c.author, to_string(c.permlink));
+                            pay_curator(*itr->vote, claim, c.comment.author, to_string(c.comment.permlink));
                         } else {
                             break;
                         }
-                        ++itr;
                     }
-                    if (c.auction_window_reward_destination == protocol::to_curators && heaviest_itr != cvidx.end()) {
+                    if (c.comment.auction_window_reward_destination == protocol::to_curators && heaviest_itr != c.vote_list.end()) {
                         // pay needed claim + rest unclaimed tokens (close to zero value) to curator with greates weight
                         // BTW: it has to be unclaimed_rewards.value not heaviest_vote_after_auw_weight + unclaimed_rewards.value, coz
                         //      unclaimed_rewards already contains this.
-                        pay_curator(*heaviest_itr, unclaimed_rewards.value, c.author, to_string(c.permlink));
+                        pay_curator(*heaviest_itr->vote, unclaimed_rewards.value, c.comment.author, to_string(c.comment.permlink));
                         unclaimed_rewards = 0;
                     }
                 }
-                if (!c.allow_curation_rewards) {
+                if (!c.comment.allow_curation_rewards) {
                     modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &props) {
                         props.total_reward_fund_steem += unclaimed_rewards;
                     });
@@ -2412,8 +2397,8 @@ namespace golos { namespace chain {
                     unclaimed_rewards = 0;
                 }
                 // Case: auction window destination is reward fund or there are not curator which can get the auw reward
-                else if (c.auction_window_reward_destination != protocol::to_author && unclaimed_rewards > 0) {
-                    push_virtual_operation(auction_window_reward_operation(asset(unclaimed_rewards, STEEM_SYMBOL), c.author, to_string(c.permlink)));
+                else if (c.comment.auction_window_reward_destination != protocol::to_author && unclaimed_rewards > 0) {
+                    push_virtual_operation(auction_window_reward_operation(asset(unclaimed_rewards, STEEM_SYMBOL), c.comment.author, to_string(c.comment.permlink)));
                     modify(get_dynamic_global_properties(), [&](dynamic_global_property_object &props) {
                         props.total_reward_fund_steem += asset(unclaimed_rewards, STEEM_SYMBOL);
                     });
@@ -2425,6 +2410,7 @@ namespace golos { namespace chain {
         }
 
         void database::cashout_comment_helper(const comment_object &comment) {
+            protocol::curation_curve curve = comment.curation_reward_curve;
             try {
                 if (comment.net_rshares > 0) {
                     uint128_t reward_tokens = uint128_t(
@@ -2441,7 +2427,9 @@ namespace golos { namespace chain {
 
                         share_type author_tokens = reward_tokens.to_uint64() - curation_tokens;
 
-                        author_tokens += pay_curators(comment, curation_tokens);
+                        comment_curation_info curation_info(*this, comment, false);
+                        curve = curation_info.curve;
+                        author_tokens += pay_curators(curation_info, curation_tokens);
 
                         share_type total_beneficiary = 0;
 
@@ -2492,8 +2480,8 @@ namespace golos { namespace chain {
                     c.children_abs_rshares = 0;
                     c.abs_rshares = 0;
                     c.vote_rshares = 0;
-                    c.total_vote_weight = 0;
                     c.max_cashout_time = fc::time_point_sec::maximum();
+                    c.curation_reward_curve = curve;
 
                     if (has_hardfork(STEEMIT_HARDFORK_0_17__431)) {
                         c.cashout_time = fc::time_point_sec::maximum();
@@ -2523,7 +2511,7 @@ namespace golos { namespace chain {
                         const auto& cur_vote = *vote_itr;
                         ++vote_itr;
                         modify(cur_vote, [&](comment_vote_object& cvo) {
-                            cvo.num_changes = -1;       // mark vote that it's ready to be removed (archived comment)
+                            cvo.num_changes = (-1) - (cvo.num_changes); // mark vote that it's ready to be removed (archived comment)
                         });
                     }
                 }
@@ -3637,6 +3625,7 @@ namespace golos { namespace chain {
                 notify_applied_block(next_block);
 
                 notify_changed_objects();
+
             } FC_CAPTURE_LOG_AND_RETHROW((next_block.block_num()))
         }
 

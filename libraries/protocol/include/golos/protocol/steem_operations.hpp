@@ -3,6 +3,7 @@
 #include <golos/protocol/base.hpp>
 #include <golos/protocol/block_header.hpp>
 #include <golos/protocol/asset.hpp>
+#include <golos/protocol/reward_curve.hpp>
 
 #include <fc/utf8.hpp>
 #include <fc/crypto/equihash.hpp>
@@ -564,9 +565,14 @@ namespace golos { namespace protocol {
             uint32_t max_referral_term_sec = GOLOS_DEFAULT_REFERRAL_TERM_SEC;
 
             /**
-             * Fee for breaking referral deductions by referral
+             * Min fee for breaking referral deductions by referral
              */
-            asset max_referral_break_fee = GOLOS_DEFAULT_REFERRAL_BREAK_FEE;
+            asset min_referral_break_fee = GOLOS_MIN_REFERRAL_BREAK_FEE;
+
+            /**
+             * Max fee for breaking referral deductions by referral
+             */
+            asset max_referral_break_fee = GOLOS_MAX_REFERRAL_BREAK_FEE;
 
             /**
              * Time window for commenting by account
@@ -591,7 +597,7 @@ namespace golos { namespace protocol {
             /**
              * Auction window size
              */
-            uint32_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+            uint16_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
 
             /**
              * Maximum interest rate for delegated vesting shares
@@ -612,6 +618,22 @@ namespace golos { namespace protocol {
              * Maximum rate of all curation rewards in total payment
              */
             uint16_t max_curation_percent = STEEMIT_MIN_CURATION_PERCENT; // Min is for compatibility if no voted percents
+
+            /**
+             * Curation curve
+             */
+            curation_curve curation_reward_curve = curation_curve::bounded;
+
+            /**
+             * Allow to return auction window reward to reward fund
+             */
+            bool allow_return_auction_reward_to_fund = true;
+
+             /**
+              * Allow to distribute auction window reward between curators
+              */
+            bool allow_distribute_auction_reward = true;
+
 
             void validate() const;
 
@@ -1266,7 +1288,8 @@ namespace golos { namespace protocol {
 
         enum delegator_payout_strategy {
             to_delegator,
-            to_delegated_vesting
+            to_delegated_vesting,
+            _size
         };
 
         class delegate_vesting_shares_with_interest_operation : public base_operation {
@@ -1323,9 +1346,10 @@ FC_REFLECT_DERIVED(
     (create_account_delegation_time)(min_delegation))
 FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
-    (max_referral_interest_rate)(max_referral_term_sec)(max_referral_break_fee)
+    (max_referral_interest_rate)(max_referral_term_sec)(min_referral_break_fee)(max_referral_break_fee)
     (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
-    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent))
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent)
+    (curation_reward_curve)(allow_distribute_auction_reward)(allow_return_auction_reward_to_fund))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 
@@ -1398,6 +1422,6 @@ FC_REFLECT((golos::protocol::delegate_vesting_shares_operation), (delegator)(del
 FC_REFLECT((golos::protocol::chain_properties_update_operation), (owner)(props));
 FC_REFLECT((golos::protocol::break_free_referral_operation), (referral)(extensions));
 
-FC_REFLECT_ENUM(golos::protocol::delegator_payout_strategy, (to_delegator)(to_delegated_vesting))
+FC_REFLECT_ENUM(golos::protocol::delegator_payout_strategy, (to_delegator)(to_delegated_vesting)(_size))
 FC_REFLECT((golos::protocol::delegate_vesting_shares_with_interest_operation), (delegator)(delegatee)(vesting_shares)(interest_rate)(extensions));
 FC_REFLECT((golos::protocol::reject_vesting_shares_delegation_operation), (delegator)(delegatee)(extensions));
