@@ -20,6 +20,8 @@ namespace golos { namespace api {
             max_referral_term_sec = src.max_referral_term_sec;
             min_referral_break_fee = src.min_referral_break_fee;
             max_referral_break_fee = src.max_referral_break_fee;
+            posts_window = src.posts_window;
+            posts_per_window = src.posts_per_window;
             comments_window = src.comments_window;
             comments_per_window = src.comments_per_window;
             votes_window = src.votes_window;

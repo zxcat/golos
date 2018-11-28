@@ -577,6 +577,16 @@ namespace golos { namespace protocol {
             /**
              * Time window for commenting by account
              */
+            uint16_t posts_window = STEEMIT_POSTS_WINDOW;
+
+            /**
+             * Maximum count of comments per one window by account
+             */
+            uint16_t posts_per_window = STEEMIT_POSTS_PER_WINDOW;
+
+            /**
+             * Time window for commenting by account
+             */
             uint16_t comments_window = STEEMIT_COMMENTS_WINDOW;
 
             /**
@@ -612,17 +622,17 @@ namespace golos { namespace protocol {
             /**
              * Minimum rate of all curation rewards in total payment
              */
-            uint16_t min_curation_percent = STEEMIT_MIN_CURATION_PERCENT;
+            uint16_t min_curation_percent = STEEMIT_DEF_CURATION_PERCENT;
 
             /**
              * Maximum rate of all curation rewards in total payment
              */
-            uint16_t max_curation_percent = STEEMIT_MIN_CURATION_PERCENT; // Min is for compatibility if no voted percents
+            uint16_t max_curation_percent = STEEMIT_MAX_CURATION_PERCENT;
 
             /**
              * Curation curve
              */
-            curation_curve curation_reward_curve = curation_curve::bounded;
+            curation_curve curation_reward_curve = curation_curve::linear;
 
             /**
              * Allow to return auction window reward to reward fund
@@ -1347,7 +1357,7 @@ FC_REFLECT_DERIVED(
 FC_REFLECT_DERIVED(
     (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
     (max_referral_interest_rate)(max_referral_term_sec)(min_referral_break_fee)(max_referral_break_fee)
-    (comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
+    (posts_window)(posts_per_window)(comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
     (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent)
     (curation_reward_curve)(allow_distribute_auction_reward)(allow_return_auction_reward_to_fund))
 

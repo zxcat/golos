@@ -296,6 +296,8 @@ namespace golos { namespace protocol {
                     "Maximum break free cann't be more than ${max}", ("max", GOLOS_MAX_REFERRAL_BREAK_FEE));
             });
 
+            GOLOS_CHECK_VALUE_LEGE(posts_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(posts_per_window, 1, posts_window);
             GOLOS_CHECK_VALUE_LEGE(comments_window, 1, std::numeric_limits<uint16_t>::max() / 2);
             GOLOS_CHECK_VALUE_LEGE(comments_per_window, 1, comments_window);
             GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);

@@ -702,7 +702,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             tx.sign(sam_private_key, db->get_chain_id());
             BOOST_CHECK_NO_THROW(db->push_transaction(tx, 0));
 
-            generate_blocks(60 * 5 / STEEMIT_BLOCK_INTERVAL);
+            generate_blocks(STEEMIT_POSTS_WINDOW / STEEMIT_BLOCK_INTERVAL - 1);
 
             op.permlink = "amet";
             tx.operations.clear();
@@ -7644,8 +7644,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_tests, clean_database_fixture)
             generate_block();
 
             auto& wso = db->get_witness_schedule_object();
-            BOOST_CHECK_EQUAL(wso.median_props.min_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
-            BOOST_CHECK_EQUAL(wso.median_props.max_curation_percent, STEEMIT_MIN_CURATION_PERCENT);
+            BOOST_CHECK_EQUAL(wso.median_props.min_curation_percent, STEEMIT_DEF_CURATION_PERCENT);
+            BOOST_CHECK_EQUAL(wso.median_props.max_curation_percent, STEEMIT_MAX_CURATION_PERCENT);
 
             fund("alice", 10000);
             vest("alice", 10000);

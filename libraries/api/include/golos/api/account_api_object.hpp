@@ -46,6 +46,9 @@ struct account_api_object {
     uint32_t comment_count;
     uint32_t lifetime_vote_count;
     uint32_t post_count;
+    uint16_t posts_capacity;
+    uint16_t comments_capacity;
+    uint16_t voting_capacity;
 
     bool can_vote;
     uint16_t voting_power;
@@ -120,7 +123,7 @@ FC_REFLECT((golos::api::account_api_object),
     (average_bandwidth)(average_market_bandwidth)(lifetime_bandwidth)(lifetime_market_bandwidth)
     (last_bandwidth_update)(last_market_bandwidth_update)
     (last_post)(last_root_post)(post_bandwidth)
-    (witness_votes)(reputation)
+    (witness_votes)(reputation)(posts_capacity)(comments_capacity)(voting_capacity)
     (referrer_account)(referrer_interest_rate)(referral_end_date)(referral_break_fee))
 
 #endif //GOLOS_ACCOUNT_API_OBJ_HPP
