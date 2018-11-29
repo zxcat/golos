@@ -20,6 +20,7 @@ list(APPEND ${CURRENT_TARGET}_HEADERS
         include/golos/protocol/transaction.hpp
         include/golos/protocol/types.hpp
         include/golos/protocol/version.hpp
+        include/golos/protocol/reward_curve.hpp
         )
 
 list(APPEND ${CURRENT_TARGET}_SOURCES

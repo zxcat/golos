@@ -16,7 +16,9 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         last_owner_proved(a.last_owner_proved), last_active_proved(a.last_active_proved),
         recovery_account(a.recovery_account), reset_account(a.reset_account),
         last_account_recovery(a.last_account_recovery), comment_count(a.comment_count),
-        lifetime_vote_count(a.lifetime_vote_count), post_count(a.post_count), can_vote(a.can_vote),
+        lifetime_vote_count(a.lifetime_vote_count), post_count(a.post_count),
+        posts_capacity(a.posts_capacity), comments_capacity(a.comments_capacity), voting_capacity(a.voting_capacity),
+        can_vote(a.can_vote),
         voting_power(a.voting_power), last_vote_time(a.last_vote_time),
         balance(a.balance), savings_balance(a.savings_balance),
         sbd_balance(a.sbd_balance), sbd_seconds(a.sbd_seconds),
@@ -26,7 +28,8 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         savings_sbd_seconds_last_update(a.savings_sbd_seconds_last_update),
         savings_sbd_last_interest_payment(a.savings_sbd_last_interest_payment),
         savings_withdraw_requests(a.savings_withdraw_requests),
-        curation_rewards(a.curation_rewards), posting_rewards(a.posting_rewards),
+        benefaction_rewards(a.benefaction_rewards), curation_rewards(a.curation_rewards),
+        delegation_rewards(a.delegation_rewards), posting_rewards(a.posting_rewards),
         vesting_shares(a.vesting_shares),
         delegated_vesting_shares(a.delegated_vesting_shares), received_vesting_shares(a.received_vesting_shares),
         vesting_withdraw_rate(a.vesting_withdraw_rate), next_vesting_withdrawal(a.next_vesting_withdrawal),
@@ -67,6 +70,13 @@ account_api_object::account_api_object(const account_object& a, const golos::cha
         average_market_bandwidth = market->average_bandwidth;
         lifetime_market_bandwidth = market->lifetime_bandwidth;
         last_market_bandwidth_update = market->last_bandwidth_update;
+    }
+
+    if (db.head_block_time() < a.referral_end_date) {
+        referrer_account = a.referrer_account;
+        referrer_interest_rate = a.referrer_interest_rate;
+        referral_end_date = a.referral_end_date;
+        referral_break_fee = a.referral_break_fee;
     }
 }
 

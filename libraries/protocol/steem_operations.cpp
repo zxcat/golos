@@ -39,6 +39,25 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
         }
 
+        struct account_create_with_delegation_extension_validate_visitor {
+            account_create_with_delegation_extension_validate_visitor() {
+            }
+
+            using result_type = void;
+
+            void operator()(const account_referral_options& aro) const {
+                aro.validate();
+            }
+        };
+
+        void account_referral_options::validate() const {
+            validate_account_name(referrer);
+            GOLOS_CHECK_PARAM(break_fee, {
+                GOLOS_CHECK_VALUE(break_fee.symbol == STEEM_SYMBOL, "Break fee in GOLOS only is allowed.");
+                GOLOS_CHECK_VALUE(break_fee.amount >= 0, "Negative break fee is not allowed.");
+            });
+        }
+
         void account_create_with_delegation_operation::validate() const {
             GOLOS_CHECK_PARAM_ACCOUNT(new_account_name);
             GOLOS_CHECK_PARAM_ACCOUNT(creator);
@@ -48,6 +67,10 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM_VALIDATE(active);
             GOLOS_CHECK_PARAM_VALIDATE(posting);
             GOLOS_CHECK_PARAM(json_metadata, validate_account_json_metadata(json_metadata));
+
+            for (auto& e : extensions) {
+                e.visit(account_create_with_delegation_extension_validate_visitor());
+            }
         }
 
         void account_update_operation::validate() const {
@@ -104,6 +127,14 @@ namespace golos { namespace protocol {
             void operator()( const comment_payout_beneficiaries& cpb ) const {
                 cpb.validate();
             }
+
+            void operator()( const comment_auction_window_reward_destination& cawrd ) const {
+                cawrd.validate();
+            }
+
+            void operator()(const comment_curation_rewards_percent& ccrp) const {
+                ccrp.validate();
+            }
         };
 
         void comment_payout_beneficiaries::validate() const {
@@ -112,22 +143,39 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(beneficiaries, {
                 GOLOS_CHECK_VALUE(beneficiaries.size(), "Must specify at least one beneficiary");
                 GOLOS_CHECK_VALUE(beneficiaries.size() < 128,
-                          "Cannot specify more than 127 beneficiaries."); // Require size serializtion fits in one byte.
+                    "Cannot specify more than 127 beneficiaries."); // Require size serialization fits in one byte.
 
-                for (auto beneficiar: beneficiaries) {
-                    validate_account_name(beneficiaries[0].account);
-                    GOLOS_CHECK_VALUE(beneficiar.weight <= STEEMIT_100_PERCENT,
-                            "Cannot allocate more than 100% of rewards to one account");
-                    sum += beneficiar.weight;
-                    GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
-                            "Cannot allocate more than 100% of rewards to a comment");
+                for (auto& beneficiary : beneficiaries) {
+                    validate_account_name(beneficiary.account);
+                    GOLOS_CHECK_VALUE(beneficiary.weight <= STEEMIT_100_PERCENT,
+                        "Cannot allocate more than 100% of rewards to one account");
+                    sum += beneficiary.weight;
                 }
+
+                GOLOS_CHECK_VALUE(sum <= STEEMIT_100_PERCENT,
+                    "Cannot allocate more than 100% of rewards to a comment");
 
                 for (size_t i = 1; i < beneficiaries.size(); i++) {
                     GOLOS_CHECK_VALUE(beneficiaries[i - 1] < beneficiaries[i],
-                            "Benficiaries ${first} and ${second} not in sorted order (account ascending)",
-                            ("first", beneficiaries[i-1].account)("second", beneficiaries[i].account));
+                        "Benficiaries ${first} and ${second} not in sorted order (account ascending)",
+                        ("first", beneficiaries[i-1].account)("second", beneficiaries[i].account));
                 }
+            });
+        }
+
+        void comment_auction_window_reward_destination::validate() const {
+            GOLOS_CHECK_PARAM(destination, {
+                GOLOS_CHECK_VALUE(destination == to_reward_fund || destination == to_curators,
+                    "Auction window reward must go either to reward_fund or to curators"
+                );
+            });
+        }
+
+        void comment_curation_rewards_percent::validate() const {
+            GOLOS_CHECK_PARAM(percent, {
+                GOLOS_CHECK_VALUE(STEEMIT_MIN_CURATION_PERCENT <= percent && percent <= STEEMIT_MAX_CURATION_PERCENT,
+                    "Curation rewards percent must be between ${min} and ${max}.",
+                    ("min", STEEMIT_MIN_CURATION_PERCENT)("max", STEEMIT_MAX_CURATION_PERCENT));
             });
         }
 
@@ -136,7 +184,7 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_PARAM(percent_steem_dollars, GOLOS_CHECK_VALUE_LE(percent_steem_dollars, STEEMIT_100_PERCENT));
             GOLOS_CHECK_PARAM(max_accepted_payout, GOLOS_CHECK_ASSET_GE0(max_accepted_payout, GBG));
             GOLOS_CHECK_PARAM(permlink, validate_permlink(permlink));
-            for (auto &e : extensions) {
+            for (auto& e : extensions) {
                 e.visit(comment_options_extension_validate_visitor());
             }
         }
@@ -224,6 +272,54 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_ASSET_GT0(min_delegation, GOLOS);
             GOLOS_CHECK_VALUE_GT(create_account_delegation_time,
                 (GOLOS_CREATE_ACCOUNT_DELEGATION_TIME).to_seconds() / 2);
+        }
+
+        void chain_properties_19::validate() const {
+            chain_properties_18::validate();
+            GOLOS_CHECK_VALUE_LE(auction_window_size, STEEMIT_MAX_AUCTION_WINDOW_SIZE_SECONDS);
+            GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, GOLOS_MAX_REFERRAL_INTEREST_RATE);
+            GOLOS_CHECK_VALUE_LE(max_referral_term_sec, GOLOS_MAX_REFERRAL_TERM_SEC);
+
+            GOLOS_CHECK_PARAM(min_referral_break_fee, {
+                GOLOS_CHECK_VALUE(is_asset_type(min_referral_break_fee, STEEM_SYMBOL),
+                    "Minimum break free must be GOLOS");
+                GOLOS_CHECK_VALUE(min_referral_break_fee >= asset(0, STEEM_SYMBOL),
+                    "Break free must be more or equal 0 GOLOS ");
+            });
+
+            GOLOS_CHECK_PARAM(max_referral_break_fee, {
+                GOLOS_CHECK_VALUE(is_asset_type(max_referral_break_fee, STEEM_SYMBOL),
+                    "Maximum break free must be GOLOS");
+                GOLOS_CHECK_VALUE(max_referral_break_fee >= min_referral_break_fee,
+                    "Maximum break free cann't be more than minimum break free");
+                GOLOS_CHECK_VALUE(max_referral_break_fee <= GOLOS_MAX_REFERRAL_BREAK_FEE,
+                    "Maximum break free cann't be more than ${max}", ("max", GOLOS_MAX_REFERRAL_BREAK_FEE));
+            });
+
+            GOLOS_CHECK_VALUE_LEGE(posts_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(posts_per_window, 1, posts_window);
+            GOLOS_CHECK_VALUE_LEGE(comments_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(comments_per_window, 1, comments_window);
+            GOLOS_CHECK_VALUE_LEGE(votes_window, 1, std::numeric_limits<uint16_t>::max() / 2);
+            GOLOS_CHECK_VALUE_LEGE(votes_per_window, 1, votes_window);
+            GOLOS_CHECK_VALUE_LE(max_delegated_vesting_interest_rate, STEEMIT_MAX_DELEGATED_VESTING_INTEREST_RATE);
+            GOLOS_CHECK_VALUE_GE(custom_ops_bandwidth_multiplier, 1);
+            GOLOS_CHECK_VALUE_LEGE(min_curation_percent, STEEMIT_MIN_CURATION_PERCENT, max_curation_percent);
+            GOLOS_CHECK_VALUE_LEGE(max_curation_percent, min_curation_percent, STEEMIT_MAX_CURATION_PERCENT);
+
+            GOLOS_CHECK_PARAM(curation_reward_curve, {
+                GOLOS_CHECK_VALUE(
+                    curation_reward_curve == curation_curve::bounded ||
+                    curation_reward_curve == curation_curve::linear ||
+                    curation_reward_curve == curation_curve::square_root,
+                    "Curation curve should bounded or liner, or square_root");
+            });
+
+            GOLOS_CHECK_PARAM(allow_return_auction_reward_to_fund, {
+                GOLOS_CHECK_VALUE(
+                    allow_return_auction_reward_to_fund || allow_distribute_auction_reward,
+                    "One or both options should be enabled: allow_return_auction_reward_to_fund and allow_distribute_auction_reward");
+            });
         }
 
         void witness_update_operation::validate() const {
@@ -620,6 +716,23 @@ namespace golos { namespace protocol {
             GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
                 "You cannot delegate GESTS to yourself");
             GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
+        }
+
+        void break_free_referral_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(referral);
+        }
+
+        void delegate_vesting_shares_with_interest_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
+            GOLOS_CHECK_LOGIC(delegator != delegatee, logic_exception::cannot_delegate_to_yourself,
+                "You cannot delegate GESTS to yourself");
+            GOLOS_CHECK_PARAM(vesting_shares, GOLOS_CHECK_ASSET_GE0(vesting_shares, GESTS));
+        }
+
+        void reject_vesting_shares_delegation_operation::validate() const {
+            GOLOS_CHECK_PARAM_ACCOUNT(delegator);
+            GOLOS_CHECK_PARAM_ACCOUNT(delegatee);
         }
 
 } } // golos::protocol

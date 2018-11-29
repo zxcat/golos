@@ -90,7 +90,7 @@ namespace mongo_db {
             format_value(body, "parent_permlink", comment.parent_permlink);
             format_value(body, "percent_steem_dollars", comment.percent_steem_dollars);
             format_value(body, "reward_weight", comment.reward_weight);
-            format_value(body, "total_vote_weight", comment.total_vote_weight);
+            // format_value(body, "total_vote_weight", comment.total_vote_weight);
             format_value(body, "vote_rshares", comment.vote_rshares);
 
             if (!comment.beneficiaries.empty()) {
@@ -247,7 +247,9 @@ namespace mongo_db {
 
             format_value(body, "savings_withdraw_requests", account.savings_withdraw_requests);
 
+            format_value(body, "benefaction_rewards", account.benefaction_rewards);
             format_value(body, "curation_rewards", account.curation_rewards);
+            format_value(body, "delegation_rewards", account.delegation_rewards);
             format_value(body, "posting_rewards", account.posting_rewards);
 
             format_value(body, "vesting_shares", account.vesting_shares);
@@ -271,6 +273,11 @@ namespace mongo_db {
             format_value(body, "witnesses_voted_for", account.witnesses_voted_for);
 
             format_value(body, "last_post", account.last_post);
+
+            format_value(body, "referrer_account", account.referrer_account);
+            format_value(body, "referrer_interest_rate", account.referrer_interest_rate);
+            format_value(body, "referral_end_date", account.referral_end_date);
+            format_value(body, "referral_break_fee", account.referral_break_fee);
 
             auto account_metadata = db_.find<account_metadata_object, by_account>(account.name);
             if (account_metadata != nullptr) {
@@ -369,6 +376,9 @@ namespace mongo_db {
                     break;
                 case market:
                     band_type = "market";
+                    break;
+                case custom_json:
+                    band_type = "custom_json";
                     break;
             }
 
@@ -474,6 +484,7 @@ namespace mongo_db {
             format_value(body, "delegator", delegation.delegator);
             format_value(body, "delegatee", delegation.delegatee);
             format_value(body, "vesting_shares", delegation.vesting_shares);
+            format_value(body, "interest_rate", delegation.interest_rate);
             format_value(body, "min_delegation_time", delegation.min_delegation_time);
             format_value(body, "timestamp", state_block.timestamp);
 
@@ -500,7 +511,7 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::format_escrow(const escrow_object &escrow) {
+    void state_writer::format_escrow(const escrow_object& escrow) {
         try {
             auto oid = std::string(escrow.from).append("/").append(std::to_string(escrow.escrow_id));
             auto oid_hash = hash_oid(oid);
@@ -549,7 +560,7 @@ namespace mongo_db {
         }
     }
 
-    void state_writer::format_escrow(const account_name_type &name, uint32_t escrow_id) {
+    void state_writer::format_escrow(const account_name_type& name, uint32_t escrow_id) {
         try {
             auto& escrow = db_.get_escrow(name, escrow_id);
             format_escrow(escrow);
@@ -705,8 +716,8 @@ namespace mongo_db {
 
     void state_writer::format_liquidity_reward_balance(const account_name_type& owner) {
         try {
-            auto &obj_owner = db_.get_account(owner);
-            const auto &ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
+            auto& obj_owner = db_.get_account(owner);
+            const auto& ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
             auto itr = ridx.find(obj_owner.id);
             if (ridx.end() != itr) {
                 format_liquidity_reward_balance(*itr, owner);
@@ -733,7 +744,7 @@ namespace mongo_db {
                 document comment_index;
                 comment_index << "comment" << 1;
                 doc.indexes_to_create.push_back(std::move(comment_index));
-                auto &body = doc.doc;
+                auto& body = doc.doc;
 
                 body << "$set" << open_document;
 
@@ -744,7 +755,7 @@ namespace mongo_db {
                 format_value(body, "permlink", op.permlink);
                 format_value(body, "voter", op.voter);
 
-                format_value(body, "weight", itr->weight);
+                // format_value(body, "weight", itr->weight);
                 format_value(body, "rshares", itr->rshares);
                 format_value(body, "vote_percent", itr->vote_percent);
                 format_value(body, "last_update", itr->last_update);
@@ -839,7 +850,7 @@ namespace mongo_db {
         format_account(op.from);
         format_account(op.to);
         try {
-            const auto &dgp = db_.get_dynamic_global_properties();
+            const auto& dgp = db_.get_dynamic_global_properties();
 
             auto doc = create_document("transfer_to_vesting", "", "");
             auto& body = doc.doc;
@@ -896,7 +907,7 @@ namespace mongo_db {
 
             auto doc = create_document("limit_order_object", "_id", oid_hash);
 
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -931,7 +942,7 @@ namespace mongo_db {
         try {
             format_account(op.owner);
 
-            const auto &by_owner_idx = db_.get_index<convert_request_index>().indices().get<by_owner>();
+            const auto& by_owner_idx = db_.get_index<convert_request_index>().indices().get<by_owner>();
             auto itr = by_owner_idx.find(boost::make_tuple(op.owner, op.requestid));
             if (itr != by_owner_idx.end()) {
                 auto oid = std::string(op.owner).append("/").append(std::to_string(op.requestid));
@@ -985,9 +996,20 @@ namespace mongo_db {
         format_account(op.account);
     }
 
+    auto state_writer::operator()(const break_free_referral_operation& op) -> result_type {
+        try {
+            const auto& referral = db_.get_account(op.referral);
+            format_account(referral);
+            format_account(referral.referrer_account);
+        }
+        catch (...) {
+            // ilog("Unknown exception during formatting referral account or referrer account.");
+        }
+    }
+
     auto state_writer::operator()(const witness_update_operation& op) -> result_type {
         try {
-            const auto &witness = db_.get_witness(op.owner);
+            const auto& witness = db_.get_witness(op.owner);
             format_witness(witness);
         }
         catch (...) {
@@ -997,8 +1019,8 @@ namespace mongo_db {
 
     auto state_writer::operator()(const account_witness_vote_operation& op) -> result_type {
         try {
-            const auto &voter = db_.get_account(op.account);
-            const auto &witness = db_.get_witness(op.witness);
+            const auto& voter = db_.get_account(op.account);
+            const auto& witness = db_.get_witness(op.witness);
 
             format_account(voter);
             format_witness(witness);
@@ -1006,12 +1028,12 @@ namespace mongo_db {
             auto oid = op.witness + "/" + op.account;
             auto oid_hash = hash_oid(oid);
 
-            const auto &by_account_witness_idx = db_.get_index<witness_vote_index>().indices().get<by_account_witness>();
+            const auto& by_account_witness_idx = db_.get_index<witness_vote_index>().indices().get<by_account_witness>();
             auto itr = by_account_witness_idx.find(boost::make_tuple(voter.id, witness.id));
             if (itr != by_account_witness_idx.end()) {
                 auto doc = create_document("witness_vote_object", "_id", oid_hash);
 
-                auto &body = doc.doc;
+                auto& body = doc.doc;
 
                 body << "$set" << open_document;
 
@@ -1042,22 +1064,22 @@ namespace mongo_db {
         format_account(worker_account);
         format_account_authority(worker_account);
         format_witness(worker_account);
-        const auto &dgp = db_.get_dynamic_global_properties();
-        const auto &inc_witness = db_.get_account(dgp.current_witness);
+        const auto& dgp = db_.get_dynamic_global_properties();
+        const auto& inc_witness = db_.get_account(dgp.current_witness);
         format_account(inc_witness);
         //format_global_property_object();
     }
 
     auto state_writer::operator()(const pow2_operation& op) -> result_type {
-        const auto &dgp = db_.get_dynamic_global_properties();
-        const auto &inc_witness = db_.get_account(dgp.current_witness);
+        const auto& dgp = db_.get_dynamic_global_properties();
+        const auto& inc_witness = db_.get_account(dgp.current_witness);
         format_account(inc_witness);
         account_name_type worker_account;
         if (db_.has_hardfork(STEEMIT_HARDFORK_0_16__551)) {
-            const auto &work = op.work.get<equihash_pow>();
+            const auto& work = op.work.get<equihash_pow>();
             worker_account = work.input.worker_account;
         } else {
-            const auto &work = op.work.get<pow2>();
+            const auto& work = op.work.get<pow2>();
             worker_account = work.input.worker_account;
         }
         format_account(worker_account);
@@ -1089,7 +1111,7 @@ namespace mongo_db {
                 boost::make_tuple(from_account.id, to_account.id));
             auto doc = create_document("withdraw_vesting_route_object", "_id", oid_hash);
 
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1121,7 +1143,7 @@ namespace mongo_db {
 
             auto doc = create_document("limit_order_object", "_id", oid_hash);
 
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1155,7 +1177,7 @@ namespace mongo_db {
 
     auto state_writer::operator()(const request_account_recovery_operation& op) -> result_type {
         try {
-            const auto &recovery_request_idx = db_.get_index<account_recovery_request_index>().indices().get<by_account>();
+            const auto& recovery_request_idx = db_.get_index<account_recovery_request_index>().indices().get<by_account>();
             auto request = recovery_request_idx.find(op.account_to_recover);
             auto oid = request->account_to_recover;
             auto oid_hash = hash_oid(oid);
@@ -1204,7 +1226,7 @@ namespace mongo_db {
 
     auto state_writer::operator()(const change_recovery_account_operation& op) -> result_type {
         try {
-            const auto &change_recovery_idx = db_.get_index<change_recovery_account_request_index>().indices().get<by_account>();
+            const auto& change_recovery_idx = db_.get_index<change_recovery_account_request_index>().indices().get<by_account>();
             auto request = change_recovery_idx.find(op.account_to_recover);
             auto oid = request->account_to_recover;
             auto oid_hash = hash_oid(oid);
@@ -1260,7 +1282,7 @@ namespace mongo_db {
     auto state_writer::operator()(const escrow_release_operation& op) -> result_type {
         format_account(op.receiver);
         try {
-            auto &escrow = db_.get_escrow(op.from, op.escrow_id);
+            auto& escrow = db_.get_escrow(op.from, op.escrow_id);
             format_escrow(escrow);
             if (escrow.steem_balance.amount == 0 && escrow.sbd_balance.amount == 0) {
                 auto oid = std::string(op.from).append("/").append(std::to_string(op.escrow_id));
@@ -1358,8 +1380,8 @@ namespace mongo_db {
     auto state_writer::operator()(const decline_voting_rights_operation& op) -> result_type {
         try {
             if (op.decline) {
-                const auto &account = db_.get_account(op.account);
-                const auto &request_idx = db_.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
+                const auto& account = db_.get_account(op.account);
+                const auto& request_idx = db_.get_index<decline_voting_rights_request_index>().indices().get<by_account>();
                 auto itr = request_idx.find(account.id);
                 if (itr != request_idx.end()) {
                     auto oid = op.account;
@@ -1367,7 +1389,7 @@ namespace mongo_db {
 
                     auto doc = create_document("decline_voting_rights_request_object", "_id", oid_hash);
 
-                    auto &body = doc.doc;
+                    auto& body = doc.doc;
 
                     body << "$set" << open_document;
 
@@ -1407,6 +1429,32 @@ namespace mongo_db {
         if (delegation != nullptr) {
             format_vesting_delegation_object(*delegation);
         } else {
+            auto oid = std::string(op.delegator).append("/").append(std::string(op.delegatee));
+            auto oid_hash = hash_oid(oid);
+            auto doc = create_removal_document("vesting_delegation_object", "_id", oid_hash);
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
+    }
+
+    auto state_writer::operator()(const delegate_vesting_shares_with_interest_operation& op) -> result_type {
+        format_account(op.delegator);
+        format_account(op.delegatee);
+        auto delegation = db_.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+        if (delegation != nullptr) {
+            format_vesting_delegation_object(*delegation);
+        } else {
+            auto oid = std::string(op.delegator).append("/").append(std::string(op.delegatee));
+            auto oid_hash = hash_oid(oid);
+            auto doc = create_removal_document("vesting_delegation_object", "_id", oid_hash);
+            bmi_insert_or_replace(all_docs, std::move(doc));
+        }
+    }
+
+    auto state_writer::operator()(const reject_vesting_shares_delegation_operation& op) -> result_type {
+        format_account(op.delegator);
+        format_account(op.delegatee);
+        auto delegation = db_.find<vesting_delegation_object, by_delegation>(std::make_tuple(op.delegator, op.delegatee));
+        if (delegation == nullptr) {
             auto oid = std::string(op.delegator).append("/").append(std::string(op.delegatee));
             auto oid_hash = hash_oid(oid);
             auto doc = create_removal_document("vesting_delegation_object", "_id", oid_hash);
@@ -1494,8 +1542,8 @@ namespace mongo_db {
 
     auto state_writer::operator()(const liquidity_reward_operation& op) -> result_type {
         try {
-            auto &owner = db_.get_account(op.owner);
-            const auto &ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
+            auto& owner = db_.get_account(op.owner);
+            const auto& ridx = db_.get_index<liquidity_reward_balance_index>().indices().get<by_owner>();
             auto itr = ridx.find(owner.id);
             if (ridx.end() != itr) {
                 format_liquidity_reward_balance(*itr, op.owner);
@@ -1536,7 +1584,7 @@ namespace mongo_db {
 
             auto doc = create_document("withdraw_vesting_route_object", "_id", oid_hash);
 
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1624,7 +1672,7 @@ namespace mongo_db {
             auto comment_oid_hash = hash_oid(comment_oid);
 
             auto doc = create_document("author_reward", "_id", comment_oid_hash);
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1657,7 +1705,7 @@ namespace mongo_db {
             document comment_index;
             comment_index << "comment" << 1;
             doc.indexes_to_create.push_back(std::move(comment_index));
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1685,7 +1733,7 @@ namespace mongo_db {
             auto comment_oid_hash = hash_oid(comment_oid);
 
             auto doc = create_document("comment_reward", "_id", comment_oid_hash);
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1715,7 +1763,7 @@ namespace mongo_db {
             document comment_index;
             comment_index << "comment" << 1;
             doc.indexes_to_create.push_back(std::move(comment_index));
-            auto &body = doc.doc;
+            auto& body = doc.doc;
 
             body << "$set" << open_document;
 
@@ -1743,7 +1791,7 @@ namespace mongo_db {
     auto state_writer::operator()(const chain_properties_update_operation& op) -> result_type {
         try {
             db_.get_account(op.owner); // verify owner exists
-            const auto &witness = db_.get_witness(op.owner);
+            const auto& witness = db_.get_witness(op.owner);
             format_witness(witness);
         }
         catch (...) {
@@ -1869,6 +1917,14 @@ namespace mongo_db {
         catch (...) {
             // ilog("Unknown exception during writing witness schedule object.");
         }
+    }
+
+    auto state_writer::operator()(const delegation_reward_operation& op) -> result_type {
+
+    }
+
+    auto state_writer::operator()(const auction_window_reward_operation& op) -> result_type {
+
     }
 
 }}}

@@ -2,6 +2,7 @@
 #include <golos/api/comment_api_object.hpp>
 #include <golos/chain/account_object.hpp>
 #include <golos/chain/steem_objects.hpp>
+#include <golos/chain/curation_info.hpp>
 #include <fc/io/json.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -34,12 +35,11 @@ namespace golos { namespace api {
 
         discussion create_discussion(const comment_object& o) const ;
 
-        void select_active_votes(
-            std::vector<vote_state>& result, uint32_t& total_count,
-            const std::string& author, const std::string& permlink, uint32_t limit
-        ) const ;
+        std::vector<vote_state> select_active_votes(
+            const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
+        ) const;
 
-        share_type get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const;
+        std::vector<vote_state> select_active_votes(const comment_curation_info&, uint32_t limit, uint32_t offset) const;
 
         void set_pending_payout(discussion& d) const;
 
@@ -55,9 +55,12 @@ namespace golos { namespace api {
 
         comment_api_object create_comment_api_object(const comment_object& o) const;
 
-        discussion get_discussion(const comment_object& c, uint32_t vote_limit) const;
+        discussion get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const;
 
         void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
+
+    private:
+        void distribute_auction_tokens(discussion& d, share_type& curator_tokens, share_type& author_tokens) const;
 
     private:
         golos::chain::database& database_;
@@ -102,7 +105,6 @@ namespace golos { namespace api {
         d.children_abs_rshares = o.children_abs_rshares;
         d.cashout_time = o.cashout_time;
         d.max_cashout_time = o.max_cashout_time;
-        d.total_vote_weight = o.total_vote_weight;
         d.reward_weight = o.reward_weight;
         d.net_votes = o.net_votes;
         d.mode = o.mode;
@@ -112,6 +114,9 @@ namespace golos { namespace api {
         d.allow_replies = o.allow_replies;
         d.allow_votes = o.allow_votes;
         d.allow_curation_rewards = o.allow_curation_rewards;
+        d.auction_window_reward_destination = o.auction_window_reward_destination;
+        d.auction_window_size = o.auction_window_size;
+        d.curation_rewards_percent = o.curation_rewards_percent;
 
         for (auto& route : o.beneficiaries) {
             d.beneficiaries.push_back(route);
@@ -129,83 +134,100 @@ namespace golos { namespace api {
     }
 
 // get_discussion
-    discussion discussion_helper::impl::get_discussion(const comment_object& c, uint32_t vote_limit) const {
-        discussion d = create_discussion(c);
+    discussion discussion_helper::impl::get_discussion(const comment_object& comment, uint32_t vote_limit, uint32_t offset) const {
+        discussion d = create_discussion(comment);
         set_url(d);
+
+        d.active_votes_count = comment.total_votes;
+
+        comment_curation_info c{database_, comment, true};
+
+        d.curation_reward_curve = c.curve;
+        d.total_vote_weight = c.total_vote_weight;
+        d.auction_window_weight = c.auction_window_weight;
+        d.votes_in_auction_window_weight = c.votes_in_auction_window_weight;
+        d.active_votes = select_active_votes(c, vote_limit, offset);
+
         set_pending_payout(d);
-        select_active_votes(d.active_votes, d.active_votes_count, d.author, d.permlink, vote_limit);
+
         return d;
     }
 
-    discussion discussion_helper::get_discussion(const comment_object& c, uint32_t vote_limit) const {
-        return pimpl->get_discussion(c, vote_limit);
+    discussion discussion_helper::get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const {
+        return pimpl->get_discussion(c, vote_limit, offset);
     }
 //
 
 // select_active_votes
-    void discussion_helper::impl::select_active_votes(
-        std::vector<vote_state>& result, uint32_t& total_count,
-        const std::string& author, const std::string& permlink, uint32_t limit
+    std::vector<vote_state> discussion_helper::impl::select_active_votes(
+        const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
     ) const {
-        const auto& comment = database().get_comment(author, permlink);
-        const auto& idx = database().get_index<comment_vote_index>().indices().get<by_comment_voter>();
-        comment_object::id_type cid(comment.id);
-        total_count = 0;
-        result.clear();
-        for (auto itr = idx.lower_bound(cid); itr != idx.end() && itr->comment == cid; ++itr, ++total_count) {
-            if (result.size() < limit) {
-                const auto& vo = database().get(itr->voter);
-                vote_state vstate;
-                vstate.voter = vo.name;
-                vstate.weight = itr->weight;
-                vstate.rshares = itr->rshares;
-                vstate.percent = itr->vote_percent;
-                vstate.time = itr->last_update;
-                fill_reputation_(database(), vo.name, vstate.reputation);
-                result.emplace_back(vstate);
-            }
+        const auto& comment = database_.get_comment(author, permlink);
+        comment_curation_info c{database_, comment, true};
+
+        return select_active_votes(c, limit, offset);
+    }
+
+    std::vector<vote_state> discussion_helper::impl::select_active_votes(
+        const comment_curation_info& c, uint32_t limit, uint32_t offset
+    ) const {
+        offset = std::min(offset, uint32_t(c.vote_list.size()));
+        limit = std::min(limit, uint32_t(c.vote_list.size() - offset));
+
+        if (limit == 0) {
+            return {};
         }
+
+        auto itr = c.vote_list.begin();
+        std::advance(itr, offset);
+
+        std::vector<vote_state> result;
+        result.reserve(limit);
+
+        for (; itr != c.vote_list.end() && result.size() < limit; ++itr) {
+            const auto& vo = database().get(itr->vote->voter);
+            vote_state vstate;
+            vstate.voter = vo.name;
+            vstate.weight = itr->weight;
+            vstate.rshares = itr->vote->rshares;
+            vstate.percent = itr->vote->vote_percent;
+            vstate.time = itr->vote->last_update;
+            fill_reputation_(database(), vo.name, vstate.reputation);
+            result.emplace_back(std::move(vstate));
+        }
+        return result;
     }
 
-    void discussion_helper::select_active_votes(
-        std::vector<vote_state>& result, uint32_t& total_count,
-        const std::string& author, const std::string& permlink, uint32_t limit
+    std::vector<vote_state> discussion_helper::select_active_votes(
+        const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
     ) const {
-        pimpl->select_active_votes(result, total_count, author, permlink, limit);
-    }
-
-    share_type discussion_helper::impl::get_curator_unclaimed_rewards(const discussion& d, share_type max_rewards) const {
-        share_type unclaimed_rewards = max_rewards;
-        auto& db = database();
-        try {
-            uint128_t total_weight(d.total_vote_weight);
-
-            if (d.allow_curation_rewards) {
-                if (d.total_vote_weight > 0) {
-                    const auto &cvidx = db.get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-                    for (auto itr = cvidx.lower_bound(d.id); itr != cvidx.end() && itr->comment == d.id; ++itr) {
-                        auto claim = ((max_rewards.value * uint128_t(itr->weight)) / total_weight).to_uint64();
-                        if (claim > 0) { // min_amt is non-zero satoshis
-                            unclaimed_rewards -= claim;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            } else {
-                unclaimed_rewards = 0;
-            }
-
-            return unclaimed_rewards;
-        } FC_CAPTURE_AND_RETHROW()
+        return pimpl->select_active_votes(author, permlink, limit, offset);
     }
 
 //
 // set_pending_payout
+
+    void discussion_helper::impl::distribute_auction_tokens(discussion& d, share_type& curators_tokens, share_type& author_tokens) const {
+        const auto auction_window_reward = curators_tokens.value * d.auction_window_weight / d.total_vote_weight;
+
+        curators_tokens -= auction_window_reward;
+
+        if (d.auction_window_reward_destination == to_author) {
+            author_tokens += auction_window_reward;
+        } else if (d.auction_window_reward_destination == to_curators &&
+                   d.total_vote_weight != d.votes_in_auction_window_weight + d.auction_window_weight) {
+            curators_tokens += auction_window_reward;
+        }
+    }
+
     void discussion_helper::impl::set_pending_payout(discussion& d) const {
         auto& db = database();
 
         fill_promoted_(db, d);
+
+        if (d.total_vote_weight == 0) {
+            return;
+        }
 
         const auto& props = db.get_dynamic_global_properties();
         const auto& hist = db.get_feed_history();
@@ -225,20 +247,17 @@ namespace golos { namespace api {
             r2 *= pot.amount.value;
             r2 /= total_r2;
 
-            uint64_t payout = static_cast<uint64_t>(r2);
+            const share_type reward_tokens = std::min(share_type(r2), d.max_accepted_payout.amount);
 
-            payout = std::min(payout, uint64_t(d.max_accepted_payout.amount.value));
+            share_type curation_tokens = reward_tokens * d.curation_rewards_percent / STEEMIT_100_PERCENT;
 
-            uint128_t reward_tokens = uint128_t(payout);
+            share_type author_tokens = reward_tokens - curation_tokens;
 
-            share_type curation_tokens = ((reward_tokens * db.get_curation_rewards_percent())
-                / STEEMIT_100_PERCENT).to_uint64();
-            auto crs_unclaimed = get_curator_unclaimed_rewards(d, curation_tokens);
-            auto crs_claim = curation_tokens - crs_unclaimed;
-            share_type author_tokens = reward_tokens.to_uint64() - crs_claim;
             if (d.allow_curation_rewards) {
-                d.pending_curator_payout_value = db.to_sbd(asset(crs_claim, STEEM_SYMBOL));
-                d.pending_curator_payout_gests_value = asset(crs_claim, STEEM_SYMBOL) * props.get_vesting_share_price();
+                distribute_auction_tokens(d, curation_tokens, author_tokens);
+
+                d.pending_curator_payout_value = db.to_sbd(asset(curation_tokens, STEEM_SYMBOL));
+                d.pending_curator_payout_gests_value = asset(curation_tokens, STEEM_SYMBOL) * props.get_vesting_share_price();
                 d.pending_payout_value += d.pending_curator_payout_value;
             }
 
@@ -246,6 +265,7 @@ namespace golos { namespace api {
             for (auto &b : d.beneficiaries) {
                 benefactor_weights += b.weight;
             }
+
             if (benefactor_weights != 0) {
                 auto total_beneficiary = (author_tokens * benefactor_weights) / STEEMIT_100_PERCENT;
                 author_tokens -= total_beneficiary;
@@ -275,10 +295,6 @@ namespace golos { namespace api {
         }
 
         fill_reputation_(db, d.author, d.author_reputation);
-
-        if (d.parent_author != STEEMIT_ROOT_POST_PARENT) {
-            d.cashout_time = db.calculate_discussion_payout_time(db.get_comment(d.id));
-        }
 
         if (d.body.size() > 1024 * 128) {
             d.body = "body pruned due to size";
@@ -341,7 +357,7 @@ namespace golos { namespace api {
         pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_info);
     }
 
-    discussion_helper::~discussion_helper() = default;
+    discussion_helper::~discussion_helper() {}
 
 //
 } } // golos::api

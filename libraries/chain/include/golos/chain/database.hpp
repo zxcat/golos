@@ -28,6 +28,8 @@ namespace golos { namespace chain {
 
         struct operation_notification;
 
+        struct comment_curation_info;
+
         /**
          *   @class database
          *   @brief tracks the blockchain state in an extensible manner
@@ -225,7 +227,7 @@ namespace golos { namespace chain {
             /**
              * Update an account's bandwidth and returns if the account had the requisite bandwidth for the trx
              */
-            bool update_account_bandwidth(const account_object &a, uint32_t trx_size, const bandwidth_type type);
+            bool update_account_bandwidth(const dynamic_global_property_object& props, const account_object &a, uint32_t trx_size, const bandwidth_type type);
 
             void max_bandwidth_per_share() const;
 
@@ -425,7 +427,9 @@ namespace golos { namespace chain {
 
             void process_vesting_withdrawals();
 
-            share_type pay_curators(const comment_object &c, share_type max_rewards);
+            uint64_t pay_delegators(const account_object& delegatee, const comment_vote_object& cvo, uint64_t claim);
+
+            share_type pay_curators(const comment_curation_info& c, share_type max_rewards);
 
             void cashout_comment_helper(const comment_object &comment);
 
@@ -452,8 +456,6 @@ namespace golos { namespace chain {
             asset get_producer_reward() const;
             asset get_curation_reward() const;
             asset get_pow_reward() const;
-
-            uint16_t get_curation_rewards_percent() const;
 
             uint128_t get_content_constant_s() const;
 
@@ -604,6 +606,10 @@ namespace golos { namespace chain {
             void apply_hardfork(uint32_t hardfork);
 
             bool _resize(uint32_t block_num);
+
+            void pay_curator(const comment_vote_object& cvo, const uint64_t& claim, const account_name_type& author, const std::string& permlink);
+
+            void adjust_sbd_balance(const account_object &a, const asset &delta);
 
             ///@}
 

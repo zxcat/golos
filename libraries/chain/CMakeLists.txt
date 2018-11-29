@@ -30,6 +30,7 @@ if(BUILD_SHARED_LIBRARIES)
             proposal_evaluator.cpp
             database_proposal_object.cpp
             chain_properties_evaluators.cpp
+            curation_info.cpp
 
             include/golos/chain/account_object.hpp
             include/golos/chain/block_log.hpp
@@ -58,6 +59,7 @@ if(BUILD_SHARED_LIBRARIES)
             include/golos/chain/steem_objects.hpp
             include/golos/chain/transaction_object.hpp
             include/golos/chain/witness_objects.hpp
+            include/golos/chain/curation_info.hpp
 
             ${hardfork_hpp_file}
             "${CMAKE_CURRENT_BINARY_DIR}/include/steemit/chain/hardfork.hpp"
@@ -79,6 +81,7 @@ else()
             proposal_evaluator.cpp
             database_proposal_object.cpp
             chain_properties_evaluators.cpp
+            curation_info.cpp
 
             include/golos/chain/account_object.hpp
             include/golos/chain/block_log.hpp
@@ -107,6 +110,7 @@ else()
             include/golos/chain/steem_objects.hpp
             include/golos/chain/transaction_object.hpp
             include/golos/chain/witness_objects.hpp
+            include/golos/chain/curation_info.hpp
 
             ${hardfork_hpp_file}
             "${CMAKE_CURRENT_BINARY_DIR}/include/golos/chain/hardfork.hpp"

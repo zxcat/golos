@@ -15,6 +15,26 @@ namespace golos { namespace api {
             create_account_delegation_time = src.create_account_delegation_time;
             min_delegation = src.min_delegation;
         }
+        if (db.has_hardfork(STEEMIT_HARDFORK_0_19)) {
+            max_referral_interest_rate = src.max_referral_interest_rate;
+            max_referral_term_sec = src.max_referral_term_sec;
+            min_referral_break_fee = src.min_referral_break_fee;
+            max_referral_break_fee = src.max_referral_break_fee;
+            posts_window = src.posts_window;
+            posts_per_window = src.posts_per_window;
+            comments_window = src.comments_window;
+            comments_per_window = src.comments_per_window;
+            votes_window = src.votes_window;
+            votes_per_window = src.votes_per_window;
+            auction_window_size = src.auction_window_size;
+            max_delegated_vesting_interest_rate = src.max_delegated_vesting_interest_rate;
+            custom_ops_bandwidth_multiplier = src.custom_ops_bandwidth_multiplier;
+            min_curation_percent = src.min_curation_percent;
+            max_curation_percent = src.max_curation_percent;
+            curation_reward_curve = src.curation_reward_curve;
+            allow_distribute_auction_reward = src.allow_distribute_auction_reward;
+            allow_return_auction_reward_to_fund = src.allow_return_auction_reward_to_fund;
+        }
     }
 
 } } // golos::api

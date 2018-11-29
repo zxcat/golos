@@ -197,6 +197,20 @@ namespace detail_ns {
         }
     };
 
+    template<>
+    struct js_name<delegator_payout_strategy> {
+        static std::string name() {
+            return "delegator_payout_strategy";
+        }
+    };
+
+    template<>
+    struct js_name<curation_curve> {
+        static std::string name() {
+            return "curation_curve";
+        }
+    };
+
     template<typename O>
     struct js_name<chainbase::object_id<O>> {
         static std::string name() {
@@ -415,6 +429,44 @@ namespace detail_ns {
         }
     };
 
+    template<>
+    struct serializer<delegator_payout_strategy, true> {
+        static void init() {
+            static bool init = false;
+            if (!init) {
+                init = true;
+                register_serializer(js_name<delegator_payout_strategy>::name(), [=]() { generate(); });
+            }
+        }
+
+        static void generate() {
+            std::cout << "ChainTypes." << js_name<delegator_payout_strategy>::name() << " =\n";
+            for (uint8_t i = uint8_t(delegator_payout_strategy::to_delegator); i < uint8_t(delegator_payout_strategy::_size); ++i) {
+                std::cout << "    " << fc::json::to_string(delegator_payout_strategy(i)) << ": " << int(i) << "\n";
+            }
+            std::cout << "\n";
+        }
+    };
+
+    template<>
+    struct serializer<curation_curve, true> {
+        static void init() {
+            static bool init = false;
+            if (!init) {
+                init = true;
+                register_serializer(js_name<curation_curve>::name(), [=]() { generate(); });
+            }
+        }
+
+        static void generate() {
+            std::cout << "ChainTypes." << js_name<curation_curve>::name() << " =\n";
+            for (uint8_t i = uint8_t(curation_curve::bounded); i < uint8_t(curation_curve::_size); ++i) {
+                std::cout << "    " << fc::json::to_string(curation_curve(i)) << ": " << int(i) << "\n";
+            }
+            std::cout << "\n";
+        }
+    };
+
     template<typename T>
     struct serializer<fc::optional<T>, false> {
         static void init() {
@@ -541,7 +593,7 @@ int main(int argc, char **argv) {
 
         std::cout << "ChainTypes.private_contact_types=\n";
         for (uint8_t i = unknown; i < private_contact_type_size; ++i) {
-            std::cout << "    " << fc::json::to_string(static_cast<private_contact_type>(i)) << "\n";
+            std::cout << "    " << fc::json::to_string(static_cast<private_contact_type>(i)) << ": " << int(i) << "\n";
         }
         std::cout << "\n";
 

@@ -9,6 +9,7 @@ namespace golos { namespace api {
 
     using namespace golos::chain;
     using namespace golos::protocol;
+    using protocol::auction_window_reward_destination_type;
 
     struct comment_api_object {
         comment_object::id_type id;
@@ -61,6 +62,12 @@ namespace golos { namespace api {
         comment_mode mode = not_set;
 
         comment_object::id_type root_comment;
+
+        protocol::curation_curve curation_reward_curve = protocol::curation_curve::detect;
+        auction_window_reward_destination_type auction_window_reward_destination = protocol::to_reward_fund;
+        uint16_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+        uint64_t auction_window_weight = 0;
+        uint64_t votes_in_auction_window_weight = 0;
         
         string root_title;
 
@@ -69,6 +76,7 @@ namespace golos { namespace api {
         bool allow_replies = 0;
         bool allow_votes = 0;
         bool allow_curation_rewards = 0;
+        uint16_t curation_rewards_percent = 0;
 
         vector< protocol::beneficiary_route_type > beneficiaries;
     };
@@ -82,7 +90,9 @@ FC_REFLECT(
     (vote_rshares)(children_abs_rshares)(cashout_time)(max_cashout_time)(total_vote_weight)
     (reward_weight)(total_payout_value)(beneficiary_payout_value)(beneficiary_gests_payout_value)(curator_payout_value)(curator_gests_payout_value)
     (author_rewards)(author_gbg_payout_value)(author_golos_payout_value)(author_gests_payout_value)(net_votes)
-    (mode)(root_comment)(root_title)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
-    (allow_curation_rewards)(beneficiaries))
+    (mode)(curation_reward_curve)(auction_window_reward_destination)
+    (auction_window_size)(auction_window_weight)(votes_in_auction_window_weight)
+    (root_comment)(root_title)(max_accepted_payout)(percent_steem_dollars)(allow_replies)(allow_votes)
+    (allow_curation_rewards)(curation_rewards_percent)(beneficiaries))
 
 #endif //GOLOS_COMMENT_API_OBJ_H

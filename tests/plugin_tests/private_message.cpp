@@ -1093,4 +1093,123 @@ BOOST_FIXTURE_TEST_SUITE(private_message_plugin, private_message_fixture)
         BOOST_CHECK_EQUAL(sam_outbox.size(), 0);
     }
 
+    BOOST_AUTO_TEST_CASE(remove_private_messages_bug_990) try {
+
+        BOOST_TEST_MESSAGE("--- Prepare users");
+
+        constexpr char alice_user_name[] = "alice";
+        constexpr char bob_user_name[] = "bob";
+        constexpr char clara_user_name[] = "clara";
+
+        ACTORS((alice)(bob)(clara))
+
+        const auto alice_memo_private_key = generate_private_key("alice_memo");
+        const auto alice_memo_public_key = alice_memo_private_key.get_public_key();
+
+        const auto bob_memo_private_key = generate_private_key("bob_memo");
+        const auto bob_memo_public_key = bob_memo_private_key.get_public_key();
+
+        const auto clara_memo_private_key = generate_private_key("clara_memo");
+        const auto clara_memo_public_key = bob_memo_private_key.get_public_key();
+
+        const auto alice_to_bob_shared_secret = alice_memo_private_key.get_shared_secret(bob.memo_key);
+        const auto clara_to_alice_shared_secret = clara_memo_private_key.get_shared_secret(alice.memo_key);
+
+        BOOST_TEST_MESSAGE("--- Prepare private message common data");
+
+        golos::plugins::private_message::private_message_operation private_message;
+
+        private_message.update = false;
+
+        const auto msg_json = fc::json::to_string("test message");
+        const auto msg_data = std::vector<char>(msg_json.begin(), msg_json.end());
+
+        custom_json_operation custom_operation;
+
+        custom_operation.id   = "private_message";
+
+        uint64_t nonce(100911024604926323);
+
+        BOOST_TEST_MESSAGE("--- Send private message from \"alice\" to \"bob\"");
+
+        private_message.from = alice_user_name;;
+        private_message.from_memo_key = alice_memo_public_key;
+        private_message.to = bob_user_name;
+        private_message.to_memo_key = bob_memo_public_key;
+
+        custom_operation.required_posting_auths.insert(alice_user_name);
+
+        fc::sha512::encoder alice_to_bob_enc;
+        fc::raw::pack(alice_to_bob_enc, nonce);
+        fc::raw::pack(alice_to_bob_enc, alice_to_bob_shared_secret);
+
+        const auto alice_bob_encrypt_key = alice_to_bob_enc.result();
+
+        private_message.encrypted_message = fc::aes_encrypt(alice_bob_encrypt_key, msg_data);
+        private_message.checksum = fc::sha256::hash(alice_bob_encrypt_key)._hash[0];
+        private_message.nonce = nonce++;
+
+        custom_operation.json = fc::json::to_string(golos::plugins::private_message::private_message_plugin_operation(private_message));
+
+        signed_transaction tx;
+
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, custom_operation));
+
+        BOOST_TEST_MESSAGE("--- Send private message from \"clara\" to \"alice\"");
+
+        private_message.from              = clara_user_name;
+        private_message.from_memo_key     = clara_memo_public_key;
+        private_message.to                = alice_user_name;
+        private_message.to_memo_key       = alice_memo_public_key;
+
+        custom_operation.required_posting_auths.clear();
+        custom_operation.required_posting_auths.insert(clara_user_name);
+
+        fc::sha512::encoder clara_to_alice_enc;
+        fc::raw::pack(clara_to_alice_enc, nonce);
+        fc::raw::pack(clara_to_alice_enc, clara_to_alice_shared_secret);
+
+        const auto clara_to_alice_encrypt_key = alice_to_bob_enc.result();
+        private_message.encrypted_message = fc::aes_encrypt(clara_to_alice_encrypt_key, msg_data);
+        private_message.checksum = fc::sha256::hash(clara_to_alice_encrypt_key)._hash[0];
+        private_message.nonce = nonce++;
+
+        custom_operation.json = fc::json::to_string(golos::plugins::private_message::private_message_plugin_operation(private_message));
+
+        tx.clear();
+
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, clara_private_key, custom_operation));
+
+        BOOST_TEST_MESSAGE("--- Delete private messages from \"alice\" to \"bob\"");
+
+        custom_operation.required_posting_auths.clear();
+        custom_operation.required_posting_auths.insert(alice_user_name);
+
+        golos::plugins::private_message::private_delete_message_operation delete_operation;
+
+        delete_operation.requester = alice_user_name;
+        delete_operation.from = alice_user_name;
+        delete_operation.to = bob_user_name;
+        delete_operation.nonce = 0;
+        delete_operation.start_date = fc::time_point_sec::min();
+        delete_operation.stop_date = fc::time_point_sec::maximum();
+
+        custom_operation.json = fc::json::to_string(golos::plugins::private_message::private_message_plugin_operation(delete_operation));
+        custom_operation.required_posting_auths.insert(alice_user_name);
+
+        tx.clear();
+
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, custom_operation));
+
+        BOOST_TEST_MESSAGE("--- Verify removed messages written by \"alice\" to \"bob\"");
+
+        golos::plugins::json_rpc::msg_pack get_size_message;
+        get_size_message.args = std::vector<fc::variant>({fc::variant(alice_user_name)});
+        auto alice_contacts_size = pm_plugin->get_contacts_size(get_size_message);
+
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[golos::plugins::private_message::pinned].unread_outbox_messages, 0);
+        BOOST_CHECK_EQUAL(alice_contacts_size.size[golos::plugins::private_message::unknown].unread_outbox_messages, 0);
+
+    } FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()

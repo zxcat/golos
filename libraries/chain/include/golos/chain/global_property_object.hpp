@@ -78,6 +78,11 @@ namespace golos {
             uint16_t sbd_print_rate = STEEMIT_100_PERCENT;
 
             /**
+             *  This property switches off fee for SBD holders
+             */
+            bool is_forced_min_price = false;
+
+            /**
              *  Average block size is updated every block to be:
              *
              *     average_block_size = (99 * average_block_size + new_block_size) / 100
@@ -137,6 +142,8 @@ namespace golos {
              * their votes reduced.
              */
             uint32_t vote_regeneration_per_day = 40;
+
+            uint16_t custom_ops_bandwidth_multiplier = STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER;
         };
 
         typedef multi_index_container <
@@ -180,5 +187,7 @@ FC_REFLECT((golos::chain::dynamic_global_property_object),
                 (max_virtual_bandwidth)
                 (current_reserve_ratio)
                 (vote_regeneration_per_day)
+                (custom_ops_bandwidth_multiplier)
+                (is_forced_min_price)
 )
 CHAINBASE_SET_INDEX_TYPE(golos::chain::dynamic_global_property_object, golos::chain::dynamic_global_property_index)

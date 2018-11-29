@@ -107,10 +107,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
 
             generate_block();
 
-            BOOST_REQUIRE(gpo.total_reward_fund_steem == total_comment_fund.reward_fund());
-            BOOST_REQUIRE(gpo.total_reward_shares2 == total_comment_fund.reward_shares());
-            BOOST_REQUIRE(gpo.total_vesting_shares == total_comment_fund.vesting_shares());
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem == total_comment_fund.vesting_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_fund_steem, total_comment_fund.reward_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_shares2, total_comment_fund.reward_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares, total_comment_fund.vesting_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem, total_comment_fund.vesting_fund());
             auto bob_cr_itr = cr_idx.find(bob_comment.id);
             BOOST_CHECK(bob_cr_itr != cr_idx.end());
             BOOST_CHECK_EQUAL(bob_cr_itr->total_payout_value, bob_comment_reward.total_payout());
@@ -119,7 +119,7 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             BOOST_REQUIRE(bob_account.sbd_balance == bob_sbd_balance);
 
             bob_vest_shares += bob_comment_reward.vesting_payout() + bob_comment_reward.vote_payout(bob_account);
-            BOOST_REQUIRE(bob_account.vesting_shares == bob_vest_shares);
+            BOOST_CHECK_EQUAL(bob_account.vesting_shares, bob_vest_shares);
 
             tx.operations.clear();
             tx.signatures.clear();
@@ -323,10 +323,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
 
             generate_block();
 
-            BOOST_REQUIRE(gpo.total_reward_fund_steem == total_comment_fund.reward_fund());
-            BOOST_REQUIRE(gpo.total_reward_shares2 == total_comment_fund.reward_shares());
-            BOOST_REQUIRE(gpo.total_vesting_shares == total_comment_fund.vesting_shares());
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem == total_comment_fund.vesting_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_fund_steem, total_comment_fund.reward_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_shares2, total_comment_fund.reward_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares, total_comment_fund.vesting_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem, total_comment_fund.vesting_fund());
 
             auto bob_total_vesting =
                 bob_vest_shares +
@@ -347,9 +347,9 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                 alice_comment_reward.vote_payout(alice_account) +
                 bob_comment_reward.vote_payout(alice_account);
 
-            BOOST_REQUIRE(alice_comment.net_rshares.value == 0);
-            BOOST_REQUIRE(alice_account.sbd_balance == alice_sbd_balance + alice_comment_reward.sbd_payout());
-            BOOST_REQUIRE(alice_account.vesting_shares == alice_total_vesting);
+            BOOST_CHECK_EQUAL(alice_comment.net_rshares.value, 0);
+            BOOST_CHECK_EQUAL(alice_account.sbd_balance, alice_sbd_balance + alice_comment_reward.sbd_payout());
+            BOOST_CHECK_EQUAL(alice_account.vesting_shares, alice_total_vesting);
 
             auto sam_total_vesting =
                 sam_vest_shares +
@@ -585,10 +585,10 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
 
             generate_block();
 
-            BOOST_REQUIRE(gpo.total_reward_fund_steem == total_comment_fund.reward_fund());
-            BOOST_REQUIRE(gpo.total_reward_shares2 == total_comment_fund.reward_shares());
-            BOOST_REQUIRE(gpo.total_vesting_shares == total_comment_fund.vesting_shares());
-            BOOST_REQUIRE(gpo.total_vesting_fund_steem == total_comment_fund.vesting_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_fund_steem, total_comment_fund.reward_fund());
+            BOOST_CHECK_EQUAL(gpo.total_reward_shares2, total_comment_fund.reward_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_shares, total_comment_fund.vesting_shares());
+            BOOST_CHECK_EQUAL(gpo.total_vesting_fund_steem, total_comment_fund.vesting_fund());
 
             BOOST_REQUIRE(db->has_index<golos::plugins::social_network::comment_reward_index>());
 
@@ -632,40 +632,40 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
             BOOST_REQUIRE(vop_author.vesting_payout == bob_comment_reward.vesting_payout());
 
             vop_curation = ops[3].get<curation_reward_operation>();
-            BOOST_REQUIRE(vop_curation.curator == "sam");
-            BOOST_REQUIRE(vop_curation.comment_author == "bob");
-            BOOST_REQUIRE(vop_curation.comment_permlink == "test");
-            BOOST_REQUIRE(vop_curation.reward == bob_comment_reward.vote_payout(sam_account));
+            BOOST_CHECK_EQUAL(vop_curation.curator, "bob");
+            BOOST_CHECK_EQUAL(vop_curation.comment_author, "bob");
+            BOOST_CHECK_EQUAL(vop_curation.comment_permlink, "test");
+            BOOST_CHECK_EQUAL(vop_curation.reward, bob_comment_reward.vote_payout(bob_account));
 
             vop_curation = ops[4].get<curation_reward_operation>();
-            BOOST_REQUIRE(vop_curation.curator == "alice");
-            BOOST_REQUIRE(vop_curation.comment_author == "bob");
-            BOOST_REQUIRE(vop_curation.comment_permlink == "test");
-            BOOST_REQUIRE(vop_curation.reward == bob_comment_reward.vote_payout(alice_account));
+            BOOST_CHECK_EQUAL(vop_curation.curator, "sam");
+            BOOST_CHECK_EQUAL(vop_curation.comment_author, "bob");
+            BOOST_CHECK_EQUAL(vop_curation.comment_permlink, "test");
+            BOOST_CHECK_EQUAL(vop_curation.reward, bob_comment_reward.vote_payout(sam_account));
 
             vop_curation = ops[5].get<curation_reward_operation>();
-            BOOST_REQUIRE(vop_curation.curator == "bob");
-            BOOST_REQUIRE(vop_curation.comment_author == "bob");
-            BOOST_REQUIRE(vop_curation.comment_permlink == "test");
-            BOOST_REQUIRE(vop_curation.reward == bob_comment_reward.vote_payout(bob_account));
+            BOOST_CHECK_EQUAL(vop_curation.curator, "alice");
+            BOOST_CHECK_EQUAL(vop_curation.comment_author, "bob");
+            BOOST_CHECK_EQUAL(vop_curation.comment_permlink, "test");
+            BOOST_CHECK_EQUAL(vop_curation.reward, bob_comment_reward.vote_payout(alice_account));
 
             vop_author = ops[6].get<author_reward_operation>();
-            BOOST_REQUIRE(vop_author.author == "alice");
-            BOOST_REQUIRE(vop_author.permlink == "test");
-            BOOST_REQUIRE(vop_author.sbd_payout == alice_comment_reward.sbd_payout());
-            BOOST_REQUIRE(vop_author.vesting_payout == alice_comment_reward.vesting_payout());
+            BOOST_CHECK_EQUAL(vop_author.author, "alice");
+            BOOST_CHECK_EQUAL(vop_author.permlink, "test");
+            BOOST_CHECK_EQUAL(vop_author.sbd_payout, alice_comment_reward.sbd_payout());
+            BOOST_CHECK_EQUAL(vop_author.vesting_payout, alice_comment_reward.vesting_payout());
 
             vop_curation = ops[7].get<curation_reward_operation>();
-            BOOST_REQUIRE(vop_curation.curator == "bob");
-            BOOST_REQUIRE(vop_curation.comment_author == "alice");
-            BOOST_REQUIRE(vop_curation.comment_permlink == "test");
-            BOOST_REQUIRE(vop_curation.reward == alice_comment_reward.vote_payout(bob_account));
+            BOOST_CHECK_EQUAL(vop_curation.curator, "alice");
+            BOOST_CHECK_EQUAL(vop_curation.comment_author, "alice");
+            BOOST_CHECK_EQUAL(vop_curation.comment_permlink, "test");
+            BOOST_CHECK_EQUAL(vop_curation.reward, alice_comment_reward.vote_payout(alice_account));
 
             vop_curation = ops[8].get<curation_reward_operation>();
-            BOOST_REQUIRE(vop_curation.curator == "alice");
-            BOOST_REQUIRE(vop_curation.comment_author == "alice");
-            BOOST_REQUIRE(vop_curation.comment_permlink == "test");
-            BOOST_REQUIRE(vop_curation.reward == alice_comment_reward.vote_payout(alice_account));
+            BOOST_CHECK_EQUAL(vop_curation.curator, "bob");
+            BOOST_CHECK_EQUAL(vop_curation.comment_author, "alice");
+            BOOST_CHECK_EQUAL(vop_curation.comment_permlink, "test");
+            BOOST_CHECK_EQUAL(vop_curation.reward, alice_comment_reward.vote_payout(bob_account));
 
             BOOST_TEST_MESSAGE("Checking account balances");
 
@@ -675,8 +675,8 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                 alice_comment_reward.vesting_payout() +
                 alice_comment_reward.vote_payout(alice_account) +
                 bob_comment_reward.vote_payout(alice_account);
-            BOOST_REQUIRE(alice_account.sbd_balance == alice_total_sbd);
-            BOOST_REQUIRE(alice_account.vesting_shares == alice_total_vesting);
+            BOOST_CHECK_EQUAL(alice_account.sbd_balance, alice_total_sbd);
+            BOOST_CHECK_EQUAL(alice_account.vesting_shares, alice_total_vesting);
 
             auto bob_total_sbd = bob_starting_sbd + bob_comment_reward.sbd_payout();
             auto bob_total_vesting =
@@ -685,19 +685,19 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
                 alice_comment_reward.vote_payout(bob_account) +
                 bob_comment_reward.vote_payout(bob_account) +
                 dave_comment_reward.vote_payout(bob_account);
-            BOOST_REQUIRE(bob_account.sbd_balance == bob_total_sbd);
-            BOOST_REQUIRE(bob_account.vesting_shares == bob_total_vesting);
+            BOOST_CHECK_EQUAL(bob_account.sbd_balance, bob_total_sbd);
+            BOOST_CHECK_EQUAL(bob_account.vesting_shares, bob_total_vesting);
 
             auto sam_total_vesting =
                 sam_starting_vesting +
                 bob_comment_reward.vote_payout(sam_account);
-            BOOST_REQUIRE(sam_account.sbd_balance == sam_starting_sbd);
-            BOOST_REQUIRE(sam_account.vesting_shares == sam_total_vesting);
+            BOOST_CHECK_EQUAL(sam_account.sbd_balance, sam_starting_sbd);
+            BOOST_CHECK_EQUAL(sam_account.vesting_shares, sam_total_vesting);
 
             auto dave_total_sbd = dave_starting_sbd + dave_comment_reward.sbd_payout();
             auto dave_total_vesting = dave_starting_vesting + dave_comment_reward.vesting_payout();
-            BOOST_REQUIRE(dave_account.sbd_balance == dave_total_sbd);
-            BOOST_REQUIRE(dave_account.vesting_shares == dave_total_vesting);
+            BOOST_CHECK_EQUAL(dave_account.sbd_balance, dave_total_sbd);
+            BOOST_CHECK_EQUAL(dave_account.vesting_shares, dave_total_vesting);
         }
         FC_LOG_AND_RETHROW()
     }
@@ -1666,6 +1666,86 @@ BOOST_FIXTURE_TEST_SUITE(operation_time_tests, clean_database_fixture)
         }
         FC_LOG_AND_RETHROW();
     }
+
+    BOOST_AUTO_TEST_CASE(limit_sbd_interest_rate) try {
+
+        const account_name_type alice_user_name = "alice";
+        const account_name_type bob_user_name = "bob";
+
+        BOOST_TEST_MESSAGE("Testing limitation of the sbd interest rate");
+
+        ACTORS((alice)(bob))
+
+        generate_block();
+
+        BOOST_TEST_MESSAGE("--- Set start values");
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            set_price_feed(price(asset::from_string("1.000 GBG"), asset::from_string("1.000 GOLOS")));
+
+            db->modify(dynamic_global_properties, [&](dynamic_global_property_object& prop) {
+                prop.current_supply = asset(1000, STEEM_SYMBOL);
+                prop.sbd_interest_rate = STEEMIT_100_PERCENT;
+
+            });
+        }
+
+        generate_block();
+
+        fund(alice_user_name, ASSET("90.000 GOLOS"));
+        fund(alice_user_name, ASSET("9.000 GBG")); // this sets current_median_history to 1
+
+        BOOST_TEST_MESSAGE("--- Generate blocks to get GBG ~ 11%");
+
+        generate_blocks(db->head_block_time() + fc::seconds(STEEMIT_SECONDS_PER_YEAR / 4), true);
+
+        transfer_operation transfer_op;
+        transfer_op.from = alice_user_name;
+        transfer_op.to = bob_user_name;
+        transfer_op.amount = asset(1, SBD_SYMBOL);
+
+        signed_transaction tx;
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, transfer_op));
+
+        BOOST_TEST_MESSAGE("--- Generate blocks to recalc current median history");
+
+        set_price_feed(price(asset::from_string("1.000 GBG"), asset::from_string("1.000 GOLOS")));
+
+        db->skip_price_feed_limit_check = false;
+
+        generate_blocks(STEEMIT_FEED_INTERVAL_BLOCKS - (db->head_block_num() % STEEMIT_FEED_INTERVAL_BLOCKS));
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            BOOST_CHECK_EQUAL(dynamic_global_properties.is_forced_min_price, true);
+
+            const auto total_amount = dynamic_global_properties.current_supply.amount + dynamic_global_properties.current_sbd_supply.amount;
+
+            BOOST_CHECK_EQUAL(100 * dynamic_global_properties.current_sbd_supply.amount / total_amount, 11);
+        }
+
+        BOOST_TEST_MESSAGE("--- Try to get sbd fee again");
+
+        generate_blocks(db->head_block_time() + fc::seconds(STEEMIT_SECONDS_PER_YEAR / 4), true);
+
+        BOOST_CHECK_NO_THROW(push_tx_with_ops(tx, alice_private_key, transfer_op));
+
+        {
+            const auto& dynamic_global_properties = db->get_dynamic_global_properties();
+
+            BOOST_CHECK_EQUAL(dynamic_global_properties.is_forced_min_price, true);
+
+            const auto total_amount = dynamic_global_properties.current_supply.amount + dynamic_global_properties.current_sbd_supply.amount;
+
+            BOOST_CHECK_EQUAL(100 * dynamic_global_properties.current_sbd_supply.amount / total_amount, 11);
+        }
+
+
+    }
+    FC_LOG_AND_RETHROW()
 
     BOOST_AUTO_TEST_CASE(liquidity_rewards) {
 

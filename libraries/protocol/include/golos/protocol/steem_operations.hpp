@@ -3,6 +3,7 @@
 #include <golos/protocol/base.hpp>
 #include <golos/protocol/block_header.hpp>
 #include <golos/protocol/asset.hpp>
+#include <golos/protocol/reward_curve.hpp>
 
 #include <fc/utf8.hpp>
 #include <fc/crypto/equihash.hpp>
@@ -25,6 +26,21 @@ namespace golos { namespace protocol {
             }
         };
 
+        struct account_referral_options {
+            account_name_type referrer;
+            uint16_t interest_rate;
+            time_point_sec end_date;
+            asset break_fee;
+
+            void validate() const;
+        };
+
+        using account_create_with_delegation_extension = static_variant<
+            account_referral_options
+        >;
+
+        using account_create_with_delegation_extensions_type = flat_set<account_create_with_delegation_extension>;
+
         struct account_create_with_delegation_operation: public base_operation {
             asset fee;
             asset delegation;
@@ -36,7 +52,7 @@ namespace golos { namespace protocol {
             public_key_type memo_key;
             string json_metadata;
 
-            extensions_type extensions;
+            account_create_with_delegation_extensions_type extensions;
 
             void validate() const;
             void get_required_active_authorities(flat_set<account_name_type>& a) const {
@@ -115,13 +131,48 @@ namespace golos { namespace protocol {
         };
 
         struct comment_payout_beneficiaries {
-            vector <beneficiary_route_type> beneficiaries;
+            vector<beneficiary_route_type> beneficiaries;
+
+            void validate() const;
+        };
+
+        // destination of returning tokens from auction window
+        enum auction_window_reward_destination_type {
+            to_reward_fund,
+            to_curators,
+            to_author
+        };
+
+        struct comment_auction_window_reward_destination {
+            comment_auction_window_reward_destination() {
+            }
+
+            comment_auction_window_reward_destination(auction_window_reward_destination_type dest) 
+                : destination(dest) {
+            }
+
+            auction_window_reward_destination_type destination;
+
+            void validate() const;
+        };
+
+        struct comment_curation_rewards_percent {
+            comment_curation_rewards_percent() {
+            }
+
+            comment_curation_rewards_percent(uint16_t perc)
+                : percent(perc) {
+            }
+
+            uint16_t percent = STEEMIT_MIN_CURATION_PERCENT;
 
             void validate() const;
         };
 
         typedef static_variant <
-            comment_payout_beneficiaries
+            comment_payout_beneficiaries,
+            comment_auction_window_reward_destination,
+            comment_curation_rewards_percent
         > comment_options_extension;
 
         typedef flat_set <comment_options_extension> comment_options_extensions_type;
@@ -419,6 +470,7 @@ namespace golos { namespace protocol {
         };
 
         struct chain_properties_18;
+        struct chain_properties_19;
 
         /**
          * Witnesses must vote on how to set certain chain properties to ensure a smooth
@@ -496,6 +548,118 @@ namespace golos { namespace protocol {
             chain_properties_18& operator=(const chain_properties_18&) = default;
         };
 
+        /**
+         * Users can invite referrals, and they will pay some percent of rewards to their referrers.
+         * Referral can break paying for some fee.
+         */
+        struct chain_properties_19: public chain_properties_18 {
+
+            /**
+             * Maximum percent of referral deductions
+             */
+            uint16_t max_referral_interest_rate = GOLOS_DEFAULT_REFERRAL_INTEREST_RATE;
+
+            /**
+             * Maximum term of referral deductions
+             */
+            uint32_t max_referral_term_sec = GOLOS_DEFAULT_REFERRAL_TERM_SEC;
+
+            /**
+             * Min fee for breaking referral deductions by referral
+             */
+            asset min_referral_break_fee = GOLOS_MIN_REFERRAL_BREAK_FEE;
+
+            /**
+             * Max fee for breaking referral deductions by referral
+             */
+            asset max_referral_break_fee = GOLOS_MAX_REFERRAL_BREAK_FEE;
+
+            /**
+             * Time window for commenting by account
+             */
+            uint16_t posts_window = STEEMIT_POSTS_WINDOW;
+
+            /**
+             * Maximum count of comments per one window by account
+             */
+            uint16_t posts_per_window = STEEMIT_POSTS_PER_WINDOW;
+
+            /**
+             * Time window for commenting by account
+             */
+            uint16_t comments_window = STEEMIT_COMMENTS_WINDOW;
+
+            /**
+             * Maximum count of comments per one window by account
+             */
+            uint16_t comments_per_window = STEEMIT_COMMENTS_PER_WINDOW;
+
+            /**
+             * Time window for voting by account
+             */
+            uint16_t votes_window = STEEMIT_VOTES_WINDOW;
+
+            /**
+             * Maximum count of votes per one window by account
+             */
+            uint16_t votes_per_window = STEEMIT_VOTES_PER_WINDOW;
+
+            /**
+             * Auction window size
+             */
+            uint16_t auction_window_size = STEEMIT_REVERSE_AUCTION_WINDOW_SECONDS;
+
+            /**
+             * Maximum interest rate for delegated vesting shares
+             */
+            uint16_t max_delegated_vesting_interest_rate = STEEMIT_DEFAULT_DELEGATED_VESTING_INTEREST_RATE;
+
+            /**
+             * Custom operations bandwidth multiplier
+             */
+            uint16_t custom_ops_bandwidth_multiplier = STEEMIT_CUSTOM_OPS_BANDWIDTH_MULTIPLIER;
+
+            /**
+             * Minimum rate of all curation rewards in total payment
+             */
+            uint16_t min_curation_percent = STEEMIT_DEF_CURATION_PERCENT;
+
+            /**
+             * Maximum rate of all curation rewards in total payment
+             */
+            uint16_t max_curation_percent = STEEMIT_MAX_CURATION_PERCENT;
+
+            /**
+             * Curation curve
+             */
+            curation_curve curation_reward_curve = curation_curve::linear;
+
+            /**
+             * Allow to return auction window reward to reward fund
+             */
+            bool allow_return_auction_reward_to_fund = true;
+
+             /**
+              * Allow to distribute auction window reward between curators
+              */
+            bool allow_distribute_auction_reward = true;
+
+
+            void validate() const;
+
+            chain_properties_19& operator=(const chain_properties_17& src) {
+                chain_properties_18::operator=(src);
+                return *this;
+            }
+
+            chain_properties_19& operator=(const chain_properties_18& src) {
+                chain_properties_18::operator=(src);
+                return *this;
+            }
+
+            chain_properties_19& operator=(const chain_properties_19&) = default;
+        };
+
         inline chain_properties_17& chain_properties_17::operator=(const chain_properties_18& src) {
             account_creation_fee = src.account_creation_fee;
             maximum_block_size = src.maximum_block_size;
@@ -505,7 +669,8 @@ namespace golos { namespace protocol {
 
         using versioned_chain_properties = fc::static_variant<
             chain_properties_17,
-            chain_properties_18
+            chain_properties_18,
+            chain_properties_19
         >;
 
         /**
@@ -1118,6 +1283,51 @@ namespace golos { namespace protocol {
                 a.insert(delegator);
             }
         };
+
+        class break_free_referral_operation : public base_operation {
+        public:
+            account_name_type referral;
+
+            extensions_type extensions;             ///< Extensions. Not currently used.
+
+            void validate() const;
+            void get_required_active_authorities(flat_set<account_name_type>& a) const {
+                a.insert(referral);
+            }
+        };
+
+        enum delegator_payout_strategy {
+            to_delegator,
+            to_delegated_vesting,
+            _size
+        };
+
+        class delegate_vesting_shares_with_interest_operation : public base_operation {
+        public:
+            account_name_type delegator;    ///< The account delegating vesting shares
+            account_name_type delegatee;    ///< The account receiving vesting shares
+            asset vesting_shares;           ///< The amount of vesting shares delegated
+            uint16_t interest_rate = STEEMIT_DEFAULT_DELEGATED_VESTING_INTEREST_RATE; ///< The interest rate wanted by delegator
+            delegator_payout_strategy payout_strategy = to_delegator; ///< The strategy of delegator vesting payouts
+            extensions_type extensions;     ///< Extensions. Not currently used.
+
+            void validate() const;
+            void get_required_active_authorities(flat_set<account_name_type>& a) const {
+                a.insert(delegator);
+            }
+        };
+
+        class reject_vesting_shares_delegation_operation : public base_operation {
+        public:
+            account_name_type delegator;    ///< The account delegating vesting shares
+            account_name_type delegatee;    ///< The account receiving vesting shares
+            extensions_type extensions;     ///< Extensions. Not currently used.
+
+            void validate() const;
+            void get_required_active_authorities(flat_set<account_name_type>& a) const {
+                a.insert(delegatee);
+            }
+        };
 } } // golos::protocol
 
 
@@ -1141,9 +1351,15 @@ FC_REFLECT(
     (golos::protocol::chain_properties_17),
     (account_creation_fee)(maximum_block_size)(sbd_interest_rate))
 FC_REFLECT_DERIVED(
-    (golos::protocol::chain_properties_18),((golos::protocol::chain_properties_17)),
+    (golos::protocol::chain_properties_18), ((golos::protocol::chain_properties_17)),
     (create_account_min_golos_fee)(create_account_min_delegation)
     (create_account_delegation_time)(min_delegation))
+FC_REFLECT_DERIVED(
+    (golos::protocol::chain_properties_19), ((golos::protocol::chain_properties_18)),
+    (max_referral_interest_rate)(max_referral_term_sec)(min_referral_break_fee)(max_referral_break_fee)
+    (posts_window)(posts_per_window)(comments_window)(comments_per_window)(votes_window)(votes_per_window)(auction_window_size)
+    (max_delegated_vesting_interest_rate)(custom_ops_bandwidth_multiplier)(min_curation_percent)(max_curation_percent)
+    (curation_reward_curve)(allow_distribute_auction_reward)(allow_return_auction_reward_to_fund))
 
 FC_REFLECT_TYPENAME((golos::protocol::versioned_chain_properties))
 
@@ -1161,6 +1377,8 @@ FC_REFLECT((golos::protocol::account_create_operation),
                 (memo_key)
                 (json_metadata))
 
+FC_REFLECT((golos::protocol::account_referral_options), (referrer)(interest_rate)(end_date)(break_fee))
+FC_REFLECT_TYPENAME((golos::protocol::account_create_with_delegation_extension));
 FC_REFLECT((golos::protocol::account_create_with_delegation_operation),
     (fee)(delegation)(creator)(new_account_name)(owner)(active)(posting)(memo_key)(json_metadata)(extensions));
 
@@ -1193,7 +1411,10 @@ FC_REFLECT((golos::protocol::limit_order_cancel_operation), (owner)(orderid))
 FC_REFLECT((golos::protocol::delete_comment_operation), (author)(permlink));
 
 FC_REFLECT((golos::protocol::beneficiary_route_type), (account)(weight))
+FC_REFLECT_ENUM(golos::protocol::auction_window_reward_destination_type, (to_reward_fund)(to_curators)(to_author))
 FC_REFLECT((golos::protocol::comment_payout_beneficiaries), (beneficiaries));
+FC_REFLECT((golos::protocol::comment_auction_window_reward_destination), (destination));
+FC_REFLECT((golos::protocol::comment_curation_rewards_percent), (percent));
 FC_REFLECT_TYPENAME((golos::protocol::comment_options_extension));
 FC_REFLECT((golos::protocol::comment_options_operation), (author)(permlink)(max_accepted_payout)(percent_steem_dollars)(allow_votes)(allow_curation_rewards)(extensions))
 
@@ -1209,3 +1430,8 @@ FC_REFLECT((golos::protocol::change_recovery_account_operation), (account_to_rec
 FC_REFLECT((golos::protocol::decline_voting_rights_operation), (account)(decline));
 FC_REFLECT((golos::protocol::delegate_vesting_shares_operation), (delegator)(delegatee)(vesting_shares));
 FC_REFLECT((golos::protocol::chain_properties_update_operation), (owner)(props));
+FC_REFLECT((golos::protocol::break_free_referral_operation), (referral)(extensions));
+
+FC_REFLECT_ENUM(golos::protocol::delegator_payout_strategy, (to_delegator)(to_delegated_vesting)(_size))
+FC_REFLECT((golos::protocol::delegate_vesting_shares_with_interest_operation), (delegator)(delegatee)(vesting_shares)(interest_rate)(extensions));
+FC_REFLECT((golos::protocol::reject_vesting_shares_delegation_operation), (delegator)(delegatee)(extensions));

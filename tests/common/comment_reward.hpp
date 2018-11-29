@@ -6,6 +6,7 @@
 #include <golos/chain/comment_object.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/account_object.hpp>
+#include <golos/chain/curation_info.hpp>
 
 namespace golos { namespace chain {
 
@@ -44,7 +45,7 @@ namespace golos { namespace chain {
             BOOST_REQUIRE_LE(vshares.to_uint64(), reward_shares_.to_uint64());
 
             auto reward = vshares * reward_fund_.amount.value / reward_shares_;
-            BOOST_REQUIRE_LE(reward.to_uint64(), reward_fund_.amount.value);
+            BOOST_REQUIRE_LE(reward.to_uint64(), static_cast<uint64_t>(reward_fund_.amount.value));
 
             reward_shares_ -= vshares;
             reward_fund_ -= asset(reward.to_uint64(), reward_fund_.symbol);
@@ -57,6 +58,10 @@ namespace golos { namespace chain {
             vesting_shares_ += vesting;
             vesting_fund_ += value;
             return vesting;
+        }
+
+        void modify_reward_fund(asset& value) {
+            reward_fund_ += value;
         }
 
     private:
@@ -114,16 +119,38 @@ namespace golos { namespace chain {
             return total_vote_payouts_;
         }
 
+        int64_t total_curators_reward() const {
+            return total_vote_rewards_;
+        }
+
+        int64_t total_author_reward() const {
+            return comment_rewards_;
+        }
+
         asset vote_payout(const account_object& voter) const {
             auto itr = vote_payout_map_.find(voter.id);
-            BOOST_REQUIRE(vote_payout_map_.end() != itr);
-            return itr->second;
+            if (vote_payout_map_.end() != itr) {
+                return itr->second;
+            }
+            return asset(0, VESTS_SYMBOL);
         }
 
         asset vote_payout(const std::string& voter) const {
             auto account = db_.find_account(voter);
             BOOST_REQUIRE(account != nullptr);
             return vote_payout(*account);
+        }
+
+        asset delegator_payout(const account_object& delegator) const {
+            auto itr = delegator_payout_map_.find(delegator.id);
+            BOOST_CHECK(delegator_payout_map_.end() != itr);
+            return itr->second;
+        }
+
+        asset delegator_payout(const account_name_type& delegator) const {
+            auto account = db_.find_account(delegator);
+            BOOST_CHECK(account != nullptr);
+            return delegator_payout(*account);
         }
 
         asset total_beneficiary_payouts() const {
@@ -167,27 +194,85 @@ namespace golos { namespace chain {
 
         void calculate_rewards() {
             comment_rewards_ = fund_.claim_comment_reward(comment_).amount.value;
-            vote_rewards_fund_ =  comment_rewards_ * STEEMIT_1_PERCENT * 25 / STEEMIT_100_PERCENT;
+            vote_rewards_fund_ = comment_rewards_ * comment_.curation_rewards_percent / STEEMIT_100_PERCENT;
         }
 
         void calculate_vote_payouts() {
-            auto& vote_idx = db_.get_index<comment_vote_index>().indices().get<by_comment_weight_voter>();
-            auto itr = vote_idx.lower_bound(comment_.id);
-            auto total_weight = comment_.total_vote_weight;
+            comment_curation_info c{db_, comment_, false};
+            auto total_weight = c.total_vote_weight;
 
             total_vote_rewards_ = 0;
             total_vote_payouts_ = asset(0, VESTS_SYMBOL);
-            for (; itr != vote_idx.end() && itr->comment == comment_.id; ++itr) {
-                BOOST_REQUIRE(vote_payout_map_.find(itr->voter) == vote_payout_map_.end());
+
+            auto auction_window_reward = (uint128_t(vote_rewards_fund_) * c.auction_window_weight / total_weight).to_uint64();
+
+            auto auw_time = comment_.created + comment_.auction_window_size;
+            uint64_t heaviest_vote_after_auw_weight = 0;
+            account_id_type heaviest_vote_after_auw_account;
+
+            for (auto itr = c.vote_list.begin(); itr != c.vote_list.end(); ++itr) {
+                BOOST_REQUIRE(vote_payout_map_.find(itr->vote->voter) == vote_payout_map_.end());
                 auto weight = u256(itr->weight);
-                int64_t reward = static_cast<int64_t>(weight * vote_rewards_fund_ / total_weight);
+                uint64_t claim = static_cast<uint64_t>(weight * vote_rewards_fund_ / total_weight);
+                // to_curators case
+                if (comment_.auction_window_reward_destination == protocol::to_curators &&
+                    (itr->vote->last_update >= auw_time || db_.get(itr->vote->voter).name == comment_.author)
+                ) {
+                    if (!heaviest_vote_after_auw_weight) {
+                        heaviest_vote_after_auw_weight = itr->weight;
+                        heaviest_vote_after_auw_account = itr->vote->voter;
+                        continue;
+                    }
+
+                    claim += static_cast<int64_t>((auction_window_reward * weight) / c.votes_after_auction_window_weight);
+                }
+
+                auto reward = claim;
+
+                if (db_.has_hardfork(STEEMIT_HARDFORK_0_19__756)) {
+                    for (auto& dvir : itr->vote->delegator_vote_interest_rates) {
+                        auto delegator = db_.find_account(dvir.account);
+                        BOOST_CHECK(delegator != nullptr);
+                        BOOST_CHECK(delegator_payout_map_.find(delegator->id) == delegator_payout_map_.end());
+
+                        auto delegator_reward = claim * dvir.interest_rate / STEEMIT_100_PERCENT;
+                        reward -= delegator_reward;
+                        auto delegator_payout = fund_.create_vesting(asset(delegator_reward, STEEM_SYMBOL));
+
+                        delegator_payout_map_.emplace(delegator->id, delegator_payout);
+                    }
+                } else {
+                    BOOST_CHECK(itr->vote->delegator_vote_interest_rates.empty());
+                }
 
                 total_vote_rewards_ += reward;
                 BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
 
                 auto payout = fund_.create_vesting(asset(reward, STEEM_SYMBOL));
-                vote_payout_map_.emplace(itr->voter, payout);
+                vote_payout_map_.emplace(itr->vote->voter, payout);
                 total_vote_payouts_ += payout;
+            }
+
+            uint64_t unclaimed_rewards = vote_rewards_fund_ - total_vote_rewards_;
+
+            if (comment_.auction_window_reward_destination == protocol::to_curators && heaviest_vote_after_auw_weight) {
+                // pay needed claim + rest unclaimed tokens (close to zero value) to curator with greates weight
+                // BTW: it has to be unclaimed_rewards.value not heaviest_vote_after_auw_weight + unclaimed_rewards.value, coz
+                //      unclaimed_rewards already contains this.
+                total_vote_rewards_ += unclaimed_rewards;
+                BOOST_REQUIRE_LE(total_vote_rewards_, vote_rewards_fund_);
+
+                auto payout = fund_.create_vesting(asset(unclaimed_rewards, STEEM_SYMBOL));
+                vote_payout_map_.emplace(heaviest_vote_after_auw_account, payout);
+                total_vote_payouts_ += payout;
+
+                unclaimed_rewards = 0;
+            }
+
+            if (comment_.auction_window_reward_destination != protocol::to_author) {
+                comment_rewards_ -= unclaimed_rewards;
+                auto tokes_back_to_reward_fund = asset(unclaimed_rewards, STEEM_SYMBOL);
+                fund_.modify_reward_fund(tokes_back_to_reward_fund);
             }
 
             comment_rewards_ -= total_vote_rewards_;
@@ -232,6 +317,7 @@ namespace golos { namespace chain {
         int64_t total_vote_rewards_;
         asset total_vote_payouts_;
         std::map<account_id_type, asset> vote_payout_map_;
+        std::map<account_id_type, asset> delegator_payout_map_;
 
         int64_t total_beneficiary_rewards_;
         asset total_beneficiary_payouts_;

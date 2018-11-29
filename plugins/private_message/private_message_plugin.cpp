@@ -392,13 +392,13 @@ namespace golos { namespace plugins { namespace private_message {
         auto& size_idx = d.get_index<contact_size_index>().indices().get<by_owner>();
 
         // Increment counters depends on side of communication
-        auto inc_counters = [&](auto& o, const bool is_send) {
+        auto inc_counters = [&](auto& size_object, const bool is_send) {
             if (is_send) {
-                o.total_outbox_messages++;
-                o.unread_outbox_messages++;
+                size_object.total_outbox_messages++;
+                size_object.unread_outbox_messages++;
             } else {
-                o.total_inbox_messages++;
-                o.unread_inbox_messages++;
+                size_object.total_inbox_messages++;
+                size_object.unread_inbox_messages++;
             }
         };
 
@@ -536,15 +536,19 @@ namespace golos { namespace plugins { namespace private_message {
             const auto& owner = std::get<0>(stat_info.first);
             const auto& size = stat_info.second;
             auto contact_itr = contact_idx.find(stat_info.first);
-            auto size_itr = size_idx.find(owner);
 
-            FC_ASSERT(contact_idx.end() != contact_itr && size_idx.end() != size_itr, "Invalid size");
+            FC_ASSERT(contact_idx.end() != contact_itr, "Invalid size");
+
+            auto size_itr = size_idx.find(std::make_tuple(owner, contact_itr->type));
+
+            FC_ASSERT(size_idx.end() != size_itr, "Invalid size");
 
             if (!contact_action(*contact_itr, *size_itr, size)) {
                 db.modify(*contact_itr, [&](auto& pco) {
                     pco.size -= size;
                 });
-                db.modify(*size_itr, [&](auto& pcso){
+
+                db.modify(*size_itr, [&](auto& pcso) {
                     pcso.size -= size;
                 });
             }
@@ -749,7 +753,7 @@ namespace golos { namespace plugins { namespace private_message {
                     d.modify(*src_itr, [&](auto& src) {
                         src.size.total_contacts--;
                         src.size -= contact_itr->size;
-                    });
+                   });
                 }
 
                 // has messages or type is not unknown

@@ -40,6 +40,19 @@ namespace golos { namespace protocol {
             string comment_permlink;
         };
 
+        struct auction_window_reward_operation : public virtual_operation {
+            auction_window_reward_operation() {
+            }
+
+            auction_window_reward_operation(const asset &r, const string &a, const string &p)
+                    : reward(r), comment_author(a), comment_permlink(p) {
+            }
+
+            asset reward;
+            account_name_type comment_author;
+            string comment_permlink;
+        };
+
 
         struct comment_reward_operation : public virtual_operation {
             comment_reward_operation() {
@@ -195,6 +208,20 @@ namespace golos { namespace protocol {
             asset             vesting_shares;
         };
 
+        struct delegation_reward_operation : public virtual_operation {
+            delegation_reward_operation() {
+            }
+
+            delegation_reward_operation(const account_name_type& dr, const account_name_type& de, const delegator_payout_strategy& ps, const asset& vs)
+                    : delegator(dr), delegatee(de), payout_strategy(ps), vesting_shares(vs) {
+            }
+
+            account_name_type delegator;
+            account_name_type delegatee;
+            delegator_payout_strategy payout_strategy;
+            asset vesting_shares;
+        };
+
         struct return_vesting_delegation_operation: public virtual_operation {
             return_vesting_delegation_operation() {
             }
@@ -209,6 +236,7 @@ namespace golos { namespace protocol {
 
 FC_REFLECT((golos::protocol::author_reward_operation), (author)(permlink)(sbd_payout)(steem_payout)(vesting_payout))
 FC_REFLECT((golos::protocol::curation_reward_operation), (curator)(reward)(comment_author)(comment_permlink))
+FC_REFLECT((golos::protocol::auction_window_reward_operation), (reward)(comment_author)(comment_permlink))
 FC_REFLECT((golos::protocol::comment_reward_operation), (author)(permlink)(payout))
 FC_REFLECT((golos::protocol::fill_convert_request_operation), (owner)(requestid)(amount_in)(amount_out))
 FC_REFLECT((golos::protocol::liquidity_reward_operation), (owner)(payout))
@@ -222,3 +250,4 @@ FC_REFLECT((golos::protocol::comment_payout_update_operation), (author)(permlink
 FC_REFLECT((golos::protocol::comment_benefactor_reward_operation), (benefactor)(author)(permlink)(reward))
 FC_REFLECT((golos::protocol::return_vesting_delegation_operation), (account)(vesting_shares))
 FC_REFLECT((golos::protocol::producer_reward_operation), (producer)(vesting_shares))
+FC_REFLECT((golos::protocol::delegation_reward_operation), (delegator)(delegatee)(payout_strategy)(vesting_shares))

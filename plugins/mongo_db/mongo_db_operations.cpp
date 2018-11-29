@@ -549,37 +549,63 @@ namespace mongo_db {
     }
 
 //
+
     auto operation_writer::operator()(const delegate_vesting_shares_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
+    auto operation_writer::operator()(const delegate_vesting_shares_with_interest_operation& op) -> result_type {
+        result_type body;
+
+        return body;
+    }
+
+    auto operation_writer::operator()(const reject_vesting_shares_delegation_operation& op) -> result_type {
+        result_type body;
+
+        return body;
+    }
+
     auto operation_writer::operator()(const account_create_with_delegation_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const account_metadata_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
+    auto operation_writer::operator()(const break_free_referral_operation& op) -> result_type {
+        result_type body;
+
+        return body;
+    }
+
     auto operation_writer::operator()(const proposal_create_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const proposal_update_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
     auto operation_writer::operator()(const proposal_delete_operation& op) -> result_type {
         result_type body;
 
         return body;
     }
+
 //
+
     auto operation_writer::operator()(const fill_convert_request_operation& op) -> result_type {
         result_type body;
 
@@ -729,6 +755,16 @@ namespace mongo_db {
         result_type body;
         format_value(body, "owner", op.owner);
         format_chain_properties_v(body, op.props);
+        return body;
+    }
+
+    auto operation_writer::operator()(const delegation_reward_operation& op) -> result_type {
+        result_type body;
+        return body;
+    }
+
+    auto operation_writer::operator()(const auction_window_reward_operation& op) -> result_type {
+        result_type body;
         return body;
     }
 

@@ -50,6 +50,9 @@ public:
 
     bool can_vote = true;
     uint16_t voting_power = STEEMIT_100_PERCENT;   ///< current voting power of this account, it falls after every vote
+    uint16_t posts_capacity = STEEMIT_POSTS_WINDOW;
+    uint16_t comments_capacity = STEEMIT_COMMENTS_WINDOW;
+    uint16_t voting_capacity = STEEMIT_VOTES_WINDOW;
     time_point_sec last_vote_time; ///< used to increase the voting power of this account the longer it goes without voting.
 
     asset balance = asset(0, STEEM_SYMBOL);  ///< total liquid shares held by this account
@@ -83,7 +86,9 @@ public:
     uint8_t savings_withdraw_requests = 0;
     ///@}
 
+    share_type benefaction_rewards = 0;
     share_type curation_rewards = 0;
+    share_type delegation_rewards = 0;
     share_type posting_rewards = 0;
 
     asset vesting_shares = asset(0, VESTS_SYMBOL); ///< total vesting shares held by this account, controls its voting power
@@ -101,6 +106,11 @@ public:
     uint16_t witnesses_voted_for = 0;
 
     time_point_sec last_post;
+
+    account_name_type referrer_account;
+    uint16_t referrer_interest_rate = 0;
+    time_point_sec referral_end_date = time_point_sec::min();
+    asset referral_break_fee = asset(0, STEEM_SYMBOL);
 
     /// This function should be used only when the account votes for a witness directly
     share_type witness_vote_weight() const {
@@ -197,6 +207,8 @@ public:
     account_name_type delegator;
     account_name_type delegatee;
     asset vesting_shares;
+    uint16_t interest_rate = 0;
+    protocol::delegator_payout_strategy payout_strategy = protocol::to_delegator;
     time_point_sec min_delegation_time;
 };
 
@@ -495,20 +507,23 @@ change_recovery_account_request_index;
 
 
 FC_REFLECT((golos::chain::account_object),
-        (id)(name)(memo_key)(proxy)(last_account_update)
-                (created)(mined)
-                (owner_challenged)(active_challenged)(last_owner_proved)(last_active_proved)(recovery_account)(last_account_recovery)(reset_account)
-                (comment_count)(lifetime_vote_count)(post_count)(can_vote)(voting_power)(last_vote_time)
-                (balance)
-                (savings_balance)
-                (sbd_balance)(sbd_seconds)(sbd_seconds_last_update)(sbd_last_interest_payment)
-                (savings_sbd_balance)(savings_sbd_seconds)(savings_sbd_seconds_last_update)(savings_sbd_last_interest_payment)(savings_withdraw_requests)
-                (vesting_shares)(delegated_vesting_shares)(received_vesting_shares)
-                (vesting_withdraw_rate)(next_vesting_withdrawal)(withdrawn)(to_withdraw)(withdraw_routes)
-                (curation_rewards)
-                (posting_rewards)
-                (proxied_vsf_votes)(witnesses_voted_for)
-                (last_post)
+    (id)(name)(memo_key)(proxy)(last_account_update)
+    (created)(mined)
+    (owner_challenged)(active_challenged)(last_owner_proved)(last_active_proved)(recovery_account)(last_account_recovery)(reset_account)
+    (comment_count)(lifetime_vote_count)(post_count)(can_vote)(voting_power)(last_vote_time)
+    (balance)
+    (savings_balance)
+    (sbd_balance)(sbd_seconds)(sbd_seconds_last_update)(sbd_last_interest_payment)
+    (savings_sbd_balance)(savings_sbd_seconds)(savings_sbd_seconds_last_update)(savings_sbd_last_interest_payment)(savings_withdraw_requests)
+    (vesting_shares)(delegated_vesting_shares)(received_vesting_shares)
+    (vesting_withdraw_rate)(next_vesting_withdrawal)(withdrawn)(to_withdraw)(withdraw_routes)
+    (benefaction_rewards)
+    (curation_rewards)
+    (delegation_rewards)
+    (posting_rewards)
+    (proxied_vsf_votes)(witnesses_voted_for)
+    (last_post)
+    (referrer_account)(referrer_interest_rate)(referral_end_date)(referral_break_fee)
 )
 CHAINBASE_SET_INDEX_TYPE(golos::chain::account_object, golos::chain::account_index)
 
@@ -524,7 +539,7 @@ CHAINBASE_SET_INDEX_TYPE(golos::chain::account_bandwidth_object, golos::chain::a
 FC_REFLECT((golos::chain::account_metadata_object), (id)(account)(json_metadata))
 CHAINBASE_SET_INDEX_TYPE(golos::chain::account_metadata_object, golos::chain::account_metadata_index)
 
-FC_REFLECT((golos::chain::vesting_delegation_object), (id)(delegator)(delegatee)(vesting_shares)(min_delegation_time))
+FC_REFLECT((golos::chain::vesting_delegation_object), (id)(delegator)(delegatee)(vesting_shares)(interest_rate)(min_delegation_time))
 CHAINBASE_SET_INDEX_TYPE(golos::chain::vesting_delegation_object, golos::chain::vesting_delegation_index)
 
 FC_REFLECT((golos::chain::vesting_delegation_expiration_object), (id)(delegator)(vesting_shares)(expiration))
