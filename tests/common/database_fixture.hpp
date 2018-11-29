@@ -185,8 +185,8 @@ struct ErrorValidator<golos::bandwidth_exception> {
         BOOST_CHECK_EQUAL(name, "bandwidth_exception");
         BOOST_CHECK_EQUAL(props["bandwidth"].get_string(),
             fc::reflector<golos::bandwidth_exception::bandwidth_types>::to_string(type));
-        BOOST_CHECK_NO_THROW(props["now"].get_string());
-        BOOST_CHECK_NO_THROW(props["next"].get_string());
+        BOOST_CHECK_NO_THROW(props["now"].as_string());
+        BOOST_CHECK_NO_THROW(props["next"].as_string());
     }
 };
 

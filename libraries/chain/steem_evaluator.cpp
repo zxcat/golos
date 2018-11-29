@@ -621,6 +621,150 @@ namespace golos { namespace chain {
             }
         }
 
+        struct comment_bandwidth final {
+            database& db;
+            const time_point_sec& now;
+            const comment_operation& op;
+            const chain_properties& mprops;
+            const account_object& auth;
+            mutable const account_bandwidth_object* band = nullptr;
+
+            uint16_t calc_reward_weight() const {
+                band = db.find<account_bandwidth_object, by_account_bandwidth_type>(
+                    std::make_tuple(op.author, bandwidth_type::post));
+
+                if (nullptr == band) {
+                    band = &db.create<account_bandwidth_object>([&](account_bandwidth_object &b) {
+                        b.account = op.author;
+                        b.type = bandwidth_type::post;
+                    });
+                }
+
+                if (db.has_hardfork(STEEMIT_HARDFORK_0_19__533_1002)) {
+                    hf19();
+                } else if (db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
+                    hf12();
+                } else if (db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
+                    hf6();
+                } else {
+                    hf0();
+                }
+
+                return calculate();
+            }
+
+        private:
+            uint16_t calculate() const {
+                uint16_t reward_weight = STEEMIT_100_PERCENT;
+
+                if (op.parent_author == STEEMIT_ROOT_POST_PARENT) {
+                    auto pb = band->average_bandwidth;
+
+                    if (db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
+                        auto post_delta_time = std::min(
+                            now.sec_since_epoch() - band->last_bandwidth_update.sec_since_epoch(),
+                            STEEMIT_POST_AVERAGE_WINDOW);
+
+                        auto old_weight =
+                            (pb * (STEEMIT_POST_AVERAGE_WINDOW - post_delta_time)) /
+                            STEEMIT_POST_AVERAGE_WINDOW;
+
+                        pb = (old_weight + STEEMIT_100_PERCENT);
+
+                        reward_weight = uint16_t(std::min(
+                            (STEEMIT_POST_WEIGHT_CONSTANT * STEEMIT_100_PERCENT) / (pb.value * pb.value),
+                            uint64_t(STEEMIT_100_PERCENT)));
+                    }
+
+                    db.modify(*band, [&](account_bandwidth_object &b) {
+                        b.last_bandwidth_update = now;
+                        b.average_bandwidth = pb;
+                    });
+                }
+
+                return reward_weight;
+            }
+
+            void hf19() const {
+                auto elapsed_seconds = (now - auth.last_post).to_seconds();
+
+                if (op.parent_author == STEEMIT_ROOT_POST_PARENT) {
+                    auto consumption = mprops.posts_window / mprops.posts_per_window;
+
+                    auto regenerated_capacity = std::min(
+                        uint32_t(mprops.posts_window),
+                        uint32_t(elapsed_seconds));
+
+                    auto current_capacity = std::min(
+                        uint16_t(auth.posts_capacity + regenerated_capacity),
+                        mprops.posts_window);
+
+                    GOLOS_CHECK_BANDWIDTH(current_capacity + 1, consumption,
+                        bandwidth_exception::post_bandwidth,
+                        "You may only post ${posts_per_window} times in ${posts_window} seconds.",
+                        ("posts_per_window", mprops.posts_per_window)
+                        ("posts_window", mprops.posts_window));
+
+
+                    db.modify(auth, [&](account_object& a) {
+                        a.posts_capacity = current_capacity - consumption;
+                    });
+
+                } else {
+                    auto consumption = mprops.comments_window / mprops.comments_per_window;
+
+                    auto regenerated_capacity = std::min(
+                        uint32_t(mprops.comments_window),
+                        uint32_t(elapsed_seconds));
+
+                    auto current_capacity = std::min(
+                        uint16_t(auth.comments_capacity + regenerated_capacity),
+                        mprops.comments_window);
+
+                    GOLOS_CHECK_BANDWIDTH(current_capacity + 1, consumption,
+                        bandwidth_exception::comment_bandwidth,
+                        "You may only comment ${comments_per_window} times in ${comments_window} seconds.",
+                        ("comments_per_window", mprops.comments_per_window)
+                        ("comments_window", mprops.comments_window));
+
+                    db.modify(auth, [&](account_object& a) {
+                        a.comments_capacity = current_capacity - consumption;
+                    });
+                }
+            }
+
+            void hf12() const {
+                if (op.parent_author == STEEMIT_ROOT_POST_PARENT) {
+                    GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                        bandwidth_exception::post_bandwidth,
+                        "You may only post once every 5 minutes.");
+                } else {
+                    GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
+                        golos::bandwidth_exception::comment_bandwidth,
+                        "You may only comment once every 20 seconds.");
+                }
+            }
+
+            void hf6() const {
+                if (op.parent_author == STEEMIT_ROOT_POST_PARENT) {
+                    GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
+                        bandwidth_exception::post_bandwidth,
+                        "You may only post once every 5 minutes.");
+                } else {
+                    GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
+                        bandwidth_exception::comment_bandwidth,
+                        "You may only comment once every 20 seconds.");
+                }
+            }
+
+            void hf0() const {
+                GOLOS_CHECK_BANDWIDTH(now, auth.last_post + 60,
+                    bandwidth_exception::post_bandwidth,
+                    "You may only post once per minute.");
+            }
+
+        }; // struct check_comment_bandwidth
+
         void comment_evaluator::do_apply(const comment_operation &o) {
             try {
                 if (_db.is_producing() ||
@@ -667,86 +811,7 @@ namespace golos { namespace chain {
                                 "The parent comment has disabled replies.");
                     }
 
-                    auto band = _db.find<account_bandwidth_object, by_account_bandwidth_type>(std::make_tuple(o.author, bandwidth_type::post));
-                    if (band == nullptr) {
-                        band = &_db.create<account_bandwidth_object>([&](account_bandwidth_object &b) {
-                            b.account = o.author;
-                            b.type = bandwidth_type::post;
-                        });
-                    }
-
-                    auto elapsed_seconds = (now - auth.last_post).to_seconds();
-
-                    if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__533)) {
-                        auto consumption = mprops.comments_window / mprops.comments_per_window;
-
-                        auto regenerated_capacity = std::min(uint32_t(mprops.comments_window), uint32_t(elapsed_seconds));
-                        auto current_capacity = std::min(uint16_t(auth.comments_capacity + regenerated_capacity), mprops.comments_window);
-
-                        if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
-                            GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
-                                bandwidth_exception::post_bandwidth,
-                                "You may only post once every 5 minutes.");
-                        } else {
-                            GOLOS_CHECK_BANDWIDTH(current_capacity, consumption,
-                                bandwidth_exception::comment_bandwidth,
-                                "You may only comment ${comments_per_window} times in ${comments_window} seconds.",
-                                    ("comments_per_window", mprops.comments_per_window)("comments_window", mprops.comments_window));
-                        }
-
-                        db().modify(auth, [&](account_object &a) {
-                            a.comments_capacity = current_capacity - consumption;
-                        });
-                    } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
-                        if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            GOLOS_CHECK_BANDWIDTH(now, band->last_bandwidth_update + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
-                                    bandwidth_exception::post_bandwidth,
-                                    "You may only post once every 5 minutes.");
-                        else
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
-                                    golos::bandwidth_exception::comment_bandwidth,
-                                    "You may only comment once every 20 seconds.");
-                    } else if (_db.has_hardfork(STEEMIT_HARDFORK_0_6__113)) {
-                        if (o.parent_author == STEEMIT_ROOT_POST_PARENT)
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_ROOT_COMMENT_INTERVAL,
-                                    bandwidth_exception::post_bandwidth,
-                                    "You may only post once every 5 minutes.");
-                        else
-                            GOLOS_CHECK_BANDWIDTH(now, auth.last_post + STEEMIT_MIN_REPLY_INTERVAL,
-                                bandwidth_exception::comment_bandwidth,
-                                "You may only comment once every 20 seconds.");
-                    } else {
-                        GOLOS_CHECK_BANDWIDTH(now, auth.last_post + 60,
-                                bandwidth_exception::post_bandwidth,
-                                "You may only post once per minute.");
-                    }
-
-                    uint16_t reward_weight = STEEMIT_100_PERCENT;
-
-                    if (o.parent_author == STEEMIT_ROOT_POST_PARENT) {
-                        auto post_bandwidth = band->average_bandwidth;
-
-                        if (_db.has_hardfork(STEEMIT_HARDFORK_0_12__176)) {
-                            auto post_delta_time = std::min(
-                                    now.sec_since_epoch() -
-                                    band->last_bandwidth_update.sec_since_epoch(), STEEMIT_POST_AVERAGE_WINDOW);
-                            auto old_weight = (post_bandwidth *
-                                               (STEEMIT_POST_AVERAGE_WINDOW -
-                                                post_delta_time)) /
-                                              STEEMIT_POST_AVERAGE_WINDOW;
-                            post_bandwidth = (old_weight + STEEMIT_100_PERCENT);
-                            reward_weight = uint16_t(std::min(
-                                    (STEEMIT_POST_WEIGHT_CONSTANT *
-                                     STEEMIT_100_PERCENT) /
-                                    (post_bandwidth.value *
-                                     post_bandwidth.value), uint64_t(STEEMIT_100_PERCENT)));
-                        }
-
-                        _db.modify(*band, [&](account_bandwidth_object &b) {
-                            b.last_bandwidth_update = now;
-                            b.average_bandwidth = post_bandwidth;
-                        });
-                    }
+                    uint16_t reward_weight = comment_bandwidth{_db, now, o, mprops, auth}.calc_reward_weight();
 
                     db().modify(auth, [&](account_object &a) {
                         a.last_post = now;
@@ -1378,13 +1443,13 @@ namespace golos { namespace chain {
 
                 auto elapsed_seconds = (_db.head_block_time() - voter.last_vote_time).to_seconds();
 
-                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__533)) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_19__533_1002)) {
                     auto consumption = mprops.votes_window / mprops.votes_per_window;
 
                     auto regenerated_capacity = std::min(uint32_t(mprops.votes_window), uint32_t(elapsed_seconds));
                     auto current_capacity = std::min(uint16_t(voter.voting_capacity + regenerated_capacity), mprops.votes_window);
 
-                    GOLOS_CHECK_BANDWIDTH(current_capacity, consumption,
+                    GOLOS_CHECK_BANDWIDTH(current_capacity + 1, consumption,
                         bandwidth_exception::vote_bandwidth,
                         "Can only vote ${votes_per_window} times in ${votes_window} seconds.",
                         ("votes_per_window", mprops.votes_per_window)("votes_window", mprops.votes_window));

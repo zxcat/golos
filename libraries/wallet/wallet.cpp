@@ -331,6 +331,8 @@ namespace golos { namespace wallet {
                         result["max_referral_term_sec"] = median_props.max_referral_term_sec;
                         result["min_referral_break_fee"] = median_props.min_referral_break_fee;
                         result["max_referral_break_fee"] = median_props.max_referral_break_fee;
+                        result["posts_window"] = median_props.posts_window;
+                        result["posts_per_window"] = median_props.posts_per_window;
                         result["comments_window"] = median_props.comments_window;
                         result["comments_per_window"] = median_props.comments_per_window;
                         result["votes_window"] = median_props.votes_window;
@@ -2273,9 +2275,10 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.props = p;
             auto hf = my->_remote_database_api->get_hardfork_version();
             if (hf >= hardfork_version(0, STEEMIT_HARDFORK_0_19) || !!props.max_referral_interest_rate
-                    || !!props.max_referral_term_sec || !!props.comments_window
-                    || !!props.min_referral_break_fee || !!props.max_referral_break_fee
-                    || !!props.comments_per_window || !!props.votes_window || !!props.votes_per_window
+                    || !!props.max_referral_term_sec || !!props.min_referral_break_fee || !!props.max_referral_break_fee
+                    || !!props.posts_window || !!props.posts_per_window
+                    || !!props.comments_window || !!props.comments_per_window
+                    || !!props.votes_window || !!props.votes_per_window
                     || !!props.auction_window_size || !!props.max_delegated_vesting_interest_rate || !!props.custom_ops_bandwidth_multiplier
                     || !!props.min_curation_percent || !!props.max_curation_percent || !!props.curation_reward_curve
                     || !!props.allow_return_auction_reward_to_fund || !!props.allow_distribute_auction_reward) {
@@ -2285,6 +2288,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
                 SET_PROP(p19, max_referral_term_sec);
                 SET_PROP(p19, min_referral_break_fee);
                 SET_PROP(p19, max_referral_break_fee);
+                SET_PROP(p19, posts_window);
+                SET_PROP(p19, posts_per_window);
                 SET_PROP(p19, comments_window);
                 SET_PROP(p19, comments_per_window);
                 SET_PROP(p19, votes_window);
