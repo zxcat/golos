@@ -627,7 +627,7 @@ namespace golos { namespace protocol {
             /**
              * Maximum rate of all curation rewards in total payment
              */
-            uint16_t max_curation_percent = STEEMIT_MAX_CURATION_PERCENT;
+            uint16_t max_curation_percent = STEEMIT_DEF_CURATION_PERCENT;
 
             /**
              * Curation curve
