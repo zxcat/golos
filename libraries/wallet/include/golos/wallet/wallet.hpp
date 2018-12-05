@@ -776,7 +776,6 @@ namespace golos { namespace wallet {
                 string witness_name,
                 string url,
                 public_key_type block_signing_key,
-                optional<chain_properties> props,
                 bool broadcast = false
             );
 

@@ -2200,7 +2200,6 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             string witness_account_name,
             string url,
             public_key_type block_signing_key,
-            optional<chain_properties> props,
             bool broadcast
         ) {
             WALLET_CHECK_UNLOCKED();
@@ -2222,18 +2221,7 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
             op.owner = witness_account_name;
             op.block_signing_key = block_signing_key;
 
-            if (!has_hf18 && props.valid()) {
-                op.props = *props;
-            }
-
             tx.operations.push_back(op);
-
-            if (has_hf18 && props.valid()) {
-                chain_properties_update_operation chain_op;
-                chain_op.owner = witness_account_name;
-                chain_op.props = *props;
-                tx.operations.push_back(chain_op);
-            }
 
             tx.validate();
 
