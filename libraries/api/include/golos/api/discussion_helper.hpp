@@ -21,11 +21,6 @@ namespace golos { namespace api {
         );
         ~discussion_helper();
 
-
-        void set_pending_payout(discussion& d) const;
-
-        void set_url(discussion& d) const;
-
         std::vector<vote_state> select_active_votes(
                 const std::string& author, const std::string& permlink, uint32_t limit, uint32_t offset
         ) const;
@@ -37,6 +32,8 @@ namespace golos { namespace api {
         discussion get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const;
 
         comment_api_object create_comment_api_object(const comment_object& o) const;
+
+        void fill_discussion(discussion&, const comment_object&, uint32_t vote_limit, uint32_t offset) const;
 
         void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
 

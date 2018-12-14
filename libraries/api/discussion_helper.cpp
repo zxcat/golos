@@ -57,6 +57,8 @@ namespace golos { namespace api {
 
         discussion get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const;
 
+        void fill_discussion(discussion& d, const comment_object& comment, uint32_t vote_limit, uint32_t offset) const;
+
         void fill_comment_api_object(const comment_object& o, comment_api_object& d) const;
 
     private:
@@ -136,7 +138,27 @@ namespace golos { namespace api {
 // get_discussion
     discussion discussion_helper::impl::get_discussion(const comment_object& comment, uint32_t vote_limit, uint32_t offset) const {
         discussion d = create_discussion(comment);
+        fill_discussion(d, comment, vote_limit, offset);
+        return d;
+    }
+
+    discussion discussion_helper::get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const {
+        return pimpl->get_discussion(c, vote_limit, offset);
+    }
+
+    void discussion_helper::impl::fill_discussion(
+        discussion& d, const comment_object& comment, uint32_t vote_limit, uint32_t offset
+    ) const {
         set_url(d);
+
+        fill_reputation_(database_, d.author, d.author_reputation);
+
+        if (d.body.size() > 1024 * 128) {
+            d.body = "body pruned due to size";
+        }
+        if (d.parent_author.size() > 0 && d.body.size() > 1024 * 16) {
+            d.body = "comment pruned due to size";
+        }
 
         d.active_votes_count = comment.total_votes;
 
@@ -149,12 +171,12 @@ namespace golos { namespace api {
         d.active_votes = select_active_votes(c, vote_limit, offset);
 
         set_pending_payout(d);
-
-        return d;
     }
 
-    discussion discussion_helper::get_discussion(const comment_object& c, uint32_t vote_limit, uint32_t offset) const {
-        return pimpl->get_discussion(c, vote_limit, offset);
+    void discussion_helper::fill_discussion(
+        discussion& d, const comment_object& comment, uint32_t vote_limit, uint32_t offset
+    ) const {
+        pimpl->fill_discussion(d, comment, vote_limit, offset);
     }
 //
 
@@ -293,22 +315,8 @@ namespace golos { namespace api {
 
             d.total_pending_payout_value = db.to_sbd(asset(static_cast<uint64_t>(tpp), pot.symbol));
         }
-
-        fill_reputation_(db, d.author, d.author_reputation);
-
-        if (d.body.size() > 1024 * 128) {
-            d.body = "body pruned due to size";
-        }
-        if (d.parent_author.size() > 0 && d.body.size() > 1024 * 16) {
-            d.body = "comment pruned due to size";
-        }
-
-        set_url(d);
     }
 
-    void discussion_helper::set_pending_payout(discussion& d) const {
-        pimpl->set_pending_payout(d);
-    }
 //
 // set_url
     void discussion_helper::impl::set_url(discussion& d) const {
@@ -321,9 +329,6 @@ namespace golos { namespace api {
         }
     }
 
-    void discussion_helper::set_url(discussion& d) const {
-        pimpl->set_url(d);
-    }
 //
 // create_discussion
     discussion discussion_helper::impl::create_discussion(const std::string& author) const {
