@@ -230,24 +230,22 @@ namespace golos { namespace plugins { namespace social_network {
         }
 
         void operator()(const delete_comment_operation& o) const {
-            const auto& comment = impl.db.get_comment(o.author, o.permlink);
-            const auto content = impl.find_comment_content(comment.id);
-
-            if (content == nullptr) {
+            const auto* comment = impl.db.find_comment(o.author, o.permlink);
+            if (comment == nullptr) {
                 return;
             }
 
-            impl.db.remove(*content);
+            const auto content = impl.find_comment_content(comment->id);
+
+            if (content != nullptr) {
+                impl.db.remove(*content);
+            }
 
             if (impl.db.template has_index<comment_last_update_index>()) {
-                if (comment.net_rshares > 0) {
-                    return;
-                }
-
-                impl.activate_parent_comments(comment);
+                impl.activate_parent_comments(*comment);
 
                 auto& idx = impl.db.template get_index<comment_last_update_index>().indices().template get<by_comment>();
-                auto itr = idx.find(comment.id);
+                auto itr = idx.find(comment->id);
                 if (idx.end() != itr) {
                     impl.db.remove(*itr);
                 }
@@ -255,7 +253,7 @@ namespace golos { namespace plugins { namespace social_network {
 
             if (impl.db.template has_index<comment_reward_index>()) {
                 auto& idx = impl.db.template get_index<comment_reward_index>().indices().template get<by_comment>();
-                auto itr = idx.find(comment.id);
+                auto itr = idx.find(comment->id);
                 if (idx.end() != itr) {
                     impl.db.remove(*itr);
                 }
@@ -287,10 +285,14 @@ namespace golos { namespace plugins { namespace social_network {
         } /// ignore all other ops
 
         void operator()(const golos::protocol::comment_operation& o) const {
-            const auto& comment = db.get_comment(o.author, o.permlink);
+            const auto* comment = db.find_comment(o.author, o.permlink);
+            if (nullptr == comment) {
+                return;
+            }
+
             const auto& dp = depth_parameters;
             if (!dp.miss_content()) {
-                const auto comment_content = impl.find_comment_content(comment.id);
+                const auto comment_content = impl.find_comment_content(comment->id);
                 if ( comment_content != nullptr) {
                     // Edit case
                     db.modify(*comment_content, [&]( comment_content_object& con ) {
@@ -331,7 +333,7 @@ namespace golos { namespace plugins { namespace social_network {
                 } else {
                     // Creation case
                     db.create<comment_content_object>([&](comment_content_object& con) {
-                        con.comment = comment.id;
+                        con.comment = comment->id;
                         if (!dp.has_comment_title_depth || dp.comment_title_depth > 0) {
                             from_string(con.title, o.title);
                         }
@@ -351,8 +353,8 @@ namespace golos { namespace plugins { namespace social_network {
 
             if (db.has_index<comment_last_update_index>()) {
                 auto now = db.head_block_time();
-                if (!impl.set_comment_update(comment, now, true)) { // If create case
-                    impl.activate_parent_comments(comment);
+                if (!impl.set_comment_update(*comment, now, true)) { // If create case
+                    impl.activate_parent_comments(*comment);
                 }
             }
         }
@@ -472,10 +474,14 @@ namespace golos { namespace plugins { namespace social_network {
                 auto& content = *itr;
                 ++itr;
 
-                auto& comment = db.get_comment(content.comment);
+                auto* comment = db.find<comment_object, by_id>(content.comment);
+                if (nullptr == comment) {
+                    db.remove(content);
+                    continue;
+                }
 
                 auto delta = head_block_num - content.block_number;
-                if (comment.mode == archived && dp.should_delete_part_of_content_object(delta)) {
+                if (comment->mode == archived && dp.should_delete_part_of_content_object(delta)) {
                     if (dp.should_delete_whole_content_object(delta)) {
                         db.remove(content);
                         continue;
@@ -509,10 +515,14 @@ namespace golos { namespace plugins { namespace social_network {
                 auto& clu = *itr;
                 ++itr;
 
-                auto& comment = db.get_comment(clu.comment);
+                auto* comment = db.find<comment_object, by_id>(clu.comment);
+                if (nullptr == comment) {
+                    db.remove(clu);
+                    continue;
+                }
 
                 auto delta = head_block_num - clu.block_number;
-                if (comment.mode == archived && depth_parameters.should_delete_last_update_object(delta)) {
+                if (comment->mode == archived && depth_parameters.should_delete_last_update_object(delta)) {
                     db.remove(clu);
                 } else {
                     break;
@@ -720,9 +730,12 @@ namespace golos { namespace plugins { namespace social_network {
                     continue;
                 }
 
-                const auto& vo = db.get(itr->comment);
+                const auto* vo = db.find(itr->comment);
+                if (nullptr == vo) {
+                    continue;
+                }
                 account_vote avote;
-                avote.authorperm = vo.author + "/" + to_string(vo.permlink);
+                avote.authorperm = vo->author + "/" + to_string(vo->permlink);
                 //avote.weight = itr->weight; // TODO:
                 avote.rshares = itr->rshares;
                 avote.percent = itr->vote_percent;
@@ -806,7 +819,10 @@ namespace golos { namespace plugins { namespace social_network {
         result.reserve(limit);
 
         while (itr != clu_idx.end() && result.size() < limit && itr->parent_author == *parent_author) {
-            result.emplace_back(get_discussion(db.get_comment(itr->comment), vote_limit, vote_offset));
+            auto* comment = db.find<comment_object, by_id>(itr->comment);
+            if (nullptr != comment) {
+                result.emplace_back(get_discussion(*comment, vote_limit, vote_offset));
+            }
             ++itr;
         }
 
