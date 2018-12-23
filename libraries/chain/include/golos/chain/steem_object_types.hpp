@@ -172,7 +172,7 @@ namespace fc {
         }
 
         template<typename Stream, typename T>
-        inline void unpack(Stream &s, chainbase::object_id<T> &id) {
+        inline void unpack(Stream &s, chainbase::object_id<T> &id, uint32_t = 0) {
             s.read((char *)&id._id, sizeof(id._id));
         }
     }
@@ -189,16 +189,16 @@ namespace fc {
         }
 
         template<typename T>
-        inline void unpack(const golos::chain::buffer_type &raw, T &v) {
+        inline void unpack(const golos::chain::buffer_type &raw, T &v, uint32_t depth = 0) {
             datastream<const char *> ds(raw.data(), raw.size());
-            unpack(ds, v);
+            unpack(ds, v, depth);
         }
 
         template<typename T>
-        inline T unpack(const golos::chain::buffer_type &raw) {
+        inline T unpack(const golos::chain::buffer_type &raw, uint32_t depth = 0) {
             T v;
             datastream<const char *> ds(raw.data(), raw.size());
-            unpack(ds, v);
+            unpack(ds, v, depth);
             return v;
         }
     }
