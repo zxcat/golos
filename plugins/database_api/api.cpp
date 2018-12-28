@@ -97,7 +97,6 @@ public:
     uint64_t get_account_count() const;
 
     // Authority / validation
-    std::string get_transaction_hex(const signed_transaction &trx) const;
     std::set<public_key_type> get_required_signatures(const signed_transaction &trx, const flat_set<public_key_type> &available_keys) const;
     std::set<public_key_type> get_potential_signatures(const signed_transaction &trx) const;
     bool verify_authority(const signed_transaction &trx) const;
@@ -572,17 +571,20 @@ DEFINE_API(plugin, get_account_bandwidth) {
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-DEFINE_API(plugin, get_transaction_hex) {
+DEFINE_API(plugin, get_transaction_digest) {
     PLUGIN_API_VALIDATE_ARGS(
-        (signed_transaction, trx)
+        (transaction, trx)
     );
-    return my->database().with_weak_read_lock([&]() {
-        return my->get_transaction_hex(trx);
-    });
+    static const auto chain_id = STEEMIT_CHAIN_ID;
+    return trx.sig_digest(chain_id).str();
 }
 
-std::string plugin::api_impl::get_transaction_hex(const signed_transaction &trx) const {
+DEFINE_API(plugin, get_transaction_hex) {
+    PLUGIN_API_VALIDATE_ARGS(
+        (transaction, trx)
+    );
     return fc::to_hex(fc::raw::pack(trx));
+
 }
 
 DEFINE_API(plugin, get_required_signatures) {
