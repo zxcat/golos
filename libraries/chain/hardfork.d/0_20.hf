@@ -1,0 +1,13 @@
+#ifndef STEEMIT_HARDFORK_0_20
+#define STEEMIT_HARDFORK_0_20 20
+#define STEEMIT_HARDFORK_0_20__1074 (STEEMIT_HARDFORK_0_20) // Blockchain stopped due to negative payment of curator reward
+
+#ifdef STEEMIT_BUILD_TESTNET
+#define STEEMIT_HARDFORK_0_20_TIME  1547701200 // 17 jan 2019 12:00:00 MSK
+#else
+#define STEEMIT_HARDFORK_0_20_TIME  1547787600 // 18 jan 2019 12:00:00 MSK
+#endif
+
+#define STEEMIT_HARDFORK_0_20_VERSION hardfork_version( 0, 20 )
+
+#endif
