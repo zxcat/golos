@@ -543,7 +543,7 @@ namespace golos { namespace chain {
 
                 const auto& mprops = _db.get_witness_schedule_object().median_props;
 
-                if (db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
                     GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
                             logic_exception::comment_must_not_have_been_voted,
                             "Comment must not have been voted on changing auction window reward destination.");
@@ -573,7 +573,7 @@ namespace golos { namespace chain {
 
                 auto percent = ccrp.percent; // Workaround for correct param name in GOLOS_CHECK_PARAM
                 
-                if (db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
                     GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
                             logic_exception::comment_must_not_have_been_voted,
                             "Comment must not have been voted on changing curation rewards percent.");
