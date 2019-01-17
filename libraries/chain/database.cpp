@@ -2290,11 +2290,8 @@ namespace golos { namespace chain {
             uint64_t delegators_reward = 0;
             const auto& vdo_idx = get_index<vesting_delegation_index>().indices().get<by_received>();
             for (auto& dvir : cvo.delegator_vote_interest_rates) {
-                if (dvir.interest_rate > STEEMIT_100_PERCENT) {
-                    wlog("Skip bad delegator's interest rate: ${r}", ("r", dvir.interest_rate));
-                    continue;
-                }
                 auto delegator_claim = claim * dvir.interest_rate / STEEMIT_100_PERCENT;
+
                 if (delegator_claim == 0) {
                     continue;
                 }
