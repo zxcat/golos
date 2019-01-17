@@ -3,8 +3,12 @@
  */
 #pragma once
 
-#define STEEMIT_BLOCKCHAIN_VERSION              (version(0, 19, 1))
+
+#define STEEMIT_BLOCKCHAIN_VERSION              (version(0, 20, 0))
 #define STEEMIT_BLOCKCHAIN_HARDFORK_VERSION     (hardfork_version(STEEMIT_BLOCKCHAIN_VERSION))
+
+
+#define GOLOS_BUG1074_BLOCK 23569125
 
 #ifdef STEEMIT_BUILD_TESTNET
 #define BLOCKCHAIN_NAME "GOLOSTEST"

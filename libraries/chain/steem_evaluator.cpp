@@ -543,6 +543,12 @@ namespace golos { namespace chain {
 
                 const auto& mprops = _db.get_witness_schedule_object().median_props;
 
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                    GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                            logic_exception::comment_must_not_have_been_voted,
+                            "Comment must not have been voted on changing auction window reward destination.");
+                }
+
                 GOLOS_CHECK_PARAM(cawrd.destination, {
                     GOLOS_CHECK_VALUE(cawrd.destination != to_reward_fund || mprops.allow_return_auction_reward_to_fund,
                         "Returning to reward fund is disallowed."
@@ -566,6 +572,12 @@ namespace golos { namespace chain {
                 const auto& mprops = _db.get_witness_schedule_object().median_props;
 
                 auto percent = ccrp.percent; // Workaround for correct param name in GOLOS_CHECK_PARAM
+                
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                    GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                            logic_exception::comment_must_not_have_been_voted,
+                            "Comment must not have been voted on changing curation rewards percent.");
+                }
 
                 GOLOS_CHECK_PARAM(percent, {
                     GOLOS_CHECK_VALUE(mprops.min_curation_percent <= ccrp.percent && ccrp.percent <= mprops.max_curation_percent,
@@ -1516,8 +1528,13 @@ namespace golos { namespace chain {
                         for (; vdo_itr != vdo_idx.end() && vdo_itr->delegatee == voter.name; ++vdo_itr) {
                             delegator_vote_interest_rate dvir;
                             dvir.account = vdo_itr->delegator;
-                            dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate
-                                                 / voter.effective_vesting_shares().amount.value;
+                            if (_db.head_block_num() < GOLOS_BUG1074_BLOCK && !_db.has_hardfork(STEEMIT_HARDFORK_0_20__1074)) {
+                                dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate /
+                                    voter.effective_vesting_shares().amount.value;
+                            } else {
+                                dvir.interest_rate = (uint128_t(vdo_itr->vesting_shares.amount.value) *
+                                    vdo_itr->interest_rate / voter.effective_vesting_shares().amount.value).to_uint64();
+                            }
                             dvir.payout_strategy = vdo_itr->payout_strategy;
                             if (dvir.interest_rate > 0) {
                                 delegator_vote_interest_rates.emplace_back(std::move(dvir));
