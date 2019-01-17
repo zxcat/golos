@@ -1516,7 +1516,7 @@ namespace golos { namespace chain {
                         for (; vdo_itr != vdo_idx.end() && vdo_itr->delegatee == voter.name; ++vdo_itr) {
                             delegator_vote_interest_rate dvir;
                             dvir.account = vdo_itr->delegator;
-                            if (!_db.has_hardfork(STEEMIT_HARDFORK_0_20__1074)) {
+                            if (_db.head_block_num() < GOLOS_BUG1074_BLOCK && !_db.has_hardfork(STEEMIT_HARDFORK_0_20__1074)) {
                                 dvir.interest_rate = vdo_itr->vesting_shares.amount.value * vdo_itr->interest_rate /
                                     voter.effective_vesting_shares().amount.value;
                             } else {
