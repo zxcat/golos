@@ -543,6 +543,12 @@ namespace golos { namespace chain {
 
                 const auto& mprops = _db.get_witness_schedule_object().median_props;
 
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                    GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                            logic_exception::comment_must_not_have_been_voted,
+                            "Comment must not have been voted on changing auction window reward destination.");
+                }
+
                 GOLOS_CHECK_PARAM(cawrd.destination, {
                     GOLOS_CHECK_VALUE(cawrd.destination != to_reward_fund || mprops.allow_return_auction_reward_to_fund,
                         "Returning to reward fund is disallowed."
@@ -566,6 +572,12 @@ namespace golos { namespace chain {
                 const auto& mprops = _db.get_witness_schedule_object().median_props;
 
                 auto percent = ccrp.percent; // Workaround for correct param name in GOLOS_CHECK_PARAM
+                
+                if (_db.has_hardfork(STEEMIT_HARDFORK_0_20__1075)) {
+                    GOLOS_CHECK_LOGIC(_c.abs_rshares == 0,
+                            logic_exception::comment_must_not_have_been_voted,
+                            "Comment must not have been voted on changing curation rewards percent.");
+                }
 
                 GOLOS_CHECK_PARAM(percent, {
                     GOLOS_CHECK_VALUE(mprops.min_curation_percent <= ccrp.percent && ccrp.percent <= mprops.max_curation_percent,
