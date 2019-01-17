@@ -276,7 +276,7 @@ namespace golos { namespace protocol {
 
         void chain_properties_19::validate() const {
             chain_properties_18::validate();
-            GOLOS_CHECK_VALUE_LE(auction_window_size, STEEMIT_MAX_AUCTION_WINDOW_SIZE_SECONDS);
+            // GOLOS_CHECK_VALUE_LE(auction_window_size, STEEMIT_MAX_AUCTION_WINDOW_SIZE_SECONDS); // auction_window_size is limited by 16bit
             GOLOS_CHECK_VALUE_LE(max_referral_interest_rate, GOLOS_MAX_REFERRAL_INTEREST_RATE);
             GOLOS_CHECK_VALUE_LE(max_referral_term_sec, GOLOS_MAX_REFERRAL_TERM_SEC);
 
