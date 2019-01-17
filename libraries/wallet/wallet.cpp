@@ -2204,12 +2204,8 @@ fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_st
         ) {
             WALLET_CHECK_UNLOCKED();
 
-            const auto hf = my->_remote_database_api->get_hardfork_version();
-            const auto has_hf18 = hf >= hardfork_version(0, STEEMIT_HARDFORK_0_18__673);
-
             signed_transaction tx;
             witness_update_operation op;
-
             if (url.empty()) {
                 auto wit = my->_remote_witness_api->get_witness_by_account(witness_account_name);
                 if (wit.valid()) {
