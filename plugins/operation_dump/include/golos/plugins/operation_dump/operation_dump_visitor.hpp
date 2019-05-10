@@ -5,6 +5,7 @@
 #include <golos/chain/comment_object.hpp>
 #include <golos/plugins/follow/follow_operations.hpp>
 #include <golos/plugins/tags/tag_visitor.hpp>
+#include <queue>
 
 namespace golos { namespace plugins { namespace operation_dump {
 
@@ -103,7 +104,8 @@ public:
         fc::raw::pack(b, op);
     }
 
-    auto operator()(const vote_operation& op) -> result_type {
+
+    auto operator()(const vote_rshares_operation& op) -> result_type {
         auto& b = write_op_header("votes", COMMENT_ID(op));
 
         fc::raw::pack(b, op);
