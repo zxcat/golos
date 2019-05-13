@@ -198,6 +198,10 @@ public:
     }
 
     auto operator()(const account_update_operation& op) -> result_type {
+        if (op.json_metadata.size() == 0) {
+            return;
+        }
+
         auto& b = write_op_header("account_metas", 0);
 
         fc::raw::pack(b, op.account);
