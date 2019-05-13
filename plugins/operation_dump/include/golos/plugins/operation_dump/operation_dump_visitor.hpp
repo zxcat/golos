@@ -181,6 +181,35 @@ public:
 
         fc::raw::pack(b, op.account);
     }
+
+    // TODO: Remove mandatory hash from header to save 8 bytes on each record
+    auto operator()(const account_create_operation& op) -> result_type {
+        auto& b = write_op_header("account_metas", 0);
+
+        fc::raw::pack(b, op.new_account_name);
+        fc::raw::pack(b, op.json_metadata);
+    }
+
+    auto operator()(const account_create_with_delegation_operation& op) -> result_type {
+        auto& b = write_op_header("account_metas", 0);
+
+        fc::raw::pack(b, op.new_account_name);
+        fc::raw::pack(b, op.json_metadata);
+    }
+
+    auto operator()(const account_update_operation& op) -> result_type {
+        auto& b = write_op_header("account_metas", 0);
+
+        fc::raw::pack(b, op.account);
+        fc::raw::pack(b, op.json_metadata);
+    }
+
+    auto operator()(const account_metadata_operation& op) -> result_type {
+        auto& b = write_op_header("account_metas", 0);
+
+        fc::raw::pack(b, op.account);
+        fc::raw::pack(b, op.json_metadata);
+    }
 };
 
 } } } // golos::plugins::operation_dump
