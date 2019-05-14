@@ -112,6 +112,8 @@ public:
     time_point_sec referral_end_date = time_point_sec::min();
     asset referral_break_fee = asset(0, STEEM_SYMBOL);
 
+    optional<share_type> reputation;
+
     /// This function should be used only when the account votes for a witness directly
     share_type witness_vote_weight() const {
         return std::accumulate(proxied_vsf_votes.begin(),
@@ -523,7 +525,7 @@ FC_REFLECT((golos::chain::account_object),
     (posting_rewards)
     (proxied_vsf_votes)(witnesses_voted_for)
     (last_post)
-    (referrer_account)(referrer_interest_rate)(referral_end_date)(referral_break_fee)
+    (referrer_account)(referrer_interest_rate)(referral_end_date)(referral_break_fee)(reputation)
 )
 CHAINBASE_SET_INDEX_TYPE(golos::chain::account_object, golos::chain::account_index)
 
