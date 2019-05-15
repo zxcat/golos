@@ -50,6 +50,8 @@ public:
         auto& b = write_op_header("transfers", 0);
 
         fc::raw::pack(b, op);
+
+        fc::raw::pack(b, _block.timestamp);
     }
 
     auto operator()(const comment_operation& op) -> result_type {
@@ -64,6 +66,8 @@ public:
 
         auto meta = golos::plugins::tags::get_metadata(op.json_metadata, TAGS_NUMBER, TAG_MAX_LENGTH);
         fc::raw::pack(b, meta);
+
+        fc::raw::pack(b, _block.timestamp);
     }
 
     auto operator()(const delete_comment_operation& op) -> result_type {
