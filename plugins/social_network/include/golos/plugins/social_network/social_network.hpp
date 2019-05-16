@@ -3,6 +3,7 @@
 #include <appbase/application.hpp>
 #include <golos/plugins/chain/plugin.hpp>
 #include <golos/api/discussion.hpp>
+#include <golos/plugins/follow/plugin.hpp>
 #include <golos/api/account_vote.hpp>
 #include <golos/api/vote_state.hpp>
 #include <golos/api/discussion_helper.hpp>

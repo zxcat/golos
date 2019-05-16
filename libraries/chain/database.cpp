@@ -5065,40 +5065,4 @@ namespace golos { namespace chain {
                 }
             }
         }
-
-        share_type database::get_reputation(const account_name_type& account) const {
-            share_type res = 0;
-            auto reputation = get_account(account).reputation;
-            if (!!reputation) {
-                res = *reputation;
-            }
-            return res;
-        }
-
-        void database::update_reputation(const account_name_type& author, const account_name_type& voter, int64_t rshares, bool edit_vote) {
-            const auto& author_acc = get_account(author);
-
-            share_type author_rep = 0;
-            if (!!author_acc.reputation) {
-                author_rep = *author_acc.reputation;
-
-                if (edit_vote) {
-                    author_rep -= rshares;
-                }
-            }
-
-            const auto& voter_rep = get_reputation(voter);
-
-            // Rule #1: Must have non-negative reputation to effect another user's reputation
-            if (voter_rep > 0) {
-                // Rule #2: If you are down voting another user, you must have more reputation than them to impact their reputation
-                if (rshares >= 0 || voter_rep > author_rep) {
-                    author_rep += rshares;
-                }
-            }
-
-            modify(author_acc, [&](account_object& a) {
-                a.reputation = author_rep;
-            });
-        }
 } } //golos::chain

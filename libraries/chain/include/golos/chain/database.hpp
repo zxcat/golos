@@ -463,9 +463,6 @@ namespace golos { namespace chain {
 
             void pay_liquidity_reward();
 
-            share_type get_reputation(const account_name_type& account) const;
-            void update_reputation(const account_name_type& author, const account_name_type& voter, int64_t rshares, bool edit_vote);
-
             /**
              * Helper method to return the current sbd value of a given amount of
              * STEEM.  Return 0 SBD if there isn't a current_median_history

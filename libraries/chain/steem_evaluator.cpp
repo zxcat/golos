@@ -1668,8 +1668,6 @@ namespace golos { namespace chain {
                     });
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
-
-                    _db.update_reputation(o.author, o.voter, (rshares >> 6), false); // Shift away precision. It is noise
                 } else {
                     GOLOS_CHECK_LOGIC(itr->num_changes < STEEMIT_MAX_VOTE_CHANGES,
                             logic_exception::voter_has_used_maximum_vote_changes,
@@ -1777,8 +1775,6 @@ namespace golos { namespace chain {
                     });
 
                     _db.adjust_rshares2(comment, old_rshares, new_rshares);
-
-                    _db.update_reputation(o.author, o.voter, (rshares >> 6), true); // Shift away precision. It is noise
                 }
             } FC_CAPTURE_AND_RETHROW((o))
         }

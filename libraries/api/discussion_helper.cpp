@@ -21,9 +21,11 @@ namespace golos { namespace api {
         impl() = delete;
         impl(
             golos::chain::database& db,
+            std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
             std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
             std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_info)
             : database_(db),
+              fill_reputation_(fill_reputation),
               fill_promoted_(fill_promoted),
               fill_comment_info_(fill_comment_info) {
         }
@@ -64,6 +66,7 @@ namespace golos { namespace api {
 
     private:
         golos::chain::database& database_;
+        std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation_;
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted_;
         std::function<void(const golos::chain::database&, const comment_object&, comment_api_object&)> fill_comment_info_;
     };
@@ -148,7 +151,7 @@ namespace golos { namespace api {
     ) const {
         set_url(d);
 
-        d.author_reputation = database_.get_reputation(d.author);
+        fill_reputation_(database_, d.author, d.author_reputation);
 
         if (d.body.size() > 1024 * 128) {
             d.body = "body pruned due to size";
@@ -211,7 +214,7 @@ namespace golos { namespace api {
             vstate.rshares = itr->vote->rshares;
             vstate.percent = itr->vote->vote_percent;
             vstate.time = itr->vote->last_update;
-            vstate.reputation = database_.get_reputation(vo.name);
+            fill_reputation_(database(), vo.name, vstate.reputation);
             result.emplace_back(std::move(vstate));
         }
         return result;
@@ -330,7 +333,7 @@ namespace golos { namespace api {
 // create_discussion
     discussion discussion_helper::impl::create_discussion(const std::string& author) const {
         auto dis = discussion();
-        dis.author_reputation = database_.get_reputation(author);
+        fill_reputation_(database_, author, dis.author_reputation);
         dis.active = time_point_sec::min();
         dis.last_update = time_point_sec::min();
         return dis;
@@ -352,10 +355,11 @@ namespace golos { namespace api {
 
     discussion_helper::discussion_helper(
         golos::chain::database& db,
+        std::function<void(const golos::chain::database&, const account_name_type&, fc::optional<share_type>&)> fill_reputation,
         std::function<void(const golos::chain::database&, discussion&)> fill_promoted,
         std::function<void(const database&, const comment_object &, comment_api_object&)> fill_comment_info
     ) {
-        pimpl = std::make_unique<impl>(db, fill_promoted, fill_comment_info);
+        pimpl = std::make_unique<impl>(db, fill_reputation, fill_promoted, fill_comment_info);
     }
 
     discussion_helper::~discussion_helper() {}
