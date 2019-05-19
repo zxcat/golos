@@ -11,7 +11,7 @@ namespace golos { namespace plugins { namespace operation_dump {
 
 using namespace golos::plugins::follow;
 
-#define COMMENT_ID(OP) hash_id(std::string(OP.author) + "/" + OP.permlink)
+#define COMMENT_ID(OP) std::string(OP.author) + "/" + OP.permlink
 
 #define TAGS_NUMBER 15
 #define TAG_MAX_LENGTH 512
@@ -31,14 +31,16 @@ public:
             : _buffers(buffers), _block(block), _op_in_block(op_in_block), _db(db) {
     }
 
-    uint64_t hash_id(const std::string& id) {
-        return fc::hash64(id.c_str(), id.length());
+    void id_hash_pack(dump_buffer& b, const std::string& id) {
+        fc::raw::pack(b, fc::hash64(id.c_str(), id.length()));
     }
 
-    dump_buffer& write_op_header(const std::string& file_name, uint64_t op_related_id) {
+    dump_buffer& write_op_header(const std::string& file_name, const std::string& op_related_id = "") {
         auto& b = _buffers[file_name];
         b.write(operation_number(_block.block_num(), _op_in_block));
-        fc::raw::pack(b, op_related_id);
+        if (!op_related_id.empty()) {
+            id_hash_pack(b, op_related_id);
+        }
         return b;
     }
 
@@ -47,10 +49,9 @@ public:
     }
 
     auto operator()(const transfer_operation& op) -> result_type {
-        auto& b = write_op_header("transfers", 0);
+        auto& b = write_op_header("transfers");
 
         fc::raw::pack(b, op);
-
         fc::raw::pack(b, _block.timestamp);
     }
 
@@ -63,10 +64,7 @@ public:
         fc::raw::pack(b, op.permlink);
         fc::raw::pack(b, op.title);
         fc::raw::pack(b, op.body);
-
-        auto meta = golos::plugins::tags::get_metadata(op.json_metadata, TAGS_NUMBER, TAG_MAX_LENGTH);
-        fc::raw::pack(b, meta);
-
+        fc::raw::pack(b, golos::plugins::tags::get_metadata(op.json_metadata, TAGS_NUMBER, TAG_MAX_LENGTH));
         fc::raw::pack(b, _block.timestamp);
     }
 
@@ -91,13 +89,13 @@ public:
     }
 
     auto operator()(const curation_reward_operation& op) -> result_type {
-        auto& b = write_op_header("curation_rewards", hash_id(std::string(op.comment_author) + "/" + op.comment_permlink));
+        auto& b = write_op_header("curation_rewards", std::string(op.comment_author) + "/" + op.comment_permlink);
 
         fc::raw::pack(b, op);
     }
 
     auto operator()(const auction_window_reward_operation& op) -> result_type {
-        auto& b = write_op_header("auction_window_rewards", hash_id(std::string(op.comment_author) + "/" + op.comment_permlink));
+        auto& b = write_op_header("auction_window_rewards", std::string(op.comment_author) + "/" + op.comment_permlink);
 
         fc::raw::pack(b, op);
     }
@@ -108,12 +106,10 @@ public:
         fc::raw::pack(b, op);
     }
 
-
     auto operator()(const vote_rshares_operation& op) -> result_type {
         auto& b = write_op_header("votes", COMMENT_ID(op));
 
         fc::raw::pack(b, op);
-
         fc::raw::pack(b, _block.timestamp);
     }
 
@@ -148,7 +144,7 @@ public:
     }
 
     auto operator()(const follow_operation& op) -> result_type {
-        auto& b = write_op_header("follows", hash_id(std::string(op.follower) + "/" + op.following));
+        auto& b = write_op_header("follows", std::string(op.follower) + "/" + op.following);
 
         fc::raw::pack(b, op.follower);
         fc::raw::pack(b, op.following);
@@ -172,11 +168,7 @@ public:
         fc::raw::pack(b, op.permlink);
         fc::raw::pack(b, op.title); // Usually empty, but no problems to dump
         fc::raw::pack(b, op.body);
-        // Usually it is:
-        // {"app": "golos.io/0.1", "format": "text"}
-        // Not seems to be need
-        //fc::raw::pack(b, op.json_metadata);
-
+        //fc::raw::pack(b, op.json_metadata); // Usually it is: {"app": "golos.io/0.1", "format": "text"} - not seems to be need
         fc::raw::pack(b, _block.timestamp);
     }
 
@@ -186,16 +178,15 @@ public:
         fc::raw::pack(b, op.account);
     }
 
-    // TODO: Remove mandatory hash from header to save 8 bytes on each record
     auto operator()(const account_create_operation& op) -> result_type {
-        auto& b = write_op_header("account_metas", 0);
+        auto& b = write_op_header("account_metas");
 
         fc::raw::pack(b, op.new_account_name);
         fc::raw::pack(b, op.json_metadata);
     }
 
     auto operator()(const account_create_with_delegation_operation& op) -> result_type {
-        auto& b = write_op_header("account_metas", 0);
+        auto& b = write_op_header("account_metas");
 
         fc::raw::pack(b, op.new_account_name);
         fc::raw::pack(b, op.json_metadata);
@@ -206,14 +197,14 @@ public:
             return;
         }
 
-        auto& b = write_op_header("account_metas", 0);
+        auto& b = write_op_header("account_metas");
 
         fc::raw::pack(b, op.account);
         fc::raw::pack(b, op.json_metadata);
     }
 
     auto operator()(const account_metadata_operation& op) -> result_type {
-        auto& b = write_op_header("account_metas", 0);
+        auto& b = write_op_header("account_metas");
 
         fc::raw::pack(b, op.account);
         fc::raw::pack(b, op.json_metadata);
