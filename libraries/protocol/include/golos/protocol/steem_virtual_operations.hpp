@@ -248,22 +248,6 @@ namespace golos { namespace protocol {
             asset curator_reward;
             int64_t net_rshares;
         };
-
-        // Used only in operation_dump-plugin
-        struct vote_rshares_operation : public virtual_operation {
-            vote_rshares_operation() {
-            }
-
-            vote_rshares_operation(const account_name_type& v, const account_name_type& a, const string& p, int16_t w, int64_t r)
-                    : voter(v), author(a), permlink(p), weight(w), rshares(r) {
-            }
-
-            account_name_type voter;
-            account_name_type author;
-            string permlink;
-            int16_t weight;
-            int64_t rshares;
-        };
 } } //golos::protocol
 
 FC_REFLECT((golos::protocol::author_reward_operation), (author)(permlink)(sbd_payout)(steem_payout)(vesting_payout))
@@ -284,4 +268,3 @@ FC_REFLECT((golos::protocol::return_vesting_delegation_operation), (account)(ves
 FC_REFLECT((golos::protocol::producer_reward_operation), (producer)(vesting_shares))
 FC_REFLECT((golos::protocol::delegation_reward_operation), (delegator)(delegatee)(payout_strategy)(vesting_shares))
 FC_REFLECT((golos::protocol::total_comment_reward_operation), (author)(permlink)(author_reward)(benefactor_reward)(curator_reward)(net_rshares))
-FC_REFLECT((golos::protocol::vote_rshares_operation), (voter)(author)(permlink)(weight)(rshares))
