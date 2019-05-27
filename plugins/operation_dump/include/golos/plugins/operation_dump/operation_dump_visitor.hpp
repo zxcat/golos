@@ -1,6 +1,6 @@
 #pragma once
 
-#include <golos/plugins/operation_dump/operation_dump_container.hpp>
+#include <golos/plugins/operation_dump/operation_dump_plugin.hpp>
 #include <golos/protocol/operations.hpp>
 #include <golos/chain/comment_object.hpp>
 #include <golos/plugins/follow/follow_operations.hpp>
@@ -20,15 +20,15 @@ class operation_dump_visitor {
 public:
     using result_type = void;
 
-    dump_buffers& _buffers;
+    operation_dump_plugin& _plugin;
 
     const signed_block& _block;
     uint16_t& _op_in_block;
 
     database& _db;
 
-    operation_dump_visitor(dump_buffers& buffers, const signed_block& block, uint16_t& op_in_block, database& db)
-            : _buffers(buffers), _block(block), _op_in_block(op_in_block), _db(db) {
+    operation_dump_visitor(operation_dump_plugin& plugin, const signed_block& block, uint16_t& op_in_block, database& db)
+            : _plugin(plugin), _block(block), _op_in_block(op_in_block), _db(db) {
     }
 
     void id_hash_pack(dump_buffer& b, const std::string& id) {
@@ -36,7 +36,7 @@ public:
     }
 
     dump_buffer& write_op_header(const std::string& file_name, const std::string& op_related_id = "") {
-        auto& b = _buffers[file_name];
+        auto& b = _plugin.buffers[file_name];
         b.write(operation_number(_block.block_num(), _op_in_block));
         if (!op_related_id.empty()) {
             id_hash_pack(b, op_related_id);
@@ -106,10 +106,15 @@ public:
         fc::raw::pack(b, op);
     }
 
-    auto operator()(const vote_rshares_operation& op) -> result_type {
+    auto operator()(const vote_operation& op) -> result_type {
         auto& b = write_op_header("votes", COMMENT_ID(op));
 
         fc::raw::pack(b, op);
+
+        auto& block_rshares = _plugin.vote_rshares[_block.block_num()];
+        fc::raw::pack(b, block_rshares.front());
+        block_rshares.pop();
+
         fc::raw::pack(b, _block.timestamp);
     }
 
