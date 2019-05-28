@@ -89,6 +89,8 @@ namespace mongo_db {
         result_type operator()(const delegation_reward_operation& op);
         result_type operator()(const auction_window_reward_operation& op);
         result_type operator()(const total_comment_reward_operation& op);
+        result_type operator()(const vote_rshares_operation& op);
+        result_type operator()(const real_delete_comment_operation& op);
 
         void write_global_property_object(const dynamic_global_property_object& dgpo, bool history);
 

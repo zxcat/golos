@@ -68,11 +68,7 @@ public:
         fc::raw::pack(b, _block.timestamp);
     }
 
-    auto operator()(const delete_comment_operation& op) -> result_type {
-        if (_db.find_comment(op.author, op.permlink)) {
-            return;
-        }
-
+    auto operator()(const real_delete_comment_operation& op) -> result_type {
         write_op_header("delete_comments", COMMENT_ID(op));
     }
 
