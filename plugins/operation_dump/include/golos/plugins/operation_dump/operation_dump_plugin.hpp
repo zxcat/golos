@@ -1,17 +1,16 @@
 #pragma once
 
+#include <golos/plugins/operation_dump/operation_dump_container.hpp>
 #include <appbase/plugin.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/operation_notification.hpp>
 #include <golos/plugins/chain/plugin.hpp>
-#include <golos/plugins/operation_dump/operation_dump_container.hpp>
+#include <queue>
 
 namespace golos { namespace plugins { namespace operation_dump {
 
 namespace bpo = boost::program_options;
 using namespace golos::chain;
-
-using block_operations = std::map<uint32_t, std::map<uint32_t, operation>>;
 
 class operation_dump_plugin final : public appbase::plugin<operation_dump_plugin> {
 public:
@@ -31,11 +30,9 @@ public:
 
     static const std::string& name();
 
-    void add_virtual_op(const operation& op, uint32_t block_num);
-
-    block_operations virtual_ops;
-    uint32_t applied_op_in_block = 0;
     dump_buffers buffers;
+    std::map<uint32_t, std::queue<int64_t>> vote_rshares;
+    std::map<uint32_t, std::queue<bool>> not_deleted_comments;
 private:
     class operation_dump_plugin_impl;
 

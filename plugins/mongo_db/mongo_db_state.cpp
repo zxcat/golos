@@ -1931,12 +1931,4 @@ namespace mongo_db {
 
     }
 
-    auto state_writer::operator()(const vote_rshares_operation& op) -> result_type {
-
-    }
-
-    auto state_writer::operator()(const real_delete_comment_operation& op) -> result_type {
-
-    }
-
 }}}

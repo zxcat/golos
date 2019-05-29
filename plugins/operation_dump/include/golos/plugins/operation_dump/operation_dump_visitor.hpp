@@ -1,7 +1,6 @@
 #pragma once
 
 #include <golos/plugins/operation_dump/operation_dump_plugin.hpp>
-#include <golos/plugins/operation_dump/operation_dump_container.hpp>
 #include <golos/protocol/operations.hpp>
 #include <golos/chain/comment_object.hpp>
 #include <golos/plugins/follow/follow_operations.hpp>
@@ -22,13 +21,14 @@ public:
     using result_type = void;
 
     operation_dump_plugin& _plugin;
-    database& _db;
 
     const signed_block& _block;
     uint16_t& _op_in_block;
 
-    operation_dump_visitor(operation_dump_plugin& plugin, database& db, const signed_block& block, uint16_t& op_in_block)
-            : _plugin(plugin), _db(db), _block(block), _op_in_block(op_in_block) {
+    database& _db;
+
+    operation_dump_visitor(operation_dump_plugin& plugin, const signed_block& block, uint16_t& op_in_block, database& db)
+            : _plugin(plugin), _block(block), _op_in_block(op_in_block), _db(db) {
     }
 
     void id_hash_pack(dump_buffer& b, const std::string& id) {
@@ -42,6 +42,14 @@ public:
             id_hash_pack(b, op_related_id);
         }
         return b;
+    }
+
+    template<typename T>
+    T pop_clarification(std::map<uint32_t, std::queue<T>>& clar_map)  {
+        auto& que = clar_map[_block.block_num()];
+        auto value = que.front();
+        que.pop();
+        return value;
     }
 
     template<typename T>
@@ -68,7 +76,11 @@ public:
         fc::raw::pack(b, _block.timestamp);
     }
 
-    auto operator()(const real_delete_comment_operation& op) -> result_type {
+    auto operator()(const delete_comment_operation& op) -> result_type {
+        if (pop_clarification(_plugin.not_deleted_comments)) {
+            return;
+        }
+
         write_op_header("delete_comments", COMMENT_ID(op));
     }
 
@@ -102,10 +114,11 @@ public:
         fc::raw::pack(b, op);
     }
 
-    auto operator()(const vote_rshares_operation& op) -> result_type {
+    auto operator()(const vote_operation& op) -> result_type {
         auto& b = write_op_header("votes", COMMENT_ID(op));
 
         fc::raw::pack(b, op);
+        fc::raw::pack(b, pop_clarification(_plugin.vote_rshares));
         fc::raw::pack(b, _block.timestamp);
     }
 
