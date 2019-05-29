@@ -45,7 +45,7 @@ public:
     }
 
     template<typename T>
-    T pop_clarification(std::map<uint32_t, std::queue<T>>& clar_map)  {
+    T pop_clarification(clarifications<T>& clar_map)  {
         auto& que = clar_map[_block.block_num()];
         auto value = que.front();
         que.pop();

@@ -22,6 +22,15 @@ struct post_operation_clarifier {
     typedef void result_type;
 
     template<typename T>
+    void add_clarification(clarifications<T>& clars, T value) const {
+        clars[_block_num].push(value);
+        // removing forks and rollbacks
+        auto itr = clars.find(_block_num);
+        ++itr;
+        clars.erase(itr, clars.end());
+    }
+
+    template<typename T>
     result_type operator()(const T&) const {
     }
 
@@ -30,13 +39,13 @@ struct post_operation_clarifier {
         const auto& vote_idx = _db.get_index<comment_vote_index, by_comment_voter>();
         auto vote_itr = vote_idx.find(std::make_tuple(comment.id, _db.get_account(op.voter).id));
 
-        _plugin.vote_rshares[_block_num].push(vote_itr->rshares);
+        add_clarification(_plugin.vote_rshares, vote_itr->rshares);
     }
 
     result_type operator()(const delete_comment_operation& op) const {
-        auto not_deleted = _db.find_comment(op.author, op.permlink);
+        auto not_deleted = (_db.find_comment(op.author, op.permlink) != nullptr);
 
-        _plugin.not_deleted_comments[_block_num].push(not_deleted);
+        add_clarification(_plugin.not_deleted_comments, not_deleted);
     }
 };
 
