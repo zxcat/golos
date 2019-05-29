@@ -10,22 +10,13 @@ namespace bfs = boost::filesystem;
 
 using block_operations = std::map<uint32_t, std::vector<operation>>;
 
-void add_virtual_op_to_block(const operation& op, uint32_t block_num, block_operations& virtual_ops) {
-    virtual_ops[block_num].push_back(op);
-
-    // remove ops if there were forks and rollbacks
-    auto itr = virtual_ops.find(block_num);
-    ++itr;
-    virtual_ops.erase(itr, virtual_ops.end());
-}
-
-struct post_operation_visitor {
+struct post_operation_clarifier {
+    operation_dump_plugin& _plugin;
     golos::chain::database& _db;
-    block_operations& _virtual_ops;
     uint32_t _block_num;
 
-    post_operation_visitor(golos::chain::database& db, block_operations& virtual_ops, uint32_t block_num)
-            : _db(db), _virtual_ops(virtual_ops), _block_num(block_num) {
+    post_operation_clarifier(operation_dump_plugin& plugin, golos::chain::database& db, uint32_t block_num)
+            : _plugin(plugin), _db(db), _block_num(block_num) {
     }
 
     typedef void result_type;
@@ -35,25 +26,26 @@ struct post_operation_visitor {
     }
 
     result_type operator()(const vote_operation& op) const {
-        if (_db.is_generating() || _db.is_producing()) {
-            return;
-        }
-
         const auto& comment = _db.get_comment(op.author, op.permlink);
         const auto& vote_idx = _db.get_index<comment_vote_index, by_comment_voter>();
         auto vote_itr = vote_idx.find(std::make_tuple(comment.id, _db.get_account(op.voter).id));
 
-        add_virtual_op_to_block(vote_rshares_operation(op.voter, op.author, op.permlink, op.weight, vote_itr->rshares), _block_num, _virtual_ops);
+        _plugin.vote_rshares[_block_num].push(vote_itr->rshares);
     }
 };
 
 class operation_dump_plugin::operation_dump_plugin_impl final {
 public:
-    operation_dump_plugin_impl()
-            : _db(appbase::app().get_plugin<golos::plugins::chain::plugin>().db()) {
+    operation_dump_plugin_impl(operation_dump_plugin& self)
+            : _plugin(self), _db(appbase::app().get_plugin<golos::plugins::chain::plugin>().db()) {
     }
 
     ~operation_dump_plugin_impl() {
+    }
+
+    void erase_block(uint32_t block_num) {
+        virtual_ops.erase(block_num);
+        _plugin.vote_rshares.erase(block_num);
     }
 
     void on_block(const signed_block& block) {
@@ -68,7 +60,7 @@ public:
             try {
                 uint16_t op_in_block = 0;
 
-                operation_dump_visitor op_visitor(buffers, *block, op_in_block, _db);
+                operation_dump_visitor op_visitor(_plugin, *block, op_in_block, _db);
 
                 for (const auto& trx : block->transactions) {
                     for (const auto& op : trx.operations) {
@@ -82,17 +74,17 @@ public:
                     ++op_in_block;
                 }
             } catch (...) {
-                virtual_ops.erase(block_num);
+                erase_block(block_num);
                 start_block = block_num+1;
                 throw;
             }
 
-            virtual_ops.erase(block_num);
+            erase_block(block_num);
         }
 
         start_block = lib+1;
 
-        for (auto& it : buffers) {
+        for (auto& it : _plugin.buffers) {
             bfs::create_directories(operation_dump_dir);
             dump_file file(operation_dump_dir / it.first);
             if (file.tellp() == 0) {
@@ -100,17 +92,22 @@ public:
             }
             file << it.second.rdbuf();
         }
-        buffers.clear();
+        _plugin.buffers.clear();
     }
 
     void on_operation(const operation_notification& note) {
         if (is_virtual_operation(note.op)) {
-            add_virtual_op_to_block(note.op, note.block, virtual_ops);
-            return;
+            virtual_ops[note.block].push_back(note.op);
+            // remove ops if there were forks and rollbacks
+            auto itr = virtual_ops.find(note.block);
+            ++itr;
+            virtual_ops.erase(itr, virtual_ops.end());
+        } else if (!_db.is_generating() && !_db.is_producing()) {
+            note.op.visit(post_operation_clarifier(_plugin, _db, note.block));
         }
-
-        note.op.visit(post_operation_visitor(_db, virtual_ops, note.block));
     }
+
+    operation_dump_plugin& _plugin;
 
     database& _db;
 
@@ -119,7 +116,6 @@ public:
     uint32_t start_block = 1;
 
     block_operations virtual_ops;
-    dump_buffers buffers;
 };
 
 operation_dump_plugin::operation_dump_plugin() = default;
@@ -141,7 +137,7 @@ void operation_dump_plugin::set_program_options(bpo::options_description& cli, b
 void operation_dump_plugin::plugin_initialize(const bpo::variables_map& options) {
     ilog("Initializing operation dump plugin");
 
-    my = std::make_unique<operation_dump_plugin::operation_dump_plugin_impl>();
+    my = std::make_unique<operation_dump_plugin::operation_dump_plugin_impl>(*this);
 
     auto odd = options.at("operation-dump-dir").as<bfs::path>();
     if (odd.is_relative()) {

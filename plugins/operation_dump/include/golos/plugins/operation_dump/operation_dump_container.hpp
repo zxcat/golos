@@ -1,6 +1,8 @@
 #pragma once
 
+#include <sstream>
 #include <boost/filesystem/fstream.hpp>
+#include <fc/io/raw.hpp>
 
 namespace golos { namespace plugins { namespace operation_dump {
 

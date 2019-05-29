@@ -1,9 +1,11 @@
 #pragma once
 
+#include <golos/plugins/operation_dump/operation_dump_container.hpp>
 #include <appbase/plugin.hpp>
 #include <golos/chain/database.hpp>
 #include <golos/chain/operation_notification.hpp>
 #include <golos/plugins/chain/plugin.hpp>
+#include <queue>
 
 namespace golos { namespace plugins { namespace operation_dump {
 
@@ -28,6 +30,8 @@ public:
 
     static const std::string& name();
 
+    dump_buffers buffers;
+    std::map<uint32_t, std::queue<int64_t>> vote_rshares;
 private:
     class operation_dump_plugin_impl;
 
