@@ -30,15 +30,6 @@ struct post_operation_visitor {
         _plugin.applied_op_in_block++;
         _plugin.add_virtual_op(vote_rshares_operation(op.voter, op.author, op.permlink, op.weight, vote_itr->rshares), _block_num);
     }
-
-    result_type operator()(const delete_comment_operation& op) const {
-        if (_db.find_comment(op.author, op.permlink)) {
-            return;
-        }
-
-        _plugin.applied_op_in_block++;
-        _plugin.add_virtual_op(real_delete_comment_operation(op.author, op.permlink), _block_num);
-    }
 };
 
 class operation_dump_plugin::operation_dump_plugin_impl final {

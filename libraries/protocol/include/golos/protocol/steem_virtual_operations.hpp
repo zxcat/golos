@@ -264,19 +264,6 @@ namespace golos { namespace protocol {
             int16_t weight;
             int64_t rshares;
         };
-
-        // Used only in operation_dump-plugin
-        struct real_delete_comment_operation : public virtual_operation {
-            real_delete_comment_operation() {
-            }
-
-            real_delete_comment_operation(const account_name_type& a, const string& p)
-                    : author(a), permlink(p) {
-            }
-
-            account_name_type author;
-            string permlink;
-        };
 } } //golos::protocol
 
 FC_REFLECT((golos::protocol::author_reward_operation), (author)(permlink)(sbd_payout)(steem_payout)(vesting_payout))
@@ -298,4 +285,3 @@ FC_REFLECT((golos::protocol::producer_reward_operation), (producer)(vesting_shar
 FC_REFLECT((golos::protocol::delegation_reward_operation), (delegator)(delegatee)(payout_strategy)(vesting_shares))
 FC_REFLECT((golos::protocol::total_comment_reward_operation), (author)(permlink)(author_reward)(benefactor_reward)(curator_reward)(net_rshares))
 FC_REFLECT((golos::protocol::vote_rshares_operation), (voter)(author)(permlink)(weight)(rshares))
-FC_REFLECT((golos::protocol::real_delete_comment_operation), (author)(permlink))
