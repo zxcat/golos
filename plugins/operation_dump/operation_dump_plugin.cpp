@@ -32,6 +32,12 @@ struct post_operation_clarifier {
 
         _plugin.vote_rshares[_block_num].push(vote_itr->rshares);
     }
+
+    result_type operator()(const delete_comment_operation& op) const {
+        auto not_deleted = _db.find_comment(op.author, op.permlink);
+
+        _plugin.not_deleted_comments[_block_num].push(not_deleted);
+    }
 };
 
 class operation_dump_plugin::operation_dump_plugin_impl final {
@@ -46,6 +52,7 @@ public:
     void erase_block(uint32_t block_num) {
         virtual_ops.erase(block_num);
         _plugin.vote_rshares.erase(block_num);
+        _plugin.not_deleted_comments.erase(block_num);
     }
 
     void on_block(const signed_block& block) {

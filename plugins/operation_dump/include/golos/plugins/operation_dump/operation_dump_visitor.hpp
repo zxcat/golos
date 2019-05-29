@@ -45,6 +45,14 @@ public:
     }
 
     template<typename T>
+    T pop_clarification(std::map<uint32_t, std::queue<T>>& clar_map)  {
+        auto& que = clar_map[_block.block_num()];
+        auto value = que.front();
+        que.pop();
+        return value;
+    }
+
+    template<typename T>
     auto operator()(const T&) -> result_type {
     }
 
@@ -69,7 +77,7 @@ public:
     }
 
     auto operator()(const delete_comment_operation& op) -> result_type {
-        if (_db.find_comment(op.author, op.permlink)) {
+        if (pop_clarification(_plugin.not_deleted_comments)) {
             return;
         }
 
@@ -110,11 +118,7 @@ public:
         auto& b = write_op_header("votes", COMMENT_ID(op));
 
         fc::raw::pack(b, op);
-
-        auto& block_rshares = _plugin.vote_rshares[_block.block_num()];
-        fc::raw::pack(b, block_rshares.front());
-        block_rshares.pop();
-
+        fc::raw::pack(b, pop_clarification(_plugin.vote_rshares));
         fc::raw::pack(b, _block.timestamp);
     }
 

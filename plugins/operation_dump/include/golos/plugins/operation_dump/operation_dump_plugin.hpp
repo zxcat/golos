@@ -32,6 +32,7 @@ public:
 
     dump_buffers buffers;
     std::map<uint32_t, std::queue<int64_t>> vote_rshares;
+    std::map<uint32_t, std::queue<bool>> not_deleted_comments;
 private:
     class operation_dump_plugin_impl;
 
