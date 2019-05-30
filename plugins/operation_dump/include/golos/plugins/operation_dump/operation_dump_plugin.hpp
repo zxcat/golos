@@ -12,6 +12,9 @@ namespace golos { namespace plugins { namespace operation_dump {
 namespace bpo = boost::program_options;
 using namespace golos::chain;
 
+template<typename T>
+using clarifications = std::map<uint32_t, std::queue<T>>;
+
 class operation_dump_plugin final : public appbase::plugin<operation_dump_plugin> {
 public:
     APPBASE_PLUGIN_REQUIRES((chain::plugin))
@@ -31,8 +34,8 @@ public:
     static const std::string& name();
 
     dump_buffers buffers;
-    std::map<uint32_t, std::queue<int64_t>> vote_rshares;
-    std::map<uint32_t, std::queue<bool>> not_deleted_comments;
+    clarifications<int64_t> vote_rshares;
+    clarifications<bool> not_deleted_comments;
 private:
     class operation_dump_plugin_impl;
 
