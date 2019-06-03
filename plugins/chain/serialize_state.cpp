@@ -1,20 +1,13 @@
 #include "serialize_state.hpp"
 #include <golos/plugins/chain/plugin.hpp>
-
 #include <golos/chain/steem_object_types.hpp>
 #include <golos/chain/steem_objects.hpp>
 #include <golos/chain/account_object.hpp>
 #include <golos/chain/comment_object.hpp>
-#include <golos/chain/proposal_object.hpp>
-#include <golos/chain/transaction_object.hpp>
-#include <golos/chain/block_summary_object.hpp>
-// #include <golos/plugins/follow/follow_objects.hpp>
-
 #include <boost/filesystem/fstream.hpp>
 #include <fc/crypto/sha256.hpp>
 
 #define ID_T unsigned_int
-// #define ID_T uint32_t
 
 namespace golos { namespace custom_pack {
 
@@ -84,12 +77,12 @@ void pack(S& s, const golos::chain::comment_object& c) {
     fc::raw::pack(s, c.parent_permlink);
     fc::raw::pack(s, c.author);
     fc::raw::pack(s, c.permlink);
-    fc::raw::pack(s, c.mode);
+    fc::raw::pack(s, unsigned_int(c.depth));
+    fc::raw::pack(s, unsigned_int(c.children));
+    fc::raw::pack(s, uint8_t(c.mode));
     if (c.mode != golos::chain::comment_mode::archived) {
         fc::raw::pack(s, c.created);
         fc::raw::pack(s, c.last_payout);
-        fc::raw::pack(s, c.depth);
-        fc::raw::pack(s, c.children);
         fc::raw::pack(s, c.children_rshares2);
         fc::raw::pack(s, c.net_rshares);
         fc::raw::pack(s, c.abs_rshares);
@@ -112,6 +105,17 @@ void pack(S& s, const golos::chain::comment_object& c) {
         fc::raw::pack(s, c.curation_rewards_percent);
         fc::raw::pack(s, c.beneficiaries);
     }
+}
+
+// store only consensus data of savings_withdraw_object
+template<typename S>
+void pack(S& s, const golos::chain::savings_withdraw_object& w) {
+    fc::raw::pack(s, w.from);
+    fc::raw::pack(s, w.to);
+    fc::raw::pack(s, std::string());    // store empty string instead of memo
+    fc::raw::pack(s, w.request_id);
+    fc::raw::pack(s, w.amount);
+    fc::raw::pack(s, w.complete);
 }
 
 }} // fc::raw
@@ -171,30 +175,34 @@ private:
 struct state_header {
     char magic[12] = "Golos\astatE";
     uint32_t version;
+    uint32_t block_num = 0;
 };
 struct table_header {
     uint32_t type_id;
     uint32_t records_count;
 };
 
-template<typename Idx>
-void serialize_table(const database& db, ofstream_sha256& out) {
+template<typename Idx, typename Lambda1, typename Lambda2>
+void serialize_table(const database& db, ofstream_sha256& out, Lambda1&& fix_hdr, Lambda2&& check_item) {
     auto start = fc::time_point::now();
     size_t n = 0, l = 0;
     uint32_t min = -1, max = 0;
 
     const auto& generic = db.get_index<Idx>();
     const auto& indices = generic.indicies();
+    const auto& idx = indices.template get<by_id>();
     table_header hdr({chainbase::generic_index<Idx>::value_type::type_id, static_cast<uint32_t>(indices.size())});
+    fix_hdr(hdr, idx);
     wlog("Saving ${name}, ${n} record(s), type: ${t}",
         ("name", generic.name())("n", hdr.records_count)("t", hdr.type_id));
     out.write(hdr);
 
-    const auto& idx = indices.template get<by_id>();
     auto itr = idx.begin();
     auto etr = idx.end();
     for (; itr != etr; itr++) {
         auto& item = *itr;
+        if (!check_item(item))
+            continue;
         auto data = fc::raw::pack(item);
         auto sz = data.size();
         if (sz < min) min = sz;
@@ -209,6 +217,23 @@ void serialize_table(const database& db, ofstream_sha256& out) {
         ("t", double((end - start).count()) / 1000000.0));
 }
 
+void serialize_vote_table(const database& db, ofstream_sha256& out) {
+    serialize_table<comment_vote_index>(db, out, [](auto& hdr, auto& idx) {
+        auto itr = idx.begin();
+        auto etr = idx.end();
+        int bad = 0;
+        for (; itr != etr; itr++) {
+            auto& item = *itr;
+            if (item.num_changes < 0) {
+                bad++;
+            }
+        }
+        hdr.records_count -= bad;
+    }, [](const auto& item) {
+        return item.num_changes >= 0;
+    });
+}
+
 
 void plugin::serialize_state(const bfs::path& output) {
     // can't throw here, because if will be false-detected as db opening error, which can kill state
@@ -219,59 +244,51 @@ void plugin::serialize_state(const bfs::path& output) {
         wlog("Serializing state to ${dst}", ("dst",output.string()));
         auto& db_ = db();
         auto hdr = state_header{};
-        hdr.version = 1;//db_.index_list_size();
-        out.write(hdr);
+        hdr.version = 2;
 
         for (auto i = db_.index_list_begin(), e = db_.index_list_end(); e != i; ++i) {
             auto idx = *i;
+            if (hdr.block_num == 0)
+                hdr.block_num = idx->revision();
             ilog("index `${i}` (rev:${r}, type:${t}) contains ${l} records",
                 ("i",idx->name())("l",idx->size())("r",idx->revision())("t",idx->type_id()));
         }
+        out.write(hdr);
         ilog("---------------------------------------------------------------------------");
 
-#define STORE(T) serialize_table<T>(db_, out);
+#define STORE(T) serialize_table<T>(db_, out, [](auto& h, auto& i){}, [](const auto& i){return true;});
         STORE(account_index);
         STORE(account_authority_index);
         STORE(account_bandwidth_index);
         STORE(dynamic_global_property_index);
         STORE(witness_index);
-        //STORE(transaction_index);
-        STORE(block_summary_index);
+        // STORE(transaction_index);                    // not needed
+        // STORE(block_summary_index);                  // not needed
         STORE(witness_schedule_index);
         custom_pack::_current_str_type = custom_pack::permlink;
         STORE(comment_index);
-        STORE(comment_vote_index);
+        serialize_vote_table(db_, out);
         custom_pack::_current_str_type = custom_pack::other;
         STORE(witness_vote_index);
         STORE(limit_order_index);
-        // STORE(feed_history_index);
+        // STORE(feed_history_index);                   // not needed
         STORE(convert_request_index);
-        STORE(liquidity_reward_balance_index);
+        // STORE(liquidity_reward_balance_index);       // not supported
         // STORE(hardfork_property_index);
         STORE(withdraw_vesting_route_index);
-        STORE(owner_authority_history_index);
-        STORE(account_recovery_request_index);
+        // STORE(owner_authority_history_index);        // not needed
+        // STORE(account_recovery_request_index);       // not needed
         STORE(change_recovery_account_request_index);
         STORE(escrow_index);
         STORE(savings_withdraw_index);
-        STORE(decline_voting_rights_request_index);
+        // STORE(decline_voting_rights_request_index);  // not supported
         STORE(vesting_delegation_index);
         STORE(vesting_delegation_expiration_index);
         // custom_pack::_current_str_type = custom_pack::meta;
-        STORE(account_metadata_index);
+        // STORE(account_metadata_index);               // not needed
         // custom_pack::_current_str_type = custom_pack::other;
-        // STORE(proposal_index);
-        // STORE(required_approval_index);
-
-        // STORE(golos::plugins::follow::follow_index);
-        // STORE(golos::plugins::follow::feed_index);
-        // STORE(golos::plugins::follow::blog_index);
-        // STORE(golos::plugins::follow::reputation_index);
-        // STORE(golos::plugins::follow::follow_count_index);
-        // STORE(golos::plugins::follow::blog_author_stats_index);
-        // STORE(golos::plugins::social_network::comment_content_index);
-        // STORE(golos::plugins::social_network::comment_last_update_index);
-        // STORE(golos::plugins::social_network::comment_reward_index);
+        // STORE(proposal_index);                       // not supported
+        // STORE(required_approval_index);              // not supported
 #undef STORE
 
         auto end = fc::time_point::now();
