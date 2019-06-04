@@ -110,6 +110,7 @@ void pack(S& s, const golos::chain::comment_object& c) {
 // store only consensus data of savings_withdraw_object
 template<typename S>
 void pack(S& s, const golos::chain::savings_withdraw_object& w) {
+    fc::raw::pack(s, w.id);
     fc::raw::pack(s, w.from);
     fc::raw::pack(s, w.to);
     fc::raw::pack(s, std::string());    // store empty string instead of memo
